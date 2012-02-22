@@ -1,5 +1,3 @@
-
-
-from vumi.workers.ttc.workers import (TtcGenericWorker)
+from workers import (TtcGenericWorker)
 
 __all__ = ['TtcGenericWorker']

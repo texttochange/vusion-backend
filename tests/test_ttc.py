@@ -1,4 +1,3 @@
-
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import inlineCallbacks
 
@@ -12,7 +11,7 @@ from datetime import datetime, time, date, timedelta
 from vumi.tests.utils import get_stubbed_worker
 from vumi.message import Message
 
-from vumi.workers.ttc import TtcGenericWorker
+from vusion import TtcGenericWorker
 
 from vumi.message import TransportUserMessage
 
@@ -46,7 +45,7 @@ class FakeUserMessage(TransportUserMessage):
         kw['transport_metadata'] = {}
         super(FakeUserMessage, self).__init__(**kw)
 
-class TestTtcGenericWorker(TestCase):
+class TtcGenericWorkerTestCase(TestCase):
     
     configControl = """
     {"program":{
@@ -218,7 +217,7 @@ class TestTtcGenericWorker(TestCase):
         config = json.loads(self.configControl)
         dNow = datetime.now()
         dPast1 = datetime.now() - timedelta(minutes = 30)
-        dPast2 = datetime.now() + timedelta(minutes = 60)
+        dPast2 = datetime.now() - timedelta(minutes = 60)
         
         activeScript = {"script":{"do":"something"},
                   "activated":1,

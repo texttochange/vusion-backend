@@ -1,4 +1,4 @@
-# -*- test-case-name: vumi.workers.ttc.tests.test_ttc -*-
+# -*- test-case-name: tests.test_ttc -*-
 
 import sys
 
