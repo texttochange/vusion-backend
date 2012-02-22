@@ -1,0 +1,8 @@
+/_trial_temp/
+*.egg-info
+/ve/
+*.py[co]
+*.log
+*.pid
+*.err
+pip-log.txt
