@@ -6,7 +6,7 @@ from twisted.web import http
 from twisted.web.resource import Resource
 
 from vumi.transports.tests.test_base import TransportTestCase
-from transport import YoUgHttpTransport
+from transports import YoUgHttpTransport
 from vumi.tests.utils import get_stubbed_worker, TestResourceWorker
 from vumi.message import from_json
 

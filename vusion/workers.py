@@ -3,7 +3,7 @@
 import sys
 
 from twisted.python import log
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import (inlineCallbacks, Deferred)
 from twisted.enterprise import adbapi
 from twisted.internet import task
 
@@ -79,6 +79,7 @@ class TtcGenericWorker(ApplicationWorker):
 
     @inlineCallbacks
     def startWorker(self):
+        self._d = Deferred()
         log.msg("One Generic Worker is starting")
         super(TtcGenericWorker, self).startWorker()
         self.control_consumer = yield self.consume(
