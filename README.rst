@@ -1,7 +1,7 @@
-vxPolls
+Vusion backend
 =======
 
-Simple PollManager, ResultsManager and PollResultsDashboardServer. 
+Vusion backend based on Vumi by Praekelt foundation. It include the TtcGenericWorker, TtcDispatcher and specific transport. 
 
 Installation
 ------------
@@ -15,17 +15,13 @@ Installation
 Running
 -------
 
-Update `xmpp.yaml` with your GTalk account details and run the following:
+Update `*.yaml` with your aggregator account details and run the following:
 
 ::
 
 	$ source ve/bin/activate
 	$ supervisord
 
-That will run the necessary processes. Run `supervisorctl` to manage the individual processes.
-Your GTalk account should come online, send it a message to start the poll.
-
-You'll find more instructions for dashboards at http://localhost:8101/dashboard/index.html
 
 Tests
 -----
