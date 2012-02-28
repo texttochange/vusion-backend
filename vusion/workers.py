@@ -7,9 +7,6 @@ from twisted.internet.defer import (inlineCallbacks, Deferred)
 from twisted.enterprise import adbapi
 from twisted.internet import task
 
-#from twistar.dbobject import DBObject
-#from twistar.registry import Registry
-
 import pymongo
 
 from datetime import datetime, time, date, timedelta
@@ -18,55 +15,6 @@ from vumi.application import ApplicationWorker
 from vumi.message import Message, TransportUserMessage
 from vumi.application import SessionManager
 
-#from vumi.database.base import setup_db, get_db, close_db, UglyModel
-
-#class ParticipantModel(UglyModel):
-    #TABLE_NAME = 'participant_items'
-    #fields = (
-        #('id', 'SERIAL PRIMARY KEY'),
-        #('phone_number','int8 UNIQUE NOT NULL'),
-        #)
-    #indexes = ('phone_number',)
-
-    #@classmethod
-    #def get_items(cls, txn):
-        #items = cls.run_select(txn,'')
-        #if items:
-            #items[:] = [cls(txn,*item) for item in items]
-            #return items
-            ##return cls(txn, *items[0])
-        #return None
-
-    #@classmethod
-    #def create_item(cls, txn, number):
-        #params = {'phone_number': number}
-        #txn.execute(cls.insert_values_query(**params),params)
-        #txn.execute("SELECT lastval()")
-        #return txn.fetchone()[0]
-
-#Models#
-#CREATE TABLE dialogues (id SERIAL PRIMARY KEY, name VARCHAR(50),type VARCHAR(20)) 
-#CREATE TABLE interactions (id SERIAL PRIMARY KEY, name VARCHAR, content VARCHAR(50), schedule_type VARCHAR(30), dialogue_id INT)
-#CREATE TABLE schedules (id SERIAL PRIMARY KEY, type VARCHAR(30), interaction_id INT)
-#CREATE TABLE participants (id SERIAL PRIMARY KEY, phone INT, name VARCHAR(50))
-
-#Model Relations#
-#class Dialogue(DBObject):
-    #HASMANY=['interactions']
-
-#class Interaction(DBObject):
-    #BELONGSTO=['dialogue']
-
-#class Schedule(DBObject):
-    #BELONGSTO=['interaction']
-
-#class Participant(DBObject):
-    #pass
-
-#class SentMessage(DBObject):
-    #HASMANY=['participants']
-
-#Registry.register(Dialogue, Interaction, Participant, SentMessage)
 
 class TtcGenericWorker(ApplicationWorker):
 
@@ -95,29 +43,13 @@ class TtcGenericWorker(ApplicationWorker):
         #some basic local recording
         self.record = []
 
-        # Try to access database with Ugly model
-        #self.setup_db = setup_db(ParticipantModel)
-        #self.db = setup_db('test', database='test',
-        #         user='vumi',
-        #         password='vumi',
-        #         host='localhost')
-        #self.db.runQuery('SELECT 1')
-
         # Try to Access Redis
         #self.redis = SessionManager(db=0, prefix="test")
 
-        # Try to Access relational database with twistar
-        #Registry.DBPOOL = adbapi.ConnectionPool('psycopg2', "dbname=test host=localhost user=vumi password=vumi")
-        #yield Registry.DBPOOL.runQuery("SELECT 1").addCallback(self.databaseAccessSuccess)
-
-        # Try to Access Document database with pymongo
-        #connection = pymongo.Connection("localhost",27017)
-        #self.db = connection[self.config['database']]
-
-        #log.msg("Connected to dababase %s" % self.config['database'])
-
         self.sender = None
         self.program_name = None
+        
+        self._d.callback(None)
 
     def consume_user_message(self, message):
         log.msg("User message: %s" % message['content'])
