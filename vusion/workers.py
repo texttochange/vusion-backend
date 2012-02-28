@@ -24,10 +24,16 @@ class TtcGenericWorker(ApplicationWorker):
     def databaseAccessFailure(self, failure):
         log.msg("Databasee Access Succeed %s" % failure)
 
+    def __init__(self, *args, **kwargs):
+        super(TtcGenericWorker, self).__init__(*args, **kwargs)
+        #self.startService()
 
+    def startService(self):
+        self._d = Deferred()
+        super(TtcGenericWorker, self).startService()
+        
     @inlineCallbacks
     def startWorker(self):
-        self._d = Deferred()
         log.msg("One Generic Worker is starting")
         super(TtcGenericWorker, self).startWorker()
         self.control_consumer = yield self.consume(

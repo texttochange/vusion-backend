@@ -166,6 +166,7 @@ class TtcGenericWorkerTestCase(TestCase):
         self.collection_schedules.drop()
         
         #Let's rock"
+        self.worker.startService()
         yield self.worker.startWorker()
     
     @inlineCallbacks

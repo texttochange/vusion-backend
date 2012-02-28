@@ -25,7 +25,7 @@ class VusionMultiWorkerTestCase(TestCase):
         pass
         
     
-    @inlineCallbacks
+    #@inlineCallbacks
     def tearDown(self):
         yield self.worker.stopService()
         #TtcGenericWorker.events[:] = []
