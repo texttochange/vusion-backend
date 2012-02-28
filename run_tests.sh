@@ -13,6 +13,7 @@ subunit2junitxml <results.txt >test_results.xml
 rm results.txt
 echo "=== Processing coverage data..."
 coverage xml
+coverage html
 echo "=== Checking for PEP-8 violations..."
 pep8 --repeat --exclude='migrations' vusion | tee pep8.txt
 echo "=== Done."
