@@ -17,5 +17,5 @@ coverage xml
 coverage html
 echo "=== Checking for PEP-8 violations..."
 rm pep8.txt
-pep8 --repeat --exclude='migrations' vusion | tee pep8.txt
+pep8 --repeat --exclude='migrations' vusion transports | tee pep8.txt
 echo "=== Done."
