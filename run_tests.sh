@@ -9,7 +9,7 @@ echo "=== Erasing previous coverage data..."
 rm test_results.xml
 coverage erase
 echo "=== Running trial tests..."
-coverage run --include='vusion/*','tansports/*' `which trial` --reporter=subunit tests | tee results.txt | subunit2pyunit
+coverage run --include='vusion/*','transports/*' `which trial` --reporter=subunit tests | tee results.txt | subunit2pyunit
 subunit2junitxml <results.txt >test_results.xml
 rm results.txt
 echo "=== Processing coverage data..."
