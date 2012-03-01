@@ -110,9 +110,9 @@ class ReceiveSMSResource(Resource):
              transport_name = self.transport_name,
                 transport_type = 'sms',
                 message_id = 'abc',
-                to_addr = request.args['code'],
-                from_addr = normalize_msisdn(request.args['sender']),
-                content = request.args['message'],
+                to_addr = request.args['code'][0],
+                from_addr = request.args['sender'][0],
+                content = request.args['message'][0],
                 transport_metadata = {}
         )
         request.finish()
