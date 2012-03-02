@@ -57,8 +57,25 @@ class TtcGenericWorker(ApplicationWorker):
         
         self._d.callback(None)
 
+    #TODO from the keyword link to the corresponding dialogue/interaction
     def consume_user_message(self, message):
         log.msg("User message: %s" % message['content'])
+        self.save_status(message_content = message['content'], 
+                         participant_phone = message['from_addr'],
+                         message_type = 'received')
+
+    def save_status(self, message_content, participant_phone, message_type,
+                    message_status = None, timestamp = datetime.now(), 
+                    dialogue_id = None, interaction_id = None):
+        self.collection_status.save({
+            'message-content' : message_content,
+            'participant-phone' : participant_phone,
+            'message-type' : message_type,
+            'message-status' : message_status,
+            'timestamp': timestamp,
+            'dialogue-id': dialogue_id,
+            'interaction-id': interaction_id
+            })
 
     def get_current_script(self):
         for script in self.collection_scripts.find({"activated":1}).sort("modified",pymongo.DESCENDING).limit(1):
@@ -124,32 +141,6 @@ class TtcGenericWorker(ApplicationWorker):
             #session = self.redis.load_session("program")
             #log.msg("Message stored and retrieved %s" % session.get('name'))
 
-            #UglyModel#
-            #self.db.runInteraction(ParticipantModel.create_item,68473)        
-            #name = program.get('name')
-            #group = program.get('group',{})
-            #number = group.get('number')
-            #log.msg("Control message %s to be add %s" % (number,name))
-
-            #Twistar#                
-            #def failure(error):
-                #log.msg("failure while saving %s" %error)
-
-            #if(program.get('dialogues')):
-                #yield self.saveDialoguesDB(program.get('dialogues'))
-            #if(program.get('participants')):
-                #yield self.saveParticipantsDB(program.get('participants'))
-        
-        #elif (message.get('participants')):
-            #program = self.db.programs.find_one({"name":self.program_name})
-            #if 'participants' in program: 
-                #program['participants'] = program['participants'] + message.get('participants')
-            #else:
-                #program['participants'] = message.get('participants')
-            #self.db.programs.save(program)
-            #self.record.append(('config',message))
-            #yield self.saveParticipantsDB(message.get("participants"))
-
         elif (message.get('action')=='resume' or message.get('action')=='start'):
             log.msg("Getting an action: "+message['action'])
             #self.init_program_db(message.get('content'))
@@ -193,11 +184,12 @@ class TtcGenericWorker(ApplicationWorker):
                                                   'content':interaction['content']
                                                   })
                 yield self.transport_publisher.publish_message(message);
-                self.collection_status.save({"datetime":datetime.now().isoformat(),
-                                           "message":message.payload,
-                                           "participant-phone": toSend['participant-phone'],
-                                           "dialogue-id": toSend['dialogue-id'],
-                                           "interaction-id": toSend['interaction-id']})
+                self.save_status(message_content = message['content'],
+                                  participant_phone = toSend['participant-phone'],
+                                  message_type = 'send',
+                                  timestamp = datetime.now().isoformat(),
+                                  dialogue_id =  toSend['dialogue-id'],
+                                  interaction_id = toSend['interaction-id'])
             except:
                 log.msg("Error while getting schedule reference, scheduled message dumpted: %s - %s" % (toSend['dialogue-id'],toSend['interaction-id']))
                 log.msg("Exception is %s" % sys.exc_info()[0])
@@ -270,11 +262,11 @@ class TtcGenericWorker(ApplicationWorker):
                    #Scheduling a date already in the past is forbidden. 
                     if (sendingDateTime < datetime.now() and 
                         datetime.now() - sendingDateTime > timedelta(minutes=10)): 
-                        self.collection_status.save({"datetime": datetime.now().isoformat(),
-                                                 "type": "schedule-fail",
-                                                 "participant-phone": participant['phone'], 
-                                                 "dialogue-id": dialogue['dialogue-id'], 
-                                                 "interaction-id": interaction["interaction-id"]})
+                        self.save_status(message_content = 'Not generated yet',
+                                         participant_phone = participant['phone'],
+                                         message_type = 'schedule-fail',
+                                         dialogue_id = dialogue['dialogue-id'], 
+                                         interaction_id = interaction["interaction-id"])                                        
                         continue
                     
                     schedule["datetime"] = sendingDateTime.isoformat()[:19]
@@ -286,47 +278,8 @@ class TtcGenericWorker(ApplicationWorker):
                     log.msg("Scheduling exception with time: %s" % interaction)
                     log.msg("Exception is %s" % sys.exc_info()[0])
             else:
-                previousSendDateTime = datetime.strptime(status["datetime"],"%Y-%m-%dT%H:%M:%S.%f")
+                previousSendDateTime = datetime.strptime(status["timestamp"],"%Y-%m-%dT%H:%M:%S.%f")
         return schedules
             #schedules.save(schedule)
 
-    #Deprecated
-    @inlineCallbacks
-    def saveParticipantsDB(self, participants):
-        log.msg("received a list of phone")
-        for participant in participants:
-            oParticipant = yield Participant.find(where=['phone = ?', participant.get('phone')],limit=1)
-            if (oParticipant == None):
-                oParticipant = yield Participant(phone=participant.get('phone'),
-                                                 name=participant.get('name')).save()
-            else:
-                #if (participant.get('name')):
-                oParticipant.name = participant.get('name')
-                yield oParticipant.save()
-
-    #Deprecated
-    @inlineCallbacks
-    def saveDialoguesDB(self, dialogues):
-        for dialogue in dialogues:
-            #oDialogue = yield Dialogue(name=dialogue.get('name'),type=dialogue.get('type')).save().addCallback(onDialogueSave,dialogue.get('interactions')).addErrback(failure)
-            oDialogue = yield Dialogue.find(where=['name = ?',dialogue.get('name')], limit=1)
-            if (oDialogue==None):
-                oDialogue = yield Dialogue(name=dialogue.get('name'),type=dialogue.get('type')).save().addErrback(failure)
-            else:
-                oDialogue.name = dialogue.get('name')
-                yield oDialogue.save()
-            for interaction in dialogue.get('interactions'):
-                if interaction.get('type')== "announcement":
-                    oInteraction = yield Interaction.find(where=['name = ?',interaction.get('name')], limit=1)
-                    if (oInteraction==None):
-                        oInteraction = yield Interaction(content=interaction.get('content'),
-                                                         name=interaction.get('name'),
-                                                         schedule_type=interaction.get('schedule-type'), 
-                                                         dialogue_id=oDialogue.id).save().addErrback(failure)
-                    else:
-                        oInteraction.content = interaction.get('content')
-                        oInteraction.name = interaction.get('name')
-                        oInteraction.schedule_type=interaction.get('schedule-type')
-                        yield oInteraction.save()
-                    #yield Schedule(type=interaction.get("schedule_type"),
-                                    #interaction_id=oInteraction.id).save()
+   

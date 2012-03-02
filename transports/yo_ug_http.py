@@ -106,15 +106,19 @@ class ReceiveSMSResource(Resource):
         log.msg('got hit with %s' % request.args)
         request.setResponseCode(http.OK)
         request.setHeader('Content-Type', 'text/plain')
-        yield self.publish_func(
-             transport_name = self.transport_name,
-                transport_type = 'sms',
-                message_id = 'abc',
-                to_addr = request.args['code'][0],
-                from_addr = request.args['sender'][0],
-                content = request.args['message'][0],
-                transport_metadata = {}
-        )
+        try:
+            yield self.publish_func(
+                 transport_name = self.transport_name,
+                    transport_type = 'sms',
+                    message_id = 'abc',
+                    to_addr = request.args['code'][0],
+                    from_addr = request.args['sender'][0],
+                    content = request.args['message'][0],
+                    transport_metadata = {}
+            )
+        except Exception, e:
+            request.setResponseCode(http.INTERNAL_SERVER_ERROR)
+            log.msg("Error processing the request: %s" % (request,))
         request.finish()
         
     def render(self, request):

@@ -6,35 +6,11 @@ import json
 
 from datetime import datetime, time, date, timedelta
 
-#from vumi.database.tests.test_base import UglyModelTestCase
-#from vumi.workers.ttc.workers import ParticipantModel
-from vumi.tests.utils import get_stubbed_worker
-from vumi.message import Message
+from vumi.tests.utils import get_stubbed_worker, UTCNearNow, RegexMatcher
+from vumi.message import Message, TransportEvent, TransportUserMessage
 
 from vusion import TtcGenericWorker
-
-from vumi.message import TransportUserMessage
-
-#class ParticipantModelTest(UglyModelTestCase):
-    
-    #def setUp(self):
-        #return self.setup_db(ParticipantModel)
-    
-    #def tearDown(self):
-        #return self.shutdown_db()
-    
-    
-    #def test_create_and_get_item(self):
-        #self.assertTrue(True)
-#        def _txn(txn):
-#            self.assertEqual(0, ParticipantModel.count_rows(txn))
-#            ParticipantModel.create_item(txn,445654332)
-#            self.assertEqual(1, ParticipantModel.count_rows(txn))
-#            participant = ParticipantModel.get_items(txn)
-#            self.assertEqual(445654332, participant[0].phone_number)
-#        d = self.ri(_txn)
-        
-#        return d
+from transports import YoUgHttpTransport
 
 class FakeUserMessage(TransportUserMessage):
     def __init__(self, **kw):
@@ -44,6 +20,7 @@ class FakeUserMessage(TransportUserMessage):
         kw['transport_type'] = 'fake'
         kw['transport_metadata'] = {}
         super(FakeUserMessage, self).__init__(**kw)
+
 
 class TtcGenericWorkerTestCase(TestCase):
     
@@ -142,9 +119,10 @@ class TtcGenericWorkerTestCase(TestCase):
     def setUp(self):
         self.transport_name = 'test'
         self.control_name = 'mycontrol'
+        self.database_name = 'test'
         self.config = {'transport_name': self.transport_name,
-                       'database': 'test',
-                       'control_name':'mycontrol'}
+                       'database': self.database_name,
+                       'control_name': self.control_name}
         self.worker = get_stubbed_worker(TtcGenericWorker,
                                          config=self.config)        
         self.broker = self.worker._amqp_client.broker
@@ -187,17 +165,22 @@ class TtcGenericWorkerTestCase(TestCase):
             routing_key = "%s.%s" % (self.transport_name, routing_suffix)
         self.broker.publish_message('vumi', routing_key, msg)
         yield self.broker.kick_delivery()
- 
-    #@inlineCallbacks
-    #def test_consume_user_message(self):
-        #self.assertTrue(True)
-        #messages = [
-            #('user_message', FakeUserMessage()),
-            #('new_session', FakeUserMessage(session_event=SESSION_NEW)),
-            #('close_session', FakeUserMessage(session_event=SESSION_CLOSE)),
-            #]
-        #for name, message in messages:
-            #yield self.send(message,"outbound")
+    
+    def save_status(self, message_content = "hello world", 
+                    participant_phone = "256", 
+                    message_type = "send",
+                    message_status = "delivered",
+                    timestamp = datetime.now(), dialogue_id = None,
+                    interaction_id = None):
+        self.collection_status.save({
+            'message-content' : message_content,
+            'participant-phone' : participant_phone,
+            'message-type' : message_type,
+            'message-status' : message_status,
+            'timestamp': timestamp,
+            'dialogue-id': dialogue_id,
+            'interaction-id': interaction_id
+            })
     
     @inlineCallbacks
     def test01_consume_control_program(self):
@@ -362,10 +345,10 @@ class TtcGenericWorkerTestCase(TestCase):
         self.collection_scripts.save(script)
         self.collection_participants.save(participant)
         self.worker.init_program_db(config['program']['database-name'])
-        self.collection_status.save({"datetime":dPast.isoformat(),
-                                   "participant-phone":"06",
-                                   "interaction-id": "0",
-                                   "dialogue-id": "0"});
+        self.save_status(timestamp = dPast.isoformat(),
+                         participant_phone = "06",
+                         interaction_id = "0",
+                         dialogue_id = "0")
                 
         #Starting the test
         schedules = self.worker.schedule_participant_dialogue(participant, script['script']['dialogues'][0])
@@ -398,10 +381,10 @@ class TtcGenericWorkerTestCase(TestCase):
                                        "dialogue-id": "0"});
 
         #Declare collection for loging messages
-        self.collection_status.save({"datetime":dPast.isoformat(),
-                                   "participant-phone":"06",
-                                   "interaction-id": "0",
-                                   "dialogue-id": "0"});
+        self.save_status(timestamp = dPast.isoformat(),
+                         participant_phone = "06",
+                         interaction_id = "0",
+                         dialogue_id = "0")
                 
         #Starting the test
         schedules = self.worker.schedule_participant_dialogue(participant, script['script']['dialogues'][0])
@@ -434,10 +417,10 @@ class TtcGenericWorkerTestCase(TestCase):
                                        "dialogue-id": "0"});
 
         #Declare collection for loging messages
-        self.collection_status.save({"datetime":dLaterPast.isoformat(),
-                                       "participant-phone":"06",
-                                       "interaction-id": "0",
-                                       "dialogue-id": "0"});
+        self.save_status(timestamp = dLaterPast.isoformat(),
+                         participant_phone = "06",
+                         interaction_id = "0",
+                         dialogue_id = "0")
                 
         #Starting the test
         yield self.send(event,'control')
@@ -464,9 +447,10 @@ class TtcGenericWorkerTestCase(TestCase):
         self.collection_participants.save(participant)
         self.worker.init_program_db(config['program']['database-name'])   
         
-        #starting test
+        #action
         self.worker.schedule_participant_dialogue(participant, script['script']['dialogues'][0])
         
+        #asserting
         self.assertEqual(self.collection_schedules.count(), 1)
         schedule = self.collection_schedules.find_one()
         schedule_datetime = datetime.strptime(schedule['datetime'],"%Y-%m-%dT%H:%M:%S")
@@ -475,11 +459,31 @@ class TtcGenericWorkerTestCase(TestCase):
         self.assertEquals(schedule_datetime.minute, dFuture.minute)
         
 
-    #@inlineCallbacks
-    #def test10_scheduled_but_tim(self):
-        #self.assertTrue(False)
+    @inlineCallbacks
+    def test10_receive_message(self):
+        event = FakeUserMessage(content='Hello World')
+
+        connection = pymongo.Connection("localhost",27017)
+        self.db = connection[self.config['database']]
+        self.collection_scripts = self.db.create_collection("scripts")
+        self.collection_participants = self.db.create_collection("participants")
         
-    def test11_generate_question(self):
+        self.worker.init_program_db(self.database_name)
+        
+        #action
+        yield self.send(event, 'inbound')
+        
+        #asserting
+        self.assertEqual(self.collection_status.count(), 1)
+        status = self.collection_status.find_one()
+        self.assertEqual(status['message-content'], 'Hello World')
+        self.assertEqual(status['message-type'], 'received')
+        
+    def test13_received_ack_delivered(self):
+        pass
+        
+    
+    def test12_generate_question(self):
         self.assertTrue(False)
     
     #@inlineCallbacks    
