@@ -1,0 +1,3 @@
+[submodule "etc/config"]
+	path = etc/config
+	url = https://overnin@github.com/texttochange/vusion-configuration.git
