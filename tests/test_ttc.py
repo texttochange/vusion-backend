@@ -345,7 +345,7 @@ class TtcGenericWorkerTestCase(TestCase):
         self.collection_scripts.save(script)
         self.collection_participants.save(participant)
         self.worker.init_program_db(config['program']['database-name'])
-        self.save_status(timestamp = dPast.isoformat(),
+        self.save_status(timestamp = dPast.isoformat()[:19],
                          participant_phone = "06",
                          interaction_id = "0",
                          dialogue_id = "0")
@@ -375,13 +375,13 @@ class TtcGenericWorkerTestCase(TestCase):
         self.collection_participants.save(participant)
         self.worker.init_program_db(config['program']['database-name'])   
         #Declare collection for scheduling messages
-        self.collection_schedules.save({"datetime":dFuture.isoformat(),
+        self.collection_schedules.save({"datetime":dFuture.isoformat()[:19],
                                        "participant-phone": "06",
                                        "interaction-id": "1",
                                        "dialogue-id": "0"});
 
         #Declare collection for loging messages
-        self.save_status(timestamp = dPast.isoformat(),
+        self.save_status(timestamp = dPast.isoformat()[:19],
                          participant_phone = "06",
                          interaction_id = "0",
                          dialogue_id = "0")
@@ -411,13 +411,13 @@ class TtcGenericWorkerTestCase(TestCase):
         self.worker.init_program_db(config['program']['database-name'])   
 
         #Declare collection for scheduling messages
-        self.collection_schedules.save({"datetime":dPast.isoformat(),
+        self.collection_schedules.save({"datetime":dPast.isoformat()[:19],
                                        "participant-phone": "06",
                                        "interaction-id": "0",
                                        "dialogue-id": "0"});
 
         #Declare collection for loging messages
-        self.save_status(timestamp = dLaterPast.isoformat(),
+        self.save_status(timestamp = dLaterPast.isoformat()[:19],
                          participant_phone = "06",
                          interaction_id = "0",
                          dialogue_id = "0")
@@ -479,13 +479,33 @@ class TtcGenericWorkerTestCase(TestCase):
         self.assertEqual(status['message-content'], 'Hello World')
         self.assertEqual(status['message-type'], 'received')
         
-    def test13_received_ack_delivered(self):
-        pass
-        
-    
     def test12_generate_question(self):
         self.assertTrue(False)
     
+    def test13_received_ack_delivered(self):
+        self.assertTrue(False)
+        
+    def test14_bound_incoming_message_with_script(self):
+        self.assertTrue(False)
+        
+    def test15_schedule_process_handle_crap_in_history(self):
+        config = json.loads(self.configControl)
+        script = json.loads(self.simpleScript)
+        participant = {"phone":"06"}
+        
+        #The collections have to be created before initializing worker's database
+        self.collection_scripts.save(script)
+        self.collection_participants.save(participant)
+        self.worker.init_program_db(config['program']['database-name'])
+        
+        self.save_status(participant_phone = "06",
+                         interaction_id = None,
+                         dialogue_id = None)
+        
+        schedules = self.worker.schedule_participant_dialogue(participant, script['script']['dialogues'][0])
+        #assert time calculation
+        self.assertEqual(len(schedules), 2)
+        
     #@inlineCallbacks    
     #def test12_2dialogues_updated_2message_scheduled(self):
         #self.assertTrue(False)

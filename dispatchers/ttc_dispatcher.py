@@ -22,7 +22,7 @@ class ContentKeywordRouter(BaseDispatchRouter):
             self.mappings.append((name, keyword))
             
     def dispatch_inbound_message(self, msg):
-        log.msg('Message to route')
+        log.msg('Inbound message')
         keyword = msg['content'].split()[0]
         for name, application in self.mappings:
             if (keyword == application):
@@ -31,4 +31,29 @@ class ContentKeywordRouter(BaseDispatchRouter):
     
     def dispatch_inbound_event(self, msg):
         log.msg("Event to root but not implemented")
-        raise NotImplementedError()
+        #raise NotImplementedError()
+        
+    def dispatch_outbound_message(self, msg):
+        log.msg("Outbound message")
+        name = self.config['transport_names'][0]
+        self.dispatcher.transport_publisher[name].publish_message(msg)
+
+
+class DummyDispatcher(object):
+
+    class DummyPublisher(object):
+        def __init__(self):
+            self.msgs = []
+
+        def publish_message(self, msg):
+            self.msgs.append(msg)
+
+    def __init__(self, config):
+        self.transport_publisher = {}
+        for transport in config['transport_names']:
+            self.transport_publisher[transport] = self.DummyPublisher()
+        self.exposed_publisher = {}
+        self.exposed_event_publisher = {}
+        for exposed in config['exposed_names']:
+            self.exposed_publisher[exposed] = self.DummyPublisher()
+            self.exposed_event_publisher[exposed] = self.DummyPublisher()

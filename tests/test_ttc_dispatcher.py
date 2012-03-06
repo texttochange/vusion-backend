@@ -35,7 +35,7 @@ class MessageMakerMixIn(object):
 
     def mkmsg_out(self, transport_name, content='hello world', **kw):
         msg_kw = dict(
-            to_addr='+41791234567',
+            to_addr='41791234567',
             from_addr='9292',
             transport_name=transport_name,
             transport_type='sms',
@@ -52,6 +52,7 @@ class TestContentKeywordRouter(TestCase, MessageMakerMixIn):
         self.config = {
             'transport_names': ['transport1'],
             'exposed_names': ['m4h', 'mrs'],
+            'router_class': 'dispatchers.ContentKeywordRouter',
             'keyword_mappings': {
                 'm4h': 'BT',
                 'mrs': 'LOVE'
@@ -60,17 +61,23 @@ class TestContentKeywordRouter(TestCase, MessageMakerMixIn):
         self.dispatcher = DummyDispatcher(self.config)
         self.router = ContentKeywordRouter(self.dispatcher, self.config)
         
-    def test_dispatch_inbound_message(self):
+    def test01_dispatch_inbound_message(self):
         msg = self.mkmsg_in(content='BT rest of a msg', transport_name='transport1')
         self.router.dispatch_inbound_message(msg)
         publishers = self.dispatcher.exposed_publisher
         self.assertEqual(publishers['m4h'].msgs, [msg])
     
-    def test_dispatch_ack_event(self):
+    def test02_dispatch_ack_event(self):
         msg = self.mkmsg_ack(content='LOVE is in the air', transport_name='transport1')
         self.router.dispatch_inbound_event(msg)
         publishers = self.dispatcher.exposed_publisher
         self.assertEqual(publishers['mrs'].msgs, [msg])
+        
+    def test03_dispatch_outbound_message(self):
+        msg = self.mkmsg_out(content="BT rest of msg", transport_name='transport1')
+        self.router.dispatch_outbound_message(msg)
+        publishers = self.dispatcher.transport_publisher
+        self.assertEqual(publishers['transport1'].msgs, [msg])
         
 class DummyDispatcher(object):
 

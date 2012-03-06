@@ -18,11 +18,11 @@ from vumi.application import SessionManager
 
 class TtcGenericWorker(ApplicationWorker):
 
-    def databaseAccessSuccess(self, result):
-        log.msg("Databasee Access Succeed %s" %result)
+    #def databaseAccessSuccess(self, result):
+        #log.msg("Databasee Access Succeed %s" %result)
 
-    def databaseAccessFailure(self, failure):
-        log.msg("Databasee Access Succeed %s" % failure)
+    #def databaseAccessFailure(self, failure):
+        #log.msg("Databasee Access Succeed %s" % failure)
 
     def __init__(self, *args, **kwargs):
         super(TtcGenericWorker, self).__init__(*args, **kwargs)
@@ -56,10 +56,18 @@ class TtcGenericWorker(ApplicationWorker):
         self.program_name = None
         
         self._d.callback(None)
+        
+        if  (('database_name' in self.config) and self.config['database_name']):
+            self.init_program_db(self.config['database_name'])
+            #start looping process of the scheduler
+            if (self.sender == None):
+                self.sender = task.LoopingCall(self.daemon_process)
+                self.sender.start(60.0)
+
 
     #TODO from the keyword link to the corresponding dialogue/interaction
     def consume_user_message(self, message):
-        log.msg("User message: %s" % message['content'])
+        self.worker_log("User message: %s" % message['content'])
         self.save_status(message_content = message['content'], 
                          participant_phone = message['from_addr'],
                          message_type = 'received')
@@ -72,7 +80,7 @@ class TtcGenericWorker(ApplicationWorker):
             'participant-phone' : participant_phone,
             'message-type' : message_type,
             'message-status' : message_status,
-            'timestamp': timestamp,
+            'timestamp': timestamp.isoformat()[:19],
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id
             })
@@ -80,13 +88,13 @@ class TtcGenericWorker(ApplicationWorker):
     def get_current_script(self):
         for script in self.collection_scripts.find({"activated":1}).sort("modified",pymongo.DESCENDING).limit(1):
             return script['script']
-        log.msg("Fatal Error: no active script found on in the database")
+        self.worker_log("Fatal Error: no active script found on in the database")
         
 
     def init_program_db(self, database_name):
-        log.msg("Initialization of the program")
+        self.worker_log("Initialization of the program")
         self.database_name = database_name
-        log.msg("Connecting to database: %s"% self.database_name)
+        self.worker_log("Connecting to database: %s"% self.database_name)
         
         #Initilization of the database
         connection = pymongo.Connection("localhost",27017)
@@ -95,14 +103,14 @@ class TtcGenericWorker(ApplicationWorker):
         #Declare collection for retriving script
         collection_scripts_name = "scripts"
         if not(collection_scripts_name in self.db.collection_names()):
-            log.msg("Error collection not initialized: %s"% collection_scripts_name)
+            self.worker_log("Error collection not initialized: %s"% collection_scripts_name)
             raise Exception("Collection error", collection_scripts_name)
         self.collection_scripts = self.db[collection_scripts_name]
         
         #Declare collection for retriving participants
         collection_participants_name = "participants"
         if not(collection_participants_name in self.db.collection_names()):
-            log.msg("Error collection not initialized: %s"% collection_participants_name)
+            self.worker_log("Error collection not initialized: %s"% collection_participants_name)
             raise Exception("Collection error", collection_participants_name)
         self.collection_participants = self.db[collection_participants_name]
         
@@ -122,12 +130,12 @@ class TtcGenericWorker(ApplicationWorker):
 
     #@inlineCallbacks
     def consume_control(self, message):
-        log.msg("Control message!")
+        self.worker_log("Control message!")
         #data = message.payload['data']
         #self.record.append(('config',message))
         if (message.get('program')):
             program = message['program']
-            log.msg("Receive a config message: %s" % program['name'])
+            self.worker_log("Receive a config message: %s" % program['name'])
             #MongoDB#
             self.init_program_db(program['database-name'])
             #self.db.programs.save(program)
@@ -142,30 +150,39 @@ class TtcGenericWorker(ApplicationWorker):
             #log.msg("Message stored and retrieved %s" % session.get('name'))
 
         elif (message.get('action')=='resume' or message.get('action')=='start'):
-            log.msg("Getting an action: "+message['action'])
+            self.worker_log("Getting an action: "+message['action'])
             #self.init_program_db(message.get('content'))
             #reconstruct the scheduling by replaying all the program for each participant
             self.collection_schedules.remove()
-            script = self.get_current_script()
+            
+        #start looping process of the scheduler
+        if (self.sender == None):
+            self.sender = task.LoopingCall(self.daemon_process)
+            self.sender.start(30.0)
+    
+
+    def dispatch_event(self, message):
+        self.worker_log("Event message!")
+
+    @inlineCallbacks
+    def daemon_process(self):
+        self.worker_log('Starting daemon_process()')
+        self.schedule()
+        yield self.send_scheduled()
+
+    def schedule(self):
+        self.worker_log('Starting schedule()')
+        script = self.get_current_script()
+        if (script and ('dialogues' in script)):
             self.schedule_participants_dialogue(
                 self.collection_participants.find(),
                 script['dialogues'][0])
-            
 
-        #start looping process of the scheduler
-        if (self.sender == None):
-            self.sender = task.LoopingCall(self.send_scheduled)
-            self.sender.start(30.0)
-
-
-    def dispatch_event(self, message):
-        log.msg("Event message!")
-
-    #TODO: fire error feedback if the dialogue do not exit anymore
+    #TODO: fire error feedback if the ddialogue do not exit anymore
     #TODO: if dialogue is deleted, need to remove the scheduled message (or they are also canceled if cannot find the dialogue)
     @inlineCallbacks
     def send_scheduled(self):
-        log.msg('Sending Scheduled message start')
+        self.worker_log('Starting send_scheduled()')
         #if (self.program_name == None):
             #log.msg("Error scheduling starting but worker is not yet initialized")
             #return
@@ -175,24 +192,26 @@ class TtcGenericWorker(ApplicationWorker):
             program = self.get_current_script()
             try:
                 interaction = self.get_interaction(program, toSend['dialogue-id'], toSend['interaction-id'])
-                log.msg("Send scheduled message %s to %s" % (interaction['content'], toSend['participant-phone'])) 
-                message = TransportUserMessage(**{'from_addr':program['shortcode'],
-                                                  'to_addr':toSend.get('participant-phone'),
-                                                  'transport_name':self.transport_name,
-                                                  'transport_type':self.transport_type,
-                                                  'transport_metadata':'',
-                                                  'content':interaction['content']
+                self.worker_log("Send scheduled message %s to %s" % (interaction['content'], toSend['participant-phone'])) 
+                #TODO change hard coded shortcode for the one stored in the settings
+                message = TransportUserMessage(**{'from_addr': '8282',
+                                                  'to_addr': toSend.get('participant-phone'),
+                                                  'transport_name': self.transport_name,
+                                                  'transport_type': self.transport_type,
+                                                  'transport_metadata': '',
+                                                  'content': interaction['content']
                                                   })
                 yield self.transport_publisher.publish_message(message);
                 self.save_status(message_content = message['content'],
                                   participant_phone = toSend['participant-phone'],
                                   message_type = 'send',
-                                  timestamp = datetime.now().isoformat(),
+                                  timestamp = datetime.now(),
                                   dialogue_id =  toSend['dialogue-id'],
                                   interaction_id = toSend['interaction-id'])
-            except:
-                log.msg("Error while getting schedule reference, scheduled message dumpted: %s - %s" % (toSend['dialogue-id'],toSend['interaction-id']))
-                log.msg("Exception is %s" % sys.exc_info()[0])
+            except Exception as e:
+                self.worker_log("Error while getting schedule reference, scheduled message dumpted: %s - %s" % (toSend['dialogue-id'],toSend['interaction-id']))
+                self.worker_log("Exception is %s" % sys.exc_info()[0])
+                self.worker_log("Exception is %s" % e)
     
     #MongoDB do not support fetching a subpart of an array
     #may not be necessary in the near future
@@ -273,13 +292,14 @@ class TtcGenericWorker(ApplicationWorker):
                     schedules.append(schedule)
                     previousSendDateTime = sendingDateTime
                     self.collection_schedules.save(schedule)
-                    log.msg("Schedule has been saved: %s" % schedule);
+                    self.worker_log("Schedule has been saved: %s" % schedule);
                 except:
-                    log.msg("Scheduling exception with time: %s" % interaction)
-                    log.msg("Exception is %s" % sys.exc_info()[0])
+                    self.worker_log("Scheduling exception with time: %s" % interaction)
+                    self.worker_log("Exception is %s" % sys.exc_info()[0])
             else:
-                previousSendDateTime = datetime.strptime(status["timestamp"],"%Y-%m-%dT%H:%M:%S.%f")
+                previousSendDateTime = datetime.strptime(status["timestamp"],"%Y-%m-%dT%H:%M:%S")
         return schedules
             #schedules.save(schedule)
 
-   
+    def worker_log(self, something):
+        log.msg('[%s] %s' % (self.control_name, something))

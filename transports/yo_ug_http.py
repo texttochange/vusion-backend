@@ -26,9 +26,8 @@ class YoUgHttpTransport(Transport):
     def setup_transport(self):
         self._resources = [];
         log.msg("Setup yo transport %s" % self.config)
-        #self.config.setdefault('receive_path', '/yo')
         resources = [
-            self.mkres(ReceiveSMSResource, self.publish_message, '/receive')
+            self.mkres(ReceiveSMSResource, self.publish_message, self.config['receive_path'])
             ]
         self.receipt_resource = yield self.start_web_resources(
             resources, self.config['receive_port'])
@@ -97,6 +96,7 @@ class ReceiveSMSResource(Resource):
     isLeaf = True
     
     def __init__(self, config, publish_func):
+        log.msg("Init ReceiveSMSResource %s" % (config))
         self.config = config
         self.publish_func = publish_func
         self.transport_name = self.config['transport_name']
