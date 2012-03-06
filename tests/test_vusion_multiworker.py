@@ -6,8 +6,17 @@ from vumi.multiworker import MultiWorker
 from vumi.tests.utils import StubbedWorkerCreator, get_stubbed_worker
 from vusion import VusionMultiWorker, TtcGenericWorker
 
+
+class StubbedVusionMultiWorker(VusionMultiWorker):
+   def WORKER_CREATOR(self, options):
+      worker_creator = StubbedWorkerCreator(options)
+      worker_creator.broker = self._amqp_client.broker
+      return worker_creator
+
+   def wait_for_workers(self):
+      return DeferredList([w._d for w in self.workers]) 
+
 class VusionMultiWorkerTestCase(TestCase):
-    
     timeout = 3
     
     base_config = {
@@ -32,7 +41,7 @@ class VusionMultiWorkerTestCase(TestCase):
         
     @inlineCallbacks
     def get_multiwoker(self, config):
-        self.worker = get_stubbed_worker(VusionMultiWorker, config)
+        self.worker = get_stubbed_worker(StubbedVusionMultiWorker, config)
         self.worker.startService()
         self.broker = self.worker._amqp_client.broker
         yield self.worker.wait_for_workers()
