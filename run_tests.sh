@@ -18,4 +18,7 @@ coverage html
 echo "=== Checking for PEP-8 violations..."
 rm pep8.txt
 pep8 --repeat --exclude='migrations' vusion transports | tee pep8.txt
+echo "=== Preparing to start supervisord"
+chmod 777 -R tmp/
+chmod 777 -R logs/
 echo "=== Done."
