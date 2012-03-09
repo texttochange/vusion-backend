@@ -103,16 +103,20 @@ class TtcGenericWorker(ApplicationWorker):
         #Declare collection for retriving script
         collection_scripts_name = "scripts"
         if not(collection_scripts_name in self.db.collection_names()):
-            self.worker_log("Error collection not initialized: %s"% collection_scripts_name)
-            raise Exception("Collection error", collection_scripts_name)
-        self.collection_scripts = self.db[collection_scripts_name]
+            #self.worker_log("Error collection not initialized: %s"% collection_scripts_name)
+            #raise Exception("Collection error", collection_scripts_name)
+            self.collection_scripts = self.db.create_collection(collection_scripts_name)
+        else:
+            self.collection_scripts = self.db[collection_scripts_name]
         
         #Declare collection for retriving participants
         collection_participants_name = "participants"
         if not(collection_participants_name in self.db.collection_names()):
-            self.worker_log("Error collection not initialized: %s"% collection_participants_name)
-            raise Exception("Collection error", collection_participants_name)
-        self.collection_participants = self.db[collection_participants_name]
+            #self.worker_log("Error collection not initialized: %s"% collection_participants_name)
+            #raise Exception("Collection error", collection_participants_name)
+            self.collection_participants = self.db.create_collection(collection_participants_name)
+        else:
+            self.collection_participants = self.db[collection_participants_name]
         
         #Declare collection for scheduling messages
         collection_schedules_name = "schedules"
