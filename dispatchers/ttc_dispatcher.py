@@ -1,6 +1,10 @@
 # -*- tst-case-name tests.test_ttc_dispatcher
 
+import redis
+
 from twisted.python import log
+
+#from vumi.utils import get_deploy_int
 
 from vumi.dispatchers.base import BaseDispatchRouter 
 
@@ -20,6 +24,8 @@ class ContentKeywordRouter(BaseDispatchRouter):
         self.mappings = []
         for name, keyword in self.config['keyword_mappings'].items():
             self.mappings.append((name, keyword))
+        
+        self.r_server = redis.Redis("localhost", db='0')
             
     def dispatch_inbound_message(self, msg):
         log.msg('Inbound message')
@@ -30,13 +36,19 @@ class ContentKeywordRouter(BaseDispatchRouter):
                 self.dispatcher.exposed_publisher[name].publish_message(msg)
     
     def dispatch_inbound_event(self, msg):
-        log.msg("Event to root but not implemented")
-        #raise NotImplementedError()
+        log.msg("Inbound event")
+        name = self.r_server.get(msg['user_message_id'])
+        try:
+            log.msg('Event is routed to %s' %(name,))
+            self.dispatcher.exposed_publisher[name].publish_message(msg)
+        except:
+            log.msg("Error unable to dispatch event to %s" % (name,))
         
     def dispatch_outbound_message(self, msg):
         log.msg("Outbound message")
         name = self.config['transport_names'][0]
         self.dispatcher.transport_publisher[name].publish_message(msg)
+        self.r_server.set(msg['message_id'], msg['transport_name'])
 
 
 class DummyDispatcher(object):

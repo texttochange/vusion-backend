@@ -3,6 +3,7 @@
 from twisted.trial.unittest import TestCase
 
 from vumi.message import TransportUserMessage, TransportEvent
+from vumi.tests.utils import FakeRedis
 
 from dispatchers import ContentKeywordRouter
 
@@ -60,18 +61,35 @@ class TestContentKeywordRouter(TestCase, MessageMakerMixIn):
             }
         self.dispatcher = DummyDispatcher(self.config)
         self.router = ContentKeywordRouter(self.dispatcher, self.config)
+        self.router.r_server = FakeRedis()
         
+    def tearDown(self):
+        self.router.r_server.teardown()
+    
     def test01_dispatch_inbound_message(self):
         msg = self.mkmsg_in(content='BT rest of a msg', transport_name='transport1')
         self.router.dispatch_inbound_message(msg)
         publishers = self.dispatcher.exposed_publisher
         self.assertEqual(publishers['m4h'].msgs, [msg])
     
-    def test02_dispatch_ack_event(self):
+    def test02_dispatch_ack_event_ok(self):
         msg = self.mkmsg_ack(content='LOVE is in the air', transport_name='transport1')
+        self.router.r_server.set(msg['user_message_id'],'mrs')
+        
         self.router.dispatch_inbound_event(msg)
+        
         publishers = self.dispatcher.exposed_publisher
         self.assertEqual(publishers['mrs'].msgs, [msg])
+    
+    def test02_dispatch_ack_event_fail_publisher_not_defined(self):
+        msg = self.mkmsg_ack(content='LOVE is in the air', transport_name='transport1')
+        
+        self.router.dispatch_inbound_event(msg)
+        
+        publishers = self.dispatcher.exposed_publisher
+        self.assertEqual(publishers['mrs'].msgs, [])
+        self.assertEqual(publishers['m4h'].msgs, [])
+    
         
     def test03_dispatch_outbound_message(self):
         msg = self.mkmsg_out(content="BT rest of msg", transport_name='transport1')
