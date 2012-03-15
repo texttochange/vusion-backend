@@ -181,6 +181,20 @@ class TtcGenericWorkerTestCase(TestCase):
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id
             })
+
+    def mkmsg_ack(self, event_type='ack', user_message_id='1', 
+                  send_message_id='abc', transport_name=None, 
+                  transport_metadata=None):
+        if transport_metadata is None:
+            transport_metadata = {}
+        params = dict(
+            event_type=event_type,
+            user_message_id=user_message_id,
+            sent_message_id=send_message_id,
+            transport_name=transport_name,
+            transport_metadata=transport_metadata,
+            )
+        return TransportEvent(**params)
     
     @inlineCallbacks
     def test01_consume_control_program(self):
@@ -481,9 +495,29 @@ class TtcGenericWorkerTestCase(TestCase):
         
     def test12_generate_question(self):
         self.assertTrue(False)
-    
+
+    @inlineCallbacks
     def test13_received_ack_delivered(self):
-        self.assertTrue(False)
+        event = self.mkmsg_ack()
+	
+	self.collection_status.save({
+	    'message-id': event['user_message_id'],
+	    'message-type': 'send',
+	    'message-status': 'pending'
+	    })
+	
+	connection = pymongo.Connection("localhost",27017)
+        self.db = connection[self.config['database']]
+        self.collection_scripts = self.db.create_collection("scripts")
+        self.collection_participants = self.db.create_collection("participants")
+	self.worker.init_program_db(self.database_name)
+        	
+	yield self.send(event, 'event')
+
+	status = self.collection_status.find_one({
+	    'message-id': event['user_message_id']})
+	
+	self.assertEqual('delivered', status['message-status'])
         
     def test14_bound_incoming_message_with_script(self):
         self.assertTrue(False)

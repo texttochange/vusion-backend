@@ -73,8 +73,8 @@ class TtcGenericWorker(ApplicationWorker):
                          message_type = 'received')
 
     def save_status(self, message_content, participant_phone, message_type,
-                    message_status = None, timestamp = datetime.now(), 
-                    dialogue_id = None, interaction_id = None):
+                    message_status=None, message_id=None, timestamp=datetime.now(), 
+                    dialogue_id=None, interaction_id=None):
         self.collection_status.save({
             'message-content' : message_content,
             'participant-phone' : participant_phone,
@@ -143,12 +143,6 @@ class TtcGenericWorker(ApplicationWorker):
                 #self.schedule_participants_dialogue(program['participants'], 
                                                     #self.get_dialogue(program,"0"))
 
-            #Redis#
-            #self.redis.create_session("program")
-            #self.redis.save_session("program", program)
-            #session = self.redis.load_session("program")
-            #log.msg("Message stored and retrieved %s" % session.get('name'))
-
         elif (message.get('action')=='resume' or message.get('action')=='start'):
             self.worker_log("Getting an action: "+message['action'])
             #self.init_program_db(message.get('content'))
@@ -163,6 +157,11 @@ class TtcGenericWorker(ApplicationWorker):
 
     def dispatch_event(self, message):
         self.worker_log("Event message!")
+        status = self.collection_status.find_one({
+            'message-id': message['user_message_id']
+        })
+        status['message-status'] = 'delivered'
+        self.collection_status.save(status)
 
     @inlineCallbacks
     def daemon_process(self):
@@ -205,6 +204,8 @@ class TtcGenericWorker(ApplicationWorker):
                 self.save_status(message_content = message['content'],
                                   participant_phone = toSend['participant-phone'],
                                   message_type = 'send',
+                                  message_status = 'pending',
+                                  message_id = message['message_id'],
                                   timestamp = datetime.now(),
                                   dialogue_id =  toSend['dialogue-id'],
                                   interaction_id = toSend['interaction-id'])
