@@ -48,6 +48,20 @@ class TestContentKeywordRouter(DispatcherTestCase):
         self.fake_redis.teardown()
         super(TestContentKeywordRouter, self).tearDown()
 
+    def mkmsg_ack(self, event_type='ack', user_message_id='1',
+                  send_message_id='abc', transport_name=None,
+                  transport_metadata=None):
+        if transport_metadata is None:
+            transport_metadata = {}
+        params = dict(
+            event_type=event_type,
+            user_message_id=user_message_id,
+            sent_message_id=send_message_id,
+            transport_name=transport_name,
+            transport_metadata=transport_metadata,
+            )
+        return TransportEvent(**params)
+
     @inlineCallbacks
     def test_inbound_message_routing(self):
         msg = self.mkmsg_in(content='KEYWORD1 rest of a msg',

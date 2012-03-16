@@ -21,5 +21,5 @@ pep8 --repeat --exclude='migrations' vusion transports dispatchers tests | tee p
 echo "=== Preparing to start supervisord"
 chmod 777 -R tmp/
 chmod 777 -R logs/
-rm logs/
+rm logs/*
 echo "=== Done."
