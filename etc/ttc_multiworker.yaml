@@ -1,0 +1,16 @@
+workers:
+    m4h: vusion.TtcGenericWorker
+    mrs: vusion.TtcGenericWorker
+    wiki: vusion.TtcGenericWorker
+m4h:
+    control_name: m4h
+    transport_name: m4h
+    database_name: m4h
+mrs:
+    control_name: mrs
+    transport_name: mrs
+    database_name: mrs
+wiki:
+    control_name: wiki
+    transport_name: wiki
+    database_name: wiki

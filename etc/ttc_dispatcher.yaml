@@ -1,0 +1,15 @@
+router_class: dispatchers.ContentKeywordRouter
+dispatcher_name: vusion_dispatcher
+transport_names: 
+        - yo
+transport_mappings:
+        yo: '8282'
+exposed_names: 
+        - m4h 
+        - mrs
+        - wiki
+keyword_mappings:
+        m4h: VM4H
+        mrs: VMRS
+        wiki: VWIKI
+expire_routing_memory: 20
