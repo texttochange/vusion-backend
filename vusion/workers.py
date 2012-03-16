@@ -12,7 +12,7 @@ import pymongo
 from datetime import datetime, time, date, timedelta
 
 from vumi.application import ApplicationWorker
-from vumi.message import Message, TransportUserMessage
+from vumi.message import Message, TransportUserMessage, TransportEvent
 from vumi.application import SessionManager
 
 
@@ -160,7 +160,17 @@ class TtcGenericWorker(ApplicationWorker):
         status = self.collection_status.find_one({
             'message-id': message['user_message_id']
         })
-        status['message-status'] = 'delivered'
+        if (not status):
+            self.worker_log('Error no reference for this event')
+            return
+        if (message['event_type'] == 'ack'):
+            status['message-status'] = 'ack'
+        if (message['event_type'] == 'delivery_report'):
+            status['message-status'] = message['delivery_status']
+            if (message['delivery_status'] == 'failed'):
+                status['failure-code'] = message['failure_code']
+                status['failure-level'] = message['failure_level']
+                status['failure-reason'] = message['failure_reason']
         self.collection_status.save(status)
 
     @inlineCallbacks
