@@ -1,3 +1,3 @@
-from yo_ug_http import (YoUgHttpTransport)
+from yo_ug_http import YoUgHttpTransport
 
-__all__= ["YoUgHttpTransport"]
+__all__ = ["YoUgHttpTransport"]
