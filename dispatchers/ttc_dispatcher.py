@@ -6,7 +6,19 @@ from twisted.internet.defer import inlineCallbacks
 
 from vumi.dispatchers.base import SimpleDispatchRouter 
 from vumi import log
-from vumi.utils import get_first_word
+#from vumi.utils import get_first_word
+
+def get_first_word(content, delimiter=' '):
+    """
+    splits a string to get the first word
+
+    >>>get_first_word('KEYWORD rest of message')
+    'KEYWORD'
+    >>>
+
+    """
+    return (content or '').split(delimiter)[0]
+
 
 class ContentKeywordRouter(SimpleDispatchRouter):
     """Router that dispatches based on msg content first word also named as the
