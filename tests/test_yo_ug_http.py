@@ -86,13 +86,13 @@ class YoUgHttpTransportTestCase(TransportTestCase):
     @inlineCallbacks
     def test01_sending_one_sms_ok(self):
         #mocked_message_id = str(uuid4())
-        mocked_message = "ybs_autocreate_status=OK"
+        mocked_message = "ybs_autocreate_status%3DOK"
         #HTTP response
         yield self.make_resource_worker(mocked_message) 
         #Message to transport
-        yield self.dispatch(self.mkmsg_out(to_addr='788601462'))    
+        yield self.dispatch(self.mkmsg_out())    
         [smsg] = self.get_dispatched('yo.event')
-        self.assertEqual(self.mkmsg_ack(),
+        self.assertEqual(self.mkmsg_delivery(user_message_id = '1'),
                          TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks
@@ -113,8 +113,9 @@ class YoUgHttpTransportTestCase(TransportTestCase):
 
     @inlineCallbacks
     def test03_sending_one_sms_service_failure(self):
-        mocked_message = "ybs_autocreate_status=ERROR&ybs_autocreate_message=YBS+AutoCreate+Subsystem%3A+Access+denied+due+to+wrong+authorization+code"
-
+        #mocked_message = "ybs_autocreate_status=ERROR&ybs_autocreate_message=YBS%2BAutoCreate%2BSubsystem%3A%2BAccess%2Bdenied%2Bdue%2Bto%2Bwrong%2Bauthorization%2Bcode"
+        mocked_message = "ybs_autocreate_status%3DERROR%26ybs_autocreate_message%3DYBS%2BAutoCreate%2BSubsystem%3A%2BAccess%2Bdenied%2Bdue%2Bto%2Bwrong%2Bauthorization%2Bcode"
+        
         #HTTP response
         yield self.make_resource_worker(mocked_message) 
         yield self.dispatch(self.mkmsg_out(to_addr='788601462'))    
@@ -122,7 +123,7 @@ class YoUgHttpTransportTestCase(TransportTestCase):
         self.assertEqual(self.mkmsg_fail(
             failure_level = 'service',
             failure_code = 'ERROR',
-            failure_reason = "YBS+AutoCreate+Subsystem%3A+Access+denied+due+to+wrong+authorization+code"),
+            failure_reason = "YBS AutoCreate Subsystem: Access denied due to wrong authorization code"),
                          TransportMessage.from_json(smsg.body))
     
     @inlineCallbacks

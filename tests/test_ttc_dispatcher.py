@@ -20,11 +20,11 @@ class TestContentKeywordRouter(DispatcherTestCase):
         yield super(TestContentKeywordRouter, self).setUp()
         self.config = {
             'dispatcher_name': 'keyword_dispatcher',
-            'router_class': 'vumi.dispatchers.base.ContentKeywordRouter',
+            'router_class': 'dispatchers.ContentKeywordRouter',
             'transport_names': ['transport1', 'transport2'],
             'transport_mappings': {
-                'shortcode1': 'transport1',
-                'shortcode2': 'transport2'
+                'transport1': 'shortcode1',
+                'transport2': 'shortcode2' 
                 },
             'exposed_names': ['app1', 'app2', 'app3'],
             'keyword_mappings': {
@@ -147,7 +147,7 @@ class TestContentKeywordRouter(DispatcherTestCase):
 
     @inlineCallbacks
     def test_outbound_message_routing(self):
-        msg = self.mkmsg_out(content="KEYWORD1 rest of msg",
+        msg = self.mkmsg_out(content="rest of msg",
                              from_addr='shortcode1',
                              transport_name='app2')
 

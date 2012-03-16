@@ -68,6 +68,7 @@ class TtcGenericWorker(ApplicationWorker):
                     timestamp=datetime.now(), dialogue_id=None,
                     interaction_id=None):
         self.collection_status.save({
+            'message-id': message_id,
             'message-content': message_content,
             'participant-phone': participant_phone,
             'message-type': message_type,
@@ -154,7 +155,7 @@ class TtcGenericWorker(ApplicationWorker):
             'message-id': message['user_message_id']
         })
         if (not status):
-            self.log('Error no reference for this event')
+            self.log('Error no reference for this event %s' % message)
             return
         if (message['event_type'] == 'ack'):
             status['message-status'] = 'ack'
@@ -210,6 +211,7 @@ class TtcGenericWorker(ApplicationWorker):
                                                   'content': interaction['content']
                                                   })
                 yield self.transport_publisher.publish_message(message)
+                self.log("Message has been send: %s" % message)
                 self.save_status(message_content=message['content'],
                                   participant_phone=toSend['participant-phone'],
                                   message_type='send',

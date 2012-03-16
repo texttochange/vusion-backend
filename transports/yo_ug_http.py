@@ -1,6 +1,7 @@
 # -*- test-case-name: tests.test_yo_ug_http -*-
 
-from urllib import urlencode
+from urllib import urlencode, unquote
+from urlparse import parse_qs
 
 from twisted.python import log
 from twisted.internet.defer import inlineCallbacks
@@ -69,24 +70,31 @@ class YoUgHttpTransport(Transport):
                 failure_reason=response.delivered_body
                 )
             return
+        
+        try:
+            response_attr = parse_qs(unquote(response.delivered_body)) 
+            ybs_status = response_attr['ybs_autocreate_status']
+            if 'ybs_autocreate_message' in response_attr:
+                ybs_msg = response_attr['ybs_autocreate_message']
+            if (ybs_status == ['ERROR']):
+                log.msg("Yo Error %s: %s" % (response.code, response.delivered_body))
+                yield self.publish_delivery_report(
+                    user_message_id=message['message_id'],
+                    delivery_status='failed',
+                    failure_level='service',
+                    failure_code=ybs_status[0],
+                    failure_reason=(ybs_msg[0] or '')
+                )
+                return
 
-        ybs_autocreate_status = response.delivered_body.split("&")[0].split('=')[1]
-        if (ybs_autocreate_status == 'ERROR'):
-            log.msg("Yo Error %s: %s" % (response.code, response.delivered_body))
+            log.msg("Sms received and accepted by Yo %s" % response.delivered_body)
             yield self.publish_delivery_report(
                 user_message_id=message['message_id'],
-                delivery_status='failed',
-                failure_level='service',
-                failure_code=ybs_autocreate_status,
-                failure_reason=response.delivered_body.split("&")[1].split('=')[1]
-                )
-            return
-
-        log.msg("Sms received and accepted by Yo %s" % response.delivered_body)
-        yield self.publish_ack(
-            user_message_id=message['message_id'],
-            sent_message_id="abc",
-        )
+                delivery_status='delivered',
+                to_addr=message['to_addr']
+            )
+        except Exception as ex:
+            log.msg("Unexpected error %s" % repr(ex))
 
     def stopWorker(self):
         log.msg("stop yo transport")
