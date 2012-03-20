@@ -1,14 +1,122 @@
 
+from datetime import datetime
 
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import inlineCallbacks
 
-from vumi.message import TransportUserMessage, TransportEvent
-from vumi.tests.utils import FakeRedis
-from vumi.dispatchers.tests.test_base import DispatcherTestCase
+from vumi.message import TransportUserMessage, TransportEvent, Message
+from vumi.tests.utils import FakeRedis, get_stubbed_worker
+from vumi.dispatchers.tests.test_base import DispatcherTestCase, TestBaseDispatchWorker
 from vumi.dispatchers.base import BaseDispatchWorker
 
 from dispatchers import ContentKeywordRouter
+from dispatchers.ttc_dispatcher import DynamicDispatchWorker
+
+class TestDynamicDispatcherWorker(TestCase):
+
+    @inlineCallbacks
+    def setUp(self):
+        yield self.get_worker()
+
+    @inlineCallbacks
+    def get_worker(self):
+        config = {
+            'dispatcher_name': 'vusion',
+            'router_class': 'dispatchers.ContentKeywordRouter',
+            'exposed_names': ['app1'],
+            'keyword_mappings': {
+                'app1': 'KEYWORD1'
+                },
+            'transport_names': ['transport1'],
+            'transport_mappings': {
+                'transport1': 'shortcode1'
+                },
+            'expire_routing_memory': '1'
+        }
+        self.worker = get_stubbed_worker(DynamicDispatchWorker, config)
+        self._amqp = self.worker._amqp_client.broker
+        yield self.worker.startWorker()
+
+    @inlineCallbacks
+    def tearDown(self):
+        yield self.worker.stopWorker()
+
+    def dispatch(self, message, rkey=None, exchange='vumi'):
+        if rkey is None:
+            rkey = self.rkey('control')
+        self._amqp.publish_message(exchange, rkey, message)
+        return self._amqp.kick_delivery()
+
+    #TODO: add a class of control messages
+    def mkmsg_control(self, message_type='add_exposed',end_point_name='app2',
+                      rule='keyword2'):
+        return Message(
+            message_type=message_type,
+            end_point_name=end_point_name,
+            rule=rule)
+
+    def mkmsg(self, content='hello world', message_id='abc',
+                 to_addr='9292', from_addr='+41791234567',
+                 session_event=None, transport_type=None,
+                 helper_metadata=None, transport_metadata=None,
+                 transport_name=None):
+        if helper_metadata is None:
+            helper_metadata = {}
+        if transport_metadata is None:
+            transport_metadata = {}
+        return TransportUserMessage(
+            from_addr=from_addr,
+            to_addr=to_addr,
+            message_id=message_id,
+            transport_name=transport_name,
+            transport_type=transport_type,
+            transport_metadata=transport_metadata,
+            helper_metadata=helper_metadata,
+            content=content,
+            session_event=session_event,
+            timestamp=datetime.now(),
+            )    
+    
+    def assert_messages(self, rkey, msgs):
+        self.assertEqual(msgs, self._amqp.get_messages('vumi', rkey))
+
+    def assert_no_messages(self, *rkeys):
+        for rkey in rkeys:
+            self.assertEqual([], self._amqp.get_messages('vumi', rkey))
+
+    def clear_dispatched(self):
+        self._amqp.dispatched = {}
+
+    #TODO add outbound message
+    @inlineCallbacks
+    def test_control_connect_new_exposed(self):
+        control_msg_add = self.mkmsg_control(message_type='add_exposed',
+                                         end_point_name='app2',
+                                         rule='keyword2')
+        control_msg_remove = self.mkmsg_control(message_type='remove_exposed',
+                                         end_point_name='app2',
+                                         rule='keyword2')
+        in_msg = self.mkmsg(content='keyword2')
+        out_msg = self.mkmsg(from_addr='shortcode1')
+        
+        yield self.dispatch(in_msg, 'transport1.inbound')
+        self.assert_no_messages('app2.inbound')
+        
+        self.clear_dispatched()
+
+        yield self.dispatch(control_msg_add, 'vusion.control')
+        yield self.dispatch(in_msg, 'transport1.inbound')
+        self.assert_messages('app2.inbound', [in_msg])
+        
+        yield self.dispatch(out_msg, 'app2.outbound')
+        self.assert_messages('transport1.outbound', [out_msg])
+        
+        self.clear_dispatched()
+
+        yield self.dispatch(control_msg_remove, 'vusion.control')
+        yield self.dispatch(in_msg, 'transport1.inbound')
+        self.assert_no_messages('app2.inbound')
+
 
 class TestContentKeywordRouter(DispatcherTestCase):
 

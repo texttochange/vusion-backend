@@ -33,6 +33,12 @@ class TtcGenericWorkerTestCase(TestCase):
     }
     """
 
+    simpleConfig = {
+        'database': 'test',
+        'dispatcher': 'vusion',
+        'transport_name': 'app',
+        }
+
     simpleScript = """{
     "activated":1,
     "script":{
@@ -60,31 +66,29 @@ class TtcGenericWorkerTestCase(TestCase):
         "action":"start"
     }"""
 
-    simpleProgram_Question = """
-    { "activated" : 1,
-    "script": {
-    "shortcode": "8282",
-    "dialogues": [{
-    "interactions": [
-    {
-    "type-interaction": "question-answer",
-    "content": "How are you?",
-    "answers": [
-    {
-    "choice": "Fine"
-    },
-    {
-    "choice": "Ok"
+    simpleProgram_Question = { 
+        "activated" : 1,
+        "script": {
+            "shortcode": "8282",
+            "dialogues": [
+                {
+                    "interactions": [
+                        {
+                            "type-interaction": "question-answer",
+                            "content": "How are you?",
+                            "keyword": "FEEL",
+                            "answers": [
+                                {"choice": "Fine"},
+                                {"choice": "Ok"}
+                                ],
+                            "type-schedule": "immediately"
+                        }
+                    ]
+                }
+            ]
+        }
     }
-    ],
-    "type-schedule": "immediately"
-    }
-    ]
-    }
-    ]
-    }
-    }"""
-
+      
     simpleProgram_announcement_fixedtime = """
     {"activated" : 1,
     "script": {
@@ -648,6 +652,13 @@ class TtcGenericWorkerTestCase(TestCase):
         schedules = self.worker.schedule_participant_dialogue(participant, script['script']['dialogues'][0])
         #assert time calculation
         self.assertEqual(len(schedules), 2)
+
+    def test19_control_dispatcher_keyword_routing(self):
+        config = self.simpleConfig
+        script = self.simpleProgram_Question
+
+        self.assertFalse(True)
+        
 
     #@inlineCallbacks    
     #def test12_2dialogues_updated_2message_scheduled(self):

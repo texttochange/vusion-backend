@@ -4,9 +4,10 @@ import redis
 
 from twisted.internet.defer import inlineCallbacks
 
-from vumi.dispatchers.base import SimpleDispatchRouter 
+from vumi.dispatchers.base import SimpleDispatchRouter, BaseDispatchWorker 
 from vumi import log
-#from vumi.utils import get_first_word
+from vumi.message import Message, TransportUserMessage
+
 
 def get_first_word(content, delimiter=' '):
     """
@@ -18,6 +19,48 @@ def get_first_word(content, delimiter=' '):
 
     """
     return (content or '').split(delimiter)[0]
+
+
+class DynamicDispatchWorker(BaseDispatchWorker):
+    """Dispatch worker able to create/remove publisher/consumer
+    when receiving worker request on his controle queue
+    
+    """
+    
+    @inlineCallbacks
+    def startWorker(self):
+        super(DynamicDispatchWorker, self).startWorker()
+        yield self.setup_control()
+
+    @inlineCallbacks
+    def setup_control(self):
+        self.control = yield self.consume(
+            '%s.control' % self.config['dispatcher_name'],
+            self.receive_control_message,
+            message_class=Message)
+
+    @inlineCallbacks
+    def receive_control_message(self, msg):
+        log.debug('Received control message')
+        if msg['message_type'] == 'add_exposed':
+            self.exposed_publisher[msg['end_point_name']] = yield self.publish_to(
+                ('%s.inbound' % (msg['end_point_name'],)).encode('utf-8'))
+            self.exposed_event_publisher[msg['end_point_name']] = yield self.publish_to(
+                ('%s.event' % (msg['end_point_name'],)).encode('utf-8'))
+            self.exposed_consumer[msg['end_point_name']] = yield self.consume(
+                ('%s.outbound' % (msg['end_point_name'],)).encode('utf-8'),
+            self.dispatch_outbound_message,
+            message_class=TransportUserMessage)
+            self._router.keyword_mappings.append((msg['end_point_name'],
+                                                 msg['rule']))
+            return
+        if msg['message_type'] == 'remove_exposed':
+            self._router.keyword_mappings.remove((msg['end_point_name'],
+                                                  msg['rule']))
+            self.exposed_publisher.pop(msg['end_point_name'])
+            self.exposed_event_publisher.pop(msg['end_point_name'])
+            self.exposed_consumer.pop(msg['end_point_name'])
+            return
 
 
 class ContentKeywordRouter(SimpleDispatchRouter):
