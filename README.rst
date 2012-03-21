@@ -1,7 +1,7 @@
 Vusion backend
 =======
 
-Vusion backend based on Vumi by Praekelt foundation. It include the TtcGenericWorker, TtcDispatcher and specific transport. 
+Vusion backend is build with Praekelt Foundation's Vumi. It can work on his own but you'd rather use the Vusion Backend: https://github.com/texttochange/vusion-front 
 
 Installation
 ------------
@@ -15,7 +15,7 @@ Installation
 Running
 -------
 
-Update `*.yaml` with your aggregator account details and run the following:
+Update `etc/config/*.yaml` with your aggregator account details and run the following:
 
 ::
 
