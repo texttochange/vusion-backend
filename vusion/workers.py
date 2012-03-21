@@ -55,6 +55,9 @@ class TtcGenericWorker(ApplicationWorker):
             if (self.sender == None):
                 self.sender = task.LoopingCall(self.daemon_process)
                 self.sender.start(60.0)
+                
+        if ('dispatcher_name' in self.config):
+            yield self._setup_dispatcher_publisher()
 
     #TODO from the keyword link to the corresponding dialogue/interaction
     def consume_user_message(self, message):
@@ -315,3 +318,15 @@ class TtcGenericWorker(ApplicationWorker):
             log.msg('[%s] %s' % (self.control_name, msg))
         else:
             log.error('[%s] %s' % (self.control_name, msg))
+
+    @inlineCallbacks
+    def _setup_dispatcher_publisher(self):
+        self.dispatcher_publisher = yield self.publish_to(
+            '%(dispatcher_name)s.control' % self.config)
+
+    @inlineCallbacks
+    def register_keywords_in_dispatcher(self, keywords):
+        msg = Message(**{'message_type': 'add_exposed',
+                         'end_point_name': self.transport_name,
+                         'rule': keyword})
+        yield self.dispatcher_publisher.publish_message(msg)

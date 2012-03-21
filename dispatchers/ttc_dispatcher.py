@@ -40,26 +40,42 @@ class DynamicDispatchWorker(BaseDispatchWorker):
             message_class=Message)
 
     @inlineCallbacks
+    def setup_exposed(self, name):
+        if not name in self.config['exposed_names']:
+            self.config['exposed_names'].append(name)
+            self.exposed_publisher[name] = yield self.publish_to(
+                ('%s.inbound' % (name,)).encode('utf-8'))
+            self.exposed_event_publisher[name] = yield self.publish_to(
+                ('%s.event' % (name,)).encode('utf-8'))
+            self.exposed_consumer[name] = yield self.consume(
+                ('%s.outbound' % (name,)).encode('utf-8'),
+                self.dispatch_outbound_message,
+                message_class=TransportUserMessage)
+
+    def remove_exposed(self, name):
+        if name in self.config['exposed_names']:
+            self.exposed_publisher.pop(name)
+            self.exposed_event_publisher.pop(name)
+            self.exposed_consumer.pop(name)
+            self.config['exposed_names'].remove(name)
+
+    def clear_mapping(self, clear_named, mappings):
+        for (name, rule) in mappings:
+            if name==clear_named:
+                mappings.remove((name, rule))            
+
     def receive_control_message(self, msg):
         log.debug('Received control message')
         if msg['message_type'] == 'add_exposed':
-            self.exposed_publisher[msg['end_point_name']] = yield self.publish_to(
-                ('%s.inbound' % (msg['end_point_name'],)).encode('utf-8'))
-            self.exposed_event_publisher[msg['end_point_name']] = yield self.publish_to(
-                ('%s.event' % (msg['end_point_name'],)).encode('utf-8'))
-            self.exposed_consumer[msg['end_point_name']] = yield self.consume(
-                ('%s.outbound' % (msg['end_point_name'],)).encode('utf-8'),
-            self.dispatch_outbound_message,
-            message_class=TransportUserMessage)
-            self._router.keyword_mappings.append((msg['end_point_name'],
-                                                 msg['rule']))
+            self.setup_exposed(msg['exposed_name'])
+            #self._router.keyword_mappings = msg['keyword_mappings'].items()
+            for (name, keyword) in msg['keyword_mappings']:
+                self._router.keyword_mappings.append((name, keyword))
             return
         if msg['message_type'] == 'remove_exposed':
-            self._router.keyword_mappings.remove((msg['end_point_name'],
-                                                  msg['rule']))
-            self.exposed_publisher.pop(msg['end_point_name'])
-            self.exposed_event_publisher.pop(msg['end_point_name'])
-            self.exposed_consumer.pop(msg['end_point_name'])
+            self.remove_exposed(msg['exposed_name'])
+            self.clear_mapping(msg['exposed_name'], 
+                               self._router.keyword_mappings)
             return
 
 

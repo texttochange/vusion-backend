@@ -11,7 +11,7 @@ from vumi.message import Message, TransportEvent, TransportUserMessage
 
 from vusion import TtcGenericWorker
 from transports import YoUgHttpTransport
-
+from tests.utils import MessageMaker
 
 class FakeUserMessage(TransportUserMessage):
 
@@ -24,7 +24,7 @@ class FakeUserMessage(TransportUserMessage):
         super(FakeUserMessage, self).__init__(**kw)
 
 
-class TtcGenericWorkerTestCase(TestCase):
+class TtcGenericWorkerTestCase(TestCase, MessageMaker):
 
     configControl = """
     {"program":{
@@ -34,8 +34,8 @@ class TtcGenericWorkerTestCase(TestCase):
     """
 
     simpleConfig = {
-        'database': 'test',
-        'dispatcher': 'vusion',
+        'database_name': 'test',
+        'dispatcher': 'dispatcher',
         'transport_name': 'app',
         }
 
@@ -127,7 +127,8 @@ class TtcGenericWorkerTestCase(TestCase):
         self.database_name = 'test'
         self.config = {'transport_name': self.transport_name,
                        'database': self.database_name,
-                       'control_name': self.control_name}
+                       'control_name': self.control_name,
+                       'dispatcher_name': 'dispatcher'}
         self.worker = get_stubbed_worker(TtcGenericWorker,
                                          config=self.config)
         self.broker = self.worker._amqp_client.broker
@@ -636,14 +637,14 @@ class TtcGenericWorkerTestCase(TestCase):
         self.assertTrue(False)
 
     def test18_schedule_process_handle_crap_in_history(self):
-        config = json.loads(self.configControl)
+        #config = json.loads(self.configControl)
         script = json.loads(self.simpleScript)
         participant = {"phone": "06"}
 
         #The collections have to be created before initializing worker's database
         self.collection_scripts.save(script)
         self.collection_participants.save(participant)
-        self.worker.init_program_db(config['program']['database-name'])
+        self.worker.init_program_db(self.config['database'])
 
         self.save_status(participant_phone="06",
                          interaction_id=None,
@@ -653,11 +654,24 @@ class TtcGenericWorkerTestCase(TestCase):
         #assert time calculation
         self.assertEqual(len(schedules), 2)
 
+    @inlineCallbacks
     def test19_control_dispatcher_keyword_routing(self):
-        config = self.simpleConfig
+        #config = self.worker.config
         script = self.simpleProgram_Question
+        participant = {"phone": "06"}
+        
+        #The collections have to be created before initializing worker's database
+        self.collection_scripts.save(script)
+        self.collection_participants.save(participant)
+        self.worker.init_program_db(self.config['database'])
 
-        self.assertFalse(True)
+        yield self.worker.register_keywords_in_dispatcher(['keyword1','keyword2'])
+
+        msg = self.broker.get_messages('vumi', 'dispatcher.control')
+
+        self.assertEqual(msg, 
+                         [self.mkmsg_control(end_point_name=self.transport_name,
+                                             rule=['keyword1', 'keyword2'])])
         
 
     #@inlineCallbacks    
