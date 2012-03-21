@@ -59,23 +59,23 @@ class DynamicDispatchWorker(BaseDispatchWorker):
             self.exposed_consumer.pop(name)
             self.config['exposed_names'].remove(name)
 
-    def clear_mapping(self, clear_named, mappings):
-        for (name, rule) in mappings:
-            if name==clear_named:
-                mappings.remove((name, rule))            
-
+    #Need to check if the (name, rule) is not already there
+    def append_mapping(self, mappings_to_add):
+        for (name, rule) in mappings_to_add:
+            self._router.keyword_mappings.append((name,rule))
+                    
+    def clear_mapping(self, name_to_clear):
+        self._router.keyword_mappings = [ (name, rule) for (name, rule) in self._router.keyword_mappings if name!=name_to_clear]
+        
     def receive_control_message(self, msg):
         log.debug('Received control message')
         if msg['message_type'] == 'add_exposed':
             self.setup_exposed(msg['exposed_name'])
-            #self._router.keyword_mappings = msg['keyword_mappings'].items()
-            for (name, keyword) in msg['keyword_mappings']:
-                self._router.keyword_mappings.append((name, keyword))
+            self.append_mapping(msg['keyword_mappings'])
             return
         if msg['message_type'] == 'remove_exposed':
             self.remove_exposed(msg['exposed_name'])
-            self.clear_mapping(msg['exposed_name'], 
-                               self._router.keyword_mappings)
+            self.clear_mapping(msg['exposed_name']) 
             return
 
 
