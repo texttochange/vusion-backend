@@ -41,10 +41,11 @@ class TtcGenericWorker(ApplicationWorker):
         self.transport_type = 'sms'
 
         #some basic local recording
-        self.record = []
+        #self.record = []
 
         self.sender = None
         self.program_name = None
+        self.last_script_used = None
 
         self._d.callback(None)
 
@@ -177,6 +178,26 @@ class TtcGenericWorker(ApplicationWorker):
         self.log('Starting daemon_process()')
         self.schedule()
         yield self.send_scheduled()
+        if self.has_active_script_changed():
+            keywords = self.get_keywords()
+            yield self.register_keywords_in_dispatcher(keywords)
+
+    def has_active_script_changed(self):
+        script = self.get_current_script()
+        if self.last_script_used == None:
+            self.last_script_used = script['_id']
+            return True
+        if self.last_script_used == script['_id']:
+            return False
+        return True
+    
+    def get_keywords():
+        keywords = []
+        script = self.get_current_script()
+        for dialogue in script['dialogues']:
+            for interaction in dialogue['interactions']:
+                if 'keyword' in interaction:
+                    keywords.append(interaction['keyword'])
 
     def schedule(self):
         self.log('Starting schedule()')
@@ -326,7 +347,10 @@ class TtcGenericWorker(ApplicationWorker):
 
     @inlineCallbacks
     def register_keywords_in_dispatcher(self, keywords):
+        keyword_mappings = []
+        for keyword in keywords:
+            keyword_mappings.append((self.transport_name, keyword)) 
         msg = Message(**{'message_type': 'add_exposed',
-                         'end_point_name': self.transport_name,
-                         'rule': keyword})
+                         'exposed_name': self.transport_name,
+                         'keyword_mappings': keyword_mappings})
         yield self.dispatcher_publisher.publish_message(msg)

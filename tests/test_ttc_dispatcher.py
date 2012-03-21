@@ -27,7 +27,7 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
             'router_class': 'dispatchers.ContentKeywordRouter',
             'exposed_names': ['app1'],
             'keyword_mappings': {
-                'app1': 'KEYWORD1'
+                'app1': 'keyword1'
                 },
             'transport_names': ['transport1'],
             'transport_mappings': {
@@ -48,36 +48,6 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
             rkey = self.rkey('control')
         self._amqp.publish_message(exchange, rkey, message)
         return self._amqp.kick_delivery()
-
-    #TODO: add a class of control messages
-    #def mkmsg_control(self, message_type='add_exposed',end_point_name='app2',
-                      #rule='keyword2'):
-        #return Message(
-            #message_type=message_type,
-            #end_point_name=end_point_name,
-            #rule=rule)
-
-    #def mkmsg(self, content='hello world', message_id='abc',
-                 #to_addr='9292', from_addr='+41791234567',
-                 #session_event=None, transport_type=None,
-                 #helper_metadata=None, transport_metadata=None,
-                 #transport_name=None):
-        #if helper_metadata is None:
-            #helper_metadata = {}
-        #if transport_metadata is None:
-            #transport_metadata = {}
-        #return TransportUserMessage(
-            #from_addr=from_addr,
-            #to_addr=to_addr,
-            #message_id=message_id,
-            #transport_name=transport_name,
-            #transport_type=transport_type,
-            #transport_metadata=transport_metadata,
-            #helper_metadata=helper_metadata,
-            #content=content,
-            #session_event=session_event,
-            #timestamp=datetime.now(),
-            #)    
     
     def assert_messages(self, rkey, msgs):
         self.assertEqual(msgs, self._amqp.get_messages('vumi', rkey))
@@ -90,12 +60,12 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
         self._amqp.dispatched = {}
 
     @inlineCallbacks
-    def test_control_connect_new_exposed(self):
+    def test_control_register_exposed(self):
         control_msg_add = self.mkmsg_control(message_type='add_exposed',
                                          exposed_name='app2',
                                          keyword_mappings=[
-                                             ('app2', 'keyword2'),
-                                             ('app2', 'keyword3')
+                                             ['app2', 'keyword2'],
+                                             ['app2', 'keyword3']
                                          ])
         control_msg_remove = self.mkmsg_control(message_type='remove_exposed',
                                          exposed_name='app2'
@@ -119,7 +89,25 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
 
         yield self.dispatch(control_msg_remove, 'vusion.control')
         yield self.dispatch(in_msg, 'transport1.inbound')
-        self.assert_no_messages('app2.inbound')        
+        self.assert_no_messages('app2.inbound')
+
+    def test_append_mapping(self):
+        add_mappings = [['app2', 'keyword2'],
+                       ['app2', 'keyword3']]
+        
+        self.worker.append_mapping('app2', add_mappings)
+        self.worker.append_mapping('app2', add_mappings)
+        
+        self.assertEqual(self.worker._router.keyword_mappings,
+                         [('app1', 'keyword1'),
+                          ('app2', 'keyword2'),
+                          ('app2', 'keyword3')])
+        
+        self.worker.append_mapping('app2', [['app2', 'keyword2']])
+        
+        self.assertEqual(self.worker._router.keyword_mappings,
+                         [('app1', 'keyword1'),
+                          ('app2', 'keyword2')])
 
 
 class TestContentKeywordRouter(DispatcherTestCase):
