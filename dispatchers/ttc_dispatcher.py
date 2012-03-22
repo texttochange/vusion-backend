@@ -4,9 +4,10 @@ import redis
 
 from twisted.internet.defer import inlineCallbacks
 
-from vumi.dispatchers.base import SimpleDispatchRouter 
+from vumi.dispatchers.base import SimpleDispatchRouter, BaseDispatchWorker 
 from vumi import log
-#from vumi.utils import get_first_word
+from vumi.message import Message, TransportUserMessage
+
 
 def get_first_word(content, delimiter=' '):
     """
@@ -18,6 +19,85 @@ def get_first_word(content, delimiter=' '):
 
     """
     return (content or '').split(delimiter)[0]
+
+
+class DynamicDispatchWorker(BaseDispatchWorker):
+    """Dispatch worker able to create/remove publisher/consumer
+    when receiving worker request on his controle queue
+    
+    """
+    
+    @inlineCallbacks
+    def startWorker(self):
+        log.debug('Starting Dynamic Dispatcher %s' % (self.config,))
+        super(DynamicDispatchWorker, self).startWorker()
+        yield self.setup_control()
+
+    @inlineCallbacks
+    def setup_control(self):
+        self.control = yield self.consume(
+            '%s.control' % self.config['dispatcher_name'],
+            self.receive_control_message,
+            message_class=Message)
+
+    @inlineCallbacks
+    def setup_exposed(self, name):
+        if not name in self.config['exposed_names']:
+            self.config['exposed_names'].append(name)
+            self.exposed_publisher[name] = yield self.publish_to(
+                ('%s.inbound' % (name,)).encode('utf-8'))
+            self.exposed_event_publisher[name] = yield self.publish_to(
+                ('%s.event' % (name,)).encode('utf-8'))
+            self.exposed_consumer[name] = yield self.consume(
+                ('%s.outbound' % (name,)).encode('utf-8'),
+                self.dispatch_outbound_message,
+                message_class=TransportUserMessage)
+
+    def remove_exposed(self, name):
+        if name in self.config['exposed_names']:
+            self.exposed_publisher.pop(name)
+            self.exposed_event_publisher.pop(name)
+            self.exposed_consumer.pop(name)
+            self.config['exposed_names'].remove(name)
+
+    #Need to check if the (name, rule) is not already there
+    def append_mapping(self, exposed_name, mappings_to_add):
+        self.remove_non_present_mappings(exposed_name, mappings_to_add)
+        for (name, rule) in mappings_to_add:
+            if (name, rule) not in self._router.keyword_mappings:
+                self._router.keyword_mappings.append((name,rule))
+
+    def remove_non_present_mappings(self, exposed_name, mappings_to_add):
+        non_present_mappings = self.get_non_present_mapping(
+            self.get_mapping(exposed_name),
+            mappings_to_add)
+        for (name, rule) in non_present_mappings:
+                self._router.keyword_mappings.remove((name,rule))
+
+    def get_mapping(self, name_to_get):
+        return [(name, rule) for (name, rule) in self._router.keyword_mappings
+                if name==name_to_get]
+
+    def get_non_present_mapping(self, current_mappings, new_mappings):
+        return [(name, rule) for (name, rule) in current_mappings 
+                if (name, rule) not in new_mappings]
+
+    def clear_mapping(self, name_to_clear):
+        self._router.keyword_mappings = [ (name, rule)
+                                          for (name, rule)
+                                          in self._router.keyword_mappings
+                                          if name!=name_to_clear]
+
+    def receive_control_message(self, msg):
+        log.debug('Received control message %s' % (msg,))
+        if msg['message_type'] == 'add_exposed':
+            self.setup_exposed(msg['exposed_name'])
+            self.append_mapping(msg['exposed_name'], msg['keyword_mappings'])
+            return
+        if msg['message_type'] == 'remove_exposed':
+            self.remove_exposed(msg['exposed_name'])
+            self.clear_mapping(msg['exposed_name']) 
+            return
 
 
 class ContentKeywordRouter(SimpleDispatchRouter):
@@ -49,7 +129,9 @@ class ContentKeywordRouter(SimpleDispatchRouter):
         self.r_config = config.get('redis_config', {})
         self.r_prefix = config['dispatcher_name']
         self.r_server = redis.Redis(**self.r_config)
-        self.keyword_mappings = config['keyword_mappings'].items()
+        self.keyword_mappings = []
+        if 'keyword_mappings' in config:
+            self.keyword_mappings = config['keyword_mappings'].items()
         self.transport_mappings = config['transport_mappings'].items()
         super(ContentKeywordRouter, self).__init__(dispatcher, config)
 

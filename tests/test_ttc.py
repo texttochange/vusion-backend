@@ -11,7 +11,7 @@ from vumi.message import Message, TransportEvent, TransportUserMessage
 
 from vusion import TtcGenericWorker
 from transports import YoUgHttpTransport
-
+from tests.utils import MessageMaker
 
 class FakeUserMessage(TransportUserMessage):
 
@@ -24,7 +24,7 @@ class FakeUserMessage(TransportUserMessage):
         super(FakeUserMessage, self).__init__(**kw)
 
 
-class TtcGenericWorkerTestCase(TestCase):
+class TtcGenericWorkerTestCase(TestCase, MessageMaker):
 
     configControl = """
     {"program":{
@@ -33,22 +33,31 @@ class TtcGenericWorkerTestCase(TestCase):
     }
     """
 
-    simpleScript = """{
-    "activated":1,
-    "script":{
+    simpleConfig = {
+        'database_name': 'test',
+        'dispatcher': 'dispatcher',
+        'transport_name': 'app',
+        }
+
+    simpleScript = {
+        "activated":1,
+        "script":{
             "shortcode": "8282",
             "dialogues":
             [{"dialogue-id":"0","interactions":[
-                   {"type-interaction":"announcement",
-                   "interaction-id":"0",
-                   "content":"Hello",
-                   "type-schedule":"immediately"},
-                   {"type-interaction":"announcement",
-                   "interaction-id":"1",
-                   "content":"How are you",
-                   "type-schedule":"wait",
-                   "minutes":"60"}]}
-            ]}}"""
+                {"type-interaction":"announcement",
+                 "interaction-id":"0",
+                 "content":"Hello",
+                 "type-schedule":"immediately"},
+                {"type-interaction":"announcement",
+                 "interaction-id":"1",
+                 "content":"How are you",
+                 "type-schedule":"wait",
+                 "minutes":"60"}]
+              }
+             ]
+        }
+    }
 
     twoParticipants = """{"participants":[
             {"phone":"788601462"},
@@ -60,31 +69,29 @@ class TtcGenericWorkerTestCase(TestCase):
         "action":"start"
     }"""
 
-    simpleProgram_Question = """
-    { "activated" : 1,
-    "script": {
-    "shortcode": "8282",
-    "dialogues": [{
-    "interactions": [
-    {
-    "type-interaction": "question-answer",
-    "content": "How are you?",
-    "answers": [
-    {
-    "choice": "Fine"
-    },
-    {
-    "choice": "Ok"
+    simpleProgram_Question = { 
+        "activated" : 1,
+        "script": {
+            "shortcode": "8282",
+            "dialogues": [
+                {
+                    "interactions": [
+                        {
+                            "type-interaction": "question-answer",
+                            "content": "How are you?",
+                            "keyword": "FEEL",
+                            "answers": [
+                                {"choice": "Fine"},
+                                {"choice": "Ok"}
+                                ],
+                            "type-schedule": "immediately"
+                        }
+                    ]
+                }
+            ]
+        }
     }
-    ],
-    "type-schedule": "immediately"
-    }
-    ]
-    }
-    ]
-    }
-    }"""
-
+      
     simpleProgram_announcement_fixedtime = """
     {"activated" : 1,
     "script": {
@@ -123,7 +130,8 @@ class TtcGenericWorkerTestCase(TestCase):
         self.database_name = 'test'
         self.config = {'transport_name': self.transport_name,
                        'database': self.database_name,
-                       'control_name': self.control_name}
+                       'control_name': self.control_name,
+                       'dispatcher_name': 'dispatcher'}
         self.worker = get_stubbed_worker(TtcGenericWorker,
                                          config=self.config)
         self.broker = self.worker._amqp_client.broker
@@ -222,9 +230,7 @@ class TtcGenericWorkerTestCase(TestCase):
         events = [
             ('config', Message.from_json(self.configControl))
         ]
-        self.collection_scripts.save({"script": [
-            {"activated": True,
-             "do something": "like that"}]})
+        self.collection_scripts.save(self.simpleScript)
         self.collection_participants.save({"phone": "08"})
 
         for name, event in events:
@@ -263,7 +269,7 @@ class TtcGenericWorkerTestCase(TestCase):
     def test03_schedule_participant_dialogue(self):
 
         config = json.loads(self.configControl)
-        script = json.loads(self.simpleScript)
+        script = self.simpleScript
         participant = {"phone": "06"}
 
         #The collections have to be created before initializing worker's
@@ -293,7 +299,7 @@ class TtcGenericWorkerTestCase(TestCase):
     def test04_send_scheduled_oneMessage(self):
 
         config = json.loads(self.configControl)
-        script = json.loads(self.simpleScript)
+        script = self.simpleScript
         participant = {"phone": "09"}
         dNow = datetime.now()
 
@@ -389,7 +395,7 @@ class TtcGenericWorkerTestCase(TestCase):
 
     def test06_schedule_interaction_while_interaction_instatus(self):
         config = json.loads(self.configControl)
-        script = json.loads(self.simpleScript)
+        script = self.simpleScript
         participant = {"phone": "06"}
 
         dNow = datetime.now()
@@ -413,7 +419,7 @@ class TtcGenericWorkerTestCase(TestCase):
 
     def test07_schedule_interaction_while_interaction_inschedule(self):
         config = json.loads(self.configControl)
-        script = json.loads(self.simpleScript)
+        script = self.simpleScript
         participant = {"phone": "06"}
 
         dNow = datetime.now()
@@ -446,7 +452,7 @@ class TtcGenericWorkerTestCase(TestCase):
     @inlineCallbacks
     def test08_schedule_interaction_that_has_expired(self):
         config = json.loads(self.configControl)
-        script = json.loads(self.simpleScript)
+        script = self.simpleScript
         participant = {"phone": "06"}
 
         dNow = datetime.now()
@@ -632,14 +638,14 @@ class TtcGenericWorkerTestCase(TestCase):
         self.assertTrue(False)
 
     def test18_schedule_process_handle_crap_in_history(self):
-        config = json.loads(self.configControl)
-        script = json.loads(self.simpleScript)
+        #config = json.loads(self.configControl)
+        script = self.simpleScript
         participant = {"phone": "06"}
 
         #The collections have to be created before initializing worker's database
         self.collection_scripts.save(script)
         self.collection_participants.save(participant)
-        self.worker.init_program_db(config['program']['database-name'])
+        self.worker.init_program_db(self.config['database'])
 
         self.save_status(participant_phone="06",
                          interaction_id=None,
@@ -648,6 +654,27 @@ class TtcGenericWorkerTestCase(TestCase):
         schedules = self.worker.schedule_participant_dialogue(participant, script['script']['dialogues'][0])
         #assert time calculation
         self.assertEqual(len(schedules), 2)
+
+    @inlineCallbacks
+    def test19_control_dispatcher_keyword_routing(self):
+        #config = self.worker.config
+        script = self.simpleProgram_Question
+        participant = {"phone": "06"}
+        
+        #The collections have to be created before initializing worker's database
+        self.collection_scripts.save(script)
+        self.collection_participants.save(participant)
+        self.worker.init_program_db(self.config['database'])
+
+        yield self.worker.register_keywords_in_dispatcher(['keyword1','keyword2'])
+
+        msg = self.broker.get_messages('vumi', 'dispatcher.control')
+
+        self.assertEqual(msg, 
+                         [self.mkmsg_control(exposed_name=self.transport_name,
+                                             keyword_mappings=[['test', 'keyword1'],
+                                                               ['test', 'keyword2']])])
+        
 
     #@inlineCallbacks    
     #def test12_2dialogues_updated_2message_scheduled(self):

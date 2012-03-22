@@ -34,6 +34,8 @@ class TtcGenericWorker(ApplicationWorker):
             '%(control_name)s.control' % self.config,
             self.consume_control,
             message_class=Message)
+        self.dispatcher_publisher = yield self.publish_to(
+            '%(dispatcher_name)s.control' % self.config)
 
         #config
         self.transport_name = self.config['transport_name']
@@ -41,10 +43,11 @@ class TtcGenericWorker(ApplicationWorker):
         self.transport_type = 'sms'
 
         #some basic local recording
-        self.record = []
+        #self.record = []
 
         self.sender = None
         self.program_name = None
+        self.last_script_used = None
 
         self._d.callback(None)
 
@@ -55,6 +58,9 @@ class TtcGenericWorker(ApplicationWorker):
             if (self.sender == None):
                 self.sender = task.LoopingCall(self.daemon_process)
                 self.sender.start(60.0)
+                
+        if ('dispatcher_name' in self.config):
+            yield self._setup_dispatcher_publisher()
 
     #TODO from the keyword link to the corresponding dialogue/interaction
     def consume_user_message(self, message):
@@ -78,10 +84,17 @@ class TtcGenericWorker(ApplicationWorker):
             'interaction-id': interaction_id
             })
 
+    def get_current_script_id(self):
+        for script in self.collection_scripts.find({"activated": 1}).sort("modified", pymongo.DESCENDING).limit(1):
+            return script['_id']
+        self.log("Fatal Error: no active script found in the database")
+        return None
+
     def get_current_script(self):
         for script in self.collection_scripts.find({"activated": 1}).sort("modified", pymongo.DESCENDING).limit(1):
             return script['script']
-        self.log("Fatal Error: no active script found on in the database")
+        self.log("Fatal Error: no active script found in the database")
+        return None
 
     def init_program_db(self, database_name):
         self.log("Initialization of the program")
@@ -174,6 +187,31 @@ class TtcGenericWorker(ApplicationWorker):
         self.log('Starting daemon_process()')
         self.schedule()
         yield self.send_scheduled()
+        if self.has_active_script_changed():
+            self.log('Synchronizing with dispatcher')
+            keywords = self.get_keywords()
+            yield self.register_keywords_in_dispatcher(keywords)
+
+    def has_active_script_changed(self):
+        script_id = self.get_current_script_id()
+        if script_id == None:
+            return False
+        if self.last_script_used == None:
+            self.last_script_used = script_id
+            return True
+        if self.last_script_used == script_id:
+            return False
+        self.last_script_used = script_id
+        return True
+    
+    def get_keywords(self):
+        keywords = []
+        script = self.get_current_script()
+        for dialogue in script['dialogues']:
+            for interaction in dialogue['interactions']:
+                if 'keyword' in interaction:
+                    keywords.append(interaction['keyword'])
+        return keywords
 
     def schedule(self):
         self.log('Starting schedule()')
@@ -315,3 +353,18 @@ class TtcGenericWorker(ApplicationWorker):
             log.msg('[%s] %s' % (self.control_name, msg))
         else:
             log.error('[%s] %s' % (self.control_name, msg))
+
+    @inlineCallbacks
+    def _setup_dispatcher_publisher(self):
+        self.dispatcher_publisher = yield self.publish_to(
+            '%(dispatcher_name)s.control' % self.config)
+
+    @inlineCallbacks
+    def register_keywords_in_dispatcher(self, keywords):
+        keyword_mappings = []
+        for keyword in keywords:
+            keyword_mappings.append((self.transport_name, keyword)) 
+        msg = Message(**{'message_type': 'add_exposed',
+                         'exposed_name': self.transport_name,
+                         'keyword_mappings': keyword_mappings})
+        yield self.dispatcher_publisher.publish_message(msg)

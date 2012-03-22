@@ -6,11 +6,14 @@ m4h:
     control_name: m4h
     transport_name: m4h
     database_name: m4h
+    dispatcher_name: dispatcher
 mrs:
     control_name: mrs
     transport_name: mrs
     database_name: mrs
+    dispatcher_name: dispatcher
 wiki:
     control_name: wiki
     transport_name: wiki
     database_name: wiki
+    dispatcher_name: dispatcher
