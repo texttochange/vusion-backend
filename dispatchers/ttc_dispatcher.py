@@ -4,7 +4,7 @@ import redis
 
 from twisted.internet.defer import inlineCallbacks
 
-from vumi.dispatchers.base import SimpleDispatchRouter, BaseDispatchWorker 
+from vumi.dispatchers.base import SimpleDispatchRouter, BaseDispatchWorker
 from vumi import log
 from vumi.message import Message, TransportUserMessage
 
@@ -24,9 +24,9 @@ def get_first_word(content, delimiter=' '):
 class DynamicDispatchWorker(BaseDispatchWorker):
     """Dispatch worker able to create/remove publisher/consumer
     when receiving worker request on his controle queue
-    
+
     """
-    
+
     @inlineCallbacks
     def startWorker(self):
         log.debug('Starting Dynamic Dispatcher %s' % (self.config,))
@@ -65,28 +65,28 @@ class DynamicDispatchWorker(BaseDispatchWorker):
         self.remove_non_present_mappings(exposed_name, mappings_to_add)
         for (name, rule) in mappings_to_add:
             if (name, rule) not in self._router.keyword_mappings:
-                self._router.keyword_mappings.append((name,rule))
+                self._router.keyword_mappings.append((name, rule))
 
     def remove_non_present_mappings(self, exposed_name, mappings_to_add):
         non_present_mappings = self.get_non_present_mapping(
             self.get_mapping(exposed_name),
             mappings_to_add)
         for (name, rule) in non_present_mappings:
-                self._router.keyword_mappings.remove((name,rule))
+                self._router.keyword_mappings.remove((name, rule))
 
     def get_mapping(self, name_to_get):
         return [(name, rule) for (name, rule) in self._router.keyword_mappings
-                if name==name_to_get]
+                if name == name_to_get]
 
     def get_non_present_mapping(self, current_mappings, new_mappings):
-        return [(name, rule) for (name, rule) in current_mappings 
+        return [(name, rule) for (name, rule) in current_mappings
                 if (name, rule) not in new_mappings]
 
     def clear_mapping(self, name_to_clear):
-        self._router.keyword_mappings = [ (name, rule)
+        self._router.keyword_mappings = [(name, rule)
                                           for (name, rule)
                                           in self._router.keyword_mappings
-                                          if name!=name_to_clear]
+                                          if name != name_to_clear]
 
     def receive_control_message(self, msg):
         log.debug('Received control message %s' % (msg,))
@@ -96,7 +96,7 @@ class DynamicDispatchWorker(BaseDispatchWorker):
             return
         if msg['message_type'] == 'remove_exposed':
             self.remove_exposed(msg['exposed_name'])
-            self.clear_mapping(msg['exposed_name']) 
+            self.clear_mapping(msg['exposed_name'])
             return
 
 
@@ -203,5 +203,3 @@ class ContentKeywordRouter(SimpleDispatchRouter):
                     int(self.config['expire_routing_memory']))
         if not has_been_forwarded:
             log.error("No transport for %s" % (msg['from_addr'],))
-            
-

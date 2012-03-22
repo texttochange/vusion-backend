@@ -70,14 +70,15 @@ class YoUgHttpTransport(Transport):
                 failure_reason=response.delivered_body
                 )
             return
-        
+
         try:
-            response_attr = parse_qs(unquote(response.delivered_body)) 
+            response_attr = parse_qs(unquote(response.delivered_body))
             ybs_status = response_attr['ybs_autocreate_status']
             if 'ybs_autocreate_message' in response_attr:
                 ybs_msg = response_attr['ybs_autocreate_message']
             if (ybs_status == ['ERROR']):
-                log.msg("Yo Error %s: %s" % (response.code, response.delivered_body))
+                log.msg("Yo Error %s: %s" % (response.code,
+                                             response.delivered_body))
                 yield self.publish_delivery_report(
                     user_message_id=message['message_id'],
                     delivery_status='failed',
@@ -87,7 +88,8 @@ class YoUgHttpTransport(Transport):
                 )
                 return
 
-            log.msg("Sms received and accepted by Yo %s" % response.delivered_body)
+            log.msg("Sms received and accepted by Yo %s" %
+                    response.delivered_body)
             yield self.publish_delivery_report(
                 user_message_id=message['message_id'],
                 delivery_status='delivered',

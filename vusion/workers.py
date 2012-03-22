@@ -58,7 +58,7 @@ class TtcGenericWorker(ApplicationWorker):
             if (self.sender == None):
                 self.sender = task.LoopingCall(self.daemon_process)
                 self.sender.start(60.0)
-                
+
         if ('dispatcher_name' in self.config):
             yield self._setup_dispatcher_publisher()
 
@@ -108,20 +108,19 @@ class TtcGenericWorker(ApplicationWorker):
         #Declare collection for retriving script
         collection_scripts_name = "scripts"
         if not(collection_scripts_name in self.db.collection_names()):
-            #self.worker_log("Error collection not initialized: %s"% collection_scripts_name)
-            #raise Exception("Collection error", collection_scripts_name)
-            self.collection_scripts = self.db.create_collection(collection_scripts_name)
+            self.collection_scripts = self.db.create_collection(
+                collection_scripts_name)
         else:
             self.collection_scripts = self.db[collection_scripts_name]
-        
+
         #Declare collection for retriving participants
         collection_participants_name = "participants"
         if not(collection_participants_name in self.db.collection_names()):
-            #self.worker_log("Error collection not initialized: %s"% collection_participants_name)
-            #raise Exception("Collection error", collection_participants_name)
-            self.collection_participants = self.db.create_collection(collection_participants_name)
+            self.collection_participants = self.db.create_collection(
+                collection_participants_name)
         else:
-            self.collection_participants = self.db[collection_participants_name]
+            self.collection_participants = self.db[
+                collection_participants_name]
 
         #Declare collection for scheduling messages
         collection_schedules_name = "schedules"
@@ -203,7 +202,7 @@ class TtcGenericWorker(ApplicationWorker):
             return False
         self.last_script_used = script_id
         return True
-    
+
     def get_keywords(self):
         keywords = []
         script = self.get_current_script()
@@ -363,7 +362,7 @@ class TtcGenericWorker(ApplicationWorker):
     def register_keywords_in_dispatcher(self, keywords):
         keyword_mappings = []
         for keyword in keywords:
-            keyword_mappings.append((self.transport_name, keyword)) 
+            keyword_mappings.append((self.transport_name, keyword))
         msg = Message(**{'message_type': 'add_exposed',
                          'exposed_name': self.transport_name,
                          'keyword_mappings': keyword_mappings})

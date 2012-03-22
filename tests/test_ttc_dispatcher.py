@@ -6,7 +6,8 @@ from twisted.internet.defer import inlineCallbacks
 
 from vumi.message import TransportUserMessage, TransportEvent, Message
 from vumi.tests.utils import FakeRedis, get_stubbed_worker
-from vumi.dispatchers.tests.test_base import DispatcherTestCase, TestBaseDispatchWorker
+from vumi.dispatchers.tests.test_base import (DispatcherTestCase,
+                                              TestBaseDispatchWorker)
 from vumi.dispatchers.base import BaseDispatchWorker
 
 from dispatchers import ContentKeywordRouter
@@ -48,7 +49,7 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
             rkey = self.rkey('control')
         self._amqp.publish_message(exchange, rkey, message)
         return self._amqp.kick_delivery()
-    
+
     def assert_messages(self, rkey, msgs):
         self.assertEqual(msgs, self._amqp.get_messages('vumi', rkey))
 
@@ -72,19 +73,19 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
                                          )
         in_msg = self.mkmsg_in(content='keyword2')
         out_msg = self.mkmsg_out(from_addr='shortcode1')
-        
+
         yield self.dispatch(in_msg, 'transport1.inbound')
         self.assert_no_messages('app2.inbound')
-        
+
         self.clear_dispatched()
 
         yield self.dispatch(control_msg_add, 'vusion.control')
         yield self.dispatch(in_msg, 'transport1.inbound')
         self.assert_messages('app2.inbound', [in_msg])
-        
+
         yield self.dispatch(out_msg, 'app2.outbound')
         self.assert_messages('transport1.outbound', [out_msg])
-        
+
         self.clear_dispatched()
 
         yield self.dispatch(control_msg_remove, 'vusion.control')
@@ -94,17 +95,17 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
     def test_append_mapping(self):
         add_mappings = [['app2', 'keyword2'],
                        ['app2', 'keyword3']]
-        
+
         self.worker.append_mapping('app2', add_mappings)
         self.worker.append_mapping('app2', add_mappings)
-        
+
         self.assertEqual(self.worker._router.keyword_mappings,
                          [('app1', 'keyword1'),
                           ('app2', 'keyword2'),
                           ('app2', 'keyword3')])
-        
+
         self.worker.append_mapping('app2', [['app2', 'keyword2']])
-        
+
         self.assertEqual(self.worker._router.keyword_mappings,
                          [('app1', 'keyword1'),
                           ('app2', 'keyword2')])
@@ -124,7 +125,7 @@ class TestContentKeywordRouter(DispatcherTestCase):
             'transport_names': ['transport1', 'transport2'],
             'transport_mappings': {
                 'transport1': 'shortcode1',
-                'transport2': 'shortcode2' 
+                'transport2': 'shortcode2'
                 },
             'exposed_names': ['app1', 'app2', 'app3'],
             'keyword_mappings': {
@@ -279,7 +280,7 @@ class TestContentKeywordRouter(DispatcherTestCase):
         app2_route = self.fake_redis.get('keyword_dispatcher:message:1')
         self.assertEqual(app2_route, 'app2')
 
-      
+
 class DummyDispatcher(object):
 
     class DummyPublisher(object):
@@ -298,5 +299,3 @@ class DummyDispatcher(object):
         for exposed in config['exposed_names']:
             self.exposed_publisher[exposed] = self.DummyPublisher()
             self.exposed_event_publisher[exposed] = self.DummyPublisher()
-
-

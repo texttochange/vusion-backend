@@ -2,12 +2,14 @@
 from datetime import datetime
 
 #from vumi.tests.utils import UTCNearNow
-from vumi.message import TransportEvent, TransportMessage, TransportUserMessage, Message
+from vumi.message import (TransportEvent, TransportMessage,
+                          TransportUserMessage, Message)
 from vumi.transports.failures import FailureMessage
+
 
 #TODO use UTC time rather than datetime
 class MessageMaker:
-    
+
     def mkmsg_ack(self, user_message_id='1', sent_message_id='abc',
                   transport_metadata=None):
         if transport_metadata is None:
@@ -94,10 +96,10 @@ class MessageMaker:
             reason=reason,
             )
 
-    def mkmsg_control(self,message_type='add_exposed',
+    def mkmsg_control(self, message_type='add_exposed',
                       exposed_name='app2', keyword_mappings=None):
-        if keyword_mappings==None:
-            keyword_mappings=[]
+        if keyword_mappings == None:
+            keyword_mappings = []
         return Message(
             message_type=message_type,
             exposed_name=exposed_name,

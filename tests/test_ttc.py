@@ -13,6 +13,7 @@ from vusion import TtcGenericWorker
 from transports import YoUgHttpTransport
 from tests.utils import MessageMaker
 
+
 class FakeUserMessage(TransportUserMessage):
 
     def __init__(self, **kw):
@@ -40,22 +41,22 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
         }
 
     simpleScript = {
-        "activated":1,
-        "script":{
+        "activated": 1,
+        "script": {
             "shortcode": "8282",
             "dialogues":
-            [{"dialogue-id":"0","interactions":[
-                {"type-interaction":"announcement",
-                 "interaction-id":"0",
-                 "content":"Hello",
-                 "type-schedule":"immediately"},
-                {"type-interaction":"announcement",
-                 "interaction-id":"1",
-                 "content":"How are you",
-                 "type-schedule":"wait",
-                 "minutes":"60"}]
-              }
-             ]
+            [{"dialogue-id": "0",
+              "interactions": [
+                  {"type-interaction": "announcement",
+                   "interaction-id": "0",
+                   "content": "Hello",
+                   "type-schedule": "immediately"},
+                  {"type-interaction": "announcement",
+                   "interaction-id": "1",
+                   "content": "How are you",
+                   "type-schedule": "wait",
+                   "minutes": "60"}]
+              }]
         }
     }
 
@@ -69,8 +70,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
         "action":"start"
     }"""
 
-    simpleProgram_Question = { 
-        "activated" : 1,
+    simpleProgram_Question = {
+        "activated": 1,
         "script": {
             "shortcode": "8282",
             "dialogues": [
@@ -91,7 +92,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
             ]
         }
     }
-      
+
     simpleProgram_announcement_fixedtime = """
     {"activated" : 1,
     "script": {
@@ -278,8 +279,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
         self.collection_participants.save(participant)
         self.worker.init_program_db(config['program']['database-name'])
 
-        schedules = self.worker.schedule_participant_dialogue(participant,
-                                                              script['script']['dialogues'][0])
+        schedules = self.worker.schedule_participant_dialogue(
+            participant, script['script']['dialogues'][0])
         #assert time calculation
         self.assertEqual(len(schedules), 2)
         self.assertTrue(datetime.strptime(schedules[0].get("datetime"),
@@ -312,8 +313,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
                                         "participant-phone": "09"})
 
         yield self.worker.send_scheduled()
-        message = self.broker.basic_get('%s.outbound'
-                                        % self.transport_name)[1].get('content')
+        message = self.broker.basic_get(
+            '%s.outbound' % self.transport_name)[1].get('content')
         message = TransportUserMessage.from_json(message)
 
         self.assertEqual(message.payload['to_addr'], "09")
@@ -372,20 +373,22 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
 
         yield self.worker.send_scheduled()
         #first message is the oldest
-        message1 = TransportUserMessage.from_json(self.broker.basic_get('%s.outbound' % self.transport_name)[1].get('content'))
+        message1 = TransportUserMessage.from_json(self.broker.basic_get(
+            '%s.outbound' % self.transport_name)[1].get('content'))
         self.assertEqual(message1.payload['content'], "Hello")
         #second message
-        message2 = TransportUserMessage.from_json(self.broker.basic_get('%s.outbound' % self.transport_name)[1].get('content'))
+        message2 = TransportUserMessage.from_json(self.broker.basic_get(
+            '%s.outbound' % self.transport_name)[1].get('content'))
         self.assertEqual(message2.payload['content'], "Today will be sunny")
         #third message is not send, so still in the schedules collection and
         #two messages in the logs collection
         self.assertEquals(self.collection_schedules.count(), 1)
         self.assertEquals(self.collection_status.count(), 2)
-        self.assertTrue(self.broker.basic_get('%s.outbound'
-                                              % self.transport_name))
+        self.assertTrue(self.broker.basic_get(
+            '%s.outbound' % self.transport_name))
         #only two message should be send
-        self.assertTrue((None, None) == self.broker.basic_get('%s.outbound'
-                                                             % self.transport_name))
+        self.assertTrue((None, None) == self.broker.basic_get(
+            '%s.outbound' % self.transport_name))
 
     def getCollection(self, db, collection_name):
         if (collection_name in self.db.collection_names()):
@@ -411,8 +414,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
                          dialogue_id="0")
 
         #Starting the test
-        schedules = self.worker.schedule_participant_dialogue(participant,
-                                                              script['script']['dialogues'][0])
+        schedules = self.worker.schedule_participant_dialogue(
+            participant, script['script']['dialogues'][0])
 
         self.assertEqual(self.collection_status.count(), 1)
         self.assertEqual(self.collection_schedules.count(), 1)
@@ -443,8 +446,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
                          dialogue_id="0")
 
         #Starting the test
-        schedules = self.worker.schedule_participant_dialogue(participant,
-                                                              script['script']['dialogues'][0])
+        schedules = self.worker.schedule_participant_dialogue(
+            participant, script['script']['dialogues'][0])
 
         self.assertEqual(self.collection_status.count(), 1)
         self.assertEqual(self.collection_schedules.count(), 1)
@@ -503,8 +506,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
         self.worker.init_program_db(config['program']['database-name'])
 
         #action
-        self.worker.schedule_participant_dialogue(participant,
-                                                  script['script']['dialogues'][0])
+        self.worker.schedule_participant_dialogue(
+            participant, script['script']['dialogues'][0])
 
         #asserting
         self.assertEqual(self.collection_schedules.count(), 1)
@@ -522,7 +525,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
         connection = pymongo.Connection("localhost", 27017)
         self.db = connection[self.config['database']]
         self.collection_scripts = self.db.create_collection("scripts")
-        self.collection_participants = self.db.create_collection("participants")
+        self.collection_participants = self.db.create_collection(
+            "participants")
 
         self.worker.init_program_db(self.database_name)
 
@@ -545,7 +549,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
         connection = pymongo.Connection("localhost", 27017)
         self.db = connection[self.config['database']]
         self.collection_scripts = self.db.create_collection("scripts")
-        self.collection_participants = self.db.create_collection("participants")
+        self.collection_participants = self.db.create_collection(
+            "participants")
         self.collection_status = self.db.create_collection('status')
         self.worker.init_program_db(self.database_name)
 
@@ -569,7 +574,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
         connection = pymongo.Connection("localhost", 27017)
         self.db = connection[self.config['database']]
         self.collection_scripts = self.db.create_collection("scripts")
-        self.collection_participants = self.db.create_collection("participants")
+        self.collection_participants = self.db.create_collection(
+            "participants")
         self.worker.init_program_db(self.database_name)
 
         yield self.send(event, 'event')
@@ -584,7 +590,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
         connection = pymongo.Connection("localhost", 27017)
         self.db = connection[self.config['database']]
         self.collection_scripts = self.db.create_collection("scripts")
-        self.collection_participants = self.db.create_collection("participants")
+        self.collection_participants = self.db.create_collection(
+            "participants")
         self.collection_status = self.db.create_collection('status')
         self.worker.init_program_db(self.database_name)
 
@@ -616,7 +623,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
         connection = pymongo.Connection("localhost", 27017)
         self.db = connection[self.config['database']]
         self.collection_scripts = self.db.create_collection("scripts")
-        self.collection_participants = self.db.create_collection("participants")
+        self.collection_participants = self.db.create_collection(
+            "participants")
         self.collection_status = self.db.create_collection('status')
         self.worker.init_program_db(self.database_name)
 
@@ -625,7 +633,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
             'message-type': 'send',
             'message-status': 'pending'
         })
-
 
         yield self.send(event, 'event')
 
@@ -642,7 +649,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
         script = self.simpleScript
         participant = {"phone": "06"}
 
-        #The collections have to be created before initializing worker's database
         self.collection_scripts.save(script)
         self.collection_participants.save(participant)
         self.worker.init_program_db(self.config['database'])
@@ -651,7 +657,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
                          interaction_id=None,
                          dialogue_id=None)
 
-        schedules = self.worker.schedule_participant_dialogue(participant, script['script']['dialogues'][0])
+        schedules = self.worker.schedule_participant_dialogue(
+            participant, script['script']['dialogues'][0])
         #assert time calculation
         self.assertEqual(len(schedules), 2)
 
@@ -660,21 +667,20 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
         #config = self.worker.config
         script = self.simpleProgram_Question
         participant = {"phone": "06"}
-        
-        #The collections have to be created before initializing worker's database
+
         self.collection_scripts.save(script)
         self.collection_participants.save(participant)
         self.worker.init_program_db(self.config['database'])
 
-        yield self.worker.register_keywords_in_dispatcher(['keyword1','keyword2'])
+        yield self.worker.register_keywords_in_dispatcher(
+            ['keyword1', 'keyword2'])
 
         msg = self.broker.get_messages('vumi', 'dispatcher.control')
-
-        self.assertEqual(msg, 
-                         [self.mkmsg_control(exposed_name=self.transport_name,
-                                             keyword_mappings=[['test', 'keyword1'],
-                                                               ['test', 'keyword2']])])
-        
+        expected_msg = self.mkmsg_control(
+            exposed_name=self.transport_name,
+            keyword_mappings=[['test', 'keyword1'],
+                              ['test', 'keyword2']])
+        self.assertEqual(msg, [expected_msg])
 
     #@inlineCallbacks    
     #def test12_2dialogues_updated_2message_scheduled(self):
