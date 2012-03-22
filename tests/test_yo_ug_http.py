@@ -126,13 +126,13 @@ class YoUgHttpTransportTestCase(TransportTestCase):
 
     @inlineCallbacks
     def test04_receiving_one_sms(self):
-        url = "http://localhost:%s%s?sender=41791234567&code=9292&message=HelloWorld" % (self.config['receive_port'],
+        url = "http://localhost:%s%s?sender=41791234567&code=9292&message=Hello+World" % (self.config['receive_port'],
                                          self.config['receive_path'])
         response = yield http_request_full(url, method='GET')
         [smsg] = self.get_dispatched('yo.inbound')
 
         self.assertEqual(response.code, http.OK)
-        self.assertEqual(self.mkmsg_in(content='HelloWorld'),
+        self.assertEqual(self.mkmsg_in(content='Hello World'),
                          TransportMessage.from_json(smsg.body))
 
     def get_dispatched(self, rkey):
