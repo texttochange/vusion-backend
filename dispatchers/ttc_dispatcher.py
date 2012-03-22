@@ -29,6 +29,7 @@ class DynamicDispatchWorker(BaseDispatchWorker):
     
     @inlineCallbacks
     def startWorker(self):
+        log.debug('Starting Dynamic Dispatcher %s' % (self.config,))
         super(DynamicDispatchWorker, self).startWorker()
         yield self.setup_control()
 
@@ -65,14 +66,14 @@ class DynamicDispatchWorker(BaseDispatchWorker):
         for (name, rule) in mappings_to_add:
             if (name, rule) not in self._router.keyword_mappings:
                 self._router.keyword_mappings.append((name,rule))
-    
+
     def remove_non_present_mappings(self, exposed_name, mappings_to_add):
         non_present_mappings = self.get_non_present_mapping(
             self.get_mapping(exposed_name),
             mappings_to_add)
         for (name, rule) in non_present_mappings:
                 self._router.keyword_mappings.remove((name,rule))
-    
+
     def get_mapping(self, name_to_get):
         return [(name, rule) for (name, rule) in self._router.keyword_mappings
                 if name==name_to_get]
@@ -86,9 +87,9 @@ class DynamicDispatchWorker(BaseDispatchWorker):
                                           for (name, rule)
                                           in self._router.keyword_mappings
                                           if name!=name_to_clear]
-        
+
     def receive_control_message(self, msg):
-        log.debug('Received control message')
+        log.debug('Received control message %s' % (msg,))
         if msg['message_type'] == 'add_exposed':
             self.setup_exposed(msg['exposed_name'])
             self.append_mapping(msg['exposed_name'], msg['keyword_mappings'])
@@ -128,7 +129,9 @@ class ContentKeywordRouter(SimpleDispatchRouter):
         self.r_config = config.get('redis_config', {})
         self.r_prefix = config['dispatcher_name']
         self.r_server = redis.Redis(**self.r_config)
-        self.keyword_mappings = config['keyword_mappings'].items()
+        self.keyword_mappings = []
+        if 'keyword_mappings' in config:
+            self.keyword_mappings = config['keyword_mappings'].items()
         self.transport_mappings = config['transport_mappings'].items()
         super(ContentKeywordRouter, self).__init__(dispatcher, config)
 

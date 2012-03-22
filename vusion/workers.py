@@ -34,6 +34,8 @@ class TtcGenericWorker(ApplicationWorker):
             '%(control_name)s.control' % self.config,
             self.consume_control,
             message_class=Message)
+        self.dispatcher_publisher = yield self.publish_to(
+            '%(dispatcher_name)s.control' % self.config)
 
         #config
         self.transport_name = self.config['transport_name']
@@ -82,10 +84,17 @@ class TtcGenericWorker(ApplicationWorker):
             'interaction-id': interaction_id
             })
 
+    def get_current_script_id(self):
+        for script in self.collection_scripts.find({"activated": 1}).sort("modified", pymongo.DESCENDING).limit(1):
+            return script['_id']
+        self.log("Fatal Error: no active script found in the database")
+        return None
+
     def get_current_script(self):
         for script in self.collection_scripts.find({"activated": 1}).sort("modified", pymongo.DESCENDING).limit(1):
             return script['script']
-        self.log("Fatal Error: no active script found on in the database")
+        self.log("Fatal Error: no active script found in the database")
+        return None
 
     def init_program_db(self, database_name):
         self.log("Initialization of the program")
@@ -179,25 +188,30 @@ class TtcGenericWorker(ApplicationWorker):
         self.schedule()
         yield self.send_scheduled()
         if self.has_active_script_changed():
+            self.log('Synchronizing with dispatcher')
             keywords = self.get_keywords()
             yield self.register_keywords_in_dispatcher(keywords)
 
     def has_active_script_changed(self):
-        script = self.get_current_script()
-        if self.last_script_used == None:
-            self.last_script_used = script['_id']
-            return True
-        if self.last_script_used == script['_id']:
+        script_id = self.get_current_script_id()
+        if script_id == None:
             return False
+        if self.last_script_used == None:
+            self.last_script_used = script_id
+            return True
+        if self.last_script_used == script_id:
+            return False
+        self.last_script_used = script_id
         return True
     
-    def get_keywords():
+    def get_keywords(self):
         keywords = []
         script = self.get_current_script()
         for dialogue in script['dialogues']:
             for interaction in dialogue['interactions']:
                 if 'keyword' in interaction:
                     keywords.append(interaction['keyword'])
+        return keywords
 
     def schedule(self):
         self.log('Starting schedule()')

@@ -39,22 +39,25 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
         'transport_name': 'app',
         }
 
-    simpleScript = """{
-    "activated":1,
-    "script":{
+    simpleScript = {
+        "activated":1,
+        "script":{
             "shortcode": "8282",
             "dialogues":
             [{"dialogue-id":"0","interactions":[
-                   {"type-interaction":"announcement",
-                   "interaction-id":"0",
-                   "content":"Hello",
-                   "type-schedule":"immediately"},
-                   {"type-interaction":"announcement",
-                   "interaction-id":"1",
-                   "content":"How are you",
-                   "type-schedule":"wait",
-                   "minutes":"60"}]}
-            ]}}"""
+                {"type-interaction":"announcement",
+                 "interaction-id":"0",
+                 "content":"Hello",
+                 "type-schedule":"immediately"},
+                {"type-interaction":"announcement",
+                 "interaction-id":"1",
+                 "content":"How are you",
+                 "type-schedule":"wait",
+                 "minutes":"60"}]
+              }
+             ]
+        }
+    }
 
     twoParticipants = """{"participants":[
             {"phone":"788601462"},
@@ -227,9 +230,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
         events = [
             ('config', Message.from_json(self.configControl))
         ]
-        self.collection_scripts.save({"script": [
-            {"activated": True,
-             "do something": "like that"}]})
+        self.collection_scripts.save(self.simpleScript)
         self.collection_participants.save({"phone": "08"})
 
         for name, event in events:
@@ -268,7 +269,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
     def test03_schedule_participant_dialogue(self):
 
         config = json.loads(self.configControl)
-        script = json.loads(self.simpleScript)
+        script = self.simpleScript
         participant = {"phone": "06"}
 
         #The collections have to be created before initializing worker's
@@ -298,7 +299,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
     def test04_send_scheduled_oneMessage(self):
 
         config = json.loads(self.configControl)
-        script = json.loads(self.simpleScript)
+        script = self.simpleScript
         participant = {"phone": "09"}
         dNow = datetime.now()
 
@@ -394,7 +395,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
 
     def test06_schedule_interaction_while_interaction_instatus(self):
         config = json.loads(self.configControl)
-        script = json.loads(self.simpleScript)
+        script = self.simpleScript
         participant = {"phone": "06"}
 
         dNow = datetime.now()
@@ -418,7 +419,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
 
     def test07_schedule_interaction_while_interaction_inschedule(self):
         config = json.loads(self.configControl)
-        script = json.loads(self.simpleScript)
+        script = self.simpleScript
         participant = {"phone": "06"}
 
         dNow = datetime.now()
@@ -451,7 +452,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
     @inlineCallbacks
     def test08_schedule_interaction_that_has_expired(self):
         config = json.loads(self.configControl)
-        script = json.loads(self.simpleScript)
+        script = self.simpleScript
         participant = {"phone": "06"}
 
         dNow = datetime.now()
@@ -638,7 +639,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
 
     def test18_schedule_process_handle_crap_in_history(self):
         #config = json.loads(self.configControl)
-        script = json.loads(self.simpleScript)
+        script = self.simpleScript
         participant = {"phone": "06"}
 
         #The collections have to be created before initializing worker's database
