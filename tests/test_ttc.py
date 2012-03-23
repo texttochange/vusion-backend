@@ -11,7 +11,7 @@ from vumi.message import Message, TransportEvent, TransportUserMessage
 
 from vusion import TtcGenericWorker
 from transports import YoUgHttpTransport
-from tests.utils import MessageMaker
+from tests.utils import MessageMaker, DataLayerUtils
 
 
 class FakeUserMessage(TransportUserMessage):
@@ -25,7 +25,7 @@ class FakeUserMessage(TransportUserMessage):
         super(FakeUserMessage, self).__init__(**kw)
 
 
-class TtcGenericWorkerTestCase(TestCase, MessageMaker):
+class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
     configControl = """
     {"program":{
@@ -58,6 +58,23 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
                    "minutes": "60"}]
               }]
         }
+    }
+    
+    program_settings = [{
+        'key': 'shortcode',
+        'value': '8181'
+        },{
+        'key': 'internationalprefix',
+        'value': '256'
+        },{
+        'key': 'timezone',
+        'value': 'Africa/Kampala'
+        }]
+    
+    shortcodes = {
+        'country': 'Uganda',
+        'internationalprefix': '256',
+        'shortcode': '8181'
     }
 
     twoParticipants = """{"participants":[
@@ -154,6 +171,9 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
         self.collection_status.drop()
         self.collection_schedules = self.db["schedules"]
         self.collection_schedules.drop()
+
+        self.collections = {}
+        self.setup_collections(['shortcodes','program_settings'])
 
         #Let's rock"
         self.worker.startService()
@@ -302,23 +322,27 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
         config = json.loads(self.configControl)
         script = self.simpleScript
         participant = {"phone": "09"}
+        program_settings = self.program_settings
         dNow = datetime.now()
 
         self.collection_scripts.save(script)
         self.collection_participants.save(participant)
+        self.collections['program_settings'].save(self.program_settings[0])
         self.worker.init_program_db(config['program']['database-name'])
         self.collection_schedules.save({"datetime": dNow.isoformat(),
                                         "dialogue-id": "0",
                                         "interaction-id": "0",
                                         "participant-phone": "09"})
 
+        self.worker.load_data()
         yield self.worker.send_scheduled()
         message = self.broker.basic_get(
             '%s.outbound' % self.transport_name)[1].get('content')
         message = TransportUserMessage.from_json(message)
 
-        self.assertEqual(message.payload['to_addr'], "09")
-        self.assertEqual(message.payload['content'], "Hello")
+        self.assertEqual(message['to_addr'], "09")
+        self.assertEqual(message['content'], "Hello")
+        self.assertEqual(message['from_addr'], '8181')
         self.assertEqual(self.collection_schedules.count(), 0)
         status = self.worker.collection_status.find_one()
         self.assertEquals(status['participant-phone'], "09")
@@ -328,26 +352,30 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
     @inlineCallbacks
     def test05_send_scheduled_only_in_past(self):
         config = json.loads(self.configControl)
-        script = {"activated": 1,
-                  "script": {"shortcode": "8282",
-                             "dialogues":
-                             [{"dialogue-id": "0",
-                               "type": "sequential",
-                               "interactions":[
-                                 {"type": "announcement",
-                                  "interaction-id": "0",
-                                  "content": "Hello",
-                                  "schedule-type":"immediately"},
-                                 {"type": "announcement",
-                                  "interaction-id": "1",
-                                  "content": "Today will be sunny",
-                                  "schedule-type": "wait-20"},
-                                 {"type": "announcement",
-                                  "interaction-id": "2",
-                                  "content": "Today is the special day",
-                                  "schedule-type": "wait-20"}
-                             ]}]
-                             }}
+        script = {
+            "activated": 1,
+            "script": {"dialogues":
+                       [
+                           {"dialogue-id": "0",
+                            "type": "sequential",
+                            "interactions":[
+                                {"type": "announcement",
+                                 "interaction-id": "0",
+                                 "content": "Hello",
+                                 "schedule-type":"immediately"},
+                                {"type": "announcement",
+                                 "interaction-id": "1",
+                                 "content": "Today will be sunny",
+                                 "schedule-type": "wait-20"},
+                                {"type": "announcement",
+                                 "interaction-id": "2",
+                                 "content": "Today is the special day",
+                                 "schedule-type": "wait-20"}
+                             ]
+                            }
+                       ]
+                       }
+        }
         participant = {"phone": "06"}
 
         dNow = datetime.now()
@@ -356,6 +384,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
 
         self.collection_scripts.save(script)
         self.collection_participants.save(participant)
+        self.collections['program_settings'].save(self.program_settings[0])
         self.worker.init_program_db(config['program']['database-name'])
 
         self.collection_schedules.save({"datetime": dPast.isoformat(),
@@ -371,6 +400,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker):
                                         "interaction-id": "2",
                                         "participant-phone": "09"})
 
+        self.worker.load_data()
         yield self.worker.send_scheduled()
         #first message is the oldest
         message1 = TransportUserMessage.from_json(self.broker.basic_get(

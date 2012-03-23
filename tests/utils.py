@@ -7,6 +7,19 @@ from vumi.message import (TransportEvent, TransportMessage,
 from vumi.transports.failures import FailureMessage
 
 
+class DataLayerUtils:
+
+    def setup_collections(self, names):
+        for name in names:
+            self.setup_collection(name)
+    
+    def setup_collection(self, name):
+        if name in self.db.collection_names():
+            self.collections[name] = self.db[name]
+        else:
+            self.collections[name] = self.db.create_collection(name)
+
+
 #TODO use UTC time rather than datetime
 class MessageMaker:
 

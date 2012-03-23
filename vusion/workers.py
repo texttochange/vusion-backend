@@ -48,6 +48,8 @@ class TtcGenericWorker(ApplicationWorker):
         self.sender = None
         self.program_name = None
         self.last_script_used = None
+        self.collections = {}
+        self.properties = {}
 
         self._d.callback(None)
 
@@ -137,6 +139,18 @@ class TtcGenericWorker(ApplicationWorker):
         else:
             self.collection_status = self.db.create_collection(
                 collection_status_name)
+        
+        self.setup_collections(['shortcodes','program_settings'])
+        
+    def setup_collections(self, names):
+        for name in names:
+            self.setup_collection(name)
+    
+    def setup_collection(self, name):
+        if name in self.db.collection_names():
+            self.collections[name] = self.db[name]
+        else:
+            self.collections[name] = self.db.create_collection(name)
 
     #@inlineCallbacks
     def consume_control(self, message):
@@ -184,12 +198,29 @@ class TtcGenericWorker(ApplicationWorker):
     @inlineCallbacks
     def daemon_process(self):
         self.log('Starting daemon_process()')
+        self.load_data()
+        if not self.is_ready():
+            return
         self.schedule()
         yield self.send_scheduled()
         if self.has_active_script_changed():
             self.log('Synchronizing with dispatcher')
             keywords = self.get_keywords()
             yield self.register_keywords_in_dispatcher(keywords)
+
+    def load_data(self):
+        program_settings = self.collections['program_settings'].find()
+        for program_setting in program_settings:
+            self.properties[program_setting['key']] = program_setting['value']
+
+    def is_ready(self):
+        if 'shortcode' not in self.properties:
+            self.log('Shortcode not defined')
+            return False
+        if not self.get_current_script:
+            self.log('No active script defined')
+            return False
+        return True
 
     def has_active_script_changed(self):
         script_id = self.get_current_script_id()
@@ -242,7 +273,7 @@ class TtcGenericWorker(ApplicationWorker):
                     interaction['content'], toSend['participant-phone']))
 
                 #TODO change hard coded shortcode
-                message = TransportUserMessage(**{'from_addr': '8282',
+                message = TransportUserMessage(**{'from_addr': self.properties['shortcode'],
                                                   'to_addr': toSend.get('participant-phone'),
                                                   'transport_name': self.transport_name,
                                                   'transport_type': self.transport_type,

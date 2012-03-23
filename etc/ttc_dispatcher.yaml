@@ -1,9 +1,11 @@
 router_class: dispatchers.ContentKeywordRouter
 dispatcher_name: dispatcher
 transport_names: 
-        - yo
+        - yo8181
+        - yo8282
 transport_mappings:
-        yo: '8282'
+        yo8282: '8282'
+        yo8181: '8181'
 exposed_names: 
         - m4h 
         - mrs
