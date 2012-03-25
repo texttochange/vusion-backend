@@ -217,7 +217,7 @@ class TtcGenericWorker(ApplicationWorker):
         if 'shortcode' not in self.properties:
             self.log('Shortcode not defined')
             return False
-        if not self.get_current_script:
+        if not self.get_current_script():
             self.log('No active script defined')
             return False
         return True
