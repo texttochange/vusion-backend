@@ -389,7 +389,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         else:
             return db.create_collection(collection_name)
 
-    def test06_schedule_interaction_while_interaction_instatus(self):
+    def test06_schedule_interaction_while_interaction_in_status(self):
         config = self.simpleConfig
         script = self.simpleScript
         participant = {"phone": "06"}
@@ -415,14 +415,19 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(self.collection_status.count(), 1)
         self.assertEqual(self.collection_schedules.count(), 1)
 
-    def test07_schedule_interaction_while_interaction_inschedule(self):
+    def test07_schedule_interaction_while_interaction_in_schedule(self):
         config = self.simpleConfig
         script = self.simpleScript
         participant = {"phone": "06"}
 
         dNow = datetime.now()
-        dPast = datetime.now() - timedelta(minutes=30)
-        dFuture = datetime.now() + timedelta(minutes=30)
+        dPast = dNow - timedelta(minutes=30)
+        dFuture = dNow + timedelta(minutes=30)
+        dLaterFuture = dNow + timedelta(minutes=60)
+        
+        script['script']['dialogues'][0]['interactions'][1]['type-schedule'] = 'fixed-time' 
+        script['script']['dialogues'][0]['interactions'][1]['date-time'] = dLaterFuture.strftime(
+            self.time_format)
 
         #program = json.loads(self.simpleProgram)['program']
         self.collection_scripts.save(script)
@@ -448,20 +453,19 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         self.assertEqual(self.collection_status.count(), 1)
         self.assertEqual(self.collection_schedules.count(), 1)
+        schedule = self.collection_schedules.find_one()
+        self.assertEqual(schedule['datetime'], dLaterFuture.strftime(self.time_format))
 
-    @inlineCallbacks
     def test08_schedule_interaction_that_has_expired(self):
         config = self.simpleConfig
         script = self.simpleScript
         participant = {"phone": "06"}
 
         dNow = datetime.now()
-        dPast = datetime.now() - timedelta(minutes=40)
-        dLaterPast = datetime.now() - timedelta(minutes=70)
+        dPast = datetime.now() - timedelta(minutes=50)
+        dLaterPast = datetime.now() - timedelta(minutes=80)
 
-        #Message to be received
-        event = Message.from_json(self.controlMessage)
-        #event['action'] = "resume"
+        script['script']['dialogues'][0]['interactions'][1]['type-schedule'] = 'wait' 
 
         self.collection_scripts.save(script)
         self.collection_participants.save(participant)
@@ -471,19 +475,20 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.worker.load_data()
 
         #Declare collection for scheduling messages
-        self.collection_schedules.save({"datetime": dPast.isoformat()[:19],
+        self.collection_schedules.save({"datetime": dPast.strftime(self.time_format),
                                         "participant-phone": "06",
-                                        "interaction-id": "0",
+                                        "interaction-id": "1",
                                         "dialogue-id": "0"})
 
         #Declare collection for loging messages
-        self.save_status(timestamp=dLaterPast.isoformat()[:19],
+        self.save_status(timestamp=dLaterPast.strftime(self.time_format),
                          participant_phone="06",
                          interaction_id="0",
                          dialogue_id="0")
 
         #Starting the test
-        yield self.send(event, 'control')
+        schedules = self.worker.schedule_participant_dialogue(
+            participant, script['script']['dialogues'][0])
 
         self.assertEqual(self.collection_status.count(), 2)
         self.assertEqual(self.collection_schedules.count(), 0)

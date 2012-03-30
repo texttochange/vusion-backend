@@ -75,15 +75,17 @@ class TtcGenericWorker(ApplicationWorker):
 
     def save_status(self, message_content, participant_phone, message_type,
                     message_status=None, message_id=None,
-                    timestamp=datetime.now(), dialogue_id=None,
+                    timestamp=None, dialogue_id=None,
                     interaction_id=None):
+        if (timestamp):
+            timestamp = self.to_vusion_format(timestamp)
         self.collection_status.save({
             'message-id': message_id,
             'message-content': message_content,
             'participant-phone': participant_phone,
             'message-type': message_type,
             'message-status': message_status,
-            'timestamp': timestamp.isoformat()[:19],
+            'timestamp': timestamp,
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id
             })
@@ -254,7 +256,7 @@ class TtcGenericWorker(ApplicationWorker):
                 script['dialogues'][0])
 
     def get_local_time(self):
-        return datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(self.properties['timezone']))
+        return datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(self.properties['timezone'])).replace(tzinfo=None)
 
     def to_vusion_format(self, timestamp):
         return timestamp.strftime('%Y-%m-%dT%H:%M:%S')
@@ -296,7 +298,7 @@ class TtcGenericWorker(ApplicationWorker):
                                   message_type='send',
                                   message_status='pending',
                                   message_id=message['message_id'],
-                                  timestamp=datetime.now(),
+                                  timestamp=self.get_local_time(),
                                   dialogue_id=toSend['dialogue-id'],
                                   interaction_id=toSend['interaction-id'])
             except Exception as e:
@@ -325,8 +327,6 @@ class TtcGenericWorker(ApplicationWorker):
         for participant in participants:
             self.schedule_participant_dialogue(participant, dialogue)
 
-    #TODO: manage multiple timezone
-    #TODO: manage other schedule type
     #TODO: decide which id should be in an schedule object
     def schedule_participant_dialogue(self, participant, dialogue):
         #schedules = self.collection_schedules
@@ -337,8 +337,8 @@ class TtcGenericWorker(ApplicationWorker):
                 "participant-phone": participant['phone'],
                 "dialogue-id": dialogue["dialogue-id"],
                 "interaction-id": interaction["interaction-id"]})
-            if (schedule is not None):  # Is the interaction already schedule
-                continue
+            #if (schedule is not None):  # Is the interaction already schedule
+                #continue
             status = self.collection_status.find_one({
                 "participant-phone": participant['phone'],
                 "dialogue-id": dialogue["dialogue-id"],
@@ -351,8 +351,8 @@ class TtcGenericWorker(ApplicationWorker):
                     elif (interaction['type-schedule'] == "wait"):
                         sendingDateTime = previousSendDateTime + timedelta(minutes=int(interaction['minutes']))
                     elif (interaction['type-schedule'] == "fixed-time"):
-                        sendingDateTime = iso8601.parse_date(interaction['date-time'])
-                        
+                        sendingDateTime = iso8601.parse_date(interaction['date-time']).replace(tzinfo=None)
+                    
                     #Scheduling a date already in the past is forbidden.
                     if (sendingDateTime + timedelta(minutes=10) < self.get_local_time()):
                         self.save_status(message_content='Not generated yet',
@@ -360,12 +360,15 @@ class TtcGenericWorker(ApplicationWorker):
                                          message_type='schedule-fail',
                                          dialogue_id=dialogue['dialogue-id'],
                                          interaction_id=interaction["interaction-id"])
+                        if (schedule):
+                            self.collection_schedules.remove(schedule['_id'])
                         continue
 
-                    schedule = {"datetime": self.to_vusion_format(sendingDateTime),
-                              "participant-phone": participant['phone'],
-                              "dialogue-id": dialogue['dialogue-id'],
-                              "interaction-id": interaction["interaction-id"]}
+                    if (not schedule):
+                        schedule = {"participant-phone": participant['phone'],
+                                    "dialogue-id": dialogue['dialogue-id'],
+                                    "interaction-id": interaction["interaction-id"]}
+                    schedule['datetime'] = self.to_vusion_format(sendingDateTime)
                     schedules.append(schedule)
                     previousSendDateTime = sendingDateTime
                     self.collection_schedules.save(schedule)
@@ -376,7 +379,7 @@ class TtcGenericWorker(ApplicationWorker):
                     self.log("Exception is %s"
                              % (sys.exc_info()[0]), 'error')
             else:
-                previousSendDateTime = iso8601.parse_date(status["timestamp"]).replace(tzinfo=pytz.timezone(self.properties['timezone']))
+                previousSendDateTime = iso8601.parse_date(status["timestamp"]).replace(tzinfo=None)
         return schedules
             #schedules.save(schedule)
 
