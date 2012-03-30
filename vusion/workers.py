@@ -89,6 +89,7 @@ class TtcGenericWorker(ApplicationWorker):
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id
             })
+        self.log("History saved")
 
     def get_current_script_id(self):
         for script in self.collection_scripts.find({"activated": 1}).sort("modified", pymongo.DESCENDING).limit(1):
@@ -137,7 +138,7 @@ class TtcGenericWorker(ApplicationWorker):
                 collection_schedules_name)
 
         #Declare collection for loging messages
-        collection_status_name = "status"
+        collection_status_name = "history"
         if (collection_status_name in self.db.collection_names()):
             self.collection_status = self.db[collection_status_name]
         else:
@@ -347,7 +348,10 @@ class TtcGenericWorker(ApplicationWorker):
             if (status is None):  # Has the interaction has not been send
                 try:
                     if (interaction['type-schedule'] == "immediately"):
-                        sendingDateTime = self.get_local_time()
+                        if (schedule):
+                            sendingDateTime = iso8601.parse_date(schedule['datetime']).replace(tzinfo=None)
+                        else:
+                            sendingDateTime = self.get_local_time()
                     elif (interaction['type-schedule'] == "wait"):
                         sendingDateTime = previousSendDateTime + timedelta(minutes=int(interaction['minutes']))
                     elif (interaction['type-schedule'] == "fixed-time"):
