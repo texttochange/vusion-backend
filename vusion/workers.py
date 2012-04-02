@@ -92,7 +92,7 @@ class TtcGenericWorker(ApplicationWorker):
         self.log("History saved")
 
     def get_current_script_id(self):
-        for script in self.collection_scripts.find({"activated": 1}).sort("modified", pymongo.DESCENDING).limit(1):
+        for script in self.collection_scripts.find({'activated': 1}).sort('modified', pymongo.DESCENDING).limit(1):
             return script['_id']
         self.log("Fatal Error: no active script found in the database")
         return None
