@@ -305,22 +305,26 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
-        schedules = self.worker.schedule_participant_dialogue(
+        self.worker.schedule_participant_dialogue(
             participant, script['script']['dialogues'][0])
+        
+        schedules_count = self.collection_schedules.count()
+        self.assertEqual(schedules_count, 2)
+        
+        schedules = self.collection_schedules.find()
         #assert time calculation
-        self.assertEqual(len(schedules), 2)
-        self.assertTrue(datetime.strptime(schedules[0].get("datetime"),
+        self.assertTrue(datetime.strptime(schedules[0]['datetime'],
                                           self.time_format) - datetime.now() < timedelta(seconds=1))
-        self.assertTrue(datetime.strptime(schedules[1].get("datetime"),
+        self.assertTrue(datetime.strptime(schedules[1]['datetime'],
                                           self.time_format) - datetime.now() < timedelta(minutes=60))
-        self.assertTrue(datetime.strptime(schedules[1].get("datetime"),
+        self.assertTrue(datetime.strptime(schedules[1]['datetime'],
                                           self.time_format) - datetime.now() > timedelta(minutes=59))
 
         #assert schedule links
-        self.assertEqual(schedules[0].get("participant-phone"), "06")
-        self.assertEqual(schedules[0].get("dialogue-id"), "0")
-        self.assertEqual(schedules[0].get("interaction-id"), "0")
-        self.assertEqual(schedules[1].get("interaction-id"), "1")
+        self.assertEqual(schedules[0]['participant-phone'], "06")
+        self.assertEqual(schedules[0]['dialogue-id'], "0")
+        self.assertEqual(schedules[0]['interaction-id'], "0")
+        self.assertEqual(schedules[1]['interaction-id'], "1")
 
     @inlineCallbacks
     def test05_send_scheduled_messages(self):
@@ -665,10 +669,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                          interaction_id=None,
                          dialogue_id=None)
 
-        schedules = self.worker.schedule_participant_dialogue(
+        self.worker.schedule_participant_dialogue(
             participant, script['script']['dialogues'][0])
         #assert time calculation
-        self.assertEqual(len(schedules), 2)
+        schedules_count = self.collection_schedules.count()
+        self.assertEqual(schedules_count, 2)
 
     @inlineCallbacks
     def test19_control_dispatcher_keyword_routing(self):

@@ -330,9 +330,7 @@ class TtcGenericWorker(ApplicationWorker):
 
     #TODO: decide which id should be in an schedule object
     def schedule_participant_dialogue(self, participant, dialogue):
-        #schedules = self.collection_schedules
         previousSendDateTime = None
-        schedules = []
         for interaction in dialogue.get('interactions'):
             schedule = self.collection_schedules.find_one({
                 "participant-phone": participant['phone'],
@@ -373,7 +371,6 @@ class TtcGenericWorker(ApplicationWorker):
                                     "dialogue-id": dialogue['dialogue-id'],
                                     "interaction-id": interaction["interaction-id"]}
                     schedule['datetime'] = self.to_vusion_format(sendingDateTime)
-                    schedules.append(schedule)
                     previousSendDateTime = sendingDateTime
                     self.collection_schedules.save(schedule)
                     self.log("Schedule has been saved: %s" % schedule)
@@ -384,8 +381,6 @@ class TtcGenericWorker(ApplicationWorker):
                              % (sys.exc_info()[0]), 'error')
             else:
                 previousSendDateTime = iso8601.parse_date(status["timestamp"]).replace(tzinfo=None)
-        return schedules
-            #schedules.save(schedule)
 
     def log(self, msg, level='msg'):
         if (level == 'msg'):
