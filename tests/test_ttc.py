@@ -170,7 +170,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collection_scripts.drop()
         self.collection_participants = self.db["participants"]
         self.collection_participants.drop()
-        self.collection_status = self.db["status"]
+        self.collection_status = self.db['history']
         self.collection_status.drop()
         self.collection_schedules = self.db["schedules"]
         self.collection_schedules.drop()
@@ -556,7 +556,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collection_scripts = self.db.create_collection("scripts")
         self.collection_participants = self.db.create_collection(
             "participants")
-        self.collection_status = self.db.create_collection('status')
+        self.collection_status = self.db.create_collection('history')
         self.worker.init_program_db(self.database_name)
 
         self.collection_status.save({
@@ -597,7 +597,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collection_scripts = self.db.create_collection("scripts")
         self.collection_participants = self.db.create_collection(
             "participants")
-        self.collection_status = self.db.create_collection('status')
+        self.collection_status = self.db.create_collection('history')
         self.worker.init_program_db(self.database_name)
 
         event = self.mkmsg_delivery(delivery_status='failed',
@@ -630,7 +630,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collection_scripts = self.db.create_collection("scripts")
         self.collection_participants = self.db.create_collection(
             "participants")
-        self.collection_status = self.db.create_collection('status')
+        self.collection_status = self.db.create_collection('history')
         self.worker.init_program_db(self.database_name)
 
         self.collection_status.save({
