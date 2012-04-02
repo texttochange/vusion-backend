@@ -6,6 +6,7 @@ import json
 
 from datetime import datetime, time, date, timedelta
 import pytz
+import iso8601
 
 from vumi.tests.utils import get_stubbed_worker, UTCNearNow, RegexMatcher
 from vumi.message import Message, TransportEvent, TransportUserMessage
@@ -62,18 +63,18 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
               }]
         }
     }
-    
+
     program_settings = [{
         'key': 'shortcode',
         'value': '8181'
-        },{
+        }, {
         'key': 'internationalprefix',
         'value': '256'
-        },{
+        }, {
         'key': 'timezone',
         'value': 'Africa/Kampala'
         }]
-    
+
     shortcodes = {
         'country': 'Uganda',
         'internationalprefix': '256',
@@ -176,7 +177,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collection_schedules.drop()
 
         self.collections = {}
-        self.setup_collections(['shortcodes','program_settings'])
+        self.setup_collections(['shortcodes', 'program_settings'])
 
         #Let's rock"
         self.worker.startService()
@@ -291,13 +292,13 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(script, activeScript['script'])
 
     def test03_schedule_participant_dialogue(self):
-
         config = self.simpleConfig
         script = self.simpleScript
         participant = {"phone": "06"}
-
-        #The collections have to be created before initializing worker's
-        #database
+        mytimezone = self.program_settings[2]['value']
+        dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
+        dNow = dNow.replace(tzinfo=None)
+        
         self.collection_scripts.save(script)
         self.collection_participants.save(participant)
         for program_setting in self.program_settings:
@@ -307,18 +308,21 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         self.worker.schedule_participant_dialogue(
             participant, script['script']['dialogues'][0])
-        
+
         schedules_count = self.collection_schedules.count()
         self.assertEqual(schedules_count, 2)
-        
+
         schedules = self.collection_schedules.find()
         #assert time calculation
-        self.assertTrue(datetime.strptime(schedules[0]['datetime'],
-                                          self.time_format) - datetime.now() < timedelta(seconds=1))
-        self.assertTrue(datetime.strptime(schedules[1]['datetime'],
-                                          self.time_format) - datetime.now() < timedelta(minutes=60))
-        self.assertTrue(datetime.strptime(schedules[1]['datetime'],
-                                          self.time_format) - datetime.now() > timedelta(minutes=59))
+        self.assertTrue(
+            iso8601.parse_date(schedules[0]['datetime']).replace(tzinfo=None) <
+            dNow + timedelta(minutes=1))
+        self.assertTrue(
+            iso8601.parse_date(schedules[1]['datetime']).replace(tzinfo=None) < 
+            dNow + timedelta(minutes=61))
+        self.assertTrue(
+            iso8601.parse_date(schedules[1]['datetime']).replace(tzinfo=None) > 
+            dNow + timedelta(minutes=59))
 
         #assert schedule links
         self.assertEqual(schedules[0]['participant-phone'], "06")
@@ -334,7 +338,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             "script": {"dialogues":
                        [
                            {"dialogue-id": "0",
-                            "interactions":[
+                            "interactions": [
                                 {"type": "announcement",
                                  "interaction-id": "0",
                                  "content": "Hello"
@@ -383,7 +387,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(messages[0]['content'], "Hello")
         self.assertEqual(messages[1]['content'], "Today will be sunny")
-        
+
         self.assertEquals(self.collection_schedules.count(), 1)
         self.assertEquals(self.collection_status.count(), 2)
 
@@ -428,8 +432,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         dPast = dNow - timedelta(minutes=30)
         dFuture = dNow + timedelta(minutes=30)
         dLaterFuture = dNow + timedelta(minutes=60)
-        
-        script['script']['dialogues'][0]['interactions'][1]['type-schedule'] = 'fixed-time' 
+
+        script['script']['dialogues'][0]['interactions'][1]['type-schedule'] = 'fixed-time'
         script['script']['dialogues'][0]['interactions'][1]['date-time'] = dLaterFuture.strftime(
             self.time_format)
 
@@ -469,7 +473,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         dPast = datetime.now() - timedelta(minutes=50)
         dLaterPast = datetime.now() - timedelta(minutes=80)
 
-        script['script']['dialogues'][0]['interactions'][1]['type-schedule'] = 'wait' 
+        script['script']['dialogues'][0]['interactions'][1]['type-schedule'] = 'wait'
 
         self.collection_scripts.save(script)
         self.collection_participants.save(participant)
@@ -695,7 +699,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                               ['test', 'keyword2']])
         self.assertEqual(msg, [expected_msg])
 
-    #@inlineCallbacks    
+    #@inlineCallbacks
     #def test12_2dialogues_updated_2message_scheduled(self):
         #self.assertTrue(False)
 
@@ -704,7 +708,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         ##control from the user
         #self.assertTrue(False)
 
-    #@inlineCallbacks    
+    #@inlineCallbacks
     #def test14_add_participant_is_scheduling_dialogues(self):
         #self.assertTrue(False)
 

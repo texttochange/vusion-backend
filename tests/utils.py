@@ -12,7 +12,7 @@ class DataLayerUtils:
     def setup_collections(self, names):
         for name in names:
             self.setup_collection(name)
-    
+
     def setup_collection(self, name):
         if name in self.db.collection_names():
             self.collections[name] = self.db[name]

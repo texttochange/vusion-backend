@@ -144,13 +144,13 @@ class TtcGenericWorker(ApplicationWorker):
         else:
             self.collection_status = self.db.create_collection(
                 collection_status_name)
-        
-        self.setup_collections(['shortcodes','program_settings'])
-        
+
+        self.setup_collections(['shortcodes', 'program_settings'])
+
     def setup_collections(self, names):
         for name in names:
             self.setup_collection(name)
-    
+
     def setup_collection(self, name):
         if name in self.db.collection_names():
             self.collections[name] = self.db[name]
@@ -261,7 +261,7 @@ class TtcGenericWorker(ApplicationWorker):
 
     def to_vusion_format(self, timestamp):
         return timestamp.strftime('%Y-%m-%dT%H:%M:%S')
-        
+
     #TODO: fire error feedback if the ddialogue do not exit anymore
     #TODO: if dialogue is deleted, need to remove the scheduled message
     #(or they are also canceled if cannot find the dialogue)
@@ -354,7 +354,7 @@ class TtcGenericWorker(ApplicationWorker):
                         sendingDateTime = previousSendDateTime + timedelta(minutes=int(interaction['minutes']))
                     elif (interaction['type-schedule'] == "fixed-time"):
                         sendingDateTime = iso8601.parse_date(interaction['date-time']).replace(tzinfo=None)
-                    
+
                     #Scheduling a date already in the past is forbidden.
                     if (sendingDateTime + timedelta(minutes=10) < self.get_local_time()):
                         self.save_status(message_content='Not generated yet',
