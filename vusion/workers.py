@@ -9,6 +9,8 @@ from twisted.internet import task
 import pymongo
 
 from datetime import datetime, time, date, timedelta
+import pytz
+import iso8601
 
 from vumi.application import ApplicationWorker
 from vumi.message import Message, TransportUserMessage, TransportEvent
@@ -73,21 +75,24 @@ class TtcGenericWorker(ApplicationWorker):
 
     def save_status(self, message_content, participant_phone, message_type,
                     message_status=None, message_id=None,
-                    timestamp=datetime.now(), dialogue_id=None,
+                    timestamp=None, dialogue_id=None,
                     interaction_id=None):
+        if (timestamp):
+            timestamp = self.to_vusion_format(timestamp)
         self.collection_status.save({
             'message-id': message_id,
             'message-content': message_content,
             'participant-phone': participant_phone,
             'message-type': message_type,
             'message-status': message_status,
-            'timestamp': timestamp.isoformat()[:19],
+            'timestamp': timestamp,
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id
             })
+        self.log("History saved")
 
     def get_current_script_id(self):
-        for script in self.collection_scripts.find({"activated": 1}).sort("modified", pymongo.DESCENDING).limit(1):
+        for script in self.collection_scripts.find({'activated': 1}).sort('modified', pymongo.DESCENDING).limit(1):
             return script['_id']
         self.log("Fatal Error: no active script found in the database")
         return None
@@ -133,7 +138,7 @@ class TtcGenericWorker(ApplicationWorker):
                 collection_schedules_name)
 
         #Declare collection for loging messages
-        collection_status_name = "status"
+        collection_status_name = "history"
         if (collection_status_name in self.db.collection_names()):
             self.collection_status = self.db[collection_status_name]
         else:
@@ -251,14 +256,21 @@ class TtcGenericWorker(ApplicationWorker):
                 self.collection_participants.find(),
                 script['dialogues'][0])
 
+    def get_local_time(self):
+        return datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(self.properties['timezone'])).replace(tzinfo=None)
+
+    def to_vusion_format(self, timestamp):
+        return timestamp.strftime('%Y-%m-%dT%H:%M:%S')
+        
     #TODO: fire error feedback if the ddialogue do not exit anymore
     #TODO: if dialogue is deleted, need to remove the scheduled message
     #(or they are also canceled if cannot find the dialogue)
     @inlineCallbacks
     def send_scheduled(self):
         self.log('Starting send_scheduled()')
+        local_time = self.get_local_time()
         toSends = self.collection_schedules.find(
-            spec={"datetime": {"$lt": datetime.now().isoformat()}},
+            spec={"datetime": {"$lt": self.to_vusion_format(local_time)}},
             sort=[("datetime", 1)])
         for toSend in toSends:
             self.collection_schedules.remove(
@@ -287,7 +299,7 @@ class TtcGenericWorker(ApplicationWorker):
                                   message_type='send',
                                   message_status='pending',
                                   message_id=message['message_id'],
-                                  timestamp=datetime.now(),
+                                  timestamp=self.get_local_time(),
                                   dialogue_id=toSend['dialogue-id'],
                                   interaction_id=toSend['interaction-id'])
             except Exception as e:
@@ -316,8 +328,6 @@ class TtcGenericWorker(ApplicationWorker):
         for participant in participants:
             self.schedule_participant_dialogue(participant, dialogue)
 
-    #TODO: manage multiple timezone
-    #TODO: manage other schedule type
     #TODO: decide which id should be in an schedule object
     def schedule_participant_dialogue(self, participant, dialogue):
         #schedules = self.collection_schedules
@@ -328,8 +338,8 @@ class TtcGenericWorker(ApplicationWorker):
                 "participant-phone": participant['phone'],
                 "dialogue-id": dialogue["dialogue-id"],
                 "interaction-id": interaction["interaction-id"]})
-            if (schedule is not None):  # Is the interaction already schedule
-                continue
+            #if (schedule is not None):  # Is the interaction already schedule
+                #continue
             status = self.collection_status.find_one({
                 "participant-phone": participant['phone'],
                 "dialogue-id": dialogue["dialogue-id"],
@@ -337,32 +347,32 @@ class TtcGenericWorker(ApplicationWorker):
                 sort=[("datetime", pymongo.ASCENDING)])
             if (status is None):  # Has the interaction has not been send
                 try:
-                    schedule = {"datetime": None,
-                              "participant-phone": participant['phone'],
-                              "dialogue-id": dialogue['dialogue-id'],
-                              "interaction-id": interaction["interaction-id"]}
                     if (interaction['type-schedule'] == "immediately"):
-                        sendingDateTime = datetime.now()
+                        if (schedule):
+                            sendingDateTime = iso8601.parse_date(schedule['datetime']).replace(tzinfo=None)
+                        else:
+                            sendingDateTime = self.get_local_time()
                     elif (interaction['type-schedule'] == "wait"):
                         sendingDateTime = previousSendDateTime + timedelta(minutes=int(interaction['minutes']))
                     elif (interaction['type-schedule'] == "fixed-time"):
-                        sendingDateTime = datetime(int(interaction['year']),
-                                                   int(interaction['month']),
-                                                   int(interaction['day']),
-                                                   int(interaction['hour']),
-                                                   int(interaction['minute']))
-
+                        sendingDateTime = iso8601.parse_date(interaction['date-time']).replace(tzinfo=None)
+                    
                     #Scheduling a date already in the past is forbidden.
-                    if (sendingDateTime < datetime.now() and
-                        datetime.now() - sendingDateTime > timedelta(minutes=10)):
+                    if (sendingDateTime + timedelta(minutes=10) < self.get_local_time()):
                         self.save_status(message_content='Not generated yet',
                                          participant_phone=participant['phone'],
                                          message_type='schedule-fail',
                                          dialogue_id=dialogue['dialogue-id'],
                                          interaction_id=interaction["interaction-id"])
+                        if (schedule):
+                            self.collection_schedules.remove(schedule['_id'])
                         continue
 
-                    schedule["datetime"] = sendingDateTime.isoformat()[:19]
+                    if (not schedule):
+                        schedule = {"participant-phone": participant['phone'],
+                                    "dialogue-id": dialogue['dialogue-id'],
+                                    "interaction-id": interaction["interaction-id"]}
+                    schedule['datetime'] = self.to_vusion_format(sendingDateTime)
                     schedules.append(schedule)
                     previousSendDateTime = sendingDateTime
                     self.collection_schedules.save(schedule)
@@ -373,8 +383,7 @@ class TtcGenericWorker(ApplicationWorker):
                     self.log("Exception is %s"
                              % (sys.exc_info()[0]), 'error')
             else:
-                previousSendDateTime = datetime.strptime(
-                    status["timestamp"], "%Y-%m-%dT%H:%M:%S")
+                previousSendDateTime = iso8601.parse_date(status["timestamp"]).replace(tzinfo=None)
         return schedules
             #schedules.save(schedule)
 
