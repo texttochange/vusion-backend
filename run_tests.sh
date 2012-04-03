@@ -5,6 +5,8 @@
 echo "=== Nuking old .pyc files..."
 find vusion/ -name '*.pyc' -delete
 find transports/ -name '*.pyc' -delete
+find tests/ -name '*.pyc' -delete
+find dispatchers/ -name '*.pyc' -delete
 echo "=== Erasing previous coverage data..."
 rm test_results.xml
 coverage erase
