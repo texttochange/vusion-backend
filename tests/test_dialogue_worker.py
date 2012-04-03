@@ -693,7 +693,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             ['keyword1', 'keyword2'])
 
         msg = self.broker.get_messages('vumi', 'dispatcher.control')
-        expected_msg = self.mkmsg_control(
+        expected_msg = self.mkmsg_dispatcher_control(
             exposed_name=self.transport_name,
             keyword_mappings=[['test', 'keyword1'],
                               ['test', 'keyword2']])

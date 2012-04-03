@@ -44,9 +44,6 @@ class TtcGenericWorker(ApplicationWorker):
         self.control_name = self.config['control_name']
         self.transport_type = 'sms'
 
-        #some basic local recording
-        #self.record = []
-
         self.sender = None
         self.program_name = None
         self.last_script_used = None

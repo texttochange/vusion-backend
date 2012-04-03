@@ -1,4 +1,4 @@
-from workers import (TtcGenericWorker)
-from vusion_multiworker import (VusionMultiWorker)
+from dialogue_worker import (TtcGenericWorker)
+from multiworker import (VusionMultiWorker)
 
 __all__ = ['VusionMultiWorker', 'TtcGenericWorker']

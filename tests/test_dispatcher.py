@@ -62,13 +62,13 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
 
     @inlineCallbacks
     def test_control_register_exposed(self):
-        control_msg_add = self.mkmsg_control(message_type='add_exposed',
+        control_msg_add = self.mkmsg_dispatcher_control(message_type='add_exposed',
                                          exposed_name='app2',
                                          keyword_mappings=[
                                              ['app2', 'keyword2'],
                                              ['app2', 'keyword3']
                                          ])
-        control_msg_remove = self.mkmsg_control(message_type='remove_exposed',
+        control_msg_remove = self.mkmsg_dispatcher_control(message_type='remove_exposed',
                                          exposed_name='app2'
                                          )
         in_msg = self.mkmsg_in(content='keyword2')
