@@ -22,7 +22,6 @@ class TtcGenericWorker(ApplicationWorker):
 
     def __init__(self, *args, **kwargs):
         super(TtcGenericWorker, self).__init__(*args, **kwargs)
-        #self.startService()
 
     def startService(self):
         self._d = Deferred()

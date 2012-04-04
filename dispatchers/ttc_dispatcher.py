@@ -32,6 +32,7 @@ class DynamicDispatchWorker(BaseDispatchWorker):
         log.debug('Starting Dynamic Dispatcher %s' % (self.config,))
         super(DynamicDispatchWorker, self).startWorker()
         yield self.setup_control()
+        yield self.setup_garbage()
 
     @inlineCallbacks
     def setup_control(self):
@@ -39,6 +40,15 @@ class DynamicDispatchWorker(BaseDispatchWorker):
             '%s.control' % self.config['dispatcher_name'],
             self.receive_control_message,
             message_class=Message)
+        
+    @inlineCallbacks
+    def setup_garbage(self):
+        self.garbage = yield self.publish_to('garbage.inbound')
+
+    def dispatch_inbound_message(self, msg):
+        if not self._router.dispatch_inbound_message(msg):
+            self.garbage.publish_message(msg)
+        return
 
     @inlineCallbacks
     def setup_exposed(self, name):
@@ -156,7 +166,7 @@ class ContentKeywordRouter(SimpleDispatchRouter):
     def is_msg_matching_routing_rules(self, msg, routing_rules):
         return (get_first_word(msg['content']).lower() == routing_rules['keyword'].lower()
                 and (
-                    (not 'to_add' in routing_rules)
+                    (not 'to_addr' in routing_rules)
                     or msg['to_addr'] == routing_rules['to_addr'])
                 and (
                     (not 'prefix' in routing_rules)
@@ -165,15 +175,18 @@ class ContentKeywordRouter(SimpleDispatchRouter):
     def dispatch_inbound_message(self, msg):
         log.debug('Inbound message')
         msg_keyword = get_first_word(msg['content'])
+        has_been_forwarded = False        
         if (msg_keyword == ''):
-            log.error('Message has not keyword')
-            return
+            log.error('Message has no keyword')
+            return has_been_forwarded
         for name, routing_rules in self.keyword_mappings:
             if (type(routing_rules) != dict):
                 routing_rules = {'keyword': routing_rules}
             if self.is_msg_matching_routing_rules(msg, routing_rules):
                 log.debug('Message is routed to %s' % (name,))
                 self.publish_exposed_inbound(name, msg)
+                has_been_forwarded = True
+        return has_been_forwarded
 
     def dispatch_inbound_event(self, msg):
         log.debug("Inbound event")
