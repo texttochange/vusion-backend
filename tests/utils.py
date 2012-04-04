@@ -119,7 +119,8 @@ class MessageMaker:
             keyword_mappings=keyword_mappings)
 
     def mkmsg_multiworker_control(self, message_type='add_worker',
-                                  worker_name='m4h', worker_class=None, config=None):
+                                  worker_name='m4h', worker_class=None,
+                                  config=None):
         if config == None:
             config = []
         return Message(

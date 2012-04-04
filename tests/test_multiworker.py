@@ -9,6 +9,7 @@ from vumi.tests.test_multiworker import ToyWorker
 from vusion import VusionMultiWorker, TtcGenericWorker
 from tests.utils import MessageMaker
 
+
 class StubbedVusionMultiWorker(VusionMultiWorker):
 
     def WORKER_CREATOR(self, options):
@@ -63,10 +64,10 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker):
             'transport_name': 'test2',
             'dispatcher_name': 'dispatcher2'
         }
-                
+
         worker = yield self.get_multiwoker(self.base_config)
-        
-        yield self.send_control( 
+
+        yield self.send_control(
             'vusion',
             self.mkmsg_multiworker_control(
                 message_type='add_worker',
@@ -74,16 +75,16 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker):
                 worker_class='vusion.TtcGenericWorker',
                 config=new_worker_config))
         self.assertTrue(True)
-        
+
         yield self.worker.wait_for_workers()
-        
-        yield self.send_control( 
+
+        yield self.send_control(
             'vusion',
             self.mkmsg_multiworker_control(
                 message_type='remove_worker',
                 worker_name='worker2'))
-        
+
         self.assertTrue(True)
-        
+
         yield worker.stopService()
         self.assertTrue(True)

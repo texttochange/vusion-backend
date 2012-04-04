@@ -6,6 +6,7 @@ from vumi.multiworker import MultiWorker
 from vumi.message import Message
 from vumi import log
 
+
 class VusionMultiWorker(MultiWorker):
 
     def startService(self):
@@ -35,16 +36,19 @@ class VusionMultiWorker(MultiWorker):
         try:
             if msg['message_type'] == 'add_worker':
                 if msg['worker_name'] in self.workers:
-                    log.error('Cannot create worker, another worker already exist with same name: %s' % (msg['worker_name'],))
+                    log.error('Cannot create worker, name already exist: %s'
+                              % (msg['worker_name'],))
                 for key in msg['config'].keys():
                     msg['config'][key] = msg['config'][key].encode('utf-8')
                 self.config[msg['worker_name']] = msg['config']
-                worker = self.create_worker(msg['worker_name'], msg['worker_class'])
+                worker = self.create_worker(msg['worker_name'],
+                                            msg['worker_class'])
                 self.workers[msg['worker_name']] = worker
-            
+
             if msg['message_type'] == 'remove_worker':
                 if not msg['worker_name'] in self.workers:
-                    log.error('Cannot remove worker, no worker with this name: %s' % (msg['worker_name'],))
+                    log.error('Cannot remove worker, name unknown: %s'
+                              % (msg['worker_name'],))
                 self.workers[msg['worker_name']].stopService()
 
         except Exception as ex:
