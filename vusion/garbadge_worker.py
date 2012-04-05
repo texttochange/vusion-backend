@@ -28,8 +28,8 @@ class GarbageWorker(Worker):
 
     def consume_user_message(self, msg):
         self.unmatchable_reply_collection.save({
-            'from': msg['from_addr'],
+            'participant-phone': msg['from_addr'],
             'to': msg['to_addr'],
-            'message': msg['content'],
-            'time': msg['timestamp'],
+            'message-content': msg['content'],
+            'timestamp': msg['timestamp'],
         })
