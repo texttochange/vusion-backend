@@ -8,6 +8,7 @@ from vumi.service import Worker
 from vumi.message import TransportUserMessage
 from vumi import log
 
+from vusion.utils import time_to_vusion_format
 
 class GarbageWorker(Worker):
     
@@ -28,9 +29,11 @@ class GarbageWorker(Worker):
 
     def consume_user_message(self, msg):
         log.debug("Consumer user message %s" % (msg,))
+        if msg['timestamp']:
+            timestamp = time_to_vusion_format(msg['timestamp'])
         self.unmatchable_reply_collection.save({
             'participant-phone': msg['from_addr'],
             'to': msg['to_addr'],
             'message-content': msg['content'],
-            'timestamp': msg['timestamp'],
+            'timestamp': timestamp,
         })

@@ -43,7 +43,7 @@ class DynamicDispatchWorker(BaseDispatchWorker):
         
     @inlineCallbacks
     def setup_garbage(self):
-        self.garbage = yield self.publish_to('garbage.inbound')
+        self.garbage = yield self.publish_to('garbage')
 
     def dispatch_inbound_message(self, msg):
         if not self._router.dispatch_inbound_message(msg):

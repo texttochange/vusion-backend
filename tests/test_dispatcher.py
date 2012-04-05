@@ -64,7 +64,7 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
     def test_unmatching_routing(self):
         in_msg = self.mkmsg_in(content='keyword2')
         yield self.dispatch(in_msg, 'transport1.inbound')
-        self.assert_messages('garbage.inbound', [in_msg])
+        self.assert_messages('garbage', [in_msg])
 
     @inlineCallbacks
     def test_control_register_exposed(self):
