@@ -27,7 +27,7 @@ class GarbageWorker(Worker):
             message_class=TransportUserMessage)
 
     def consume_user_message(self, msg):
-        self.save_message({
+        self.unmatchable_reply_collection.save({
             'from': msg['from_addr'],
             'to': msg['to_addr'],
             'message': msg['content'],
