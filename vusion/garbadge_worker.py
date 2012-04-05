@@ -10,8 +10,9 @@ from vumi import log
 
 from vusion.utils import time_to_vusion_format
 
+
 class GarbageWorker(Worker):
-    
+
     @inlineCallbacks
     def startWorker(self):
         log.msg("Garbage Worker is starting")

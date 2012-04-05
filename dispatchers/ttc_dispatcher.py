@@ -40,7 +40,7 @@ class DynamicDispatchWorker(BaseDispatchWorker):
             '%s.control' % self.config['dispatcher_name'],
             self.receive_control_message,
             message_class=Message)
-        
+
     @inlineCallbacks
     def setup_garbage(self):
         self.garbage = yield self.publish_to('garbage')
@@ -175,7 +175,7 @@ class ContentKeywordRouter(SimpleDispatchRouter):
     def dispatch_inbound_message(self, msg):
         log.debug('Inbound message')
         msg_keyword = get_first_word(msg['content'])
-        has_been_forwarded = False        
+        has_been_forwarded = False
         if (msg_keyword == ''):
             log.error('Message has no keyword')
             return has_been_forwarded
