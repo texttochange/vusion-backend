@@ -16,17 +16,18 @@ class GarbageWorker(Worker):
         log.msg("Garbage Worker is starting")
 
         connection = pymongo.Connection('localhost', 27017)
-        self.db = connection['vusion']
+        self.db = connection[self.config['database_name']]
         if not 'unmatchable_reply' in self.db.collection_names():
             self.db.create_collection('unmatchable_reply')
         self.unmatchable_reply_collection = self.db['unmatchable_reply']
 
         self.consumer = yield self.consume(
-            'garbage.inbound',
+            self.config['application_name'],
             self.consume_user_message,
             message_class=TransportUserMessage)
 
     def consume_user_message(self, msg):
+        log.debug("Consumer user message %s" % (msg,))
         self.unmatchable_reply_collection.save({
             'participant-phone': msg['from_addr'],
             'to': msg['to_addr'],

@@ -55,7 +55,10 @@ class MessageMaker:
     def mkmsg_in(self, content='hello world',
                  session_event=TransportUserMessage.SESSION_NONE,
                  message_id='abc', transport_type=None,
-                 transport_metadata=None, transport_name=None):
+                 transport_metadata=None, transport_name=None,
+                 timestamp=None):
+        if timestamp is None:
+            timestamp = datetime.now()
         if transport_type is None:
             transport_type = transport_type
         if transport_metadata is None:
@@ -70,7 +73,7 @@ class MessageMaker:
             transport_metadata=transport_metadata,
             content=content,
             session_event=session_event,
-            timestamp=datetime.now(),
+            timestamp=timestamp,
             )
 
     def mkmsg_out(self, content='hello world',
