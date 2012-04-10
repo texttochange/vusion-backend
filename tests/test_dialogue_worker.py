@@ -535,7 +535,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     def test10_receive_message(self):
         event = FakeUserMessage(content='Hello World')
 
-        connection = pymongo.Connection("localhost", 27017)
+        connection = pymongo.Connection('localhost', 27017)
         self.db = connection[self.config['database']]
         self.collection_scripts = self.db.create_collection("scripts")
         self.collection_participants = self.db.create_collection(
