@@ -12,6 +12,7 @@ from vumi.tests.utils import get_stubbed_worker, UTCNearNow, RegexMatcher
 from vumi.message import Message, TransportEvent, TransportUserMessage
 
 from vusion import TtcGenericWorker
+from vusion.utils import time_to_vusion_format
 from transports import YoUgHttpTransport
 from tests.utils import MessageMaker, DataLayerUtils
 
@@ -177,7 +178,9 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collection_schedules.drop()
 
         self.collections = {}
-        self.setup_collections(['shortcodes', 'program_settings'])
+        self.setup_collections(['shortcodes',
+                                'program_settings',
+                                'unattached_messages'])
 
         #Let's rock"
         self.worker.startService()
@@ -189,6 +192,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         if (self.worker.program_name):
             self.worker.collection_schedules.drop()
             self.worker.collection_logs.drop()
+        self.drop_collections()
         if (self.worker.sender != None):
             yield self.worker.sender.stop()
         yield self.worker.stopWorker()
@@ -213,7 +217,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             'message-status': message_status,
             'timestamp': timestamp,
             'dialogue-id': dialogue_id,
-            'interaction-id': interaction_id
+            'interaction-id': interaction_id    
         })
 
     def mkmsg_ack(self, event_type='ack', user_message_id='1',
@@ -367,29 +371,44 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collection_participants.save(participant)
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
-        self.collection_schedules.save({"datetime": dPast.strftime(self.time_format),
-                                        "dialogue-id": "0",
-                                        "interaction-id": "0",
-                                        "participant-phone": "09"})
-        self.collection_schedules.save({"datetime": dNow.strftime(self.time_format),
-                                        "dialogue-id": "0",
-                                        "interaction-id": "1",
-                                        "participant-phone": "09"})
-        self.collection_schedules.save({"datetime": dFuture.strftime(self.time_format),
-                                        "dialogue-id": "0",
-                                        "interaction-id": "2",
-                                        "participant-phone": "09"})
+        unattached_message = self.collections['unattached_messages'].save({
+            'datetime': time_to_vusion_format(dNow),
+            'content': 'Hello unattached',
+            'to': 'all participants'
+        })
+        self.collection_schedules.save({
+            "datetime": dPast.strftime(self.time_format),
+            "dialogue-id": "0",
+            "interaction-id": "0",
+            "participant-phone": "09"})
+        self.collection_schedules.save({
+            "datetime": dNow.strftime(self.time_format),
+            "dialogue-id": "0",
+            "interaction-id": "1",
+            "participant-phone": "09"})
+        self.collection_schedules.save({
+            "datetime": dFuture.strftime(self.time_format),
+            "dialogue-id": "0",
+            "interaction-id": "2",
+            "participant-phone": "09"})
+        self.collection_schedules.save({
+            'datetime': time_to_vusion_format(dNow),
+            'unattach-id': unattached_message,
+            'participant-phone': '09'
+        })
         self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
         yield self.worker.send_scheduled()
 
         messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 3)
         self.assertEqual(messages[0]['content'], "Hello")
         self.assertEqual(messages[1]['content'], "Today will be sunny")
+        self.assertEqual(messages[2]['content'], "Hello unattached")
 
         self.assertEquals(self.collection_schedules.count(), 1)
-        self.assertEquals(self.collection_status.count(), 2)
+        self.assertEquals(self.collection_status.count(), 3)
 
     def getCollection(self, db, collection_name):
         if (collection_name in self.db.collection_names()):
@@ -495,7 +514,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                          dialogue_id="0")
 
         #Starting the test
-        schedules = self.worker.schedule_participant_dialogue(
+        self.worker.schedule_participant_dialogue(
             participant, script['script']['dialogues'][0])
 
         self.assertEqual(self.collection_status.count(), 2)
@@ -698,6 +717,45 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             keyword_mappings=[['test', 'keyword1'],
                               ['test', 'keyword2']])
         self.assertEqual(msg, [expected_msg])
+
+    def test20_schedule_unattach_message(self):
+        config = self.simpleConfig
+        participants = [{'phone': '06'},
+                        {'phone': '07'}]
+        
+        mytimezone = self.program_settings[2]['value']
+        dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
+        dFuture = dNow + timedelta(minutes=30)
+        dPast = dNow - timedelta(minutes=30)
+                
+        unattach_messages = [
+            {
+                'to': 'all participants',
+                'content': 'Hello everyone',
+                'schedule': time_to_vusion_format(dFuture)},
+            {
+                'to': 'all participants',
+                'content': 'Hello again',
+                'schedule': time_to_vusion_format(dPast)}
+        ]
+        
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        for participant in participants:
+            self.collection_participants.save(participant)
+        for unattach_message in unattach_messages:
+            self.collections['unattached_messages'].save(unattach_message)
+        self.worker.init_program_db(config['database_name'])
+        self.worker.load_data()
+        
+        self.worker.schedule_participants_unattach_messages(
+            participants)
+
+        schedules_count = self.collection_schedules.count()
+        self.assertEqual(schedules_count, 2)
+        schedules = self.collection_schedules.find()
+        self.assertEqual(schedules[0]['participant-phone'], '06')
+        self.assertEqual(schedules[1]['participant-phone'], '07')
 
     #@inlineCallbacks
     #def test12_2dialogues_updated_2message_scheduled(self):
