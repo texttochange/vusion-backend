@@ -7,7 +7,7 @@ from twisted.enterprise import adbapi
 from twisted.internet import task
 
 import pymongo
-from pymongo.objectid import ObjectId 
+from pymongo.objectid import ObjectId
 
 from datetime import datetime, time, date, timedelta
 import pytz
@@ -75,7 +75,7 @@ class TtcGenericWorker(ApplicationWorker):
     def save_status(self, message_content, participant_phone, message_type,
                     message_status=None, message_id=None,
                     timestamp=None, reference_metadata=None):
-        if timestamp:	
+        if timestamp:
             timestamp = time_to_vusion_format(timestamp)
         else:
             timestamp = time_to_vusion_format(self.get_local_time())
@@ -94,12 +94,18 @@ class TtcGenericWorker(ApplicationWorker):
         self.collection_status.save(history)
 
     def get_current_script_id(self):
-        for script in self.collection_scripts.find({'activated': 1}).sort('modified', pymongo.DESCENDING).limit(1):
+        for script in self.collection_scripts.find(
+            {'activated': 1},
+            sort=[('modified', pymongo.DESCENDING)],
+            limit=1):
             return script['_id']
         return None
 
     def get_current_script(self):
-        for script in self.collection_scripts.find({"activated": 1}).sort("modified", pymongo.DESCENDING).limit(1):
+        for script in self.collection_scripts.find(
+            {'activated': 1},
+            sort=[('modified', pymongo.DESCENDING)],
+            limit=1):
             return script['script']
         return None
 
@@ -160,14 +166,11 @@ class TtcGenericWorker(ApplicationWorker):
     #@inlineCallbacks
     def consume_control(self, message):
         self.log("Control message!")
-        #data = message.payload['data']
-        #self.record.append(('config',message))
         if (message.get('program')):
             program = message['program']
             self.log("Receive a config message: %s" % program['name'])
             #MongoDB#
             self.init_program_db(program['database-name'])
-            #self.db.programs.save(program)
 
         elif (message.get('action') == 'resume'
               or message.get('action') == 'start'):
@@ -262,12 +265,12 @@ class TtcGenericWorker(ApplicationWorker):
             'schedule': {
                 '$gt': time_to_vusion_format(self.get_local_time())
             }})
-    
+
     def schedule_participants_unattach_messages(self, participants):
         self.log('scheduling unattach messages')
         for participant in self.collection_participants.find():
             self.schedule_participant_unattach_messages(participant)
-            
+
     def schedule_participant_unattach_messages(self, participant):
         unattach_messages = self.get_future_unattach_messages()
         for unattach_message in unattach_messages:
@@ -286,7 +289,8 @@ class TtcGenericWorker(ApplicationWorker):
         if 'timezone' not in self.properties:
             self.log('Timezone property not defined, use UTC')
             return datetime.utcnow()
-        return datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(self.properties['timezone'])).replace(tzinfo=None)
+        return datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(
+            pytz.timezone(self.properties['timezone'])).replace(tzinfo=None)
 
     def to_vusion_format(self, timestamp):
         return timestamp.strftime('%Y-%m-%dT%H:%M:%S')
@@ -322,9 +326,10 @@ class TtcGenericWorker(ApplicationWorker):
                         'unattach-id': toSend['unattach-id']
                     }
                 else:
-                    self.log("Error schedule object not supported: %s" % (toSend))
+                    self.log("Error schedule object not supported: %s"
+                             % (toSend))
                     continue
-    
+
                 message = TransportUserMessage(**{
                     'from_addr': self.properties['shortcode'],
                     'to_addr': toSend['participant-phone'],
@@ -334,7 +339,7 @@ class TtcGenericWorker(ApplicationWorker):
                     'content': message_content})
                 yield self.transport_publisher.publish_message(message)
                 self.log("Message has been send: %s" % message)
-    
+
                 self.save_status(message_content=message['content'],
                                  participant_phone=message['to_addr'],
                                  message_type='send',
@@ -344,7 +349,7 @@ class TtcGenericWorker(ApplicationWorker):
             except:
                 self.log("Sending exception: %s" % toSend, 'error')
                 self.log("Exception is %s" % (sys.exc_info()[0]), 'error')
-                
+
     #MongoDB do not support fetching a subpart of an array
     #may not be necessary in the near future
     #https://jira.mongodb.org/browse/SERVER-828
@@ -379,38 +384,40 @@ class TtcGenericWorker(ApplicationWorker):
                      "dialogue-id": dialogue["dialogue-id"],
                      "interaction-id": interaction["interaction-id"]},
                     sort=[("datetime", pymongo.ASCENDING)])
-                
+
                 if status:
-                    previousSendDateTime = iso8601.parse_date(status["timestamp"]).replace(tzinfo=None)                                                    
+                    previousSendDateTime = iso8601.parse_date(status["timestamp"]).replace(tzinfo=None)
                     continue
-                
-                if (interaction['type-schedule'] == "immediately"):
+
+                if (interaction['type-schedule'] == 'immediately'):
                     if (schedule):
                         sendingDateTime = iso8601.parse_date(schedule['datetime']).replace(tzinfo=None)
                     else:
                         sendingDateTime = self.get_local_time()
-                elif (interaction['type-schedule'] == "wait"):
+                elif (interaction['type-schedule'] == 'wait'):
                     sendingDateTime = previousSendDateTime + timedelta(minutes=int(interaction['minutes']))
-                elif (interaction['type-schedule'] == "fixed-time"):
+                elif (interaction['type-schedule'] == 'fixed-time'):
                     sendingDateTime = iso8601.parse_date(interaction['date-time']).replace(tzinfo=None)
 
-                    #Scheduling a date already in the past is forbidden.
+                #Scheduling a date already in the past is forbidden.
                 if (sendingDateTime + timedelta(minutes=10) < self.get_local_time()):
-                    self.save_status(message_content='Not generated yet',
-                                     participant_phone=participant['phone'],
-                                     message_type='send',
-                                     message_status='fail: date in the past',
-                                     reference_metadata = {
-                                         'dialogue-id': dialogue['dialogue-id'],
-                                         'interaction-id': interaction["interaction-id"]})
+                    self.save_status(
+                        message_content='Not generated yet',
+                        participant_phone=participant['phone'],
+                        message_type='send',
+                        message_status='fail: date in the past',
+                        reference_metadata={
+                            'dialogue-id': dialogue['dialogue-id'],
+                            'interaction-id': interaction["interaction-id"]})
                     if (schedule):
                         self.collection_schedules.remove(schedule['_id'])
                         continue
 
                 if (not schedule):
-                    schedule = {"participant-phone": participant['phone'],
-                                "dialogue-id": dialogue['dialogue-id'],
-                                "interaction-id": interaction["interaction-id"]}
+                    schedule = {
+                        "participant-phone": participant['phone'],
+                        "dialogue-id": dialogue['dialogue-id'],
+                        "interaction-id": interaction["interaction-id"]}
                 schedule['datetime'] = self.to_vusion_format(sendingDateTime)
                 previousSendDateTime = sendingDateTime
                 self.collection_schedules.save(schedule)
@@ -418,7 +425,7 @@ class TtcGenericWorker(ApplicationWorker):
         except:
             self.log("Scheduling exception: %s" % interaction, 'error')
             self.log("Exception is %s" % (sys.exc_info()[0]), 'error')
-            
+
     def log(self, msg, level='msg'):
         if (level == 'msg'):
             log.msg('[%s] %s' % (self.control_name, msg))

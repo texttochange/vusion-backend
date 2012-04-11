@@ -23,6 +23,7 @@ class DataLayerUtils:
         for name, collection in self.collections.items():
             collection.drop()
 
+
 #TODO use UTC time rather than datetime
 class MessageMaker:
 

@@ -217,7 +217,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             'message-status': message_status,
             'timestamp': timestamp,
             'dialogue-id': dialogue_id,
-            'interaction-id': interaction_id    
+            'interaction-id': interaction_id
         })
 
     def mkmsg_ack(self, event_type='ack', user_message_id='1',
@@ -274,14 +274,14 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         dPast1 = datetime.now() - timedelta(minutes=30)
         dPast2 = datetime.now() - timedelta(minutes=60)
 
-        activeScript = {"script": {"do": "something"},
-                        "activated": 1,
-                        "modified": dPast1}
+        activeScript = {'script': {'do': 'something'},
+                        'activated': 1,
+                        'modified': dPast1}
         self.collection_scripts.save(activeScript)
 
-        oldActiveScript = {"script": {"do": "something else"},
-                           "activated": 1,
-                           "modified": dPast2}
+        oldActiveScript = {'script': {'do': 'something else'},
+                           'activated': 1,
+                           'modified': dPast2}
         self.collection_scripts.save(oldActiveScript)
 
         draftScript = {"script": {"do": "something else one more time"},
@@ -302,7 +302,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         mytimezone = self.program_settings[2]['value']
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
         dNow = dNow.replace(tzinfo=None)
-        
+
         self.collection_scripts.save(script)
         self.collection_participants.save(participant)
         for program_setting in self.program_settings:
@@ -322,10 +322,10 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             iso8601.parse_date(schedules[0]['datetime']).replace(tzinfo=None) <
             dNow + timedelta(minutes=1))
         self.assertTrue(
-            iso8601.parse_date(schedules[1]['datetime']).replace(tzinfo=None) < 
+            iso8601.parse_date(schedules[1]['datetime']).replace(tzinfo=None) <
             dNow + timedelta(minutes=61))
         self.assertTrue(
-            iso8601.parse_date(schedules[1]['datetime']).replace(tzinfo=None) > 
+            iso8601.parse_date(schedules[1]['datetime']).replace(tzinfo=None) >
             dNow + timedelta(minutes=59))
 
         #assert schedule links
@@ -722,12 +722,12 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         config = self.simpleConfig
         participants = [{'phone': '06'},
                         {'phone': '07'}]
-        
+
         mytimezone = self.program_settings[2]['value']
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
         dFuture = dNow + timedelta(minutes=30)
         dPast = dNow - timedelta(minutes=30)
-                
+
         unattach_messages = [
             {
                 'to': 'all participants',
@@ -736,9 +736,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             {
                 'to': 'all participants',
                 'content': 'Hello again',
-                'schedule': time_to_vusion_format(dPast)}
-        ]
-        
+                'schedule': time_to_vusion_format(dPast)}]
+
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         for participant in participants:
@@ -747,7 +746,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             self.collections['unattached_messages'].save(unattach_message)
         self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
-        
+
         self.worker.schedule_participants_unattach_messages(
             participants)
 
