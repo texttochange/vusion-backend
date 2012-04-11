@@ -19,6 +19,10 @@ class DataLayerUtils:
         else:
             self.collections[name] = self.db.create_collection(name)
 
+    def drop_collections(self):
+        for name, collection in self.collections.items():
+            collection.drop()
+
 
 #TODO use UTC time rather than datetime
 class MessageMaker:
