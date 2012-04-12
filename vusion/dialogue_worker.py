@@ -277,6 +277,11 @@ class TtcGenericWorker(ApplicationWorker):
             schedule = self.collection_schedules.find_one({
                 'participant-phone': participant['phone'],
                 'unattach-id': unattach_message['_id']})
+            status = self.collection_status.find_one({
+                'participant-phone': participant['phone'],
+                'unattach-id': unattach_message['_id']})
+            if status is not None:
+                continue
             if schedule is None:
                 schedule = {
                 'participant-phone': participant['phone'],

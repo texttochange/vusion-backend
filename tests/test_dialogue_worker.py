@@ -742,8 +742,17 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             self.collections['program_settings'].save(program_setting)
         for participant in participants:
             self.collection_participants.save(participant)
-        for unattach_message in unattach_messages:
-            self.collections['unattached_messages'].save(unattach_message)
+        
+        unattach_id = self.collections['unattached_messages'].save(unattach_messages[0])
+        self.collections['unattached_messages'].save(unattach_messages[1])
+        
+        self.collection_status.save({
+            'participant-phone': '06',
+            'message-type': 'send',
+            'message-status': 'delivered',
+            'unattach-id': unattach_id
+        })        
+        
         self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
@@ -751,10 +760,9 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             participants)
 
         schedules_count = self.collection_schedules.count()
-        self.assertEqual(schedules_count, 2)
+        self.assertEqual(schedules_count, 1)
         schedules = self.collection_schedules.find()
-        self.assertEqual(schedules[0]['participant-phone'], '06')
-        self.assertEqual(schedules[1]['participant-phone'], '07')
+        self.assertEqual(schedules[0]['participant-phone'], '07')
 
     #@inlineCallbacks
     #def test12_2dialogues_updated_2message_scheduled(self):
