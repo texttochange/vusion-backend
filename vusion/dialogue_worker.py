@@ -225,6 +225,10 @@ class TtcGenericWorker(ApplicationWorker):
         if 'shortcode' not in self.properties:
             self.log('Shortcode not defined')
             return False
+        if (('timezone' not in self.properties)
+            and (self.properties['timezone'] not in pytz.all_timezones)):
+            self.log('Timezone not defined or not supported')
+            return False
         return True
 
     def has_active_script_changed(self):
