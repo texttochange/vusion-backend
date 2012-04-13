@@ -166,24 +166,13 @@ class TtcGenericWorker(ApplicationWorker):
     #@inlineCallbacks
     def consume_control(self, message):
         self.log("Control message!")
-        if (message.get('program')):
-            program = message['program']
-            self.log("Receive a config message: %s" % program['name'])
-            #MongoDB#
-            self.init_program_db(program['database-name'])
+        if message['action'] == 'init':
+            config = message['config']
+            self.init_program_db(config['database-name'])
 
-        elif (message.get('action') == 'resume'
-              or message.get('action') == 'start'):
-            self.log("Getting an action: %s" % message['action'])
-            #self.init_program_db(message.get('content'))
-            #reconstruct the scheduling by replaying all
-            #the program for each participant
-            self.collection_schedules.remove()
-
-        #start looping process of the scheduler
-        if (self.sender == None):
-            self.sender = task.LoopingCall(self.daemon_process)
-            self.sender.start(30.0)
+        elif message['action'] == 'update-schedule':
+            if self.is_ready():
+                self.schedule()
 
     def dispatch_event(self, message):
         self.log("Event message!")
@@ -432,8 +421,8 @@ class TtcGenericWorker(ApplicationWorker):
                 self.collection_schedules.save(schedule)
                 self.log("Schedule has been saved: %s" % schedule)
         except:
-            self.log("Scheduling exception: %s" % interaction, 'error')
-            self.log("Exception is %s" % (sys.exc_info()[0]), 'error')
+            self.log("Scheduling exception: %s" % interaction)
+            self.log("Exception is %s" % (sys.exc_info()[0]))
 
     def log(self, msg, level='msg'):
         if (level == 'msg'):

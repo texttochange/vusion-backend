@@ -32,12 +32,12 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
     time_format = '%Y-%m-%dT%H:%M:%S'
 
-    configControl = """
-    {"program":{
-            "name":"M5H",
-            "database-name":"test"}
-    }
-    """
+    configControl = {
+        'action': 'init',
+        'config': {
+            'name':'M5H',
+            'database-name':'test'
+        }}
 
     simpleConfig = {
         'database_name': 'test',
@@ -256,14 +256,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
     @inlineCallbacks
     def test01_consume_control_program(self):
-        events = [
-            ('config', Message.from_json(self.configControl))
-        ]
+        event = Message(**self.configControl)
         self.collection_scripts.save(self.simpleScript)
-        self.collection_participants.save({"phone": "08"})
+        self.collection_participants.save({'phone': '08'})
 
-        for name, event in events:
-            yield self.send(event, 'control')
+        yield self.send(event, 'control')
 
         self.assertTrue(self.collection_schedules)
         self.assertTrue(self.collection_status)
