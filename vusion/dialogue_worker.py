@@ -421,8 +421,8 @@ class TtcGenericWorker(ApplicationWorker):
                 self.collection_schedules.save(schedule)
                 self.log("Schedule has been saved: %s" % schedule)
         except:
-            self.log("Scheduling exception: %s" % interaction, 'error')
-            self.log("Exception is %s" % (sys.exc_info()[0]), 'error')
+            self.log("Scheduling exception: %s" % interaction)
+            self.log("Exception is %s" % (sys.exc_info()[0]))
 
     def log(self, msg, level='msg'):
         if (level == 'msg'):
