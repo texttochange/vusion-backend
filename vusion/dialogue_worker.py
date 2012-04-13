@@ -1,6 +1,7 @@
 # -*- test-case-name: tests.test_ttc -*-
 
 import sys
+import re
 
 from twisted.internet.defer import (inlineCallbacks, Deferred)
 from twisted.enterprise import adbapi
@@ -444,3 +445,30 @@ class TtcGenericWorker(ApplicationWorker):
                          'exposed_name': self.transport_name,
                          'keyword_mappings': keyword_mappings})
         yield self.dispatcher_publisher.publish_message(msg)
+
+    def generate_message(self, participant_phone, interaction):
+        message = interaction['content']
+        
+        if interaction['type-interaction'] == 'question-answer':
+            if 'answers' in interaction:
+                i = 1
+                for answer in interaction['answers']:
+                    message = ('%s %s. %s' % (message, i, answer['choice']))
+                    i = i + 1
+                message = ('%s To reply send: %s(space)(Answer Nr) to %s' 
+                           % (message, interaction['keyword'], self.properties['shortcode']))
+            
+            if 'answer-label' in interaction:
+                message = ('%s To reply send: %s(space)(%s) to %s' 
+                           % (message, interaction['keyword'], interaction['answer-label'], self.properties['shortcode']))
+                
+            
+        tags = re.findall(re.compile(r'\[(?P<table>\w*)\.(?P<attribute>\w*)\]'), message)
+        for table, attribute in tags:
+            participant = self.collection_participants.find_one({'phone': participant_phone})
+            if not attribute in participant:
+                return None
+            message = message.replace('[%s.%s]' % (table,attribute), participant[attribute])
+            
+        
+        return message

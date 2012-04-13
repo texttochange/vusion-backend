@@ -115,28 +115,25 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         }
     }
 
-    simpleProgram_announcement_fixedtime = """
-    {"activated" : 1,
-    "script": {
-    "shortcode": "8282",
-    "dialogues": [
-    {
-    "dialogue-id":"program.dialogues[0]",
-    "interactions": [
-    {
-    "interaction-id":"0",
-    "type-interaction": "announcement",
-    "content": "Hello",
-    "type-schedule": "fixed-time",
-    "day": "2",
-    "month":"3",
-    "year":"2018",
-    "time": "12:30"
+    simpleProgram_announcement_fixedtime = {
+        "activated" : 1,
+        "script": {
+            "dialogues": [
+                {
+                    "dialogue-id":"program.dialogues[0]",
+                    "interactions": [
+                        {
+                            "interaction-id":"0",
+                            "type-interaction": "announcement",
+                            "content": "Hello",
+                            "type-schedule": "fixed-time",
+                            "date-time": "12/03/2012 12:30"
+                        }
+                    ]
+                }
+            ]
+        }
     }
-    ]
-    }
-    ]
-    }}"""
 
     simpleAnnouncement = """
     {
@@ -519,7 +516,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
     def test09_schedule_at_fixed_time(self):
         config = self.simpleConfig
-        script = json.loads(self.simpleProgram_announcement_fixedtime)
+        script = self.simpleProgram_announcement_fixedtime
         participant = {"phone": "08"}
 
         dNow = datetime.now()
@@ -568,8 +565,64 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(status['message-content'], 'Hello World')
         self.assertEqual(status['message-type'], 'received')
 
-    def test12_generate_question(self):
-        self.assertTrue(False)
+    def test12_generate_message(self):
+        config = self.simpleConfig
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.init_program_db(config['database_name'])
+        self.worker.load_data()
+        
+        interaction_using_tag = {
+            "interaction-id":"0",
+            "type-interaction": "announcement",
+            "content": "Hello [participant.name]",
+            "type-schedule": "fixed-time",
+            "date-time": "12/03/2012 12:30"
+        }
+        
+        participants = [
+            {'phone': '06',
+             'name': 'oliv'},
+            {'phone': '07'}
+        ]
+                
+        self.collection_participants.save(participants[0])
+        self.collection_participants.save(participants[1])
+        
+        message_one = self.worker.generate_message('06', interaction_using_tag)
+        message_two = self.worker.generate_message('07', interaction_using_tag)
+        
+        self.assertEqual(message_one, "Hello oliv")
+        self.assertEqual(message_two, None)
+        
+        interaction_closed_question = {
+            'type-interaction': 'question-answer',
+            'content': 'How are you?',
+            'keyword': 'FEEL',
+            'answers': [
+                {'choice': 'Fine'},
+                {'choice': 'Ok'}],
+        }
+        
+        close_question = self.worker.generate_message('07', interaction_closed_question)
+        
+        self.assertEqual(
+            close_question, 
+            "How are you? 1. Fine 2. Ok To reply send: FEEL(space)(Answer Nr) to 8181")
+
+        interaction_open_question = {
+            'type-interaction': 'question-answer',
+            'content': 'Which dealer did you buy the system from?',
+            'keyword': 'DEALER',
+            'answer-label': 'Name dealer',
+        }
+        
+        open_question = self.worker.generate_message('07', interaction_open_question)
+        
+        self.assertEqual(
+            open_question, 
+            "Which dealer did you buy the system from? To reply send: DEALER(space)(Name dealer) to 8181")
+        
 
     @inlineCallbacks
     def test13_received_delivered(self):
