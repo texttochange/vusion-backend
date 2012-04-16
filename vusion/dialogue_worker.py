@@ -310,17 +310,17 @@ class TtcGenericWorker(ApplicationWorker):
             message_content = None
             try:
                 if 'dialogue-id' in toSend:
-                    message_content = self.get_interaction(
+                    interaction = self.get_interaction(
                         self.get_current_script(),
                         toSend['dialogue-id'],
-                        toSend['interaction-id'])['content']
+                        toSend['interaction-id'])
                     reference_metadata = {
                         'dialogue-id': toSend['dialogue-id'],
                         'interaction-id': toSend['interaction-id']
                     }
                 elif 'unattach-id' in toSend:
-                    message_content = self.collections['unattached_messages'].find_one(
-                        {'_id': ObjectId(toSend['unattach-id'])})['content']
+                    interaction = self.collections['unattached_messages'].find_one(
+                        {'_id': ObjectId(toSend['unattach-id'])})
                     reference_metadata = {
                         'unattach-id': toSend['unattach-id']
                     }
@@ -328,6 +328,11 @@ class TtcGenericWorker(ApplicationWorker):
                     self.log("Error schedule object not supported: %s"
                              % (toSend))
                     continue
+
+                message_content = self.generate_message(
+                        toSend['participant-phone'],
+                        interaction
+                )
 
                 message = TransportUserMessage(**{
                     'from_addr': self.properties['shortcode'],
@@ -446,6 +451,7 @@ class TtcGenericWorker(ApplicationWorker):
                          'keyword_mappings': keyword_mappings})
         yield self.dispatcher_publisher.publish_message(msg)
 
+    #Support the type-interaction is not defined
     def generate_message(self, participant_phone, interaction):
         message = interaction['content']
         

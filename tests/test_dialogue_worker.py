@@ -337,15 +337,15 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                        [
                            {"dialogue-id": "0",
                             "interactions": [
-                                {"type": "announcement",
+                                {"type-interaction": "announcement",
                                  "interaction-id": "0",
                                  "content": "Hello"
                                  },
-                                {"type": "announcement",
+                                {"type-interaction": "announcement",
                                  "interaction-id": "1",
                                  "content": "Today will be sunny"
                                  },
-                                {"type": "announcement",
+                                {"type-interaction": "announcement",
                                  "interaction-id": "2",
                                  "content": "Today is the special day"
                                  }
@@ -368,7 +368,9 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         unattached_message = self.collections['unattached_messages'].save({
             'datetime': time_to_vusion_format(dNow),
             'content': 'Hello unattached',
-            'to': 'all participants'
+            'to': 'all participants',
+            'type-interaction': 'annoucement'
+            
         })
         self.collection_schedules.save({
             "datetime": dPast.strftime(self.time_format),
