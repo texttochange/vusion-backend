@@ -696,9 +696,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             'message-id': event['user_message_id']})
 
         self.assertEqual('failed', status['message-status'])
-        self.assertEqual('404', status['failure-code'])
-        self.assertEqual('http', status['failure-level'])
-        self.assertEqual('some reason', status['failure-reason'])
+        self.assertEqual('Code:404 Level:http Message:some reason', status['failure-reason'])
 
     @inlineCallbacks
     def test16_received_ack(self):

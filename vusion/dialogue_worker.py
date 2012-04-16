@@ -74,7 +74,7 @@ class TtcGenericWorker(ApplicationWorker):
                          message_type='received')
 
     def save_status(self, message_content, participant_phone, message_type,
-                    message_status=None, message_id=None,
+                    message_status=None, message_id=None, failure_reason=None,
                     timestamp=None, reference_metadata=None):
         if timestamp:
             timestamp = time_to_vusion_format(timestamp)
@@ -88,6 +88,8 @@ class TtcGenericWorker(ApplicationWorker):
             'message-status': message_status,
             'timestamp': timestamp,
         }
+        if failure_reason is not None:
+            history['failure-reason'] = failure_reason
         if reference_metadata is None:
             reference_metadata = {}
         for key, value in reference_metadata.iteritems():
@@ -188,9 +190,10 @@ class TtcGenericWorker(ApplicationWorker):
         if (message['event_type'] == 'delivery_report'):
             status['message-status'] = message['delivery_status']
             if (message['delivery_status'] == 'failed'):
-                status['failure-code'] = message['failure_code']
-                status['failure-level'] = message['failure_level']
-                status['failure-reason'] = message['failure_reason']
+                status['failure-reason'] = ("Code:%s Level:%s Message:%s" % (
+                    message['failure_code'], 
+                    message['failure_level'],
+                    message['failure_reason']))
         self.collection_status.save(status)
 
     @inlineCallbacks
@@ -353,13 +356,20 @@ class TtcGenericWorker(ApplicationWorker):
             except MissingData as e:
                 self.save_status(message_content=message['content'],
                                  participant_phone=message['to_addr'],
-                                 message_type='fail',
-                                 message_status=e,
+                                 message_type='generate-failed',
+                                 message_reason=e,
                                  message_id=message['message_id'],
                                  reference_metadata=reference_metadata)
             except:
-                self.log("Sending exception: %s" % toSend, 'error')
+                self.log("Unexpected exception: %s" % toSend, 'error')
                 self.log("Exception is %s" % (sys.exc_info()[0]), 'error')
+                self.save_status(message_content=message['content'],
+                                 participant_phone=message['to_addr'],
+                                 message_type='vusion-failed',
+                                 message_reason=sys.exc_info()[0],
+                                 message_id=message['message_id'],
+                                 reference_metadata=reference_metadata)
+                                
 
 
     #MongoDB do not support fetching a subpart of an array
