@@ -20,7 +20,7 @@ from vumi.application import SessionManager
 from vumi import log
 
 from vusion.utils import time_to_vusion_format, get_local_time
-
+from vusion.error import MissingData
 
 class TtcGenericWorker(ApplicationWorker):
 
@@ -350,9 +350,17 @@ class TtcGenericWorker(ApplicationWorker):
                                  message_status='pending',
                                  message_id=message['message_id'],
                                  reference_metadata=reference_metadata)
+            except MissingData as e:
+                self.save_status(message_content=message['content'],
+                                 participant_phone=message['to_addr'],
+                                 message_type='fail',
+                                 message_status=e,
+                                 message_id=message['message_id'],
+                                 reference_metadata=reference_metadata)
             except:
                 self.log("Sending exception: %s" % toSend, 'error')
                 self.log("Exception is %s" % (sys.exc_info()[0]), 'error')
+
 
     #MongoDB do not support fetching a subpart of an array
     #may not be necessary in the near future
@@ -454,7 +462,7 @@ class TtcGenericWorker(ApplicationWorker):
     #Support the type-interaction is not defined
     def generate_message(self, participant_phone, interaction):
         message = interaction['content']
-        
+
         if interaction['type-interaction'] == 'question-answer':
             if 'answers' in interaction:
                 i = 1
@@ -463,18 +471,16 @@ class TtcGenericWorker(ApplicationWorker):
                     i = i + 1
                 message = ('%s To reply send: %s(space)(Answer Nr) to %s' 
                            % (message, interaction['keyword'], self.properties['shortcode']))
-            
+
             if 'answer-label' in interaction:
                 message = ('%s To reply send: %s(space)(%s) to %s' 
                            % (message, interaction['keyword'], interaction['answer-label'], self.properties['shortcode']))
-                
-            
+
         tags = re.findall(re.compile(r'\[(?P<table>\w*)\.(?P<attribute>\w*)\]'), message)
         for table, attribute in tags:
             participant = self.collection_participants.find_one({'phone': participant_phone})
             if not attribute in participant:
-                return None
+                return fail(MissingData("%s has no attribute %s" % (participant_phone, attribute)))
             message = message.replace('[%s.%s]' % (table,attribute), participant[attribute])
-            
-        
+
         return message

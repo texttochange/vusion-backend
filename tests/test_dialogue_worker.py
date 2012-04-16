@@ -13,6 +13,7 @@ from vumi.message import Message, TransportEvent, TransportUserMessage
 
 from vusion import TtcGenericWorker
 from vusion.utils import time_to_vusion_format
+from vusion.error import MissingData
 from transports import YoUgHttpTransport
 from tests.utils import MessageMaker, DataLayerUtils
 
@@ -591,12 +592,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collection_participants.save(participants[0])
         self.collection_participants.save(participants[1])
         
-        message_one = self.worker.generate_message('06', interaction_using_tag)
-        message_two = self.worker.generate_message('07', interaction_using_tag)
-        
+        message_one = self.worker.generate_message('06', interaction_using_tag)        
         self.assertEqual(message_one, "Hello oliv")
-        self.assertEqual(message_two, None)
         
+        yield self.assertFailure(self.worker.generate_message('07', interaction_using_tag), MissingData)
+
         interaction_closed_question = {
             'type-interaction': 'question-answer',
             'content': 'How are you?',
