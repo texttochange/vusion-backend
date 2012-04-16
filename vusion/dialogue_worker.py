@@ -23,6 +23,7 @@ from vusion.vusion_script import VusionScript
 from vusion.utils import time_to_vusion_format, get_local_time
 from vusion.error import MissingData
 
+
 class TtcGenericWorker(ApplicationWorker):
 
     def __init__(self, *args, **kwargs):
@@ -185,7 +186,7 @@ class TtcGenericWorker(ApplicationWorker):
             status['message-status'] = message['delivery_status']
             if (message['delivery_status'] == 'failed'):
                 status['failure-reason'] = ("Code:%s Level:%s Message:%s" % (
-                    message['failure_code'], 
+                    message['failure_code'],
                     message['failure_level'],
                     message['failure_reason']))
         self.collection_status.save(status)
@@ -203,7 +204,7 @@ class TtcGenericWorker(ApplicationWorker):
         self.save_status(message_content=message['content'],
                          participant_phone=message['from_addr'],
                          message_type='received',
-                         reference_metadata = {
+                         reference_metadata={
                              'dialogue-id': data['dialogue-id'],
                              'interaction-id': data['interaction-id'],
                              'matching-answer': data['matching-answer']})
@@ -214,7 +215,6 @@ class TtcGenericWorker(ApplicationWorker):
                 'type-content': 'feedback',
                 'participant-phone': message['from_addr']
             })
-                
 
     @inlineCallbacks
     def daemon_process(self):
@@ -222,8 +222,8 @@ class TtcGenericWorker(ApplicationWorker):
         self.load_data()
         if not self.is_ready():
             return
-        #the schedule should be performed only upon request from the frontend
-        #self.schedule() 
+        #the schedule should be performed only upon request
+        #self.schedule()
         yield self.send_scheduled()
         if self.has_active_script_changed():
             self.log('Synchronizing with dispatcher')
@@ -455,7 +455,6 @@ class TtcGenericWorker(ApplicationWorker):
                                  failure_reason=sys.exc_info()[0],
                                  message_id=message['message_id'],
                                  reference_metadata=reference_metadata)
-                                
 
     #TODO: move into VusionScript
     #MongoDB do not support fetching a subpart of an array
@@ -474,7 +473,6 @@ class TtcGenericWorker(ApplicationWorker):
         for dialogue in program['dialogues']:
             if dialogue["dialogue-id"] == dialogue_id:
                 return dialogue
-
 
     def log(self, msg, level='msg'):
         if (level == 'msg'):
@@ -508,11 +506,11 @@ class TtcGenericWorker(ApplicationWorker):
                 for answer in interaction['answers']:
                     message = ('%s %s. %s' % (message, i, answer['choice']))
                     i = i + 1
-                message = ('%s To reply send: %s(space)(Answer Nr) to %s' 
+                message = ('%s To reply send: %s(space)(Answer Nr) to %s'
                            % (message, interaction['keyword'], self.properties['shortcode']))
 
             if 'answer-label' in interaction:
-                message = ('%s To reply send: %s(space)(%s) to %s' 
+                message = ('%s To reply send: %s(space)(%s) to %s'
                            % (message, interaction['keyword'], interaction['answer-label'], self.properties['shortcode']))
 
         tags = re.findall(re.compile(r'\[(?P<table>\w*)\.(?P<attribute>\w*)\]'), message)
@@ -520,6 +518,6 @@ class TtcGenericWorker(ApplicationWorker):
             participant = self.collection_participants.find_one({'phone': participant_phone})
             if not attribute in participant:
                 return fail(MissingData("%s has no attribute %s" % (participant_phone, attribute)))
-            message = message.replace('[%s.%s]' % (table,attribute), participant[attribute])
+            message = message.replace('[%s.%s]' % (table, attribute), participant[attribute])
 
         return message

@@ -36,8 +36,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     configControl = {
         'action': 'init',
         'config': {
-            'name':'M5H',
-            'database-name':'test'
+            'name': 'M5H',
+            'database-name': 'test'
         }}
 
     simpleConfig = {
@@ -121,7 +121,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     }
 
     simpleProgram_announcement_fixedtime = {
-        "activated" : 1,
+        "activated": 1,
         "script": {
             "dialogues": [
                 {
@@ -375,7 +375,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             'content': 'Hello unattached',
             'to': 'all participants',
             'type-interaction': 'annoucement'
-            
         })
         self.collection_schedules.save({
             "datetime": dPast.strftime(self.time_format),
@@ -579,27 +578,27 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             self.collections['program_settings'].save(program_setting)
         self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
-        
+
         interaction_using_tag = {
-            "interaction-id":"0",
-            "type-interaction": "announcement",
-            "content": "Hello [participant.name]",
-            "type-schedule": "fixed-time",
-            "date-time": "12/03/2012 12:30"
+            'interaction-id': "0",
+            'type-interaction': 'announcement',
+            'content': 'Hello [participant.name]',
+            'type-schedule': 'fixed-time',
+            'date-time': '12/03/2012 12:30'
         }
-        
+
         participants = [
             {'phone': '06',
              'name': 'oliv'},
             {'phone': '07'}
         ]
-                
+
         self.collection_participants.save(participants[0])
         self.collection_participants.save(participants[1])
-        
-        message_one = self.worker.generate_message('06', interaction_using_tag)        
+
+        message_one = self.worker.generate_message('06', interaction_using_tag)
         self.assertEqual(message_one, "Hello oliv")
-        
+
         yield self.assertFailure(self.worker.generate_message('07', interaction_using_tag), MissingData)
 
         interaction_closed_question = {
@@ -610,11 +609,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                 {'choice': 'Fine'},
                 {'choice': 'Ok'}],
         }
-        
+
         close_question = self.worker.generate_message('07', interaction_closed_question)
-        
+
         self.assertEqual(
-            close_question, 
+            close_question,
             "How are you? 1. Fine 2. Ok To reply send: FEEL(space)(Answer Nr) to 8181")
 
         interaction_open_question = {
@@ -623,13 +622,12 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             'keyword': 'DEALER',
             'answer-label': 'Name dealer',
         }
-        
+
         open_question = self.worker.generate_message('07', interaction_open_question)
-        
+
         self.assertEqual(
-            open_question, 
+            open_question,
             "Which dealer did you buy the system from? To reply send: DEALER(space)(Name dealer) to 8181")
-        
 
     @inlineCallbacks
     def test13_received_delivered(self):
@@ -702,28 +700,28 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             'message-id': event['user_message_id']})
 
         self.assertEqual('ack', status['message-status'])
-        
+
     @inlineCallbacks
     def test17_receive_inbound_message(self):
         config = self.config
         script = self.simpleProgram_Question
         participant = {'phone': '06'}
-        
+
         self.collection_scripts.save(script)
         self.collection_participants.save(participant)
         self.worker.init_program_db(self.database_name)
-        
-        inbound_msg = self.mkmsg_in(content = 'Feel ok')
-        
+
+        inbound_msg = self.mkmsg_in(content='Feel ok')
+
         yield self.send(inbound_msg, 'inbound')
-        
+
         history = self.collection_status.find_one({
             'participant-phone': '+41791234567'})
 
         self.assertEqual('01-01', history['interaction-id'])
         self.assertEqual('01', history['dialogue-id'])
         self.assertEqual('Ok', history['matching-answer'])
-        
+
         self.assertEqual(1, self.collection_schedules.count())
 
     def test18_schedule_process_handle_crap_in_history(self):
@@ -792,17 +790,17 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             self.collections['program_settings'].save(program_setting)
         for participant in participants:
             self.collection_participants.save(participant)
-        
+
         unattach_id = self.collections['unattached_messages'].save(unattach_messages[0])
         self.collections['unattached_messages'].save(unattach_messages[1])
-        
+
         self.collection_status.save({
             'participant-phone': '06',
             'message-type': 'send',
             'message-status': 'delivered',
             'unattach-id': unattach_id
-        })        
-        
+        })
+
         self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
