@@ -94,21 +94,25 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     }"""
 
     simpleProgram_Question = {
-        "activated": 1,
-        "script": {
-            "shortcode": "8282",
-            "dialogues": [
+        'activated': 1,
+        'script': {
+            'shortcode': '8282',
+            'dialogues': [
                 {
-                    "interactions": [
+                    'dialogue-id': '01',
+                    'interactions': [
                         {
-                            "type-interaction": "question-answer",
-                            "content": "How are you?",
-                            "keyword": "FEEL",
-                            "answers": [
-                                {"choice": "Fine"},
-                                {"choice": "Ok"}
+                            'interaction-id': '01-01',
+                            'type-interaction': 'question-answer',
+                            "content": 'How are you?',
+                            'keyword': 'FEEL',
+                            'answers': [
+                                {'choice': 'Fine'},
+                                {'choice': 'Ok',
+                                 'feedbacks':
+                                 [{'content': 'Thank you'}]}
                                 ],
-                            "type-schedule": "immediately"
+                            'type-schedule': 'immediately'
                         }
                     ]
                 }
@@ -393,19 +397,26 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             'unattach-id': unattached_message,
             'participant-phone': '09'
         })
+        self.collection_schedules.save({
+            'datetime': time_to_vusion_format(dNow),
+            'type-content': 'feedback',
+            'content': 'Thank you',
+            'participant-phone': '09'
+            })
         self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
         yield self.worker.send_scheduled()
 
         messages = self.broker.get_messages('vumi', 'test.outbound')
-        self.assertEqual(len(messages), 3)
+        self.assertEqual(len(messages), 4)
         self.assertEqual(messages[0]['content'], "Hello")
         self.assertEqual(messages[1]['content'], "Today will be sunny")
         self.assertEqual(messages[2]['content'], "Hello unattached")
+        self.assertEqual(messages[3]['content'], "Thank you")
 
         self.assertEquals(self.collection_schedules.count(), 1)
-        self.assertEquals(self.collection_status.count(), 3)
+        self.assertEquals(self.collection_status.count(), 4)
 
     def getCollection(self, db, collection_name):
         if (collection_name in self.db.collection_names()):
@@ -551,12 +562,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     def test10_receive_message(self):
         event = FakeUserMessage(content='Hello World')
 
-        connection = pymongo.Connection('localhost', 27017)
-        self.db = connection[self.config['database']]
-        self.collection_scripts = self.db.create_collection("scripts")
-        self.collection_participants = self.db.create_collection(
-            "participants")
-
         self.worker.init_program_db(self.database_name)
 
         #action
@@ -629,13 +634,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     @inlineCallbacks
     def test13_received_delivered(self):
         event = self.mkmsg_delivery()
-
-        connection = pymongo.Connection("localhost", 27017)
-        self.db = connection[self.config['database']]
-        self.collection_scripts = self.db.create_collection("scripts")
-        self.collection_participants = self.db.create_collection(
-            "participants")
-        self.collection_status = self.db.create_collection('history')
         self.worker.init_program_db(self.database_name)
 
         self.collection_status.save({
@@ -654,12 +652,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     @inlineCallbacks
     def test14_received_delivered_no_reference(self):
         event = self.mkmsg_delivery()
-
-        connection = pymongo.Connection("localhost", 27017)
-        self.db = connection[self.config['database']]
-        self.collection_scripts = self.db.create_collection("scripts")
-        self.collection_participants = self.db.create_collection(
-            "participants")
         self.worker.init_program_db(self.database_name)
 
         yield self.send(event, 'event')
@@ -671,12 +663,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
     @inlineCallbacks
     def test15_received_delivered_failure(self):
-        connection = pymongo.Connection("localhost", 27017)
-        self.db = connection[self.config['database']]
-        self.collection_scripts = self.db.create_collection("scripts")
-        self.collection_participants = self.db.create_collection(
-            "participants")
-        self.collection_status = self.db.create_collection('history')
         self.worker.init_program_db(self.database_name)
 
         event = self.mkmsg_delivery(delivery_status='failed',
@@ -700,15 +686,9 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
     @inlineCallbacks
     def test16_received_ack(self):
-        event = self.mkmsg_delivery(event_type='ack')
-
-        connection = pymongo.Connection("localhost", 27017)
-        self.db = connection[self.config['database']]
-        self.collection_scripts = self.db.create_collection("scripts")
-        self.collection_participants = self.db.create_collection(
-            "participants")
-        self.collection_status = self.db.create_collection('history')
         self.worker.init_program_db(self.database_name)
+
+        event = self.mkmsg_delivery(event_type='ack')
 
         self.collection_status.save({
             'message-id': event['user_message_id'],
@@ -722,14 +702,34 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             'message-id': event['user_message_id']})
 
         self.assertEqual('ack', status['message-status'])
+        
+    @inlineCallbacks
+    def test17_receive_inbound_message(self):
+        config = self.config
+        script = self.simpleProgram_Question
+        participant = {'phone': '06'}
+        
+        self.collection_scripts.save(script)
+        self.collection_participants.save(participant)
+        self.worker.init_program_db(self.database_name)
+        
+        inbound_msg = self.mkmsg_in(content = 'Feel ok')
+        
+        yield self.send(inbound_msg, 'inbound')
+        
+        history = self.collection_status.find_one({
+            'participant-phone': '+41791234567'})
 
-    def test17_bound_incoming_message_with_script(self):
-        self.assertTrue(False)
+        self.assertEqual('01-01', history['interaction-id'])
+        self.assertEqual('01', history['dialogue-id'])
+        self.assertEqual('Ok', history['matching-answer'])
+        
+        self.assertEqual(1, self.collection_schedules.count())
 
     def test18_schedule_process_handle_crap_in_history(self):
         config = self.simpleConfig
         script = self.simpleScript
-        participant = {"phone": "06"}
+        participant = {'phone': '06'}
 
         self.collection_scripts.save(script)
         self.collection_participants.save(participant)

@@ -19,6 +19,7 @@ from vumi.message import Message, TransportUserMessage, TransportEvent
 from vumi.application import SessionManager
 from vumi import log
 
+from vusion.vusion_script import VusionScript
 from vusion.utils import time_to_vusion_format, get_local_time
 from vusion.error import MissingData
 
@@ -65,13 +66,6 @@ class TtcGenericWorker(ApplicationWorker):
 
         if ('dispatcher_name' in self.config):
             yield self._setup_dispatcher_publisher()
-
-    #TODO from the keyword link to the corresponding dialogue/interaction
-    def consume_user_message(self, message):
-        self.log("User message: %s" % message['content'])
-        self.save_status(message_content=message['content'],
-                         participant_phone=message['from_addr'],
-                         message_type='received')
 
     def save_status(self, message_content, participant_phone, message_type,
                     message_status=None, message_id=None, failure_reason=None,
@@ -196,13 +190,40 @@ class TtcGenericWorker(ApplicationWorker):
                     message['failure_reason']))
         self.collection_status.save(status)
 
+    def consume_user_message(self, message):
+        self.log("User message: %s" % message['content'])
+        script = self.get_current_script()
+        if not script:
+            self.save_status(message_content=message['content'],
+                             participant_phone=message['from_addr'],
+                             message_type='received')
+            return
+        scriptHelper = VusionScript(self.get_current_script())
+        data = scriptHelper.get_matching_question_answer(message['content'])
+        self.save_status(message_content=message['content'],
+                         participant_phone=message['from_addr'],
+                         message_type='received',
+                         reference_metadata = {
+                             'dialogue-id': data['dialogue-id'],
+                             'interaction-id': data['interaction-id'],
+                             'matching-answer': data['matching-answer']})
+        for feedback in data['feedbacks']:
+            self.collection_schedules.save({
+                'datetime': time_to_vusion_format(self.get_local_time()),
+                'content': feedback['content'],
+                'type-content': 'feedback',
+                'participant-phone': message['from_addr']
+            })
+                
+
     @inlineCallbacks
     def daemon_process(self):
         self.log('Starting daemon_process()')
         self.load_data()
         if not self.is_ready():
             return
-        self.schedule()
+        #the schedule should be performed only upon request from the frontend
+        #self.schedule() 
         yield self.send_scheduled()
         if self.has_active_script_changed():
             self.log('Synchronizing with dispatcher')
@@ -236,6 +257,7 @@ class TtcGenericWorker(ApplicationWorker):
         self.last_script_used = script_id
         return True
 
+    #TODO: to move into VusionScript
     def get_keywords(self):
         keywords = []
         script = self.get_current_script()
@@ -286,107 +308,6 @@ class TtcGenericWorker(ApplicationWorker):
                 }
             schedule['datetime'] = unattach_message['schedule']
             self.collection_schedules.save(schedule)
-
-    def get_local_time(self):
-        if 'timezone' not in self.properties:
-            self.log('Timezone property not defined, use UTC')
-            return datetime.utcnow()
-        return datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(
-            pytz.timezone(self.properties['timezone'])).replace(tzinfo=None)
-
-    def to_vusion_format(self, timestamp):
-        return timestamp.strftime('%Y-%m-%dT%H:%M:%S')
-
-    #TODO: fire error feedback if the ddialogue do not exit anymore
-    #TODO: if dialogue is deleted, need to remove the scheduled message
-    #(or they are also canceled if cannot find the dialogue)
-    @inlineCallbacks
-    def send_scheduled(self):
-        self.log('Starting send_scheduled()')
-        local_time = self.get_local_time()
-        toSends = self.collection_schedules.find(
-            spec={'datetime': {'$lt': time_to_vusion_format(local_time)}},
-            sort=[('datetime', 1)])
-        for toSend in toSends:
-            self.collection_schedules.remove(
-                {'_id': toSend['_id']})
-            message_content = None
-            try:
-                if 'dialogue-id' in toSend:
-                    interaction = self.get_interaction(
-                        self.get_current_script(),
-                        toSend['dialogue-id'],
-                        toSend['interaction-id'])
-                    reference_metadata = {
-                        'dialogue-id': toSend['dialogue-id'],
-                        'interaction-id': toSend['interaction-id']
-                    }
-                elif 'unattach-id' in toSend:
-                    interaction = self.collections['unattached_messages'].find_one(
-                        {'_id': ObjectId(toSend['unattach-id'])})
-                    reference_metadata = {
-                        'unattach-id': toSend['unattach-id']
-                    }
-                else:
-                    self.log("Error schedule object not supported: %s"
-                             % (toSend))
-                    continue
-
-                message_content = self.generate_message(
-                        toSend['participant-phone'],
-                        interaction
-                )
-
-                message = TransportUserMessage(**{
-                    'from_addr': self.properties['shortcode'],
-                    'to_addr': toSend['participant-phone'],
-                    'transport_name': self.transport_name,
-                    'transport_type': self.transport_type,
-                    'transport_metadata': '',
-                    'content': message_content})
-                yield self.transport_publisher.publish_message(message)
-                self.log("Message has been send: %s" % message)
-
-                self.save_status(message_content=message['content'],
-                                 participant_phone=message['to_addr'],
-                                 message_type='send',
-                                 message_status='pending',
-                                 message_id=message['message_id'],
-                                 reference_metadata=reference_metadata)
-            except MissingData as e:
-                self.save_status(message_content=message['content'],
-                                 participant_phone=message['to_addr'],
-                                 message_type='generate-failed',
-                                 message_reason=e,
-                                 message_id=message['message_id'],
-                                 reference_metadata=reference_metadata)
-            except:
-                self.log("Unexpected exception: %s" % toSend, 'error')
-                self.log("Exception is %s" % (sys.exc_info()[0]), 'error')
-                self.save_status(message_content=message['content'],
-                                 participant_phone=message['to_addr'],
-                                 message_type='vusion-failed',
-                                 message_reason=sys.exc_info()[0],
-                                 message_id=message['message_id'],
-                                 reference_metadata=reference_metadata)
-                                
-
-
-    #MongoDB do not support fetching a subpart of an array
-    #may not be necessary in the near future
-    #https://jira.mongodb.org/browse/SERVER-828
-    #https://jira.mongodb.org/browse/SERVER-3089
-    def get_interaction(self, program, dialogue_id, interaction_id):
-        for dialogue in program['dialogues']:
-            if dialogue["dialogue-id"] == dialogue_id:
-                for interaction in dialogue["interactions"]:
-                    if interaction["interaction-id"] == interaction_id:
-                        return interaction
-
-    def get_dialogue(self, program, dialogue_id):
-        for dialogue in program['dialogues']:
-            if dialogue["dialogue-id"] == dialogue_id:
-                return dialogue
 
     def schedule_participants_dialogue(self, participants, dialogue):
         for participant in participants:
@@ -448,6 +369,113 @@ class TtcGenericWorker(ApplicationWorker):
             self.log("Scheduling exception: %s" % interaction)
             self.log("Exception is %s" % (sys.exc_info()[0]))
 
+    def get_local_time(self):
+        if 'timezone' not in self.properties:
+            self.log('Timezone property not defined, use UTC')
+            return datetime.utcnow()
+        return datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(
+            pytz.timezone(self.properties['timezone'])).replace(tzinfo=None)
+
+    #TODO: Move into Utils
+    def to_vusion_format(self, timestamp):
+        return timestamp.strftime('%Y-%m-%dT%H:%M:%S')
+
+    #TODO: fire error feedback if the ddialogue do not exit anymore
+    #TODO: if dialogue is deleted, need to remove the scheduled message
+    #(or they are also canceled if cannot find the dialogue)
+    @inlineCallbacks
+    def send_scheduled(self):
+        self.log('Starting send_scheduled()')
+        local_time = self.get_local_time()
+        toSends = self.collection_schedules.find(
+            spec={'datetime': {'$lt': time_to_vusion_format(local_time)}},
+            sort=[('datetime', 1)])
+        for toSend in toSends:
+            self.collection_schedules.remove(
+                {'_id': toSend['_id']})
+            message_content = None
+            try:
+                if 'dialogue-id' in toSend:
+                    interaction = self.get_interaction(
+                        self.get_current_script(),
+                        toSend['dialogue-id'],
+                        toSend['interaction-id'])
+                    reference_metadata = {
+                        'dialogue-id': toSend['dialogue-id'],
+                        'interaction-id': toSend['interaction-id']
+                    }
+                elif 'unattach-id' in toSend:
+                    interaction = self.collections['unattached_messages'].find_one(
+                        {'_id': ObjectId(toSend['unattach-id'])})
+                    reference_metadata = {
+                        'unattach-id': toSend['unattach-id']
+                    }
+                elif 'type-content' in toSend:
+                    interaction = {'content': toSend['content'],
+                                   'type-interaction': 'feedback'}
+                else:
+                    self.log("Error schedule object not supported: %s"
+                             % (toSend))
+                    continue
+
+                message_content = self.generate_message(
+                        toSend['participant-phone'],
+                        interaction
+                )
+
+                message = TransportUserMessage(**{
+                    'from_addr': self.properties['shortcode'],
+                    'to_addr': toSend['participant-phone'],
+                    'transport_name': self.transport_name,
+                    'transport_type': self.transport_type,
+                    'transport_metadata': '',
+                    'content': message_content})
+                yield self.transport_publisher.publish_message(message)
+                self.log("Message has been send: %s" % message)
+
+                self.save_status(message_content=message['content'],
+                                 participant_phone=message['to_addr'],
+                                 message_type='send',
+                                 message_status='pending',
+                                 message_id=message['message_id'],
+                                 reference_metadata=reference_metadata)
+            except MissingData as e:
+                self.save_status(message_content=message['content'],
+                                 participant_phone=message['to_addr'],
+                                 message_type='generate-failed',
+                                 failure_reason=e,
+                                 message_id=message['message_id'],
+                                 reference_metadata=reference_metadata)
+            except:
+                self.log("Unexpected exception: %s" % toSend, 'error')
+                self.log("Exception is %s" % (sys.exc_info()[0]), 'error')
+                self.save_status(message_content=message['content'],
+                                 participant_phone=message['to_addr'],
+                                 message_type='system-failed',
+                                 failure_reason=sys.exc_info()[0],
+                                 message_id=message['message_id'],
+                                 reference_metadata=reference_metadata)
+                                
+
+    #TODO: move into VusionScript
+    #MongoDB do not support fetching a subpart of an array
+    #may not be necessary in the near future
+    #https://jira.mongodb.org/browse/SERVER-828
+    #https://jira.mongodb.org/browse/SERVER-3089
+    def get_interaction(self, program, dialogue_id, interaction_id):
+        for dialogue in program['dialogues']:
+            if dialogue["dialogue-id"] == dialogue_id:
+                for interaction in dialogue["interactions"]:
+                    if interaction["interaction-id"] == interaction_id:
+                        return interaction
+
+    #TODO: move into VusionScript
+    def get_dialogue(self, program, dialogue_id):
+        for dialogue in program['dialogues']:
+            if dialogue["dialogue-id"] == dialogue_id:
+                return dialogue
+
+
     def log(self, msg, level='msg'):
         if (level == 'msg'):
             log.msg('[%s] %s' % (self.control_name, msg))
@@ -469,6 +497,7 @@ class TtcGenericWorker(ApplicationWorker):
                          'keyword_mappings': keyword_mappings})
         yield self.dispatcher_publisher.publish_message(msg)
 
+    #TODO move into VusionScript
     #Support the type-interaction is not defined
     def generate_message(self, participant_phone, interaction):
         message = interaction['content']
