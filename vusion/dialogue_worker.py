@@ -440,20 +440,21 @@ class TtcGenericWorker(ApplicationWorker):
                                  message_id=message['message_id'],
                                  reference_metadata=reference_metadata)
             except MissingData as e:
-                self.save_status(message_content=message['content'],
-                                 participant_phone=message['to_addr'],
+                self.save_status(message_content='',
+                                 participant_phone=toSend['participant-phone'],
                                  message_type='generate-failed',
-                                 failure_reason=e,
-                                 message_id=message['message_id'],
+                                 failure_reason=('%s' % (e,)),
                                  reference_metadata=reference_metadata)
             except:
                 self.log("Unexpected exception: %s" % toSend, 'error')
-                self.log("Exception is %s" % (sys.exc_info()[0]), 'error')
-                self.save_status(message_content=message['content'],
-                                 participant_phone=message['to_addr'],
+                self.log("Exception is %s - %s" % (sys.exc_info()[0], 
+                                                        sys.exc_info()[1]),
+                         'error')
+                self.save_status(participant_phone=toSend['participant-phone'],
+                                 message_content='',
                                  message_type='system-failed',
-                                 failure_reason=sys.exc_info()[0],
-                                 message_id=message['message_id'],
+                                 failure_reason=('%s - %s') % (sys.exc_info()[0],
+                                                               sys.exc_info()[1]),
                                  reference_metadata=reference_metadata)
 
     #TODO: move into VusionScript
@@ -500,7 +501,8 @@ class TtcGenericWorker(ApplicationWorker):
     def generate_message(self, participant_phone, interaction):
         message = interaction['content']
 
-        if interaction['type-interaction'] == 'question-answer':
+        if ('type-interaction' in interaction and 
+            interaction['type-interaction'] == 'question-answer'):
             if 'answers' in interaction:
                 i = 1
                 for answer in interaction['answers']:
@@ -517,7 +519,7 @@ class TtcGenericWorker(ApplicationWorker):
         for table, attribute in tags:
             participant = self.collection_participants.find_one({'phone': participant_phone})
             if not attribute in participant:
-                return fail(MissingData("%s has no attribute %s" % (participant_phone, attribute)))
+                raise MissingData("%s has no attribute %s" % (participant_phone, attribute))
             message = message.replace('[%s.%s]' % (table, attribute), participant[attribute])
 
         return message

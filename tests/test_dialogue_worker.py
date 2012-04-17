@@ -813,26 +813,5 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(schedules[0]['participant-phone'], '07')
 
     #@inlineCallbacks
-    #def test12_2dialogues_updated_2message_scheduled(self):
-        #self.assertTrue(False)
-
-    #@inlineCallbacks
-    #def test13_resend_failed_message(self):
-        ##control from the user
-        #self.assertTrue(False)
-
-    #@inlineCallbacks
-    #def test14_add_participant_is_scheduling_dialogues(self):
-        #self.assertTrue(False)
-
-    #@inlineCallbacks
-    #def test15_after_reply_Goto_Dialogue(self):
-        #self.assertTrue(False)
-
-    #@inlineCallbacks
     #def test16_after_reply_send_feedback(self):
-        #self.assertTrue(False)
-
-    #@inlineCallbacks
-    #def test17_restarting_do_not_schedule_or_send_message(self):
         #self.assertTrue(False)

@@ -47,7 +47,7 @@ class VusionScriptTestCase(TestCase):
     def tearDown(self):
         pass
 
-    def test_get_matchin_question_answer_id(self):
+    def test_get_matchin_question_answer(self):
         script = VusionScript(self.question_answer)
 
         self.assertEqual(script.get_matching_question_answer("feel 1"),
