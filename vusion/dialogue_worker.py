@@ -10,6 +10,8 @@ from twisted.internet import task
 import pymongo
 from pymongo.objectid import ObjectId
 
+import redis
+
 from datetime import datetime, time, date, timedelta
 import pytz
 import iso8601
@@ -20,7 +22,8 @@ from vumi.application import SessionManager
 from vumi import log
 
 from vusion.vusion_script import VusionScript
-from vusion.utils import time_to_vusion_format, get_local_time
+from vusion.utils import (time_to_vusion_format, get_local_time, 
+                          get_local_time_as_timestamp)
 from vusion.error import MissingData
 
 
@@ -37,23 +40,30 @@ class TtcGenericWorker(ApplicationWorker):
     def startWorker(self):
         log.msg("One Generic Worker is starting")
         super(TtcGenericWorker, self).startWorker()
+        
+        #Set up control consumer
         self.control_consumer = yield self.consume(
             '%(control_name)s.control' % self.config,
             self.consume_control,
             message_class=Message)
+        #Set up dispatcher publisher
         self.dispatcher_publisher = yield self.publish_to(
             '%(dispatcher_name)s.control' % self.config)
 
-        #config
+        #Store basic configuration data
         self.transport_name = self.config['transport_name']
         self.control_name = self.config['control_name']
         self.transport_type = 'sms'
+        self.r_config = self.config.get('redis', {})
+        self.r_prefix = "%(control_name)s:" % self.config
 
+        #Initializing
         self.sender = None
         self.program_name = None
         self.last_script_used = None
         self.collections = {}
         self.properties = {}
+        self.r_server = redis.Redis(**self.r_config)
 
         self._d.callback(None)
 
@@ -476,10 +486,20 @@ class TtcGenericWorker(ApplicationWorker):
                 return dialogue
 
     def log(self, msg, level='msg'):
-        if (level == 'msg'):
-            log.msg('[%s] %s' % (self.control_name, msg))
-        else:
-            log.error('[%s] %s' % (self.control_name, msg))
+        timezone = None
+        if 'timezone' in self.properties:
+            timezone = self.properties['timezone']
+        rkey = "%slogs" % (self.r_prefix,)
+        self.r_server.zadd(rkey,
+                           "[%s] %s" % (
+                               time_to_vusion_format(get_local_time(timezone)), 
+                               msg),
+                           get_local_time_as_timestamp(timezone))
+        #log.msg('%s - %s - %s' % (rkey, get_local_time_as_timestamp(timezone), msg))
+        #if (level == 'msg'):
+            #log.msg('[%s] %s' % (self.control_name, msg))
+        #else:
+            #log.error('[%s] %s' % (self.control_name, msg))
 
     @inlineCallbacks
     def _setup_dispatcher_publisher(self):
