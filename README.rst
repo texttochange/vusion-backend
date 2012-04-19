@@ -1,7 +1,7 @@
 Vusion backend
 =======
 
-Vusion backend is build with Praekelt Foundation's Vumi. It can work on his own but you'd rather use the Vusion Backend: https://github.com/texttochange/vusion-front 
+Vusion backend is build with Praekelt Foundation's Vumi. It can work on its own but you'd rather use the Vusion Frontend: https://github.com/texttochange/vusion-front 
 
 Installation
 ------------
@@ -20,7 +20,7 @@ Update `etc/config/*.yaml` with your aggregator account details and run the foll
 ::
 
 	$ source ve/bin/activate
-	$ supervisord
+	$ supervisord -c etc/supervisord.ttcpoc.conf
 
 
 Tests
