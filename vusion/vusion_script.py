@@ -16,7 +16,7 @@ class VusionScript:
                     continue
                 if interaction['keyword'].lower() == keyword:
                     return dialogue['dialogue-id'], interaction
-        return None
+        return None, None
 
     def get_matching_answer(self, answers, reply):
         try:

@@ -6,7 +6,6 @@ from vusion.vusion_script import VusionScript
 class VusionScriptTestCase(TestCase):
 
     question_answer = {
-        'shortcode': '8282',
         'dialogues': [
             {
                 'dialogue-id': '01',
@@ -39,6 +38,33 @@ class VusionScriptTestCase(TestCase):
                 ]
             }
         ]
+    }
+    
+    other_question_answer = { 
+        "dialogues": [ 
+            {"name": "something", 
+             "interactions": [ 
+                  {"type-schedule": "immediately", 
+                   "type-interaction": "question-answer", 
+                   "content": "How are you [participant.name]?", 
+                   "keyword": "Fool", 
+                   "type-reminder": "no-reminder", 
+                   "type-question": "close-question", 
+                   "answers": [ 
+                       {"choice": "Good", 
+                        "feedbacks": [ 
+                            { "content": "So have a nice day [participant.name]" } 
+                        ]}, 
+                       {"choice": "Bad", 
+                        "feedbacks": [ 
+                            { "content": "Come one [participant.name], you can get over it!" } 
+                        ]} 
+                       ], 
+                   "interaction-id": "script.dialogues[0].interactions[0]" 
+                   } 
+                  ], 
+             "dialogue-id": "script.dialogues[0]" }
+        ] 
     }
 
     def setUp(self):
@@ -84,3 +110,7 @@ class VusionScriptTestCase(TestCase):
                           'matching-answer': None,
                           'feedbacks': [
                               {'content':'thank you for this answer'}]})
+        
+        script = VusionScript(self.other_question_answer)
+        self.assertEqual(script.get_matching_question_answer("something good"),
+                         None)

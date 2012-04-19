@@ -49,7 +49,7 @@ class VusionMultiWorker(MultiWorker):
                 if not msg['worker_name'] in self.workers:
                     log.error('Cannot remove worker, name unknown: %s'
                               % (msg['worker_name'],))
-                self.workers[msg['worker_name']].stopService()
+                self.workers[msg['worker_name']].stopService()               
 
         except Exception as ex:
             log.error("Control received: %s" % (msg))

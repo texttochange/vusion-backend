@@ -203,28 +203,33 @@ class TtcGenericWorker(ApplicationWorker):
 
     def consume_user_message(self, message):
         self.log("User message: %s" % message['content'])
-        script = self.get_current_script()
-        if not script:
+        try:
+            script = self.get_current_script()
+            if not script:
+                self.save_status(message_content=message['content'],
+                                 participant_phone=message['from_addr'],
+                                 message_type='received')
+                return
+            scriptHelper = VusionScript(self.get_current_script())
+            data = scriptHelper.get_matching_question_answer(message['content'])
             self.save_status(message_content=message['content'],
                              participant_phone=message['from_addr'],
-                             message_type='received')
-            return
-        scriptHelper = VusionScript(self.get_current_script())
-        data = scriptHelper.get_matching_question_answer(message['content'])
-        self.save_status(message_content=message['content'],
-                         participant_phone=message['from_addr'],
-                         message_type='received',
-                         reference_metadata={
-                             'dialogue-id': data['dialogue-id'],
-                             'interaction-id': data['interaction-id'],
-                             'matching-answer': data['matching-answer']})
-        for feedback in data['feedbacks']:
-            self.collection_schedules.save({
-                'datetime': time_to_vusion_format(self.get_local_time()),
-                'content': feedback['content'],
-                'type-content': 'feedback',
-                'participant-phone': message['from_addr']
-            })
+                             message_type='received',
+                             reference_metadata={
+                                 'dialogue-id': data['dialogue-id'],
+                                 'interaction-id': data['interaction-id'],
+                                 'matching-answer': data['matching-answer']})
+            for feedback in data['feedbacks']:
+                self.collection_schedules.save({
+                    'datetime': time_to_vusion_format(self.get_local_time()),
+                    'content': feedback['content'],
+                    'type-content': 'feedback',
+                    'participant-phone': message['from_addr']
+                })
+        except:
+            self.log(
+                "Error during consume user message: %s %s" %
+                (sys.exc_info()[0], sys.exc_info()[1]))
 
     @inlineCallbacks
     def daemon_process(self):
@@ -423,6 +428,7 @@ class TtcGenericWorker(ApplicationWorker):
                 elif 'type-content' in toSend:
                     interaction = {'content': toSend['content'],
                                    'type-interaction': 'feedback'}
+                    reference_metadata=None
                 else:
                     self.log("Error schedule object not supported: %s"
                              % (toSend))
@@ -496,10 +502,10 @@ class TtcGenericWorker(ApplicationWorker):
                                msg),
                            get_local_time_as_timestamp(timezone))
         #log.msg('%s - %s - %s' % (rkey, get_local_time_as_timestamp(timezone), msg))
-        #if (level == 'msg'):
-            #log.msg('[%s] %s' % (self.control_name, msg))
-        #else:
-            #log.error('[%s] %s' % (self.control_name, msg))
+        if (level == 'msg'):
+            log.msg('[%s] %s' % (self.control_name, msg))
+        else:
+            log.error('[%s] %s' % (self.control_name, msg))
 
     @inlineCallbacks
     def _setup_dispatcher_publisher(self):
