@@ -22,7 +22,7 @@ from vumi.application import SessionManager
 from vumi import log
 
 from vusion.vusion_script import VusionScript
-from vusion.utils import (time_to_vusion_format, get_local_time, 
+from vusion.utils import (time_to_vusion_format, get_local_time,
                           get_local_time_as_timestamp)
 from vusion.error import MissingData
 
@@ -40,7 +40,7 @@ class TtcGenericWorker(ApplicationWorker):
     def startWorker(self):
         log.msg("One Generic Worker is starting")
         super(TtcGenericWorker, self).startWorker()
-        
+
         #Set up control consumer
         self.control_consumer = yield self.consume(
             '%(control_name)s.control' % self.config,
@@ -428,7 +428,7 @@ class TtcGenericWorker(ApplicationWorker):
                 elif 'type-content' in toSend:
                     interaction = {'content': toSend['content'],
                                    'type-interaction': 'feedback'}
-                    reference_metadata=None
+                    reference_metadata = None
                 else:
                     self.log("Error schedule object not supported: %s"
                              % (toSend))
@@ -463,7 +463,7 @@ class TtcGenericWorker(ApplicationWorker):
                                  reference_metadata=reference_metadata)
             except:
                 self.log("Unexpected exception: %s" % toSend, 'error')
-                self.log("Exception is %s - %s" % (sys.exc_info()[0], 
+                self.log("Exception is %s - %s" % (sys.exc_info()[0],
                                                         sys.exc_info()[1]),
                          'error')
                 self.save_status(participant_phone=toSend['participant-phone'],
@@ -498,7 +498,7 @@ class TtcGenericWorker(ApplicationWorker):
         rkey = "%slogs" % (self.r_prefix,)
         self.r_server.zadd(rkey,
                            "[%s] %s" % (
-                               time_to_vusion_format(get_local_time(timezone)), 
+                               time_to_vusion_format(get_local_time(timezone)),
                                msg),
                            get_local_time_as_timestamp(timezone))
         #log.msg('%s - %s - %s' % (rkey, get_local_time_as_timestamp(timezone), msg))
@@ -527,7 +527,7 @@ class TtcGenericWorker(ApplicationWorker):
     def generate_message(self, participant_phone, interaction):
         message = interaction['content']
 
-        if ('type-interaction' in interaction and 
+        if ('type-interaction' in interaction and
             interaction['type-interaction'] == 'question-answer'):
             if 'answers' in interaction:
                 i = 1
