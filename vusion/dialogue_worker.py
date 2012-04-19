@@ -34,7 +34,7 @@ class TtcGenericWorker(ApplicationWorker):
 
     def startService(self):
         self._d = Deferred()
-        super(TtcGenericWorker, self).startService()
+        super(TtcGenericWorker, self).startService()        
 
     @inlineCallbacks
     def startWorker(self):
@@ -77,6 +77,12 @@ class TtcGenericWorker(ApplicationWorker):
 
         if ('dispatcher_name' in self.config):
             yield self._setup_dispatcher_publisher()
+
+    def stopWorker(self):
+        self.log("Stoping Worker")
+        if self.sender:
+            self.sender.stop()
+            self.log("Worker loop stoped")
 
     def save_status(self, message_content, participant_phone, message_type,
                     message_status=None, message_id=None, failure_reason=None,
@@ -325,6 +331,7 @@ class TtcGenericWorker(ApplicationWorker):
             self.collection_schedules.save(schedule)
 
     def schedule_participants_dialogue(self, participants, dialogue):
+        self.log("scheduling participants dialogue")
         for participant in participants:
             self.schedule_participant_dialogue(participant, dialogue)
 
