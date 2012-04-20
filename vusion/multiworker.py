@@ -53,6 +53,7 @@ class VusionMultiWorker(MultiWorker):
                               % (msg['worker_name']))
                     return
                 yield self.workers[msg['worker_name']].stopService()
+                self.workers[msg['worker_name']].disownServiceParent()
                 self.workers.pop(msg['worker_name'])
 
         except Exception as ex:

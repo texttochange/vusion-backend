@@ -41,15 +41,6 @@ class TtcGenericWorker(ApplicationWorker):
         log.msg("One Generic Worker is starting")
         super(TtcGenericWorker, self).startWorker()
 
-        #Set up control consumer
-        self.control_consumer = yield self.consume(
-            '%(control_name)s.control' % self.config,
-            self.consume_control,
-            message_class=Message)
-        #Set up dispatcher publisher
-        self.dispatcher_publisher = yield self.publish_to(
-            '%(dispatcher_name)s.control' % self.config)
-
         #Store basic configuration data
         self.transport_name = self.config['transport_name']
         self.control_name = self.config['control_name']
@@ -66,6 +57,15 @@ class TtcGenericWorker(ApplicationWorker):
         self.r_server = redis.Redis(**self.r_config)
 
         self._d.callback(None)
+
+        #Set up control consumer
+        self.control_consumer = yield self.consume(
+            '%(control_name)s.control' % self.config,
+            self.consume_control,
+            message_class=Message)
+        #Set up dispatcher publisher
+        self.dispatcher_publisher = yield self.publish_to(
+            '%(dispatcher_name)s.control' % self.config)
 
         if  (('database_name' in self.config)
              and self.config['database_name']):
