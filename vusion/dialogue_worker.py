@@ -502,11 +502,11 @@ class TtcGenericWorker(ApplicationWorker):
         timezone = None
         local_time = self.get_local_time()
         rkey = "%slogs" % (self.r_prefix,)
-        #self.r_server.zadd(rkey,
-                           #"[%s] %s" % (
-                               #time_to_vusion_format(local_time),
-                               #msg),
-                           #get_local_time_as_timestamp(timezone))
+        self.r_server.zadd(rkey,
+                           "[%s] %s" % (
+                               time_to_vusion_format(local_time),
+                               msg),
+                           get_local_time_as_timestamp(local_time))
         #log.msg('%s - %s - %s' % (rkey, get_local_time_as_timestamp(timezone), msg))
         if (level == 'msg'):
             log.msg('[%s] %s' % (self.control_name, msg))
