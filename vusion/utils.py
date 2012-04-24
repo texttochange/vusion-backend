@@ -14,6 +14,5 @@ def get_local_time(timezone):
         pytz.timezone(timezone)).replace(tzinfo=None)
 
 
-def get_local_time_as_timestamp(timezone):
-    local_time = get_local_time(timezone)
+def get_local_time_as_timestamp(local_time):
     return long(time.mktime(local_time.timetuple()))

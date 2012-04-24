@@ -392,11 +392,11 @@ class TtcGenericWorker(ApplicationWorker):
             self.log("Exception is %s" % (sys.exc_info()[0]))
 
     def get_local_time(self):
-        if 'timezone' not in self.properties:
-            self.log('Timezone property not defined, use UTC')
+        try:
+            return datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(
+                pytz.timezone(self.properties['timezone'])).replace(tzinfo=None)
+        except:
             return datetime.utcnow()
-        return datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(
-            pytz.timezone(self.properties['timezone'])).replace(tzinfo=None)
 
     #TODO: Move into Utils
     def to_vusion_format(self, timestamp):
@@ -500,14 +500,13 @@ class TtcGenericWorker(ApplicationWorker):
 
     def log(self, msg, level='msg'):
         timezone = None
-        if 'timezone' in self.properties:
-            timezone = self.properties['timezone']
+        local_time = self.get_local_time()
         rkey = "%slogs" % (self.r_prefix,)
-        self.r_server.zadd(rkey,
-                           "[%s] %s" % (
-                               time_to_vusion_format(get_local_time(timezone)),
-                               msg),
-                           get_local_time_as_timestamp(timezone))
+        #self.r_server.zadd(rkey,
+                           #"[%s] %s" % (
+                               #time_to_vusion_format(local_time),
+                               #msg),
+                           #get_local_time_as_timestamp(timezone))
         #log.msg('%s - %s - %s' % (rkey, get_local_time_as_timestamp(timezone), msg))
         if (level == 'msg'):
             log.msg('[%s] %s' % (self.control_name, msg))
