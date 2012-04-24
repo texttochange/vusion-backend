@@ -79,10 +79,9 @@ class TtcGenericWorker(ApplicationWorker):
             yield self._setup_dispatcher_publisher()
 
     def stopWorker(self):
-        self.log("Stoping Worker")
+        self.log("Worker is stopped.")
         if self.sender:
             self.sender.stop()
-            self.log("Worker loop stoped")
 
     def save_status(self, message_content, participant_phone, message_type,
                     message_status=None, message_id=None, failure_reason=None,
@@ -502,6 +501,11 @@ class TtcGenericWorker(ApplicationWorker):
         timezone = None
         local_time = self.get_local_time()
         rkey = "%slogs" % (self.r_prefix,)
+        self.r_server.zremrangebyscore(rkey,
+                                       1,
+                                       get_local_time_as_timestamp(
+                                           local_time - timedelta(hours=2))
+                                       );
         self.r_server.zadd(rkey,
                            "[%s] %s" % (
                                time_to_vusion_format(local_time),
