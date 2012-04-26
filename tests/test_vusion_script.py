@@ -53,11 +53,11 @@ class VusionScriptTestCase(TestCase):
                    "answers": [
                        {"choice": "Good",
                         "feedbacks": [
-                            { "content": "So have a nice day [participant.name]" }
+                            {"content": "So have a nice day [participant.name]"}
                         ]},
                        {"choice": "Bad",
                         "feedbacks": [
-                            { "content": "Come one [participant.name], you can get over it!" }
+                            {"content": "Come one [participant.name], you can get over it!"}
                         ]}
                        ],
                    "interaction-id": "script.dialogues[0].interactions[0]"
@@ -74,7 +74,7 @@ class VusionScriptTestCase(TestCase):
                    "interaction-id": "script.dialogues[0].interactions[2]"
                    },
                   ],
-             "dialogue-id": "script.dialogues[0]" }
+             "dialogue-id": "script.dialogues[0]"}
         ]
     }
 
@@ -127,11 +127,10 @@ class VusionScriptTestCase(TestCase):
         script = VusionScript(self.other_question_answer)
         self.assertEqual(script.get_matching_question_answer("something good"),
                          None)
-        
-        self.assertEqual(script.get_matching_question_answer('Gen Male'), 
+
+        self.assertEqual(script.get_matching_question_answer('Gen Male'),
                          {'dialogue-id': 'script.dialogues[0]',
                           'interaction-id': 'script.dialogues[0].interactions[2]',
                           'matching-answer': 'Male',
                           'label-for-participant-profiling': 'gender',
                           'feedbacks': None})
-        
