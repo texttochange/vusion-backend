@@ -47,6 +47,7 @@ class VusionScript:
             return {'dialogue-id': dialogue_id,
                     'interaction-id': interaction['interaction-id'],
                     'matching-answer': answer['choice'],
+                    'label-for-participant-profiling': interaction['label-for-participant-profiling'] if 'label-for-participant-profiling' in interaction else None,
                     'feedbacks': answer['feedbacks'] if 'feedbacks' in answer
                     else None}
         else:
@@ -54,4 +55,4 @@ class VusionScript:
                 'dialogue-id': dialogue_id,
                 'interaction-id': interaction['interaction-id'],
                 'matching-answer': None,
-                'feedbacks': interaction['feedbacks']}
+                'feedbacks': interaction['feedbacks'] if 'feedbacks' in interaction else None}

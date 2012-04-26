@@ -61,7 +61,18 @@ class VusionScriptTestCase(TestCase):
                         ]}
                        ],
                    "interaction-id": "script.dialogues[0].interactions[0]"
-                   }
+                   },
+                  {"type-schedule": "immediately",
+                   "type-interaction": "question-answer",
+                   "content": "What is your gender?",
+                   'label-for-participant-profiling': 'gender',
+                   "keyword": "GEN",
+                   "answers": [
+                       {"choice": "Male"},
+                       {"choice": "Bad"}
+                       ],
+                   "interaction-id": "script.dialogues[0].interactions[2]"
+                   },
                   ],
              "dialogue-id": "script.dialogues[0]" }
         ]
@@ -80,6 +91,7 @@ class VusionScriptTestCase(TestCase):
                          {'dialogue-id': '01',
                           'interaction-id': '01-01',
                           'matching-answer': 'Fine',
+                          'label-for-participant-profiling': None,
                           'feedbacks': [{'content':'thank you'},
                                         {'content':'thank you again'}]})
 
@@ -102,6 +114,7 @@ class VusionScriptTestCase(TestCase):
             {'dialogue-id': '01',
              'interaction-id': '01-01',
              'matching-answer': 'Ok',
+             'label-for-participant-profiling': None,
              'feedbacks': None})
 
         self.assertEqual(script.get_matching_question_answer("HOW good"),
@@ -114,3 +127,11 @@ class VusionScriptTestCase(TestCase):
         script = VusionScript(self.other_question_answer)
         self.assertEqual(script.get_matching_question_answer("something good"),
                          None)
+        
+        self.assertEqual(script.get_matching_question_answer('Gen Male'), 
+                         {'dialogue-id': 'script.dialogues[0]',
+                          'interaction-id': 'script.dialogues[0].interactions[2]',
+                          'matching-answer': 'Male',
+                          'label-for-participant-profiling': 'gender',
+                          'feedbacks': None})
+        

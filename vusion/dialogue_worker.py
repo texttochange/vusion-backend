@@ -224,13 +224,17 @@ class TtcGenericWorker(ApplicationWorker):
                                  'dialogue-id': data['dialogue-id'],
                                  'interaction-id': data['interaction-id'],
                                  'matching-answer': data['matching-answer']})
-            for feedback in data['feedbacks']:
-                self.collection_schedules.save({
-                    'datetime': time_to_vusion_format(self.get_local_time()),
-                    'content': feedback['content'],
-                    'type-content': 'feedback',
-                    'participant-phone': message['from_addr']
-                })
+            self.label_participant_with_reply(message['from_addr'], 
+                                              data['label-for-participant-profiling'],
+                                              data['matching-answer'])
+            if data['feedbacks']:
+                for feedback in data['feedbacks']:
+                    self.collection_schedules.save({
+                        'datetime': time_to_vusion_format(self.get_local_time()),
+                        'content': feedback['content'],
+                        'type-content': 'feedback',
+                        'participant-phone': message['from_addr']
+                    })
         except:
             self.log(
                 "Error during consume user message: %s %s" %
@@ -277,6 +281,19 @@ class TtcGenericWorker(ApplicationWorker):
         self.last_script_used = script_id
         return True
 
+    def label_participant_with_reply(self, participant_phone, label, reply):
+        if not label:
+            return
+        label=label.lower()
+        participant = self.collection_participants.find_one(
+            {'phone': participant_phone})
+        if not participant:
+            self.log("Cannot find participant %s for profiling" % 
+                     (participant_phone))
+            return
+        participant[label] = reply
+        self.collection_participants.save(participant)
+    
     #TODO: to move into VusionScript
     def get_keywords(self):
         keywords = []
@@ -554,6 +571,7 @@ class TtcGenericWorker(ApplicationWorker):
         tags = re.findall(re.compile(r'\[(?P<table>\w*)\.(?P<attribute>\w*)\]'), message)
         for table, attribute in tags:
             participant = self.collection_participants.find_one({'phone': participant_phone})
+            attribute=attribute.lower()
             if not attribute in participant:
                 raise MissingData("%s has no attribute %s" % (participant_phone, attribute))
             message = message.replace('[%s.%s]' % (table, attribute), participant[attribute])

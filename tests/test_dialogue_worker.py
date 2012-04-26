@@ -582,15 +582,16 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         interaction_using_tag = {
             'interaction-id': "0",
             'type-interaction': 'announcement',
-            'content': 'Hello [participant.name]',
+            'content': 'Hello [participant.nAme]',
             'type-schedule': 'fixed-time',
             'date-time': '12/03/2012 12:30'
         }
 
         participants = [
             {'phone': '06',
-             'name': 'oliv'},
-            {'phone': '07'}
+             'Name': 'oliv'},
+            {'phone': '07',
+             'gender': 'Female'}
         ]
 
         self.collection_participants.save(participants[0])
@@ -812,6 +813,13 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         schedules = self.collection_schedules.find()
         self.assertEqual(schedules[0]['participant-phone'], '07')
 
-    #@inlineCallbacks
-    #def test16_after_reply_send_feedback(self):
-        #self.assertTrue(False)
+    def test21_participant_profiling(self):
+        participant = {'phone': '06'}
+        self.collection_participants.save(participant)
+        self.worker.init_program_db(self.config['database'])
+
+        self.worker.label_participant_with_reply('06', 'gender', 'M')
+
+        participant = self.collection_participants.find_one()
+        self.assertTrue('gender' in participant)
+        self.assertEqual(participant['gender'], 'M')
