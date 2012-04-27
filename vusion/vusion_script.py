@@ -8,7 +8,7 @@ class VusionScript:
 
     def get_reply(self, content, delimiter=' '):
         return (content or '').partition(delimiter)[2]
-    
+
     def split_keywords(self, keywords):
         return [k.lower() for k in (keywords or '').split(', ')]
 
@@ -46,6 +46,7 @@ class VusionScript:
                 return {'dialogue-id': dialogue_id,
                         'interaction-id': interaction['interaction-id'],
                         'matching-answer': None,
+                        'label-for-participant-profiling': None,
                         'feedbacks': None}
             return {'dialogue-id': dialogue_id,
                     'interaction-id': interaction['interaction-id'],
@@ -58,6 +59,7 @@ class VusionScript:
                 'dialogue-id': dialogue_id,
                 'interaction-id': interaction['interaction-id'],
                 'matching-answer': None,
+                'label-for-participant-profiling': None,
                 'feedbacks': interaction['feedbacks'] if 'feedbacks' in interaction else None}
 
     def get_all_keywords(self):

@@ -100,6 +100,7 @@ class VusionScriptTestCase(TestCase):
             {'dialogue-id': '01',
              'interaction-id': '01-01',
              'matching-answer': None,
+             'label-for-participant-profiling': None,
              'feedbacks': None})
 
         self.assertEqual(
@@ -107,6 +108,7 @@ class VusionScriptTestCase(TestCase):
             {'dialogue-id': '01',
              'interaction-id': '01-01',
              'matching-answer': None,
+             'label-for-participant-profiling': None,
              'feedbacks': None})
 
         self.assertEqual(
@@ -129,6 +131,7 @@ class VusionScriptTestCase(TestCase):
                          {'dialogue-id': '01',
                           'interaction-id': '01-02',
                           'matching-answer': None,
+                          'label-for-participant-profiling': None,
                           'feedbacks': [
                               {'content':'thank you for this answer'}]})
 
@@ -145,6 +148,6 @@ class VusionScriptTestCase(TestCase):
 
     def test_get_all_keywords(self):
         script = VusionScript(self.question_answer)
-        
+
         self.assertTrue(script.get_all_keywords(),
-                        ['feel','fel'])
+                        ['feel', 'fel'])
