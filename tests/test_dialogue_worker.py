@@ -105,7 +105,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                             'interaction-id': '01-01',
                             'type-interaction': 'question-answer',
                             "content": 'How are you?',
-                            'keyword': 'FEEL',
+                            'keyword': 'FEEL, FEL',
                             'answers': [
                                 {'choice': 'Fine'},
                                 {'choice': 'Ok',
@@ -757,14 +757,13 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collection_participants.save(participant)
         self.worker.init_program_db(self.config['database'])
 
-        yield self.worker.register_keywords_in_dispatcher(
-            ['keyword1', 'keyword2'])
+        yield self.worker.register_keywords_in_dispatcher()
 
         msg = self.broker.get_messages('vumi', 'dispatcher.control')
         expected_msg = self.mkmsg_dispatcher_control(
             exposed_name=self.transport_name,
-            keyword_mappings=[['test', 'keyword1'],
-                              ['test', 'keyword2']])
+            keyword_mappings=[['test', 'feel'],
+                              ['test', 'fel']])
         self.assertEqual(msg, [expected_msg])
 
     def test20_schedule_unattach_message(self):

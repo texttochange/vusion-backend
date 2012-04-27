@@ -14,7 +14,7 @@ class VusionScriptTestCase(TestCase):
                         'interaction-id': '01-01',
                         'type-interaction': 'question-answer',
                         "content": 'How are you?',
-                        'keyword': 'FEEL',
+                        'keyword': 'FEEL, Fel',
                         'answers': [
                             {'choice': 'Fine',
                              'feedbacks': [
@@ -117,6 +117,14 @@ class VusionScriptTestCase(TestCase):
              'label-for-participant-profiling': None,
              'feedbacks': None})
 
+        self.assertEqual(
+            script.get_matching_question_answer("fel ok"),
+            {'dialogue-id': '01',
+             'interaction-id': '01-01',
+             'matching-answer': 'Ok',
+             'label-for-participant-profiling': None,
+             'feedbacks': None})
+
         self.assertEqual(script.get_matching_question_answer("HOW good"),
                          {'dialogue-id': '01',
                           'interaction-id': '01-02',
@@ -134,3 +142,9 @@ class VusionScriptTestCase(TestCase):
                           'matching-answer': 'Male',
                           'label-for-participant-profiling': 'gender',
                           'feedbacks': None})
+
+    def test_get_all_keywords(self):
+        script = VusionScript(self.question_answer)
+        
+        self.assertTrue(script.get_all_keywords(),
+                        ['feel','fel'])

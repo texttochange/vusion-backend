@@ -250,9 +250,7 @@ class TtcGenericWorker(ApplicationWorker):
         #self.schedule()
         yield self.send_scheduled()
         if self.has_active_script_changed():
-            self.log('Synchronizing with dispatcher')
-            keywords = self.get_keywords()
-            yield self.register_keywords_in_dispatcher(keywords)
+            yield self.register_keywords_in_dispatcher()
 
     def load_data(self):
         program_settings = self.collections['program_settings'].find()
@@ -293,16 +291,6 @@ class TtcGenericWorker(ApplicationWorker):
             return
         participant[label] = reply
         self.collection_participants.save(participant)
-
-    #TODO: to move into VusionScript
-    def get_keywords(self):
-        keywords = []
-        script = self.get_current_script()
-        for dialogue in script['dialogues']:
-            for interaction in dialogue['interactions']:
-                if 'keyword' in interaction:
-                    keywords.append(interaction['keyword'])
-        return keywords
 
     def schedule(self):
         self.log('Starting schedule()')
@@ -540,7 +528,9 @@ class TtcGenericWorker(ApplicationWorker):
             '%(dispatcher_name)s.control' % self.config)
 
     @inlineCallbacks
-    def register_keywords_in_dispatcher(self, keywords):
+    def register_keywords_in_dispatcher(self):
+        self.log('Synchronizing with dispatcher')
+        keywords = VusionScript(self.get_current_script()).get_all_keywords()
         keyword_mappings = []
         for keyword in keywords:
             keyword_mappings.append((self.transport_name, keyword))
