@@ -14,7 +14,6 @@ import redis
 
 from datetime import datetime, time, date, timedelta
 import pytz
-import iso8601
 
 from vumi.application import ApplicationWorker
 from vumi.message import Message, TransportUserMessage, TransportEvent
@@ -355,18 +354,18 @@ class TtcGenericWorker(ApplicationWorker):
                     sort=[("datetime", pymongo.ASCENDING)])
 
                 if status:
-                    previousSendDateTime = iso8601.parse_date(status["timestamp"]).replace(tzinfo=None)
+                    previousSendDateTime = time_from_vusion_format(status["timestamp"])
                     continue
 
                 if (interaction['type-schedule'] == 'immediately'):
                     if (schedule):
-                        sendingDateTime = iso8601.parse_date(schedule['datetime']).replace(tzinfo=None)
+                        sendingDateTime = time_from_vusion_format(schedule['datetime'])
                     else:
                         sendingDateTime = self.get_local_time()
                 elif (interaction['type-schedule'] == 'wait'):
                     sendingDateTime = previousSendDateTime + timedelta(minutes=int(interaction['minutes']))
                 elif (interaction['type-schedule'] == 'fixed-time'):
-                    sendingDateTime = iso8601.parse_date(interaction['date-time']).replace(tzinfo=None)
+                    sendingDateTime = time_from_vusion_format(interaction['date-time'])
 
                 #Scheduling a date already in the past is forbidden.
                 if (sendingDateTime + timedelta(minutes=10) < self.get_local_time()):
