@@ -105,7 +105,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                             'interaction-id': '01-01',
                             'type-interaction': 'question-answer',
                             "content": 'How are you?',
-                            'keyword': 'FEEL',
+                            'keyword': 'FEEL, FEL',
                             'answers': [
                                 {'choice': 'Fine'},
                                 {'choice': 'Ok',
@@ -408,11 +408,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         yield self.worker.send_scheduled()
 
         messages = self.broker.get_messages('vumi', 'test.outbound')
-        self.assertEqual(len(messages), 4)
-        self.assertEqual(messages[0]['content'], "Hello")
-        self.assertEqual(messages[1]['content'], "Today will be sunny")
-        self.assertEqual(messages[2]['content'], "Hello unattached")
-        self.assertEqual(messages[3]['content'], "Thank you")
+        self.assertEqual(len(messages), 3)
+        #self.assertEqual(messages[0]['content'], "Hello")
+        self.assertEqual(messages[0]['content'], "Today will be sunny")
+        self.assertEqual(messages[1]['content'], "Hello unattached")
+        self.assertEqual(messages[2]['content'], "Thank you")
 
         self.assertEquals(self.collection_schedules.count(), 1)
         self.assertEquals(self.collection_status.count(), 4)
@@ -582,15 +582,16 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         interaction_using_tag = {
             'interaction-id': "0",
             'type-interaction': 'announcement',
-            'content': 'Hello [participant.name]',
+            'content': 'Hello [participant.nAme]',
             'type-schedule': 'fixed-time',
             'date-time': '12/03/2012 12:30'
         }
 
         participants = [
             {'phone': '06',
-             'name': 'oliv'},
-            {'phone': '07'}
+             'Name': 'oliv'},
+            {'phone': '07',
+             'gender': 'Female'}
         ]
 
         self.collection_participants.save(participants[0])
@@ -756,14 +757,13 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collection_participants.save(participant)
         self.worker.init_program_db(self.config['database'])
 
-        yield self.worker.register_keywords_in_dispatcher(
-            ['keyword1', 'keyword2'])
+        yield self.worker.register_keywords_in_dispatcher()
 
         msg = self.broker.get_messages('vumi', 'dispatcher.control')
         expected_msg = self.mkmsg_dispatcher_control(
             exposed_name=self.transport_name,
-            keyword_mappings=[['test', 'keyword1'],
-                              ['test', 'keyword2']])
+            keyword_mappings=[['test', 'feel'],
+                              ['test', 'fel']])
         self.assertEqual(msg, [expected_msg])
 
     def test20_schedule_unattach_message(self):
@@ -812,6 +812,13 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         schedules = self.collection_schedules.find()
         self.assertEqual(schedules[0]['participant-phone'], '07')
 
-    #@inlineCallbacks
-    #def test16_after_reply_send_feedback(self):
-        #self.assertTrue(False)
+    def test21_participant_profiling(self):
+        participant = {'phone': '06'}
+        self.collection_participants.save(participant)
+        self.worker.init_program_db(self.config['database'])
+
+        self.worker.label_participant_with_reply('06', 'gender', 'M')
+
+        participant = self.collection_participants.find_one()
+        self.assertTrue('gender' in participant)
+        self.assertEqual(participant['gender'], 'M')

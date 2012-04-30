@@ -9,14 +9,17 @@ class VusionScript:
     def get_reply(self, content, delimiter=' '):
         return (content or '').partition(delimiter)[2]
 
+    def split_keywords(self, keywords):
+        return [k.lower() for k in (keywords or '').split(', ')]
+
     def get_matching_interaction(self, keyword):
         for dialogue in self.script['dialogues']:
             for interaction in dialogue['interactions']:
                 if not interaction['type-interaction'] == 'question-answer':
                     continue
-                if interaction['keyword'].lower() == keyword:
+                if keyword in self.split_keywords(interaction['keyword']):
                     return dialogue['dialogue-id'], interaction
-        return None
+        return None, None
 
     def get_matching_answer(self, answers, reply):
         try:
@@ -43,10 +46,12 @@ class VusionScript:
                 return {'dialogue-id': dialogue_id,
                         'interaction-id': interaction['interaction-id'],
                         'matching-answer': None,
+                        'label-for-participant-profiling': None,
                         'feedbacks': None}
             return {'dialogue-id': dialogue_id,
                     'interaction-id': interaction['interaction-id'],
                     'matching-answer': answer['choice'],
+                    'label-for-participant-profiling': interaction['label-for-participant-profiling'] if 'label-for-participant-profiling' in interaction else None,
                     'feedbacks': answer['feedbacks'] if 'feedbacks' in answer
                     else None}
         else:
@@ -54,4 +59,15 @@ class VusionScript:
                 'dialogue-id': dialogue_id,
                 'interaction-id': interaction['interaction-id'],
                 'matching-answer': None,
-                'feedbacks': interaction['feedbacks']}
+                'label-for-participant-profiling': None,
+                'feedbacks': interaction['feedbacks'] if 'feedbacks' in interaction else None}
+
+    def get_all_keywords(self):
+        keywords = []
+        for dialogue in self.script['dialogues']:
+            for interaction in dialogue['interactions']:
+                if 'keyword' in interaction:
+                    interaction_keywords = self.split_keywords(interaction['keyword'])
+                    for interaction_keyword in interaction_keywords:
+                        keywords.append(interaction_keyword)
+        return keywords

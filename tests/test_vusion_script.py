@@ -6,7 +6,6 @@ from vusion.vusion_script import VusionScript
 class VusionScriptTestCase(TestCase):
 
     question_answer = {
-        'shortcode': '8282',
         'dialogues': [
             {
                 'dialogue-id': '01',
@@ -15,7 +14,7 @@ class VusionScriptTestCase(TestCase):
                         'interaction-id': '01-01',
                         'type-interaction': 'question-answer',
                         "content": 'How are you?',
-                        'keyword': 'FEEL',
+                        'keyword': 'FEEL, Fel',
                         'answers': [
                             {'choice': 'Fine',
                              'feedbacks': [
@@ -41,6 +40,44 @@ class VusionScriptTestCase(TestCase):
         ]
     }
 
+    other_question_answer = {
+        "dialogues": [
+            {"name": "something",
+             "interactions": [
+                  {"type-schedule": "immediately",
+                   "type-interaction": "question-answer",
+                   "content": "How are you [participant.name]?",
+                   "keyword": "Fool",
+                   "type-reminder": "no-reminder",
+                   "type-question": "close-question",
+                   "answers": [
+                       {"choice": "Good",
+                        "feedbacks": [
+                            {"content": "So have a nice day [participant.name]"}
+                        ]},
+                       {"choice": "Bad",
+                        "feedbacks": [
+                            {"content": "Come one [participant.name], you can get over it!"}
+                        ]}
+                       ],
+                   "interaction-id": "script.dialogues[0].interactions[0]"
+                   },
+                  {"type-schedule": "immediately",
+                   "type-interaction": "question-answer",
+                   "content": "What is your gender?",
+                   'label-for-participant-profiling': 'gender',
+                   "keyword": "GEN",
+                   "answers": [
+                       {"choice": "Male"},
+                       {"choice": "Bad"}
+                       ],
+                   "interaction-id": "script.dialogues[0].interactions[2]"
+                   },
+                  ],
+             "dialogue-id": "script.dialogues[0]"}
+        ]
+    }
+
     def setUp(self):
         pass
 
@@ -54,6 +91,7 @@ class VusionScriptTestCase(TestCase):
                          {'dialogue-id': '01',
                           'interaction-id': '01-01',
                           'matching-answer': 'Fine',
+                          'label-for-participant-profiling': None,
                           'feedbacks': [{'content':'thank you'},
                                         {'content':'thank you again'}]})
 
@@ -62,6 +100,7 @@ class VusionScriptTestCase(TestCase):
             {'dialogue-id': '01',
              'interaction-id': '01-01',
              'matching-answer': None,
+             'label-for-participant-profiling': None,
              'feedbacks': None})
 
         self.assertEqual(
@@ -69,6 +108,7 @@ class VusionScriptTestCase(TestCase):
             {'dialogue-id': '01',
              'interaction-id': '01-01',
              'matching-answer': None,
+             'label-for-participant-profiling': None,
              'feedbacks': None})
 
         self.assertEqual(
@@ -76,11 +116,38 @@ class VusionScriptTestCase(TestCase):
             {'dialogue-id': '01',
              'interaction-id': '01-01',
              'matching-answer': 'Ok',
+             'label-for-participant-profiling': None,
+             'feedbacks': None})
+
+        self.assertEqual(
+            script.get_matching_question_answer("fel ok"),
+            {'dialogue-id': '01',
+             'interaction-id': '01-01',
+             'matching-answer': 'Ok',
+             'label-for-participant-profiling': None,
              'feedbacks': None})
 
         self.assertEqual(script.get_matching_question_answer("HOW good"),
                          {'dialogue-id': '01',
                           'interaction-id': '01-02',
                           'matching-answer': None,
+                          'label-for-participant-profiling': None,
                           'feedbacks': [
                               {'content':'thank you for this answer'}]})
+
+        script = VusionScript(self.other_question_answer)
+        self.assertEqual(script.get_matching_question_answer("something good"),
+                         None)
+
+        self.assertEqual(script.get_matching_question_answer('Gen Male'),
+                         {'dialogue-id': 'script.dialogues[0]',
+                          'interaction-id': 'script.dialogues[0].interactions[2]',
+                          'matching-answer': 'Male',
+                          'label-for-participant-profiling': 'gender',
+                          'feedbacks': None})
+
+    def test_get_all_keywords(self):
+        script = VusionScript(self.question_answer)
+
+        self.assertTrue(script.get_all_keywords(),
+                        ['feel', 'fel'])

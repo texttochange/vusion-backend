@@ -30,6 +30,7 @@ class VusionMultiWorker(MultiWorker):
         self.receive_control_message,
         message_class=Message)
 
+    @inlineCallbacks
     def receive_control_message(self, msg):
         log.debug('Received control! %s' % (msg,))
 
@@ -38,6 +39,7 @@ class VusionMultiWorker(MultiWorker):
                 if msg['worker_name'] in self.workers:
                     log.error('Cannot create worker, name already exist: %s'
                               % (msg['worker_name'],))
+                    return
                 for key in msg['config'].keys():
                     msg['config'][key] = msg['config'][key].encode('utf-8')
                 self.config[msg['worker_name']] = msg['config']
@@ -48,8 +50,11 @@ class VusionMultiWorker(MultiWorker):
             if msg['message_type'] == 'remove_worker':
                 if not msg['worker_name'] in self.workers:
                     log.error('Cannot remove worker, name unknown: %s'
-                              % (msg['worker_name'],))
-                self.workers[msg['worker_name']].stopService()
+                              % (msg['worker_name']))
+                    return
+                yield self.workers[msg['worker_name']].stopService()
+                self.workers[msg['worker_name']].disownServiceParent()
+                self.workers.pop(msg['worker_name'])
 
         except Exception as ex:
             log.error("Control received: %s" % (msg))

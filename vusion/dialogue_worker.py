@@ -14,7 +14,6 @@ import redis
 
 from datetime import datetime, time, date, timedelta
 import pytz
-import iso8601
 
 from vumi.application import ApplicationWorker
 from vumi.message import Message, TransportUserMessage, TransportEvent
@@ -22,9 +21,9 @@ from vumi.application import SessionManager
 from vumi import log
 
 from vusion.vusion_script import VusionScript
-from vusion.utils import (time_to_vusion_format, get_local_time, 
-                          get_local_time_as_timestamp)
-from vusion.error import MissingData
+from vusion.utils import (time_to_vusion_format, get_local_time,
+                          get_local_time_as_timestamp, time_from_vusion_format)
+from vusion.error import MissingData, SendingDatePassed, VusionError
 
 
 class TtcGenericWorker(ApplicationWorker):
@@ -40,15 +39,6 @@ class TtcGenericWorker(ApplicationWorker):
     def startWorker(self):
         log.msg("One Generic Worker is starting")
         super(TtcGenericWorker, self).startWorker()
-        
-        #Set up control consumer
-        self.control_consumer = yield self.consume(
-            '%(control_name)s.control' % self.config,
-            self.consume_control,
-            message_class=Message)
-        #Set up dispatcher publisher
-        self.dispatcher_publisher = yield self.publish_to(
-            '%(dispatcher_name)s.control' % self.config)
 
         #Store basic configuration data
         self.transport_name = self.config['transport_name']
@@ -67,6 +57,15 @@ class TtcGenericWorker(ApplicationWorker):
 
         self._d.callback(None)
 
+        #Set up control consumer
+        self.control_consumer = yield self.consume(
+            '%(control_name)s.control' % self.config,
+            self.consume_control,
+            message_class=Message)
+        #Set up dispatcher publisher
+        self.dispatcher_publisher = yield self.publish_to(
+            '%(dispatcher_name)s.control' % self.config)
+
         if  (('database_name' in self.config)
              and self.config['database_name']):
             self.init_program_db(self.config['database_name'])
@@ -77,6 +76,11 @@ class TtcGenericWorker(ApplicationWorker):
 
         if ('dispatcher_name' in self.config):
             yield self._setup_dispatcher_publisher()
+
+    def stopWorker(self):
+        self.log("Worker is stopped.")
+        if self.sender:
+            self.sender.stop()
 
     def save_status(self, message_content, participant_phone, message_type,
                     message_status=None, message_id=None, failure_reason=None,
@@ -203,28 +207,37 @@ class TtcGenericWorker(ApplicationWorker):
 
     def consume_user_message(self, message):
         self.log("User message: %s" % message['content'])
-        script = self.get_current_script()
-        if not script:
+        try:
+            script = self.get_current_script()
+            if not script:
+                self.save_status(message_content=message['content'],
+                                 participant_phone=message['from_addr'],
+                                 message_type='received')
+                return
+            scriptHelper = VusionScript(self.get_current_script())
+            data = scriptHelper.get_matching_question_answer(message['content'])
             self.save_status(message_content=message['content'],
                              participant_phone=message['from_addr'],
-                             message_type='received')
-            return
-        scriptHelper = VusionScript(self.get_current_script())
-        data = scriptHelper.get_matching_question_answer(message['content'])
-        self.save_status(message_content=message['content'],
-                         participant_phone=message['from_addr'],
-                         message_type='received',
-                         reference_metadata={
-                             'dialogue-id': data['dialogue-id'],
-                             'interaction-id': data['interaction-id'],
-                             'matching-answer': data['matching-answer']})
-        for feedback in data['feedbacks']:
-            self.collection_schedules.save({
-                'datetime': time_to_vusion_format(self.get_local_time()),
-                'content': feedback['content'],
-                'type-content': 'feedback',
-                'participant-phone': message['from_addr']
-            })
+                             message_type='received',
+                             reference_metadata={
+                                 'dialogue-id': data['dialogue-id'],
+                                 'interaction-id': data['interaction-id'],
+                                 'matching-answer': data['matching-answer']})
+            self.label_participant_with_reply(message['from_addr'],
+                                              data['label-for-participant-profiling'],
+                                              data['matching-answer'])
+            if data['feedbacks']:
+                for feedback in data['feedbacks']:
+                    self.collection_schedules.save({
+                        'datetime': time_to_vusion_format(self.get_local_time()),
+                        'content': feedback['content'],
+                        'type-content': 'feedback',
+                        'participant-phone': message['from_addr']
+                    })
+        except:
+            self.log(
+                "Error during consume user message: %s %s" %
+                (sys.exc_info()[0], sys.exc_info()[1]))
 
     @inlineCallbacks
     def daemon_process(self):
@@ -236,9 +249,7 @@ class TtcGenericWorker(ApplicationWorker):
         #self.schedule()
         yield self.send_scheduled()
         if self.has_active_script_changed():
-            self.log('Synchronizing with dispatcher')
-            keywords = self.get_keywords()
-            yield self.register_keywords_in_dispatcher(keywords)
+            yield self.register_keywords_in_dispatcher()
 
     def load_data(self):
         program_settings = self.collections['program_settings'].find()
@@ -267,15 +278,18 @@ class TtcGenericWorker(ApplicationWorker):
         self.last_script_used = script_id
         return True
 
-    #TODO: to move into VusionScript
-    def get_keywords(self):
-        keywords = []
-        script = self.get_current_script()
-        for dialogue in script['dialogues']:
-            for interaction in dialogue['interactions']:
-                if 'keyword' in interaction:
-                    keywords.append(interaction['keyword'])
-        return keywords
+    def label_participant_with_reply(self, participant_phone, label, reply):
+        if not label:
+            return
+        label = label.lower()
+        participant = self.collection_participants.find_one(
+            {'phone': participant_phone})
+        if not participant:
+            self.log("Cannot find participant %s for profiling" %
+                     (participant_phone))
+            return
+        participant[label] = reply
+        self.collection_participants.save(participant)
 
     def schedule(self):
         self.log('Starting schedule()')
@@ -320,6 +334,7 @@ class TtcGenericWorker(ApplicationWorker):
             self.collection_schedules.save(schedule)
 
     def schedule_participants_dialogue(self, participants, dialogue):
+        self.log("scheduling participants dialogue")
         for participant in participants:
             self.schedule_participant_dialogue(participant, dialogue)
 
@@ -339,18 +354,18 @@ class TtcGenericWorker(ApplicationWorker):
                     sort=[("datetime", pymongo.ASCENDING)])
 
                 if status:
-                    previousSendDateTime = iso8601.parse_date(status["timestamp"]).replace(tzinfo=None)
+                    previousSendDateTime = time_from_vusion_format(status["timestamp"])
                     continue
 
                 if (interaction['type-schedule'] == 'immediately'):
                     if (schedule):
-                        sendingDateTime = iso8601.parse_date(schedule['datetime']).replace(tzinfo=None)
+                        sendingDateTime = time_from_vusion_format(schedule['datetime'])
                     else:
                         sendingDateTime = self.get_local_time()
                 elif (interaction['type-schedule'] == 'wait'):
                     sendingDateTime = previousSendDateTime + timedelta(minutes=int(interaction['minutes']))
                 elif (interaction['type-schedule'] == 'fixed-time'):
-                    sendingDateTime = iso8601.parse_date(interaction['date-time']).replace(tzinfo=None)
+                    sendingDateTime = time_from_vusion_format(interaction['date-time'])
 
                 #Scheduling a date already in the past is forbidden.
                 if (sendingDateTime + timedelta(minutes=10) < self.get_local_time()):
@@ -380,11 +395,11 @@ class TtcGenericWorker(ApplicationWorker):
             self.log("Exception is %s" % (sys.exc_info()[0]))
 
     def get_local_time(self):
-        if 'timezone' not in self.properties:
-            self.log('Timezone property not defined, use UTC')
+        try:
+            return datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(
+                pytz.timezone(self.properties['timezone'])).replace(tzinfo=None)
+        except:
             return datetime.utcnow()
-        return datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(
-            pytz.timezone(self.properties['timezone'])).replace(tzinfo=None)
 
     #TODO: Move into Utils
     def to_vusion_format(self, timestamp):
@@ -423,6 +438,7 @@ class TtcGenericWorker(ApplicationWorker):
                 elif 'type-content' in toSend:
                     interaction = {'content': toSend['content'],
                                    'type-interaction': 'feedback'}
+                    reference_metadata = None
                 else:
                     self.log("Error schedule object not supported: %s"
                              % (toSend))
@@ -433,6 +449,12 @@ class TtcGenericWorker(ApplicationWorker):
                         interaction
                 )
 
+                if (time_from_vusion_format(toSend['datetime']) < 
+                    (local_time - timedelta(minutes=15))):
+                    raise SendingDatePassed(
+                        "Message should have been send at %s" %
+                        (toSend['datetime'],))
+
                 message = TransportUserMessage(**{
                     'from_addr': self.properties['shortcode'],
                     'to_addr': toSend['participant-phone'],
@@ -442,22 +464,22 @@ class TtcGenericWorker(ApplicationWorker):
                     'content': message_content})
                 yield self.transport_publisher.publish_message(message)
                 self.log("Message has been send: %s" % message)
-
                 self.save_status(message_content=message['content'],
                                  participant_phone=message['to_addr'],
                                  message_type='send',
                                  message_status='pending',
                                  message_id=message['message_id'],
                                  reference_metadata=reference_metadata)
-            except MissingData as e:
+
+            except VusionError as e:
                 self.save_status(message_content='',
                                  participant_phone=toSend['participant-phone'],
-                                 message_type='generate-failed',
+                                 message_type=None,
                                  failure_reason=('%s' % (e,)),
                                  reference_metadata=reference_metadata)
             except:
                 self.log("Unexpected exception: %s" % toSend, 'error')
-                self.log("Exception is %s - %s" % (sys.exc_info()[0], 
+                self.log("Exception is %s - %s" % (sys.exc_info()[0],
                                                         sys.exc_info()[1]),
                          'error')
                 self.save_status(participant_phone=toSend['participant-phone'],
@@ -487,19 +509,23 @@ class TtcGenericWorker(ApplicationWorker):
 
     def log(self, msg, level='msg'):
         timezone = None
-        if 'timezone' in self.properties:
-            timezone = self.properties['timezone']
+        local_time = self.get_local_time()
         rkey = "%slogs" % (self.r_prefix,)
+        self.r_server.zremrangebyscore(rkey,
+                                       1,
+                                       get_local_time_as_timestamp(
+                                           local_time - timedelta(hours=2))
+                                       )
         self.r_server.zadd(rkey,
                            "[%s] %s" % (
-                               time_to_vusion_format(get_local_time(timezone)), 
+                               time_to_vusion_format(local_time),
                                msg),
-                           get_local_time_as_timestamp(timezone))
+                           get_local_time_as_timestamp(local_time))
         #log.msg('%s - %s - %s' % (rkey, get_local_time_as_timestamp(timezone), msg))
-        #if (level == 'msg'):
-            #log.msg('[%s] %s' % (self.control_name, msg))
-        #else:
-            #log.error('[%s] %s' % (self.control_name, msg))
+        if (level == 'msg'):
+            log.msg('[%s] %s' % (self.control_name, msg))
+        else:
+            log.error('[%s] %s' % (self.control_name, msg))
 
     @inlineCallbacks
     def _setup_dispatcher_publisher(self):
@@ -507,7 +533,9 @@ class TtcGenericWorker(ApplicationWorker):
             '%(dispatcher_name)s.control' % self.config)
 
     @inlineCallbacks
-    def register_keywords_in_dispatcher(self, keywords):
+    def register_keywords_in_dispatcher(self):
+        self.log('Synchronizing with dispatcher')
+        keywords = VusionScript(self.get_current_script()).get_all_keywords()
         keyword_mappings = []
         for keyword in keywords:
             keyword_mappings.append((self.transport_name, keyword))
@@ -521,7 +549,7 @@ class TtcGenericWorker(ApplicationWorker):
     def generate_message(self, participant_phone, interaction):
         message = interaction['content']
 
-        if ('type-interaction' in interaction and 
+        if ('type-interaction' in interaction and
             interaction['type-interaction'] == 'question-answer'):
             if 'answers' in interaction:
                 i = 1
@@ -533,13 +561,21 @@ class TtcGenericWorker(ApplicationWorker):
 
             if 'answer-label' in interaction:
                 message = ('%s To reply send: %s(space)(%s) to %s'
-                           % (message, interaction['keyword'], interaction['answer-label'], self.properties['shortcode']))
-
-        tags = re.findall(re.compile(r'\[(?P<table>\w*)\.(?P<attribute>\w*)\]'), message)
+                           % (message,
+                              interaction['keyword'],
+                              interaction['answer-label'],
+                              self.properties['shortcode']))
+        tags_regexp = re.compile(r'\[(?P<table>\w*)\.(?P<attribute>\w*)\]')
+        tags = re.findall(tags_regexp, message)
         for table, attribute in tags:
-            participant = self.collection_participants.find_one({'phone': participant_phone})
+            participant = self.collection_participants.find_one(
+                {'phone': participant_phone})
+            attribute = attribute.lower()
             if not attribute in participant:
-                raise MissingData("%s has no attribute %s" % (participant_phone, attribute))
-            message = message.replace('[%s.%s]' % (table, attribute), participant[attribute])
+                raise MissingData("%s has no attribute %s" %
+                                  (participant_phone, attribute))
+            message = message.replace('[%s.%s]' %
+                                      (table, attribute),
+                                      participant[attribute])
 
         return message
