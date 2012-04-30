@@ -1,10 +1,15 @@
 from datetime import datetime
 import pytz
 import time
+import iso8601
 
 
 def time_to_vusion_format(timestamp):
     return timestamp.strftime('%Y-%m-%dT%H:%M:%S')
+
+
+def time_from_vusion_format(date_time_str):
+    return iso8601.parse_date(date_time_str).replace(tzinfo=None)
 
 
 def get_local_time(timezone):

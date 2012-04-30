@@ -23,8 +23,8 @@ from vumi import log
 
 from vusion.vusion_script import VusionScript
 from vusion.utils import (time_to_vusion_format, get_local_time,
-                          get_local_time_as_timestamp)
-from vusion.error import MissingData
+                          get_local_time_as_timestamp, time_from_vusion_format)
+from vusion.error import MissingData, SendingDatePassed, VusionError
 
 
 class TtcGenericWorker(ApplicationWorker):
@@ -450,6 +450,12 @@ class TtcGenericWorker(ApplicationWorker):
                         interaction
                 )
 
+                if (time_from_vusion_format(toSend['datetime']) < 
+                    (local_time - timedelta(minutes=15))):
+                    raise SendingDatePassed(
+                        "Message should have been send at %s" %
+                        (toSend['datetime'],))
+
                 message = TransportUserMessage(**{
                     'from_addr': self.properties['shortcode'],
                     'to_addr': toSend['participant-phone'],
@@ -459,17 +465,17 @@ class TtcGenericWorker(ApplicationWorker):
                     'content': message_content})
                 yield self.transport_publisher.publish_message(message)
                 self.log("Message has been send: %s" % message)
-
                 self.save_status(message_content=message['content'],
                                  participant_phone=message['to_addr'],
                                  message_type='send',
                                  message_status='pending',
                                  message_id=message['message_id'],
                                  reference_metadata=reference_metadata)
-            except MissingData as e:
+
+            except VusionError as e:
                 self.save_status(message_content='',
                                  participant_phone=toSend['participant-phone'],
-                                 message_type='generate-failed',
+                                 message_type=None,
                                  failure_reason=('%s' % (e,)),
                                  reference_metadata=reference_metadata)
             except:

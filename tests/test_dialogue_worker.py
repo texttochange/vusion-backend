@@ -408,11 +408,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         yield self.worker.send_scheduled()
 
         messages = self.broker.get_messages('vumi', 'test.outbound')
-        self.assertEqual(len(messages), 4)
-        self.assertEqual(messages[0]['content'], "Hello")
-        self.assertEqual(messages[1]['content'], "Today will be sunny")
-        self.assertEqual(messages[2]['content'], "Hello unattached")
-        self.assertEqual(messages[3]['content'], "Thank you")
+        self.assertEqual(len(messages), 3)
+        #self.assertEqual(messages[0]['content'], "Hello")
+        self.assertEqual(messages[0]['content'], "Today will be sunny")
+        self.assertEqual(messages[1]['content'], "Hello unattached")
+        self.assertEqual(messages[2]['content'], "Thank you")
 
         self.assertEquals(self.collection_schedules.count(), 1)
         self.assertEquals(self.collection_status.count(), 4)

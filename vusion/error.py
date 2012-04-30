@@ -4,3 +4,7 @@ class VusionError(Exception):
 
 class MissingData(VusionError):
     pass
+
+
+class SendingDatePassed(VusionError):
+    pass
