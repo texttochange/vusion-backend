@@ -3,6 +3,24 @@ Vusion backend
 
 Vusion backend is build with Praekelt Foundation's Vumi. It can work on its own but you'd rather use the Vusion Frontend: https://github.com/texttochange/vusion-front 
 
+Requirements
+-------------
+
+You will need the python-dev package
+
+::
+
+	$ sudo apt-get install aptitude
+	$ sudo aptitude install python-dev
+
+-> Add the following line to your /etc/apt/sources.list:
+   deb http://www.rabbitmq.com/debian/ testing main
+-> then:
+	$ wget http://www.rabbitmq.com/rabbitmq-signing-key-public.asc
+	$ sudo apt-key add rabbitmq-signing-key-public.asc
+	$ sudo apt-get update
+	$ sudo apt-get install rabbitmq-server  
+
 Installation
 ------------
 
@@ -20,6 +38,9 @@ Update `etc/config/*.yaml` with your aggregator account details and run the foll
 ::
 
 	$ source ve/bin/activate
+	$ supervisord -c etc/supervisord.ttcpoc.conf
+
+if it fails try this:
 	$ supervisord -c etc/supervisord.ttcpoc.conf
 
 
