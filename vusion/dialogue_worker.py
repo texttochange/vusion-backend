@@ -121,6 +121,13 @@ class TtcGenericWorker(ApplicationWorker):
             return script['script']
         return None
 
+    def get_script(self, script_id):
+        script = self.collection_scripts.find_one(
+            {'_id': ObjectId(script_id)})
+        if 'script' in script:
+            return script['script']
+        return None
+
     def init_program_db(self, database_name):
         self.log("Initialization of the program")
         self.database_name = database_name
@@ -177,7 +184,7 @@ class TtcGenericWorker(ApplicationWorker):
 
     #@inlineCallbacks
     def consume_control(self, message):
-        self.log("Control message!")
+        self.log("Control message received to %s" % (message['action'],))
         if message['action'] == 'init':
             config = message['config']
             self.init_program_db(config['database-name'])
@@ -186,13 +193,18 @@ class TtcGenericWorker(ApplicationWorker):
             if self.is_ready():
                 self.schedule()
 
+        elif message['action'] == 'test-send-all-messages':
+            if self.is_ready():
+                script = self.get_script(message['script-id'])
+                self.send_all_messages(script, message['phone-number'])
+
     def dispatch_event(self, message):
-        self.log("Event message!")
+        self.log("Event message received %s" % (message,))
         status = self.collection_status.find_one({
             'message-id': message['user_message_id']
         })
         if (not status):
-            self.log('Error no reference for this event %s' % message)
+            self.log('No reference of this event in history, nothing stored.')
             return
         if (message['event_type'] == 'ack'):
             status['message-status'] = 'ack'
@@ -206,7 +218,8 @@ class TtcGenericWorker(ApplicationWorker):
         self.collection_status.save(status)
 
     def consume_user_message(self, message):
-        self.log("User message: %s" % message['content'])
+        self.log("User message received from %s '%s' " % (message['from_addr'],
+                                                          message['content']))
         try:
             script = self.get_current_script()
             if not script:
@@ -241,7 +254,7 @@ class TtcGenericWorker(ApplicationWorker):
 
     @inlineCallbacks
     def daemon_process(self):
-        self.log('Starting daemon_process()')
+        #self.log('Starting daemon_process()')
         self.load_data()
         if not self.is_ready():
             return
@@ -292,7 +305,7 @@ class TtcGenericWorker(ApplicationWorker):
         self.collection_participants.save(participant)
 
     def schedule(self):
-        self.log('Starting schedule()')
+        #self.log('Starting schedule()')
         #Schedule the script
         script = self.get_current_script()
         if (script and ('dialogues' in script)):
@@ -310,7 +323,6 @@ class TtcGenericWorker(ApplicationWorker):
             }})
 
     def schedule_participants_unattach_messages(self, participants):
-        self.log('scheduling unattach messages')
         for participant in self.collection_participants.find():
             self.schedule_participant_unattach_messages(participant)
 
@@ -334,7 +346,6 @@ class TtcGenericWorker(ApplicationWorker):
             self.collection_schedules.save(schedule)
 
     def schedule_participants_dialogue(self, participants, dialogue):
-        self.log("scheduling participants dialogue")
         for participant in participants:
             self.schedule_participant_dialogue(participant, dialogue)
 
@@ -410,7 +421,7 @@ class TtcGenericWorker(ApplicationWorker):
     #(or they are also canceled if cannot find the dialogue)
     @inlineCallbacks
     def send_scheduled(self):
-        self.log('Starting send_scheduled()')
+        self.log('Checking the schedule list...')
         local_time = self.get_local_time()
         toSends = self.collection_schedules.find(
             spec={'datetime': {'$lt': time_to_vusion_format(local_time)}},
@@ -444,12 +455,12 @@ class TtcGenericWorker(ApplicationWorker):
                              % (toSend))
                     continue
 
-                message_content = self.generate_message(
-                        toSend['participant-phone'],
-                        interaction
-                )
+                message_content = self.generate_message(interaction)
+                message_content = self.customize_message(
+                    toSend['participant-phone'],
+                    message_content)
 
-                if (time_from_vusion_format(toSend['datetime']) < 
+                if (time_from_vusion_format(toSend['datetime']) <
                     (local_time - timedelta(minutes=15))):
                     raise SendingDatePassed(
                         "Message should have been send at %s" %
@@ -463,7 +474,8 @@ class TtcGenericWorker(ApplicationWorker):
                     'transport_metadata': '',
                     'content': message_content})
                 yield self.transport_publisher.publish_message(message)
-                self.log("Message has been send: %s" % message)
+                self.log("Message has been send to %s '%s'" % (message['to_addr'],
+                                                               message['content']))
                 self.save_status(message_content=message['content'],
                                  participant_phone=message['to_addr'],
                                  message_type='send',
@@ -488,6 +500,22 @@ class TtcGenericWorker(ApplicationWorker):
                                  failure_reason=('%s - %s') % (sys.exc_info()[0],
                                                                sys.exc_info()[1]),
                                  reference_metadata=reference_metadata)
+
+    @inlineCallbacks
+    def send_all_messages(self, script, phone_number):
+        for dialogue in script['dialogues']:
+            for interaction in dialogue['interactions']:
+                message_content = self.generate_message(interaction)
+                message = TransportUserMessage(**{
+                    'from_addr': self.properties['shortcode'],
+                    'to_addr': phone_number,
+                    'transport_name': self.transport_name,
+                    'transport_type': self.transport_type,
+                    'transport_metadata': '',
+                    'content': message_content})
+                yield self.transport_publisher.publish_message(message)
+                self.log("Test message has been send to %s '%s'"
+                         % (message['to_addr'], message['content'],))
 
     #TODO: move into VusionScript
     #MongoDB do not support fetching a subpart of an array
@@ -544,11 +572,8 @@ class TtcGenericWorker(ApplicationWorker):
                          'keyword_mappings': keyword_mappings})
         yield self.dispatcher_publisher.publish_message(msg)
 
-    #TODO move into VusionScript
-    #Support the type-interaction is not defined
-    def generate_message(self, participant_phone, interaction):
+    def generate_message(self, interaction):
         message = interaction['content']
-
         if ('type-interaction' in interaction and
             interaction['type-interaction'] == 'question-answer'):
             if 'answers' in interaction:
@@ -558,13 +583,15 @@ class TtcGenericWorker(ApplicationWorker):
                     i = i + 1
                 message = ('%s To reply send: %s(space)(Answer Nr) to %s'
                            % (message, interaction['keyword'], self.properties['shortcode']))
-
             if 'answer-label' in interaction:
                 message = ('%s To reply send: %s(space)(%s) to %s'
                            % (message,
                               interaction['keyword'],
                               interaction['answer-label'],
                               self.properties['shortcode']))
+        return message
+
+    def customize_message(self, participant_phone, message):
         tags_regexp = re.compile(r'\[(?P<table>\w*)\.(?P<attribute>\w*)\]')
         tags = re.findall(tags_regexp, message)
         for table, attribute in tags:
@@ -577,5 +604,4 @@ class TtcGenericWorker(ApplicationWorker):
             message = message.replace('[%s.%s]' %
                                       (table, attribute),
                                       participant[attribute])
-
         return message

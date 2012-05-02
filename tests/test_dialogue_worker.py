@@ -6,13 +6,12 @@ import json
 
 from datetime import datetime, time, date, timedelta
 import pytz
-import iso8601
 
 from vumi.tests.utils import get_stubbed_worker, UTCNearNow, RegexMatcher
 from vumi.message import Message, TransportEvent, TransportUserMessage
 
 from vusion import TtcGenericWorker
-from vusion.utils import time_to_vusion_format
+from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from vusion.error import MissingData
 from transports import YoUgHttpTransport
 from tests.utils import MessageMaker, DataLayerUtils
@@ -318,13 +317,13 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         schedules = self.collection_schedules.find()
         #assert time calculation
         self.assertTrue(
-            iso8601.parse_date(schedules[0]['datetime']).replace(tzinfo=None) <
+            time_from_vusion_format(schedules[0]['datetime']) <
             dNow + timedelta(minutes=1))
         self.assertTrue(
-            iso8601.parse_date(schedules[1]['datetime']).replace(tzinfo=None) <
+            time_from_vusion_format(schedules[1]['datetime']) <
             dNow + timedelta(minutes=61))
         self.assertTrue(
-            iso8601.parse_date(schedules[1]['datetime']).replace(tzinfo=None) >
+            time_from_vusion_format(schedules[1]['datetime']) >
             dNow + timedelta(minutes=59))
 
         #assert schedule links
@@ -409,7 +408,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 3)
-        #self.assertEqual(messages[0]['content'], "Hello")
         self.assertEqual(messages[0]['content'], "Today will be sunny")
         self.assertEqual(messages[1]['content'], "Hello unattached")
         self.assertEqual(messages[2]['content'], "Thank you")
@@ -572,6 +570,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(status['message-content'], 'Hello World')
         self.assertEqual(status['message-type'], 'received')
 
+    #@inlineCallbacks
     def test12_generate_message(self):
         config = self.simpleConfig
         for program_setting in self.program_settings:
@@ -582,14 +581,14 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         interaction_using_tag = {
             'interaction-id': "0",
             'type-interaction': 'announcement',
-            'content': 'Hello [participant.nAme]',
+            'content': 'Hello [participant.name]',
             'type-schedule': 'fixed-time',
             'date-time': '12/03/2012 12:30'
         }
 
         participants = [
             {'phone': '06',
-             'Name': 'oliv'},
+             'name': 'oliv'},
             {'phone': '07',
              'gender': 'Female'}
         ]
@@ -597,10 +596,12 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collection_participants.save(participants[0])
         self.collection_participants.save(participants[1])
 
-        message_one = self.worker.generate_message('06', interaction_using_tag)
+        message_one = self.worker.generate_message(interaction_using_tag)
+        message_one = self.worker.customize_message('06', message_one)
         self.assertEqual(message_one, "Hello oliv")
 
-        yield self.assertFailure(self.worker.generate_message('07', interaction_using_tag), MissingData)
+        message_two = self.worker.generate_message(interaction_using_tag)
+        self.assertRaises(MissingData, self.worker.customize_message, '07', message_two)
 
         interaction_closed_question = {
             'type-interaction': 'question-answer',
@@ -611,7 +612,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                 {'choice': 'Ok'}],
         }
 
-        close_question = self.worker.generate_message('07', interaction_closed_question)
+        close_question = self.worker.generate_message(interaction_closed_question)
 
         self.assertEqual(
             close_question,
@@ -624,7 +625,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             'answer-label': 'Name dealer',
         }
 
-        open_question = self.worker.generate_message('07', interaction_open_question)
+        open_question = self.worker.generate_message(interaction_open_question)
 
         self.assertEqual(
             open_question,
@@ -822,3 +823,20 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         participant = self.collection_participants.find_one()
         self.assertTrue('gender' in participant)
         self.assertEqual(participant['gender'], 'M')
+
+    @inlineCallbacks
+    def test22_test_send_all_messages(self):
+        config = self.simpleConfig
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.init_program_db(self.config['database'])
+        self.worker.load_data()
+
+        yield self.worker.send_all_messages(self.simpleScript['script'], '06')
+
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 2)
+        self.assertEqual(messages[0]['content'], "Hello")
+        self.assertEqual(messages[0]['to_addr'], "06")
+        self.assertEqual(messages[1]['content'], "How are you")
+        self.assertEqual(messages[1]['to_addr'], "06")
