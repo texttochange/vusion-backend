@@ -621,7 +621,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         interaction_open_question = {
             'type-interaction': 'question-answer',
             'content': 'Which dealer did you buy the system from?',
-            'keyword': 'DEALER',
+            'keyword': 'DEALER, deal',
             'answer-label': 'Name dealer',
         }
 
@@ -630,6 +630,31 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(
             open_question,
             "Which dealer did you buy the system from? To reply send: DEALER(space)(Name dealer) to 8181")
+
+        interaction_no_keyword = {
+            'type-interaction': 'question-answer',
+            'content': 'Which dealer did you buy the system from?',
+            'keyword': '',
+            'answer-label': 'Name dealer',
+        }
+
+        open_question = self.worker.generate_message(interaction_no_keyword)
+
+        self.assertEqual(
+            open_question,
+            "Which dealer did you buy the system from? To reply send: (Name dealer) to 8181")
+
+        interaction_no_keyword_field = {
+            'type-interaction': 'question-answer',
+            'content': 'Which dealer did you buy the system from?',
+            'answer-label': 'Name dealer',
+        }
+
+        open_question = self.worker.generate_message(interaction_no_keyword_field)
+
+        self.assertEqual(
+            open_question,
+            "Which dealer did you buy the system from? To reply send: (Name dealer) to 8181")
 
     @inlineCallbacks
     def test13_received_delivered(self):

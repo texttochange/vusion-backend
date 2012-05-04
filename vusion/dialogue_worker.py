@@ -20,7 +20,7 @@ from vumi.message import Message, TransportUserMessage, TransportEvent
 from vumi.application import SessionManager
 from vumi import log
 
-from vusion.vusion_script import VusionScript
+from vusion.vusion_script import VusionScript, split_keywords
 from vusion.utils import (time_to_vusion_format, get_local_time,
                           get_local_time_as_timestamp, time_from_vusion_format)
 from vusion.error import MissingData, SendingDatePassed, VusionError
@@ -352,6 +352,7 @@ class TtcGenericWorker(ApplicationWorker):
     #TODO: decide which id should be in an schedule object
     def schedule_participant_dialogue(self, participant, dialogue):
         previousSendDateTime = None
+        #self.log('Scheduling for %s dialogue %r' % (participant, dialogue))
         try:
             for interaction in dialogue.get('interactions'):
                 schedule = self.collection_schedules.find_one({
@@ -514,7 +515,7 @@ class TtcGenericWorker(ApplicationWorker):
                     'transport_metadata': '',
                     'content': message_content})
                 yield self.transport_publisher.publish_message(message)
-                self.log("Test message has been send to %s '%s'"
+                self.log("Test message has been sent to %s '%s'"
                          % (message['to_addr'], message['content'],))
 
     #TODO: move into VusionScript
@@ -576,17 +577,24 @@ class TtcGenericWorker(ApplicationWorker):
         message = interaction['content']
         if ('type-interaction' in interaction and
             interaction['type-interaction'] == 'question-answer'):
+            keyword_prefix = ''
+            if 'keyword' in interaction:
+                keyword = split_keywords(interaction['keyword'])[0]
+                if not keyword is '':
+                    keyword_prefix = ("%s(space)" % (keyword.upper()))
             if 'answers' in interaction:
                 i = 1
                 for answer in interaction['answers']:
                     message = ('%s %s. %s' % (message, i, answer['choice']))
                     i = i + 1
-                message = ('%s To reply send: %s(space)(Answer Nr) to %s'
-                           % (message, interaction['keyword'], self.properties['shortcode']))
-            if 'answer-label' in interaction:
-                message = ('%s To reply send: %s(space)(%s) to %s'
+                message = ('%s To reply send: %s(Answer Nr) to %s'
                            % (message,
-                              interaction['keyword'],
+                              keyword_prefix,
+                              self.properties['shortcode']))
+            if 'answer-label' in interaction:
+                message = ('%s To reply send: %s(%s) to %s'
+                           % (message,
+                              keyword_prefix,
                               interaction['answer-label'],
                               self.properties['shortcode']))
         return message

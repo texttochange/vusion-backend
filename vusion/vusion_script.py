@@ -1,6 +1,10 @@
 from vumi.utils import get_first_word
 
 
+def split_keywords(keywords):
+    return [k.lower() for k in (keywords or '').split(', ')]
+
+
 class VusionScript:
 
     def __init__(self, script):
