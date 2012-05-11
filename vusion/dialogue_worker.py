@@ -82,7 +82,7 @@ class TtcGenericWorker(ApplicationWorker):
         if self.sender:
             self.sender.stop()
 
-    def save_status(self, message_content, participant_phone, message_type,
+    def save_history(self, message_content, participant_phone, message_type,
                     message_status=None, message_id=None, failure_reason=None,
                     timestamp=None, reference_metadata=None):
         if timestamp:
@@ -103,10 +103,10 @@ class TtcGenericWorker(ApplicationWorker):
             reference_metadata = {}
         for key, value in reference_metadata.iteritems():
             history[key] = value
-        self.collection_status.save(history)
+        self.collections['history'].save(history)
 
     def get_current_script_id(self):
-        for script in self.collection_dialogues.find(
+        for script in self.collections['dialogues'].find(
             {'activated': 1},
             sort=[('modified', pymongo.DESCENDING)],
             limit=1):
@@ -114,7 +114,7 @@ class TtcGenericWorker(ApplicationWorker):
         return None
 
     def get_active_dialogues(self):
-        return self.collection_dialogues.group(
+        return self.collections['dialogues'].group(
             ['dialogue-id'], 
             None,
             {'Dialogue': 0},
@@ -125,7 +125,7 @@ class TtcGenericWorker(ApplicationWorker):
             )  
        
     def get_dialogue(self, dialogue_id):
-        dialogue = self.collection_dialogues.find_one(
+        dialogue = self.collections['dialogues'].find_one(
             {'_id': ObjectId(dialogue_id)})
         return dialogue
 
@@ -138,40 +138,12 @@ class TtcGenericWorker(ApplicationWorker):
         connection = pymongo.Connection("localhost", 27017)
         self.db = connection[self.database_name]
 
-        #Declare collection for retriving script
-        collection_dialogues_name = "dialogues"
-        if not(collection_dialogues_name in self.db.collection_names()):
-            self.collection_dialogues = self.db.create_collection(
-                collection_dialogues_name)
-        else:
-            self.collection_dialogues = self.db[collection_dialogues_name]
-
-        #Declare collection for retriving participants
-        collection_participants_name = "participants"
-        if not(collection_participants_name in self.db.collection_names()):
-            self.collection_participants = self.db.create_collection(
-                collection_participants_name)
-        else:
-            self.collection_participants = self.db[
-                collection_participants_name]
-
-        #Declare collection for scheduling messages
-        collection_schedules_name = "schedules"
-        if (collection_schedules_name in self.db.collection_names()):
-            self.collection_schedules = self.db[collection_schedules_name]
-        else:
-            self.collection_schedules = self.db.create_collection(
-                collection_schedules_name)
-
-        #Declare collection for loging messages
-        collection_status_name = "history"
-        if (collection_status_name in self.db.collection_names()):
-            self.collection_status = self.db[collection_status_name]
-        else:
-            self.collection_status = self.db.create_collection(
-                collection_status_name)
-
-        self.setup_collections(['program_settings', 'unattached_messages'])
+        self.setup_collections(['dialogues',
+                                'participants',
+                                'history',
+                                'schedules',
+                                'program_settings',
+                                'unattached_messages'])
 
     def setup_collections(self, names):
         for name in names:
@@ -197,7 +169,7 @@ class TtcGenericWorker(ApplicationWorker):
 
     def dispatch_event(self, message):
         self.log("Event message received %s" % (message,))
-        status = self.collection_status.find_one({
+        status = self.collections['history'].find_one({
             'message-id': message['user_message_id']
         })
         if (not status):
@@ -212,7 +184,7 @@ class TtcGenericWorker(ApplicationWorker):
                     message['failure_code'],
                     message['failure_level'],
                     message['failure_reason']))
-        self.collection_status.save(status)
+        self.collections['history'].save(status)
 
     def consume_user_message(self, message):
         self.log("User message received from %s '%s' " % (message['from_addr'],
@@ -224,7 +196,7 @@ class TtcGenericWorker(ApplicationWorker):
                 data = scriptHelper.get_matching_question_answer(message['content'])
                 if data:
                     break
-            self.save_status(message_content=message['content'],
+            self.save_history(message_content=message['content'],
                              participant_phone=message['from_addr'],
                              message_type='received',
                              reference_metadata={
@@ -236,7 +208,7 @@ class TtcGenericWorker(ApplicationWorker):
                                               data['matching-answer'])
             if data['feedbacks']:
                 for feedback in data['feedbacks']:
-                    self.collection_schedules.save({
+                    self.collections['schedules'].save({
                         'datetime': time_to_vusion_format(self.get_local_time()),
                         'content': feedback['content'],
                         'type-content': 'feedback',
@@ -290,25 +262,25 @@ class TtcGenericWorker(ApplicationWorker):
         if not label:
             return
         label = label.lower()
-        participant = self.collection_participants.find_one(
+        participant = self.collections['participants'].find_one(
             {'phone': participant_phone})
         if not participant:
             self.log("Cannot find participant %s for profiling" %
                      (participant_phone))
             return
         participant[label] = reply
-        self.collection_participants.save(participant)
+        self.collections['participants'].save(participant)
 
     def schedule(self):
         #Schedule the dialogues
         active_dialogues = self.get_active_dialogues()
         for dialogue in active_dialogues:
             self.schedule_participants_dialogue(
-                self.collection_participants.find(),
+                self.collections['participants'].find(),
                 dialogue['Dialogue'])
         #Schedule the nonattached messages
         self.schedule_participants_unattach_messages(
-            self.collection_participants.find())
+            self.collections['participants'].find())
 
     def get_future_unattach_messages(self):
         return self.collections['unattached_messages'].find({
@@ -317,16 +289,16 @@ class TtcGenericWorker(ApplicationWorker):
             }})
 
     def schedule_participants_unattach_messages(self, participants):
-        for participant in self.collection_participants.find():
+        for participant in self.collections['participants'].find():
             self.schedule_participant_unattach_messages(participant)
 
     def schedule_participant_unattach_messages(self, participant):
         unattach_messages = self.get_future_unattach_messages()
         for unattach_message in unattach_messages:
-            schedule = self.collection_schedules.find_one({
+            schedule = self.collections['schedules'].find_one({
                 'participant-phone': participant['phone'],
                 'unattach-id': unattach_message['_id']})
-            status = self.collection_status.find_one({
+            status = self.collections['history'].find_one({
                 'participant-phone': participant['phone'],
                 'unattach-id': unattach_message['_id']})
             if status is not None:
@@ -337,7 +309,7 @@ class TtcGenericWorker(ApplicationWorker):
                 'unattach-id': unattach_message['_id'],
                 }
             schedule['datetime'] = unattach_message['schedule']
-            self.collection_schedules.save(schedule)
+            self.collections['schedules'].save(schedule)
 
     def schedule_participants_dialogue(self, participants, dialogue):
         for participant in participants:
@@ -349,11 +321,11 @@ class TtcGenericWorker(ApplicationWorker):
         #self.log('Scheduling for %s dialogue %r' % (participant, dialogue))
         try:
             for interaction in dialogue.get('interactions'):
-                schedule = self.collection_schedules.find_one({
+                schedule = self.collections['schedules'].find_one({
                     "participant-phone": participant['phone'],
                     "dialogue-id": dialogue["dialogue-id"],
                     "interaction-id": interaction["interaction-id"]})
-                status = self.collection_status.find_one(
+                status = self.collections['history'].find_one(
                     {"participant-phone": participant['phone'],
                      "dialogue-id": dialogue["dialogue-id"],
                      "interaction-id": interaction["interaction-id"]},
@@ -375,7 +347,7 @@ class TtcGenericWorker(ApplicationWorker):
 
                 #Scheduling a date already in the past is forbidden.
                 if (sendingDateTime + timedelta(minutes=10) < self.get_local_time()):
-                    self.save_status(
+                    self.save_history(
                         message_content='Not generated yet',
                         participant_phone=participant['phone'],
                         message_type='sent',
@@ -384,7 +356,7 @@ class TtcGenericWorker(ApplicationWorker):
                             'dialogue-id': dialogue['dialogue-id'],
                             'interaction-id': interaction["interaction-id"]})
                     if (schedule):
-                        self.collection_schedules.remove(schedule['_id'])
+                        self.collections['schedules'].remove(schedule['_id'])
                         continue
 
                 if (not schedule):
@@ -394,7 +366,7 @@ class TtcGenericWorker(ApplicationWorker):
                         "interaction-id": interaction["interaction-id"]}
                 schedule['datetime'] = self.to_vusion_format(sendingDateTime)
                 previousSendDateTime = sendingDateTime
-                self.collection_schedules.save(schedule)
+                self.collections['schedules'].save(schedule)
                 self.log("Schedule has been saved: %s" % schedule)
         except:
             self.log("Scheduling exception: %s" % interaction)
@@ -418,11 +390,11 @@ class TtcGenericWorker(ApplicationWorker):
     def send_scheduled(self):
         self.log('Checking the schedule list...')
         local_time = self.get_local_time()
-        toSends = self.collection_schedules.find(
+        toSends = self.collections['schedules'].find(
             spec={'datetime': {'$lt': time_to_vusion_format(local_time)}},
             sort=[('datetime', 1)])
         for toSend in toSends:
-            self.collection_schedules.remove(
+            self.collections['schedules'].remove(
                 {'_id': toSend['_id']})
             message_content = None
             try:
@@ -471,7 +443,7 @@ class TtcGenericWorker(ApplicationWorker):
                 yield self.transport_publisher.publish_message(message)
                 self.log("Message has been send to %s '%s'" % (message['to_addr'],
                                                                message['content']))
-                self.save_status(message_content=message['content'],
+                self.save_history(message_content=message['content'],
                                  participant_phone=message['to_addr'],
                                  message_type='sent',
                                  message_status='pending',
@@ -479,7 +451,7 @@ class TtcGenericWorker(ApplicationWorker):
                                  reference_metadata=reference_metadata)
 
             except VusionError as e:
-                self.save_status(message_content='',
+                self.save_history(message_content='',
                                  participant_phone=toSend['participant-phone'],
                                  message_type=None,
                                  failure_reason=('%s' % (e,)),
@@ -489,7 +461,7 @@ class TtcGenericWorker(ApplicationWorker):
                 self.log("Exception is %s - %s" % (sys.exc_info()[0],
                                                         sys.exc_info()[1]),
                          'error')
-                self.save_status(participant_phone=toSend['participant-phone'],
+                self.save_history(participant_phone=toSend['participant-phone'],
                                  message_content='',
                                  message_type='system-failed',
                                  failure_reason=('%s - %s') % (sys.exc_info()[0],
@@ -598,7 +570,7 @@ class TtcGenericWorker(ApplicationWorker):
         tags_regexp = re.compile(r'\[(?P<table>\w*)\.(?P<attribute>\w*)\]')
         tags = re.findall(tags_regexp, message)
         for table, attribute in tags:
-            participant = self.collection_participants.find_one(
+            participant = self.collections['participants'].find_one(
                 {'phone': participant_phone})
             attribute = attribute.lower()
             if not attribute in participant:
