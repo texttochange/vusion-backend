@@ -183,26 +183,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             'interaction-id': interaction_id
         })
 
-    #def mkmsg_delivery(self, event_type='delivery_report', user_message_id='1',
-                       #send_message_id='abc', delivery_status='delivered',
-                       #failure_code=None, failure_level=None,
-                       #failure_reason=None, transport_name=None,
-                       #transport_metadata=None):
-        #if transport_metadata is None:
-            #transport_metadata = {}
-        #params = dict(
-            #event_type=event_type,
-            #user_message_id=user_message_id,
-            #sent_message_id=send_message_id,
-            #delivery_status=delivery_status,
-            #failure_level=failure_level,
-            #failure_code=failure_code,
-            #failure_reason=failure_reason,
-            #transport_name=transport_name,
-            #transport_metadata=transport_metadata,
-        #)
-        #return TransportEvent(**params)
-
     #TODO: reduce the scope of the update-schedule
     @inlineCallbacks
     def test01_consume_control_update_schedule(self):
@@ -626,7 +606,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         self.collections['history'].save({
             'message-id': event['user_message_id'],
-            'message-type': 'send',
+            'message-type': 'sent',
             'message-status': 'pending'
         })
 
@@ -660,7 +640,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         self.collections['history'].save({
             'message-id': event['user_message_id'],
-            'message-type': 'send',
+            'message-type': 'sent',
             'message-status': 'pending'
         })
 
@@ -680,7 +660,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         self.collections['history'].save({
             'message-id': event['user_message_id'],
-            'message-type': 'send',
+            'message-type': 'sent',
             'message-status': 'pending'
         })
 
@@ -791,7 +771,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         self.collections['history'].save({
             'participant-phone': '06',
-            'message-type': 'send',
+            'message-type': 'sent',
             'message-status': 'delivered',
             'unattach-id': unattach_id
         })

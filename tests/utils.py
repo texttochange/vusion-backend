@@ -42,7 +42,7 @@ class MessageMaker:
             )
     
     def mkmsg_delivery(self, event_type='delivery_report', user_message_id='1',
-                       send_message_id='abc', delivery_status='delivered',
+                       sent_message_id='abc', delivery_status='delivered',
                        failure_code=None, failure_level=None,
                        failure_reason=None, transport_name=None,
                        transport_metadata=None):
@@ -51,7 +51,7 @@ class MessageMaker:
         params = dict(
             event_type=event_type,
             user_message_id=user_message_id,
-            sent_message_id=send_message_id,
+            sent_message_id=sent_message_id,
             delivery_status=delivery_status,
             failure_level=failure_level,
             failure_code=failure_code,

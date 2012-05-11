@@ -378,7 +378,7 @@ class TtcGenericWorker(ApplicationWorker):
                     self.save_status(
                         message_content='Not generated yet',
                         participant_phone=participant['phone'],
-                        message_type='send',
+                        message_type='sent',
                         message_status='fail: date in the past',
                         reference_metadata={
                             'dialogue-id': dialogue['dialogue-id'],
@@ -473,7 +473,7 @@ class TtcGenericWorker(ApplicationWorker):
                                                                message['content']))
                 self.save_status(message_content=message['content'],
                                  participant_phone=message['to_addr'],
-                                 message_type='send',
+                                 message_type='sent',
                                  message_status='pending',
                                  message_id=message['message_id'],
                                  reference_metadata=reference_metadata)
