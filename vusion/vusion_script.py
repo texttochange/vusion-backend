@@ -7,8 +7,8 @@ def split_keywords(keywords):
 
 class VusionScript:
 
-    def __init__(self, script):
-        self.script = script
+    def __init__(self, dialogue):
+        self.dialogue = dialogue
 
     def get_reply(self, content, delimiter=' '):
         return (content or '').partition(delimiter)[2]
@@ -17,12 +17,11 @@ class VusionScript:
         return [k.lower() for k in (keywords or '').split(', ')]
 
     def get_matching_interaction(self, keyword):
-        for dialogue in self.script['dialogues']:
-            for interaction in dialogue['interactions']:
-                if not interaction['type-interaction'] == 'question-answer':
-                    continue
-                if keyword in self.split_keywords(interaction['keyword']):
-                    return dialogue['dialogue-id'], interaction
+        for interaction in self.dialogue['interactions']:
+            if not interaction['type-interaction'] == 'question-answer':
+                continue
+            if keyword in self.split_keywords(interaction['keyword']):
+                return self.dialogue['dialogue-id'], interaction
         return None, None
 
     def get_matching_answer(self, answers, reply):
@@ -68,10 +67,9 @@ class VusionScript:
 
     def get_all_keywords(self):
         keywords = []
-        for dialogue in self.script['dialogues']:
-            for interaction in dialogue['interactions']:
-                if 'keyword' in interaction:
-                    interaction_keywords = self.split_keywords(interaction['keyword'])
-                    for interaction_keyword in interaction_keywords:
-                        keywords.append(interaction_keyword)
+        for interaction in self.dialogue['interactions']:
+            if 'keyword' in interaction:
+                interaction_keywords = self.split_keywords(interaction['keyword'])
+                for interaction_keyword in interaction_keywords:
+                    keywords.append(interaction_keyword)
         return keywords

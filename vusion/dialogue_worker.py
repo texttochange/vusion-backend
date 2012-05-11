@@ -106,27 +106,28 @@ class TtcGenericWorker(ApplicationWorker):
         self.collection_status.save(history)
 
     def get_current_script_id(self):
-        for script in self.collection_scripts.find(
+        for script in self.collection_dialogues.find(
             {'activated': 1},
             sort=[('modified', pymongo.DESCENDING)],
             limit=1):
             return script['_id']
         return None
 
-    def get_current_script(self):
-        for script in self.collection_scripts.find(
-            {'activated': 1},
-            sort=[('modified', pymongo.DESCENDING)],
-            limit=1):
-            return script['script']
-        return None
-
-    def get_script(self, script_id):
-        script = self.collection_scripts.find_one(
-            {'_id': ObjectId(script_id)})
-        if 'script' in script:
-            return script['script']
-        return None
+    def get_active_dialogues(self):
+        return self.collection_dialogues.group(
+            ['dialogue-id'], 
+            None,
+            {'Dialogue': 0},
+            """function(obj, prev){ 
+            if (obj.activated && 
+            (prev.Dialogue==0 || prev.Dialogue.modified <= obj.modified))
+            prev.Dialogue = obj;}"""
+            )  
+       
+    def get_dialogue(self, dialogue_id):
+        dialogue = self.collection_dialogues.find_one(
+            {'_id': ObjectId(dialogue_id)})
+        return dialogue
 
     def init_program_db(self, database_name):
         self.log("Initialization of the program")
@@ -138,12 +139,12 @@ class TtcGenericWorker(ApplicationWorker):
         self.db = connection[self.database_name]
 
         #Declare collection for retriving script
-        collection_scripts_name = "scripts"
-        if not(collection_scripts_name in self.db.collection_names()):
-            self.collection_scripts = self.db.create_collection(
-                collection_scripts_name)
+        collection_dialogues_name = "dialogues"
+        if not(collection_dialogues_name in self.db.collection_names()):
+            self.collection_dialogues = self.db.create_collection(
+                collection_dialogues_name)
         else:
-            self.collection_scripts = self.db[collection_scripts_name]
+            self.collection_dialogues = self.db[collection_dialogues_name]
 
         #Declare collection for retriving participants
         collection_participants_name = "participants"
@@ -185,18 +186,14 @@ class TtcGenericWorker(ApplicationWorker):
     #@inlineCallbacks
     def consume_control(self, message):
         self.log("Control message received to %s" % (message['action'],))
-        if message['action'] == 'init':
-            config = message['config']
-            self.init_program_db(config['database-name'])
-
-        elif message['action'] == 'update-schedule':
-            if self.is_ready():
-                self.schedule()
-
+        if (not self.is_ready()):
+            self.log("Worker is not ready, cannot performe the action.")
+            return
+        if message['action'] == 'update-schedule':
+            self.schedule()
         elif message['action'] == 'test-send-all-messages':
-            if self.is_ready():
-                script = self.get_script(message['script-id'])
-                self.send_all_messages(script, message['phone-number'])
+            dialogue = self.get_dialogue(message['dialogue_obj_id'])
+            self.send_all_messages(dialogue, message['phone_number'])
 
     def dispatch_event(self, message):
         self.log("Event message received %s" % (message,))
@@ -221,14 +218,12 @@ class TtcGenericWorker(ApplicationWorker):
         self.log("User message received from %s '%s' " % (message['from_addr'],
                                                           message['content']))
         try:
-            script = self.get_current_script()
-            if not script:
-                self.save_status(message_content=message['content'],
-                                 participant_phone=message['from_addr'],
-                                 message_type='received')
-                return
-            scriptHelper = VusionScript(self.get_current_script())
-            data = scriptHelper.get_matching_question_answer(message['content'])
+            active_dialogues = self.get_active_dialogues()
+            for dialogue in active_dialogues:
+                scriptHelper = VusionScript(dialogue['Dialogue'])
+                data = scriptHelper.get_matching_question_answer(message['content'])
+                if data:
+                    break
             self.save_status(message_content=message['content'],
                              participant_phone=message['from_addr'],
                              message_type='received',
@@ -305,13 +300,12 @@ class TtcGenericWorker(ApplicationWorker):
         self.collection_participants.save(participant)
 
     def schedule(self):
-        #self.log('Starting schedule()')
-        #Schedule the script
-        script = self.get_current_script()
-        if (script and ('dialogues' in script)):
+        #Schedule the dialogues
+        active_dialogues = self.get_active_dialogues()
+        for dialogue in active_dialogues:
             self.schedule_participants_dialogue(
                 self.collection_participants.find(),
-                script['dialogues'][0])
+                dialogue['Dialogue'])
         #Schedule the nonattached messages
         self.schedule_participants_unattach_messages(
             self.collection_participants.find())
@@ -434,7 +428,7 @@ class TtcGenericWorker(ApplicationWorker):
             try:
                 if 'dialogue-id' in toSend:
                     interaction = self.get_interaction(
-                        self.get_current_script(),
+                        self.get_active_dialogues(),
                         toSend['dialogue-id'],
                         toSend['interaction-id'])
                     reference_metadata = {
@@ -503,38 +497,37 @@ class TtcGenericWorker(ApplicationWorker):
                                  reference_metadata=reference_metadata)
 
     @inlineCallbacks
-    def send_all_messages(self, script, phone_number):
-        for dialogue in script['dialogues']:
-            for interaction in dialogue['interactions']:
-                message_content = self.generate_message(interaction)
-                message = TransportUserMessage(**{
-                    'from_addr': self.properties['shortcode'],
-                    'to_addr': phone_number,
-                    'transport_name': self.transport_name,
-                    'transport_type': self.transport_type,
-                    'transport_metadata': '',
-                    'content': message_content})
-                yield self.transport_publisher.publish_message(message)
-                self.log("Test message has been sent to %s '%s'"
-                         % (message['to_addr'], message['content'],))
+    def send_all_messages(self, dialogue, phone_number):
+        for interaction in dialogue['interactions']:
+            message_content = self.generate_message(interaction)
+            message = TransportUserMessage(**{
+                'from_addr': self.properties['shortcode'],
+                'to_addr': phone_number,
+                'transport_name': self.transport_name,
+                'transport_type': self.transport_type,
+                'transport_metadata': '',
+                'content': message_content})
+            yield self.transport_publisher.publish_message(message)
+            self.log("Test message has been sent to %s '%s'"
+                     % (message['to_addr'], message['content'],))
 
     #TODO: move into VusionScript
     #MongoDB do not support fetching a subpart of an array
     #may not be necessary in the near future
     #https://jira.mongodb.org/browse/SERVER-828
     #https://jira.mongodb.org/browse/SERVER-3089
-    def get_interaction(self, program, dialogue_id, interaction_id):
-        for dialogue in program['dialogues']:
-            if dialogue["dialogue-id"] == dialogue_id:
-                for interaction in dialogue["interactions"]:
+    def get_interaction(self, active_dialogues, dialogue_id, interaction_id):
+        for dialogue in active_dialogues:
+            if dialogue['dialogue-id'] == dialogue_id:
+                for interaction in dialogue['Dialogue']['interactions']:
                     if interaction["interaction-id"] == interaction_id:
                         return interaction
 
     #TODO: move into VusionScript
-    def get_dialogue(self, program, dialogue_id):
-        for dialogue in program['dialogues']:
-            if dialogue["dialogue-id"] == dialogue_id:
-                return dialogue
+    #def get_dialogue(self, program, dialogue_id):
+        #for dialogue in program['dialogues']:
+            #if dialogue["dialogue-id"] == dialogue_id:
+                #return dialogue
 
     def log(self, msg, level='msg'):
         timezone = None
@@ -564,7 +557,9 @@ class TtcGenericWorker(ApplicationWorker):
     @inlineCallbacks
     def register_keywords_in_dispatcher(self):
         self.log('Synchronizing with dispatcher')
-        keywords = VusionScript(self.get_current_script()).get_all_keywords()
+        keywords = []
+        for dialogue in self.get_active_dialogues():
+            keywords += VusionScript(dialogue['Dialogue']).get_all_keywords()
         keyword_mappings = []
         for keyword in keywords:
             keyword_mappings.append((self.transport_name, keyword))

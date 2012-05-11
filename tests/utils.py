@@ -135,3 +135,10 @@ class MessageMaker:
             worker_name=worker_name,
             worker_class=worker_class,
             config=config)
+    
+    def mkmsg_dialogueworker_control(self, action, dialogue_obj_id,
+                                     phone_number=None):
+        return Message(
+            action=action,
+            dialogue_obj_id=dialogue_obj_id,
+            phone_number=phone_number)
