@@ -209,7 +209,7 @@ class TtcGenericWorker(ApplicationWorker):
             if data['feedbacks']:
                 for feedback in data['feedbacks']:
                     self.collections['schedules'].save({
-                        'datetime': time_to_vusion_format(self.get_local_time()),
+                        'date-time': time_to_vusion_format(self.get_local_time()),
                         'content': feedback['content'],
                         'type-content': 'feedback',
                         'participant-phone': message['from_addr']
@@ -308,7 +308,7 @@ class TtcGenericWorker(ApplicationWorker):
                 'participant-phone': participant['phone'],
                 'unattach-id': unattach_message['_id'],
                 }
-            schedule['datetime'] = unattach_message['schedule']
+            schedule['date-time'] = unattach_message['schedule']
             self.collections['schedules'].save(schedule)
 
     def schedule_participants_dialogue(self, participants, dialogue):
@@ -337,7 +337,7 @@ class TtcGenericWorker(ApplicationWorker):
 
                 if (interaction['type-schedule'] == 'immediately'):
                     if (schedule):
-                        sendingDateTime = time_from_vusion_format(schedule['datetime'])
+                        sendingDateTime = time_from_vusion_format(schedule['date-time'])
                     else:
                         sendingDateTime = self.get_local_time()
                 elif (interaction['type-schedule'] == 'wait'):
@@ -364,7 +364,7 @@ class TtcGenericWorker(ApplicationWorker):
                         "participant-phone": participant['phone'],
                         "dialogue-id": dialogue['dialogue-id'],
                         "interaction-id": interaction["interaction-id"]}
-                schedule['datetime'] = self.to_vusion_format(sendingDateTime)
+                schedule['date-time'] = self.to_vusion_format(sendingDateTime)
                 previousSendDateTime = sendingDateTime
                 self.collections['schedules'].save(schedule)
                 self.log("Schedule has been saved: %s" % schedule)
@@ -391,8 +391,8 @@ class TtcGenericWorker(ApplicationWorker):
         self.log('Checking the schedule list...')
         local_time = self.get_local_time()
         toSends = self.collections['schedules'].find(
-            spec={'datetime': {'$lt': time_to_vusion_format(local_time)}},
-            sort=[('datetime', 1)])
+            spec={'date-time': {'$lt': time_to_vusion_format(local_time)}},
+            sort=[('date-time', 1)])
         for toSend in toSends:
             self.collections['schedules'].remove(
                 {'_id': toSend['_id']})
@@ -427,11 +427,11 @@ class TtcGenericWorker(ApplicationWorker):
                     toSend['participant-phone'],
                     message_content)
 
-                if (time_from_vusion_format(toSend['datetime']) <
+                if (time_from_vusion_format(toSend['date-time']) <
                     (local_time - timedelta(minutes=15))):
                     raise SendingDatePassed(
                         "Message should have been send at %s" %
-                        (toSend['datetime'],))
+                        (toSend['date-time'],))
 
                 message = TransportUserMessage(**{
                     'from_addr': self.properties['shortcode'],
@@ -494,12 +494,6 @@ class TtcGenericWorker(ApplicationWorker):
                 for interaction in dialogue['Dialogue']['interactions']:
                     if interaction["interaction-id"] == interaction_id:
                         return interaction
-
-    #TODO: move into VusionScript
-    #def get_dialogue(self, program, dialogue_id):
-        #for dialogue in program['dialogues']:
-            #if dialogue["dialogue-id"] == dialogue_id:
-                #return dialogue
 
     def log(self, msg, level='msg'):
         timezone = None

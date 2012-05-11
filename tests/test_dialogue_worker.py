@@ -297,13 +297,13 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         schedules = self.collections['schedules'].find()
         #assert time calculation
         self.assertTrue(
-            time_from_vusion_format(schedules[0]['datetime']) <
+            time_from_vusion_format(schedules[0]['date-time']) <
             dNow + timedelta(minutes=1))
         self.assertTrue(
-            time_from_vusion_format(schedules[1]['datetime']) <
+            time_from_vusion_format(schedules[1]['date-time']) <
             dNow + timedelta(minutes=61))
         self.assertTrue(
-            time_from_vusion_format(schedules[1]['datetime']) >
+            time_from_vusion_format(schedules[1]['date-time']) >
             dNow + timedelta(minutes=59))
 
         #assert schedule links
@@ -328,33 +328,33 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         unattached_message = self.collections['unattached_messages'].save({
-            'datetime': time_to_vusion_format(dNow),
+            'date-time': time_to_vusion_format(dNow),
             'content': 'Hello unattached',
             'to': 'all participants',
             'type-interaction': 'annoucement'
         })
         self.collections['schedules'].save({
-            'datetime': dPast.strftime(self.time_format),
+            'date-time': dPast.strftime(self.time_format),
             'dialogue-id': '0',
             'interaction-id': '0',
             'participant-phone': '09'})
         self.collections['schedules'].save({
-            'datetime': dNow.strftime(self.time_format),
+            'date-time': dNow.strftime(self.time_format),
             'dialogue-id': '0',
             'interaction-id': '1',
             'participant-phone': '09'})
         self.collections['schedules'].save({
-            'datetime': dFuture.strftime(self.time_format),
+            'date-time': dFuture.strftime(self.time_format),
             'dialogue-id': '0',
             'interaction-id': '2',
             'participant-phone': '09'})
         self.collections['schedules'].save({
-            'datetime': time_to_vusion_format(dNow),
+            'date-time': time_to_vusion_format(dNow),
             'unattach-id': unattached_message,
             'participant-phone': '09'
         })
         self.collections['schedules'].save({
-            'datetime': time_to_vusion_format(dNow),
+            'date-time': time_to_vusion_format(dNow),
             'type-content': 'feedback',
             'content': 'Thank you',
             'participant-phone': '09'
@@ -423,7 +423,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)
         #Declare collection for scheduling messages
-        self.collections['schedules'].save({'datetime': dFuture.strftime(self.time_format),
+        self.collections['schedules'].save({'date-time': dFuture.strftime(self.time_format),
                                         'participant-phone': '06',
                                         'interaction-id': '1',
                                         'dialogue-id': '0'})
@@ -444,7 +444,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(self.collections['history'].count(), 1)
         self.assertEqual(self.collections['schedules'].count(), 1)
         schedule = self.collections['schedules'].find_one()
-        self.assertEqual(schedule['datetime'], dLaterFuture.strftime(self.time_format))
+        self.assertEqual(schedule['date-time'], dLaterFuture.strftime(self.time_format))
 
     def test08_schedule_interaction_that_has_expired(self):
         config = self.simple_config
@@ -465,7 +465,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.worker.load_data()
 
         #Declare collection for scheduling messages
-        self.collections['schedules'].save({'datetime': dPast.strftime(self.time_format),
+        self.collections['schedules'].save({'date-time': dPast.strftime(self.time_format),
                                         'participant-phone': '06',
                                         'interaction-id': '1',
                                         'dialogue-id': '0'})
@@ -507,7 +507,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         #asserting
         self.assertEqual(self.collections['schedules'].count(), 1)
         schedule = self.collections['schedules'].find_one()
-        schedule_datetime = datetime.strptime(schedule['datetime'],
+        schedule_datetime = datetime.strptime(schedule['date-time'],
                                               '%Y-%m-%dT%H:%M:%S')
         self.assertEquals(schedule_datetime.year, dFuture.year)
         self.assertEquals(schedule_datetime.hour, dFuture.hour)
