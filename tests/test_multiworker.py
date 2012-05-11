@@ -32,7 +32,8 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker):
         'worker1': {
             'control_name': 'test',
             'transport_name': 'test',
-            'dispatcher_name': 'dispatcher'
+            'dispatcher_name': 'dispatcher',
+            'database_name': 'test'
             }
         }
 
@@ -62,7 +63,8 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker):
         new_worker_config = {
             'control_name': 'test2',
             'transport_name': 'test2',
-            'dispatcher_name': 'dispatcher2'
+            'dispatcher_name': 'dispatcher2',
+            'database_name': 'test2'
         }
 
         worker = yield self.get_multiwoker(self.base_config)

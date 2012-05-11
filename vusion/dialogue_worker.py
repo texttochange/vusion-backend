@@ -48,14 +48,17 @@ class TtcGenericWorker(ApplicationWorker):
         self.r_prefix = "%(control_name)s:" % self.config
 
         #Initializing
-        self.sender = None
         self.program_name = None
         self.last_script_used = None
-        self.collections = {}
         self.properties = {}
         self.r_server = redis.Redis(**self.r_config)
-
         self._d.callback(None)
+
+        self.collections = {}
+        self.init_program_db(self.config['database_name'])
+ 
+        self.sender = task.LoopingCall(self.daemon_process)
+        self.sender.start(60.0)
 
         #Set up control consumer
         self.control_consumer = yield self.consume(
@@ -66,20 +69,12 @@ class TtcGenericWorker(ApplicationWorker):
         self.dispatcher_publisher = yield self.publish_to(
             '%(dispatcher_name)s.control' % self.config)
 
-        if  (('database_name' in self.config)
-             and self.config['database_name']):
-            self.init_program_db(self.config['database_name'])
-            #start looping process of the scheduler
-            if (self.sender == None):
-                self.sender = task.LoopingCall(self.daemon_process)
-                self.sender.start(60.0)
-
         if ('dispatcher_name' in self.config):
             yield self._setup_dispatcher_publisher()
 
     def stopWorker(self):
         self.log("Worker is stopped.")
-        if self.sender:
+        if (self.sender.running):
             self.sender.stop()
 
     def save_history(self, message_content, participant_phone, message_type,
@@ -154,6 +149,7 @@ class TtcGenericWorker(ApplicationWorker):
             self.collections[name] = self.db[name]
         else:
             self.collections[name] = self.db.create_collection(name)
+        self.log("Collection initialised: %s" % name)
 
     #@inlineCallbacks
     def consume_control(self, message):

@@ -119,7 +119,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.control_name = 'mycontrol'
         self.database_name = 'test'
         self.config = {'transport_name': self.transport_name,
-                       'database': self.database_name,
+                       'database_name': self.database_name,
                        'control_name': self.control_name,
                        'dispatcher_name': 'dispatcher'}
         self.worker = get_stubbed_worker(TtcGenericWorker,
@@ -134,7 +134,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         #Database#
         connection = pymongo.Connection("localhost", 27017)
-        self.db = connection[self.config['database']]
+        self.db = connection[self.config['database_name']]
         
         self.collections = {}
         self.setup_collections(['dialogues',
@@ -730,7 +730,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)
-        self.worker.init_program_db(self.config['database'])
+        self.worker.init_program_db(self.config['database_name'])
 
         yield self.worker.register_keywords_in_dispatcher()
 
@@ -790,7 +790,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     def test21_participant_profiling(self):
         participant = {'phone': '06'}
         self.collections['participants'].save(participant)
-        self.worker.init_program_db(self.config['database'])
+        self.worker.init_program_db(self.config['database_name'])
 
         self.worker.label_participant_with_reply('06', 'gender', 'M')
 
@@ -803,7 +803,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         config = self.simple_config
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
-        self.worker.init_program_db(self.config['database'])
+        self.worker.init_program_db(self.config['database_name'])
         self.worker.load_data()
 
         yield self.worker.send_all_messages(self.dialogue_annoucement, '06')
