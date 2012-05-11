@@ -56,7 +56,7 @@ class TtcGenericWorker(ApplicationWorker):
 
         self.collections = {}
         self.init_program_db(self.config['database_name'])
- 
+
         self.sender = task.LoopingCall(self.daemon_process)
         self.sender.start(60.0)
 
@@ -69,8 +69,8 @@ class TtcGenericWorker(ApplicationWorker):
         self.dispatcher_publisher = yield self.publish_to(
             '%(dispatcher_name)s.control' % self.config)
 
-        if ('dispatcher_name' in self.config):
-            yield self._setup_dispatcher_publisher()
+        #if ('dispatcher_name' in self.config):
+         #   yield self._setup_dispatcher_publisher()
 
     def stopWorker(self):
         self.log("Worker is stopped.")
@@ -110,15 +110,15 @@ class TtcGenericWorker(ApplicationWorker):
 
     def get_active_dialogues(self):
         return self.collections['dialogues'].group(
-            ['dialogue-id'], 
+            ['dialogue-id'],
             None,
             {'Dialogue': 0},
-            """function(obj, prev){ 
-            if (obj.activated && 
+            """function(obj, prev){
+            if (obj.activated &&
             (prev.Dialogue==0 || prev.Dialogue.modified <= obj.modified))
             prev.Dialogue = obj;}"""
-            )  
-       
+            )
+
     def get_dialogue(self, dialogue_id):
         dialogue = self.collections['dialogues'].find_one(
             {'_id': ObjectId(dialogue_id)})
@@ -151,17 +151,23 @@ class TtcGenericWorker(ApplicationWorker):
             self.collections[name] = self.db.create_collection(name)
         self.log("Collection initialised: %s" % name)
 
-    #@inlineCallbacks
+    @inlineCallbacks
     def consume_control(self, message):
-        self.log("Control message received to %s" % (message['action'],))
-        if (not self.is_ready()):
-            self.log("Worker is not ready, cannot performe the action.")
-            return
-        if message['action'] == 'update-schedule':
-            self.schedule()
-        elif message['action'] == 'test-send-all-messages':
-            dialogue = self.get_dialogue(message['dialogue_obj_id'])
-            self.send_all_messages(dialogue, message['phone_number'])
+        try:
+            self.log("Control message received to %s" % (message['action'],))
+            if (not self.is_ready()):
+                self.log("Worker is not ready, cannot performe the action.")
+                return
+            if message['action'] == 'update-schedule':
+                yield self.register_keywords_in_dispatcher()
+                self.schedule()
+            elif message['action'] == 'test-send-all-messages':
+                dialogue = self.get_dialogue(message['dialogue_obj_id'])
+                self.send_all_messages(dialogue, message['phone_number'])
+        except:
+            self.log(
+                "Error during consume user message: %s %s" %
+                (sys.exc_info()[0], sys.exc_info()[1]))
 
     def dispatch_event(self, message):
         self.log("Event message received %s" % (message,))
@@ -189,19 +195,22 @@ class TtcGenericWorker(ApplicationWorker):
             active_dialogues = self.get_active_dialogues()
             for dialogue in active_dialogues:
                 scriptHelper = VusionScript(dialogue['Dialogue'])
-                data = scriptHelper.get_matching_question_answer(message['content'])
+                data = scriptHelper.get_matching_question_answer(
+                    message['content'])
                 if data:
                     break
-            self.save_history(message_content=message['content'],
-                             participant_phone=message['from_addr'],
-                             message_type='received',
-                             reference_metadata={
-                                 'dialogue-id': data['dialogue-id'],
-                                 'interaction-id': data['interaction-id'],
-                                 'matching-answer': data['matching-answer']})
-            self.label_participant_with_reply(message['from_addr'],
-                                              data['label-for-participant-profiling'],
-                                              data['matching-answer'])
+            self.save_history(
+                message_content=message['content'],
+                participant_phone=message['from_addr'],
+                message_type='received',
+                reference_metadata={
+                    'dialogue-id': data['dialogue-id'],
+                    'interaction-id': data['interaction-id'],
+                    'matching-answer': data['matching-answer']})
+            self.label_participant_with_reply(
+                message['from_addr'],
+                data['label-for-participant-profiling'],
+                data['matching-answer'])
             if data['feedbacks']:
                 for feedback in data['feedbacks']:
                     self.collections['schedules'].save({
@@ -221,11 +230,7 @@ class TtcGenericWorker(ApplicationWorker):
         self.load_data()
         if not self.is_ready():
             return
-        #the schedule should be performed only upon request
-        #self.schedule()
         yield self.send_scheduled()
-        if self.has_active_script_changed():
-            yield self.register_keywords_in_dispatcher()
 
     def load_data(self):
         program_settings = self.collections['program_settings'].find()
@@ -379,6 +384,33 @@ class TtcGenericWorker(ApplicationWorker):
     def to_vusion_format(self, timestamp):
         return timestamp.strftime('%Y-%m-%dT%H:%M:%S')
 
+    def from_schedule_to_message(self, schedule):
+        if 'dialogue-id' in schedule:
+            interaction = self.get_interaction(
+                self.get_active_dialogues(),
+                schedule['dialogue-id'],
+                schedule['interaction-id'])
+            reference_metadata = {
+                'dialogue-id': schedule['dialogue-id'],
+                'interaction-id': schedule['interaction-id']
+            }
+        elif 'unattach-id' in schedule:
+            interaction = self.collections['unattached_messages'].find_one(
+                {'_id': ObjectId(schedule['unattach-id'])})
+            reference_metadata = {
+                'unattach-id': schedule['unattach-id']
+            }
+        elif 'type-content' in schedule:
+            interaction = {
+                'content': schedule['content'],
+                'type-interaction': 'feedback'}
+            reference_metadata = None
+        else:
+            self.log("Error schedule object not supported: %s"
+                     % (schedule))
+            return None, None
+        return interaction, reference_metadata
+
     #TODO: fire error feedback if the ddialogue do not exit anymore
     #TODO: if dialogue is deleted, need to remove the scheduled message
     #(or they are also canceled if cannot find the dialogue)
@@ -394,28 +426,9 @@ class TtcGenericWorker(ApplicationWorker):
                 {'_id': toSend['_id']})
             message_content = None
             try:
-                if 'dialogue-id' in toSend:
-                    interaction = self.get_interaction(
-                        self.get_active_dialogues(),
-                        toSend['dialogue-id'],
-                        toSend['interaction-id'])
-                    reference_metadata = {
-                        'dialogue-id': toSend['dialogue-id'],
-                        'interaction-id': toSend['interaction-id']
-                    }
-                elif 'unattach-id' in toSend:
-                    interaction = self.collections['unattached_messages'].find_one(
-                        {'_id': ObjectId(toSend['unattach-id'])})
-                    reference_metadata = {
-                        'unattach-id': toSend['unattach-id']
-                    }
-                elif 'type-content' in toSend:
-                    interaction = {'content': toSend['content'],
-                                   'type-interaction': 'feedback'}
-                    reference_metadata = None
-                else:
-                    self.log("Error schedule object not supported: %s"
-                             % (toSend))
+                interaction, reference_metadata = self.from_schedule_to_message(toSend)
+
+                if not interaction:
                     continue
 
                 message_content = self.generate_message(interaction)
@@ -437,32 +450,37 @@ class TtcGenericWorker(ApplicationWorker):
                     'transport_metadata': '',
                     'content': message_content})
                 yield self.transport_publisher.publish_message(message)
-                self.log("Message has been send to %s '%s'" % (message['to_addr'],
-                                                               message['content']))
-                self.save_history(message_content=message['content'],
-                                 participant_phone=message['to_addr'],
-                                 message_type='sent',
-                                 message_status='pending',
-                                 message_id=message['message_id'],
-                                 reference_metadata=reference_metadata)
+                self.log(
+                    "Message has been send to %s '%s'" % (message['to_addr'],
+                                                          message['content']))
+                self.save_history(
+                    message_content=message['content'],
+                    participant_phone=message['to_addr'],
+                    message_type='sent',
+                    message_status='pending',
+                    message_id=message['message_id'],
+                    reference_metadata=reference_metadata)
 
             except VusionError as e:
-                self.save_history(message_content='',
-                                 participant_phone=toSend['participant-phone'],
-                                 message_type=None,
-                                 failure_reason=('%s' % (e,)),
-                                 reference_metadata=reference_metadata)
+                self.save_history(
+                    message_content='',
+                    participant_phone=toSend['participant-phone'],
+                    message_type=None,
+                    failure_reason=('%s' % (e,)),
+                    reference_metadata=reference_metadata)
             except:
                 self.log("Unexpected exception: %s" % toSend, 'error')
-                self.log("Exception is %s - %s" % (sys.exc_info()[0],
-                                                        sys.exc_info()[1]),
-                         'error')
-                self.save_history(participant_phone=toSend['participant-phone'],
-                                 message_content='',
-                                 message_type='system-failed',
-                                 failure_reason=('%s - %s') % (sys.exc_info()[0],
-                                                               sys.exc_info()[1]),
-                                 reference_metadata=reference_metadata)
+                self.log(
+                    "Exception is %s - %s" % (sys.exc_info()[0],
+                                              sys.exc_info()[1]),
+                    'error')
+                self.save_history(
+                    participant_phone=toSend['participant-phone'],
+                    message_content='',
+                    message_type='system-failed',
+                    failure_reason=('%s - %s') % (sys.exc_info()[0],
+                                                  sys.exc_info()[1]),
+                    reference_metadata=reference_metadata)
 
     @inlineCallbacks
     def send_all_messages(self, dialogue, phone_number):
@@ -495,26 +513,22 @@ class TtcGenericWorker(ApplicationWorker):
         timezone = None
         local_time = self.get_local_time()
         rkey = "%slogs" % (self.r_prefix,)
-        self.r_server.zremrangebyscore(rkey,
-                                       1,
-                                       get_local_time_as_timestamp(
-                                           local_time - timedelta(hours=2))
-                                       )
-        self.r_server.zadd(rkey,
-                           "[%s] %s" % (
-                               time_to_vusion_format(local_time),
-                               msg),
-                           get_local_time_as_timestamp(local_time))
-        #log.msg('%s - %s - %s' % (rkey, get_local_time_as_timestamp(timezone), msg))
+        self.r_server.zremrangebyscore(
+            rkey,
+            1,
+            get_local_time_as_timestamp(
+                local_time - timedelta(hours=2))
+        )
+        self.r_server.zadd(
+            rkey,
+            "[%s] %s" % (
+                time_to_vusion_format(local_time),
+                msg),
+            get_local_time_as_timestamp(local_time))
         if (level == 'msg'):
             log.msg('[%s] %s' % (self.control_name, msg))
         else:
             log.error('[%s] %s' % (self.control_name, msg))
-
-    @inlineCallbacks
-    def _setup_dispatcher_publisher(self):
-        self.dispatcher_publisher = yield self.publish_to(
-            '%(dispatcher_name)s.control' % self.config)
 
     @inlineCallbacks
     def register_keywords_in_dispatcher(self):

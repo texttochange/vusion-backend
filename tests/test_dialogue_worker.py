@@ -101,7 +101,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
     dialogue_announcement_fixedtime = {
         'activated': 1,
-        'dialogue-id':'1',
+        'dialogue-id': '1',
         'interactions': [
             {
                 'interaction-id':'1',
@@ -135,7 +135,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         #Database#
         connection = pymongo.Connection("localhost", 27017)
         self.db = connection[self.config['database_name']]
-        
+
         self.collections = {}
         self.setup_collections(['dialogues',
                                 'participants',
@@ -187,7 +187,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     @inlineCallbacks
     def test01_consume_control_update_schedule(self):
         config = self.simple_config
-        dialogue_id = self.collections['dialogues'].save(self.dialogue_annoucement)
+        dialogue_id = self.collections['dialogues'].save(
+            self.dialogue_annoucement)
         self.collections['dialogues'].save(self.dialogue_question)
         self.collections['participants'].save({'phone': '08'})
         for program_setting in self.program_settings:
@@ -195,31 +196,30 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
-        event = self.mkmsg_dialogueworker_control('update-schedule', 
+        event = self.mkmsg_dialogueworker_control('update-schedule',
                                                   dialogue_id.__str__())
         yield self.send(event, 'control')
-        
+
         self.assertEqual(3, self.collections['schedules'].count())
-    
+
     @inlineCallbacks
     def test02_consume_control_test_send_all_messages(self):
         config = self.simple_config
-        dialogue_id = self.collections['dialogues'].save(self.dialogue_annoucement)
+        dialogue_id = self.collections['dialogues'].save(
+            self.dialogue_annoucement)
         self.collections['participants'].save({'phone': '08'})
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
-        event = self.mkmsg_dialogueworker_control('test-send-all-messages', 
+        event = self.mkmsg_dialogueworker_control('test-send-all-messages',
                                                   dialogue_id.__str__(),
                                                   phone_number='08')
         yield self.send(event, 'control')
-        
+
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 2)
-        
-
 
     def test03_multiple_dialogue_in_collection(self):
         config = self.simple_config
@@ -232,31 +232,26 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
              'dialogue-id': '1',
              'activated': 1,
              'modified': dPast1})
- 
         self.collections['dialogues'].save(
             {'do': 'previsous dialogue',
              'dialogue-id': '1',
              'activated': 1,
              'modified': dPast2})
-
         self.collections['dialogues'].save(
             {'do': 'future dialogue still in draft',
              'dialogue-id': '1',
              'activated': 0,
              'modified': '50'})
-
         id_active_dialogue_two = self.collections['dialogues'].save(
             {'do': 'current dialogue',
              'dialogue-id': '2',
              'activated': 1,
              'modified': dPast1})
- 
         self.collections['dialogues'].save(
             {'do': 'previsous dialogue',
              'dialogue-id': '2',
              'activated': 1,
              'modified': dPast2})
-
         self.collections['dialogues'].save(
             {'do': 'future dialogue still in draft',
              'dialogue-id': '2',
@@ -683,11 +678,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         inbound_msg_matching = self.mkmsg_in(content='Feel ok')
         yield self.send(inbound_msg_matching, 'inbound')
-   
+
         #Only message matching keyword should be forwarded to the worker
         inbound_msg_non_matching_keyword = self.mkmsg_in(content='ok')
         yield self.send(inbound_msg_non_matching_keyword, 'inbound')
-   
+
         inbound_msg_non_matching_answer = self.mkmsg_in(content='Feel good')
         yield self.send(inbound_msg_non_matching_answer, 'inbound')
 

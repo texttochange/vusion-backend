@@ -72,7 +72,6 @@ class VusionScriptTestCase(TestCase):
          "dialogue-id": "script.dialogues[0]"
          }
 
-
     def setUp(self):
         pass
 

@@ -40,7 +40,7 @@ class MessageMaker:
                 transport_name=self.transport_name,
                 transport_metadata=transport_metadata,
             )
-    
+
     def mkmsg_delivery(self, event_type='delivery_report', user_message_id='1',
                        sent_message_id='abc', delivery_status='delivered',
                        failure_code=None, failure_level=None,
@@ -60,7 +60,6 @@ class MessageMaker:
             transport_metadata=transport_metadata,
         )
         return TransportEvent(**params)
-
 
     def mkmsg_in(self, content='hello world',
                  session_event=TransportUserMessage.SESSION_NONE,
@@ -141,7 +140,7 @@ class MessageMaker:
             worker_name=worker_name,
             worker_class=worker_class,
             config=config)
-    
+
     def mkmsg_dialogueworker_control(self, action, dialogue_obj_id,
                                      phone_number=None):
         return Message(
