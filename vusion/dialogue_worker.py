@@ -57,8 +57,9 @@ class TtcGenericWorker(ApplicationWorker):
         self.collections = {}
         self.init_program_db(self.config['database_name'])
 
+        send_loop_period = self.config['send_loop_period'] if 'send_loop_period' in self.config else "60"
         self.sender = task.LoopingCall(self.daemon_process)
-        self.sender.start(60.0)
+        self.sender.start(float(send_loop_period))
 
         #Set up control consumer
         self.control_consumer = yield self.consume(
