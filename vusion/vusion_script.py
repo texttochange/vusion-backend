@@ -37,34 +37,41 @@ class VusionScript:
                 return answer
         return None
 
-    def get_matching_question_answer(self, message):
+    def get_matching_reference_and_actions(self, message, actions):
+        reference_metadata = {}
         keyword = get_first_word(message).lower()
         reply = self.get_reply(message).lower()
         dialogue_id, interaction = self.get_matching_interaction(keyword)
-        if not interaction:
-            return None
-        if 'answers' in interaction:
-            answer = self.get_matching_answer(interaction['answers'], reply)
-            if not answer:
-                return {'dialogue-id': dialogue_id,
-                        'interaction-id': interaction['interaction-id'],
-                        'matching-answer': None,
-                        'label-for-participant-profiling': None,
-                        'feedbacks': None}
-            return {'dialogue-id': dialogue_id,
-                    'interaction-id': interaction['interaction-id'],
-                    'matching-answer': answer['choice'],
-                    'label-for-participant-profiling': interaction['label-for-participant-profiling'] if 'label-for-participant-profiling' in interaction else None,
-                    'feedbacks': answer['feedbacks'] if 'feedbacks' in answer
-                    else None}
-        else:
-            return {
-                'dialogue-id': dialogue_id,
-                'interaction-id': interaction['interaction-id'],
-                'matching-answer': None,
-                'label-for-participant-profiling': None,
-                'feedbacks': interaction['feedbacks'] if 'feedbacks' in interaction else None}
 
+        if not interaction:
+            return reference_metadata, actions
+        
+        reference_metadata = {
+            'dialogue-id': dialogue_id,
+            'interaction-id': interaction['interaction-id']}
+        if 'answers' in interaction:
+            answer = self.get_matching_answer(interaction['answers'], reply)            
+            if not answer:
+                reference_metadata['matching-answer'] = None
+            else:
+                reference_metadata['matching-answer'] = answer['choice']
+                actions = self.add_feedback_action(actions, answer)
+                if 'label-for-participant-profiling' in interaction:
+                    actions.append({'type-action': 'profiling',
+                                    'label': interaction['label-for-participant-profiling'],
+                                    'value': answer['choice']})
+        else:
+            actions = self.add_feedback_action(actions, interaction)
+        return reference_metadata, actions
+
+    def add_feedback_action(self, actions, obj):
+        if 'feedbacks' in obj:
+            for feedback in obj['feedbacks']:
+                actions.append(
+                    {'type-action': 'feedback',
+                     'content': feedback['content']})
+        return actions
+        
     def get_all_keywords(self):
         keywords = []
         for interaction in self.dialogue['interactions']:

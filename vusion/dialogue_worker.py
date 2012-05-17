@@ -139,7 +139,8 @@ class TtcGenericWorker(ApplicationWorker):
                                 'history',
                                 'schedules',
                                 'program_settings',
-                                'unattached_messages'])
+                                'unattached_messages',
+                                'requests'])
 
     def setup_collections(self, names):
         for name in names:
@@ -189,37 +190,63 @@ class TtcGenericWorker(ApplicationWorker):
                     message['failure_reason']))
         self.collections['history'].save(status)
 
+    def get_matching_request_actions(self, content, actions):
+        regx = re.compile(('(,\s|^)%s($|,)' % content), re.IGNORECASE)
+        matching_request = self.collections['requests'].find_one(
+            {'keyword': {'$regex': regx}})
+        if matching_request:
+            if 'actions' in matching_request:
+                for action in matching_request['actions']:
+                    actions.append(action)
+            if 'responses' in matching_request:
+                for response in matching_request['responses']:
+                    actions.append(
+                        {'type-action': 'feedback',
+                         'content': response['content']})
+        return actions
+    
+    def run_action(self, participant_phone, action):
+        if (action['type-action'] == 'optin'):
+            self.collections['participants'].save({'phone': participant_phone})
+        elif (action['type-action'] == 'optout'):
+            self.collections['participants'].update(
+                {'phone': participant_phone},
+                {'$set': {'optout': True}})
+        elif (action['type-action'] == 'feedback'):
+            self.collections['schedules'].save({
+                'date-time': time_to_vusion_format(self.get_local_time()),
+                'content': action['content'],
+                'type-content': 'feedback',
+                'participant-phone': participant_phone
+            })
+        elif (action['type-action'] == 'tagging'):
+            self.collections['participants'].update(
+                {'phone': participant_phone},
+                {'$push': {'tags': action['tag']}})
+        else:
+            self.log("The action is not supported %s" % action['type-action'])
+
     def consume_user_message(self, message):
         self.log("User message received from %s '%s' " % (message['from_addr'],
                                                           message['content']))
         try:
+            actions = []
             active_dialogues = self.get_active_dialogues()
             for dialogue in active_dialogues:
                 scriptHelper = VusionScript(dialogue['Dialogue'])
-                data = scriptHelper.get_matching_question_answer(
-                    message['content'])
-                if data:
+                ref, actions = scriptHelper.get_matching_reference_and_actions(
+                    message['content'], actions)
+                if ref:
                     break
+            actions = self.get_matching_request_actions(message['content'],
+                                                        actions)
             self.save_history(
                 message_content=message['content'],
                 participant_phone=message['from_addr'],
                 message_type='received',
-                reference_metadata={
-                    'dialogue-id': data['dialogue-id'],
-                    'interaction-id': data['interaction-id'],
-                    'matching-answer': data['matching-answer']})
-            self.label_participant_with_reply(
-                message['from_addr'],
-                data['label-for-participant-profiling'],
-                data['matching-answer'])
-            if data['feedbacks']:
-                for feedback in data['feedbacks']:
-                    self.collections['schedules'].save({
-                        'date-time': time_to_vusion_format(self.get_local_time()),
-                        'content': feedback['content'],
-                        'type-content': 'feedback',
-                        'participant-phone': message['from_addr']
-                    })
+                reference_metadata=ref)
+            for action in actions:
+                self.run_action(message['from_addr'], action)
         except:
             self.log(
                 "Error during consume user message: %s %s" %

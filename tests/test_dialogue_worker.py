@@ -112,6 +112,42 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             }
         ]
     }
+    
+    request_join = {
+        'keyword': 'www join, www',
+        'responses': [
+            {
+                'content': 'thankyou of joining',
+                },
+            {
+                'content': 'soon more is coming',
+                }],
+        'actions': [
+            {
+                'type-action': 'optin',
+                },
+            {
+                'type-action': 'enrolling',
+                'dialogue-id': '01'
+            }]
+    }
+        
+    request_tag = {
+        'keyword': 'www tagme',
+        'actions': [
+            {
+                'type-action': 'tagging',
+                'tag': 'onetag'
+            }]
+    }
+    
+    request_leave = {
+        'keyword': 'www quit',
+        'actions': [
+            {
+                'type-action': 'optout',
+            }]
+    }
 
     @inlineCallbacks
     def setUp(self):
@@ -143,7 +179,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                                 'schedules',
                                 'shortcodes',
                                 'program_settings',
-                                'unattached_messages'])
+                                'unattached_messages',
+                                'requests'])
 
         #Let's rock"
         self.worker.startService()
@@ -669,11 +706,10 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     @inlineCallbacks
     def test17_receive_inbound_message(self):
         config = self.config
-        dialogue = self.dialogue_question
-        participant = {'phone': '06'}
-
-        self.collections['dialogues'].save(dialogue)
-        self.collections['participants'].save(participant)
+        
+        self.collections['dialogues'].save(self.dialogue_question)
+        self.collections['participants'].save({'phone': '06'})
+        self.collections['requests'].save(self.request_join)
         self.worker.init_program_db(self.database_name)
 
         inbound_msg_matching = self.mkmsg_in(content='Feel ok')
@@ -686,16 +722,45 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         inbound_msg_non_matching_answer = self.mkmsg_in(content='Feel good')
         yield self.send(inbound_msg_non_matching_answer, 'inbound')
 
-        self.assertEqual(2, self.collections['history'].count())
+        self.assertEqual(3, self.collections['history'].count())
         history = self.collections['history'].find()
         self.assertEqual('01-01', history[0]['interaction-id'])
         self.assertEqual('01', history[0]['dialogue-id'])
         self.assertEqual('Ok', history[0]['matching-answer'])
-        self.assertEqual(None, history[1]['matching-answer'])
+        self.assertEqual(None, history[2]['matching-answer'])
 
         self.assertEqual(1, self.collections['schedules'].count())
 
-    def test18_schedule_process_handle_crap_in_history(self):
+        inbound_msg_matching_request = self.mkmsg_in(content='wWw')
+        yield self.send(inbound_msg_matching_request, 'inbound')
+
+        inbound_msg_matching_request = self.mkmsg_in(content='www join')
+        yield self.send(inbound_msg_matching_request, 'inbound')
+
+        self.assertEqual(5, self.collections['history'].count())
+        self.assertEqual(3, self.collections['participants'].count())
+        self.assertEqual(5, self.collections['schedules'].count())
+
+    def test18_run_action(self):
+        self.worker.init_program_db(self.database_name)
+        
+        self.worker.run_action("08", {'type-action': 'feedback',
+                                      'content': 'message'})
+        self.assertEqual(1, self.collections['schedules'].count())
+        
+        self.worker.run_action("08", {'type-action': 'optin'})
+        self.assertEqual(1, self.collections['participants'].count())
+
+        self.worker.run_action("08", {'type-action': 'optout'})
+        self.assertEqual(1, self.collections['participants'].count())
+        self.assertTrue(self.collections['participants'].find_one({'phone': '08'})['optout'])
+        
+        self.worker.run_action("08", {'type-action': 'tagging', 'tag': 'mytag'})
+        self.assertTrue(self.collections['participants'].find_one({'tags': 'mytag'}))
+        
+
+
+    def test19_schedule_process_handle_crap_in_history(self):
         config = self.simple_config
         dialogue = self.dialogue_annoucement
         participant = {'phone': '06'}
@@ -718,7 +783,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(schedules_count, 2)
 
     @inlineCallbacks
-    def test19_control_dispatcher_keyword_routing(self):
+    def test20_control_dispatcher_keyword_routing(self):
         #config = self.worker.config
         dialogue = self.dialogue_question
         participant = {"phone": "06"}
@@ -736,7 +801,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                               ['test', 'fel']])
         self.assertEqual(msg, [expected_msg])
 
-    def test20_schedule_unattach_message(self):
+    def test21_schedule_unattach_message(self):
         config = self.simple_config
         participants = [{'phone': '06'},
                         {'phone': '07'}]
@@ -782,7 +847,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         schedules = self.collections['schedules'].find()
         self.assertEqual(schedules[0]['participant-phone'], '07')
 
-    def test21_participant_profiling(self):
+    def test22_participant_profiling(self):
         participant = {'phone': '06'}
         self.collections['participants'].save(participant)
         self.worker.init_program_db(self.config['database_name'])
@@ -794,7 +859,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(participant['gender'], 'M')
 
     @inlineCallbacks
-    def test22_test_send_all_messages(self):
+    def test23_test_send_all_messages(self):
         config = self.simple_config
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
