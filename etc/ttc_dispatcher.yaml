@@ -3,9 +3,11 @@ dispatcher_name: dispatcher
 transport_names: 
         - yo8181
         - yo8282
+        - yo2456
 transport_mappings:
         yo8282: '8282'
         yo8181: '8181'
+        yo2456: '2456'
 exposed_names: 
         - m4h 
         - mrs
