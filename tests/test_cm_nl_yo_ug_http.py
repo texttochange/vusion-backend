@@ -90,7 +90,7 @@ class CmYoTransportTestCase(TransportTestCase):
         #HTTP response
         yield self.make_resource_worker(mocked_message)
         #Message to transport
-        yield self.dispatch(self.mkmsg_out(to_addr='41791234567'))
+        yield self.dispatch(self.mkmsg_out(to_addr='+41791234567'))
         [smsg] = self.get_dispatched('cm.event')
         self.assertEqual(self.mkmsg_delivery(user_message_id='1'),
                          TransportMessage.from_json(smsg.body))
