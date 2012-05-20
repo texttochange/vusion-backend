@@ -3,9 +3,11 @@ dispatcher_name: dispatcher
 transport_names: 
         - yo8181
         - yo8282
+        - nllong
 transport_mappings:
         yo8282: '8282'
         yo8181: '8181'
+        nllong: '+31642500021'
 exposed_names: 
         - m4h 
         - mrs
