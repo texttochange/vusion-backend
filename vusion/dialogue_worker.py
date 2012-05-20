@@ -100,13 +100,13 @@ class TtcGenericWorker(ApplicationWorker):
         for key, value in reference_metadata.iteritems():
             history[key] = value
         self.collections['history'].save(history)
-
-    def get_current_script_id(self):
-        for script in self.collections['dialogues'].find(
-            {'activated': 1},
+    
+    def get_current_dialogue(self, dialogue_id):
+        for dialogue in self.collections['dialogues'].find(
+            {'activated': 1, 'dialogue-id': dialogue_id},
             sort=[('modified', pymongo.DESCENDING)],
             limit=1):
-            return script['_id']
+            return dialogue
         return None
 
     def get_active_dialogues(self):
@@ -223,6 +223,16 @@ class TtcGenericWorker(ApplicationWorker):
             self.collections['participants'].update(
                 {'phone': participant_phone},
                 {'$push': {'tags': action['tag']}})
+        elif (action['type-action'] == 'enrolling'):
+            self.collections['participants'].update(
+                {'phone': participant_phone},
+                {'$push': {'enrolled': action['dialogue-id']}})
+            dialogue = self.get_current_dialogue(action['dialogue-id'])
+            self.schedule_participant_dialogue(participant_phone, dialogue)
+        elif (action['type-action'] == 'profiling'):
+            self.collections['participants'].update(
+                {'phone': participant_phone},
+                {'$set': {action['label']: action['value']}})            
         else:
             self.log("The action is not supported %s" % action['type-action'])
 
@@ -275,38 +285,19 @@ class TtcGenericWorker(ApplicationWorker):
             return False
         return True
 
-    def has_active_script_changed(self):
-        script_id = self.get_current_script_id()
-        if script_id == None:
-            return False
-        if self.last_script_used == None:
-            self.last_script_used = script_id
-            return True
-        if self.last_script_used == script_id:
-            return False
-        self.last_script_used = script_id
-        return True
-
-    def label_participant_with_reply(self, participant_phone, label, reply):
-        if not label:
-            return
-        label = label.lower()
-        participant = self.collections['participants'].find_one(
-            {'phone': participant_phone})
-        if not participant:
-            self.log("Cannot find participant %s for profiling" %
-                     (participant_phone))
-            return
-        participant[label] = reply
-        self.collections['participants'].save(participant)
-
     def schedule(self):
         #Schedule the dialogues
         active_dialogues = self.get_active_dialogues()
         for dialogue in active_dialogues:
+            if ('auto-enrollment' in dialogue['Dialogue']
+                and dialogue['Dialogue']['auto-enrollment'] == 'all'):
+                participants = self.collections['participants'].find()
+            else:
+                participants = self.collections['participants'].find(
+                    {'enrolled': dialogue['dialogue-id']})
             self.schedule_participants_dialogue(
-                self.collections['participants'].find(),
-                dialogue['Dialogue'])
+                    participants,
+                    dialogue['Dialogue'])
         #Schedule the nonattached messages
         self.schedule_participants_unattach_messages(
             self.collections['participants'].find())
@@ -564,6 +555,11 @@ class TtcGenericWorker(ApplicationWorker):
         keywords = []
         for dialogue in self.get_active_dialogues():
             keywords += VusionScript(dialogue['Dialogue']).get_all_keywords()
+        for request in self.collections['requests'].find():
+            keyphrases = request['keyword'].split(', ')
+            for keyphrase in keyphrases:
+                if not (keyphrase.split(' ')[0]) in keywords:
+                    keywords.append(keyphrase.split(' ')[0])
         keyword_mappings = []
         for keyword in keywords:
             keyword_mappings.append((self.transport_name, keyword))
