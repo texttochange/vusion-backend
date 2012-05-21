@@ -63,7 +63,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
     dialogue_annoucement_2 = {
             "activated": 1,
-            "dialogue-id": "0",
+            "dialogue-id": "2",
             "interactions": [
                 {"type-interaction": "announcement",
                  "interaction-id": "0",
@@ -93,7 +93,10 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                     {'choice': 'Fine'},
                     {'choice': 'Ok',
                      'feedbacks':
-                     [{'content': 'Thank you'}]}
+                     [{'content': 'Thank you'}],
+                     'answer-actions':
+                     [{'type-answer-action': 'enrolling','enroll': '2' }],
+                     },
                     ],
                 'type-schedule': 'immediately'
             }
@@ -129,7 +132,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                 },
             {
                 'type-action': 'enrolling',
-                'dialogue-id': '01'
+                'enroll': '01'
             }]
     }
         
@@ -368,17 +371,17 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         })
         self.collections['schedules'].save({
             'date-time': dPast.strftime(self.time_format),
-            'dialogue-id': '0',
+            'dialogue-id': '2',
             'interaction-id': '0',
             'participant-phone': '09'})
         self.collections['schedules'].save({
             'date-time': dNow.strftime(self.time_format),
-            'dialogue-id': '0',
+            'dialogue-id': '2',
             'interaction-id': '1',
             'participant-phone': '09'})
         self.collections['schedules'].save({
             'date-time': dFuture.strftime(self.time_format),
-            'dialogue-id': '0',
+            'dialogue-id': '2',
             'interaction-id': '2',
             'participant-phone': '09'})
         self.collections['schedules'].save({
@@ -709,18 +712,22 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         config = self.config
         
         self.collections['dialogues'].save(self.dialogue_question)
+        self.collections['dialogues'].save(self.dialogue_annoucement_2)
         self.collections['participants'].save({'phone': '06'})
         self.collections['requests'].save(self.request_join)
         self.worker.init_program_db(self.database_name)
 
-        inbound_msg_matching = self.mkmsg_in(content='Feel ok')
+        inbound_msg_matching = self.mkmsg_in(from_addr='06',
+                                             content='Feel ok')
         yield self.send(inbound_msg_matching, 'inbound')
 
         #Only message matching keyword should be forwarded to the worker
-        inbound_msg_non_matching_keyword = self.mkmsg_in(content='ok')
+        inbound_msg_non_matching_keyword = self.mkmsg_in(from_addr='06',
+                                                         content='ok')
         yield self.send(inbound_msg_non_matching_keyword, 'inbound')
 
-        inbound_msg_non_matching_answer = self.mkmsg_in(content='Feel good')
+        inbound_msg_non_matching_answer = self.mkmsg_in(from_addr='06',
+                                                        content='Feel good')
         yield self.send(inbound_msg_non_matching_answer, 'inbound')
 
         self.assertEqual(3, self.collections['history'].count())
@@ -740,7 +747,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         self.assertEqual(5, self.collections['history'].count())
         self.assertEqual(3, self.collections['participants'].count())
-        self.assertEqual(5, self.collections['schedules'].count())
+        self.assertEqual(6, self.collections['schedules'].count())
 
     def test18_run_action(self):
         self.worker.init_program_db(self.database_name)
@@ -764,9 +771,9 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         
         self.collections['dialogues'].save(self.dialogue_question)
         self.worker.run_action("08", {'type-action': 'enrolling',
-                                      'dialogue-id': '01'})
+                                      'enroll': '01'})
         self.assertTrue(self.collections['participants'].find_one({'enrolled': '01'}))
-        self.assertEqual(1, self.collections['schedules'].count())
+        self.assertEqual(2, self.collections['schedules'].count())
 
         self.worker.run_action("08", {'type-action': 'profiling',
                                       'label': 'gender',

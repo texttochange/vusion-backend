@@ -60,6 +60,11 @@ class VusionScript:
                     actions.append({'type-action': 'profiling',
                                     'label': interaction['label-for-participant-profiling'],
                                     'value': answer['choice']})
+                if 'answer-actions' in answer:
+                    for answer_action in answer['answer-actions']:
+                        action = answer_action
+                        action['type-action'] = answer_action['type-answer-action']
+                        actions.append(action)
         else:
             actions = self.add_feedback_action(actions, interaction)
         return reference_metadata, actions
