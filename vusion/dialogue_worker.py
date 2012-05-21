@@ -69,7 +69,9 @@ class TtcGenericWorker(ApplicationWorker):
         #Set up dispatcher publisher
         self.dispatcher_publisher = yield self.publish_to(
             '%(dispatcher_name)s.control' % self.config)
-        self.register_keywords_in_dispatcher()
+        
+        if self.is_ready():
+            yield self.register_keywords_in_dispatcher()
 
     def stopWorker(self):
         self.log("Worker is stopped.")

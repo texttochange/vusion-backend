@@ -186,6 +186,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                                 'program_settings',
                                 'unattached_messages',
                                 'requests'])
+        self.drop_collections()
 
         #Let's rock"
         self.worker.startService()
@@ -193,10 +194,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
     @inlineCallbacks
     def tearDown(self):
-        self.db.programs.drop()
-        if (self.worker.program_name):
-            self.worker.collections['schedules'].drop()
-            self.worker.collection_logs.drop()
         self.drop_collections()
         if (self.worker.sender != None):
             yield self.worker.sender.stop()
@@ -228,14 +225,12 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     #TODO: reduce the scope of the update-schedule
     @inlineCallbacks
     def test01_consume_control_update_schedule(self):
-        config = self.simple_config
         dialogue_id = self.collections['dialogues'].save(
             self.dialogue_annoucement)
         self.collections['dialogues'].save(self.dialogue_question)
         self.collections['participants'].save({'phone': '08'})
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
-        self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
         event = self.mkmsg_dialogueworker_control('update-schedule',
@@ -246,13 +241,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
     @inlineCallbacks
     def test02_consume_control_test_send_all_messages(self):
-        config = self.simple_config
         dialogue_id = self.collections['dialogues'].save(
             self.dialogue_annoucement)
         self.collections['participants'].save({'phone': '08'})
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
-        self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
         event = self.mkmsg_dialogueworker_control('test-send-all-messages',
@@ -264,7 +257,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(len(messages), 2)
 
     def test03_multiple_dialogue_in_collection(self):
-        config = self.simple_config
         dNow = datetime.now()
         dPast1 = datetime.now() - timedelta(minutes=30)
         dPast2 = datetime.now() - timedelta(minutes=60)
@@ -301,8 +293,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
              'modified': '50'})
 
         self.collections['participants'].save({'phone': '06'})
-        self.worker.init_program_db(config['database_name'])
-
+        
         dialogues = self.worker.get_active_dialogues()
         self.assertEqual(len(dialogues), 2)
         self.assertEqual(dialogues[0]['Dialogue']['_id'],
@@ -351,7 +342,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
     @inlineCallbacks
     def test05_send_scheduled_messages(self):
-        config = self.simple_config
         dialogue = self.dialogue_annoucement_2
         participant = {'phone': '06'}
         mytimezone = self.program_settings[2]['value']
@@ -396,7 +386,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             'content': 'Thank you',
             'participant-phone': '09'
             })
-        self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
         yield self.worker.send_scheduled()
@@ -410,14 +399,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEquals(self.collections['schedules'].count(), 1)
         self.assertEquals(self.collections['history'].count(), 4)
 
-    def getCollection(self, db, collection_name):
-        if (collection_name in self.db.collection_names()):
-            return db[collection_name]
-        else:
-            return db.create_collection(collection_name)
-
     def test06_schedule_interaction_while_interaction_in_status(self):
-        config = self.simple_config
         dialogue = self.dialogue_annoucement
         participant = {'phone': '06'}
         mytimezone = self.program_settings[2]['value']
@@ -432,7 +414,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                          dialogue_id='0')
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
-        self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
         #Starting the test
@@ -443,7 +424,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(self.collections['schedules'].count(), 1)
 
     def test07_schedule_interaction_while_interaction_in_schedule(self):
-        config = self.simple_config
         dialogue = self.dialogue_annoucement
         participant = {'phone': '06'}
 
@@ -471,7 +451,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                          dialogue_id='0')
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
-        self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
         #Starting the test
@@ -484,7 +463,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(schedule['date-time'], dLaterFuture.strftime(self.time_format))
 
     def test08_schedule_interaction_that_has_expired(self):
-        config = self.simple_config
         dialogue = self.dialogue_annoucement
         participant = {'phone': '06'}
 
@@ -498,15 +476,15 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collections['participants'].save(participant)
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
-        self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
         #Declare collection for scheduling messages
-        self.collections['schedules'].save({'date-time': dPast.strftime(self.time_format),
-                                        'participant-phone': '06',
-                                        'interaction-id': '1',
-                                        'dialogue-id': '0'})
-
+        self.collections['schedules'].save(
+            {'date-time': dPast.strftime(self.time_format),
+             'participant-phone': '06',
+             'interaction-id': '1',
+             'dialogue-id': '0'})
+        
         #Declare collection for loging messages
         self.save_status(timestamp=dLaterPast.strftime(self.time_format),
                          participant_phone='06',
@@ -521,7 +499,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(self.collections['schedules'].count(), 0)
 
     def test09_schedule_at_fixed_time(self):
-        config = self.simple_config
         dialogue = self.dialogue_announcement_fixedtime
         participant = {'phone': '08'}
 
@@ -534,7 +511,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collections['participants'].save(participant)
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
-        self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
         #action
@@ -552,10 +528,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
     #@inlineCallbacks
     def test12_generate_message(self):
-        config = self.simple_config
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
-        self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
         interaction_using_tag = {
@@ -639,7 +613,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     @inlineCallbacks
     def test13_received_delivered(self):
         event = self.mkmsg_delivery()
-        self.worker.init_program_db(self.database_name)
 
         self.collections['history'].save({
             'message-id': event['user_message_id'],
@@ -657,7 +630,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     @inlineCallbacks
     def test14_received_delivered_no_reference(self):
         event = self.mkmsg_delivery()
-        self.worker.init_program_db(self.database_name)
 
         yield self.send(event, 'event')
 
@@ -668,8 +640,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
     @inlineCallbacks
     def test15_received_delivered_failure(self):
-        self.worker.init_program_db(self.database_name)
-
         event = self.mkmsg_delivery(delivery_status='failed',
                                     failure_code='404',
                                     failure_level='http',
@@ -691,8 +661,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
     @inlineCallbacks
     def test16_received_ack(self):
-        self.worker.init_program_db(self.database_name)
-
         event = self.mkmsg_delivery(event_type='ack')
 
         self.collections['history'].save({
@@ -710,14 +678,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
     @inlineCallbacks
     def test17_receive_inbound_message(self):
-        config = self.config
-
         self.collections['dialogues'].save(self.dialogue_question)
         self.collections['dialogues'].save(self.dialogue_annoucement_2)
         self.collections['participants'].save({'phone': '06'})
         self.collections['requests'].save(self.request_join)
-        self.worker.init_program_db(self.database_name)
-
+        
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
                                              content='Feel ok')
         yield self.send(inbound_msg_matching, 'inbound')
@@ -783,7 +748,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertTrue(self.collections['participants'].find_one({'gender': 'Female'}))
 
     def test19_schedule_process_handle_crap_in_history(self):
-        config = self.simple_config
+        #config = self.simple_config
         dialogue = self.dialogue_annoucement
         participant = {'phone': '06'}
 
@@ -791,7 +756,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collections['participants'].save(participant)
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
-        self.worker.init_program_db(config['database_name'])
+        #self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
         self.save_status(participant_phone="06",
@@ -804,27 +769,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         schedules_count = self.collections['schedules'].count()
         self.assertEqual(schedules_count, 2)
 
-    @inlineCallbacks
-    def test20_control_dispatcher_keyword_routing(self):
-        #config = self.worker.config
-        dialogue = self.dialogue_question
-        participant = {"phone": "06"}
-
-        self.collections['dialogues'].save(dialogue)
-        self.collections['participants'].save(participant)
-        self.worker.init_program_db(self.config['database_name'])
-
-        yield self.worker.register_keywords_in_dispatcher()
-
-        msg = self.broker.get_messages('vumi', 'dispatcher.control')
-        expected_msg = self.mkmsg_dispatcher_control(
-            exposed_name=self.transport_name,
-            keyword_mappings=[['test', 'feel'],
-                              ['test', 'fel']])
-        self.assertEqual(msg, [expected_msg])
-
     def test21_schedule_unattach_message(self):
-        config = self.simple_config
         participants = [{'phone': '06'},
                         {'phone': '07'}]
 
@@ -858,7 +803,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             'unattach-id': unattach_id
         })
 
-        self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
         self.worker.schedule_participants_unattach_messages(
@@ -870,14 +814,10 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(schedules[0]['participant-phone'], '07')
 
     @inlineCallbacks
-    def test22_register_keywords_in_dispatcher(self):
-        config = self.simple_config
-        self.worker.init_program_db(self.config['database_name'])
-        self.worker.load_data()
-
+    def test22_register_keywords_in_dispatcher(self):        
         self.collections['dialogues'].save(self.dialogue_question)
         self.collections['requests'].save(self.request_join)
-
+        
         yield self.worker.register_keywords_in_dispatcher()
 
         messages = self.broker.get_messages('vumi', 'dispatcher.control')
@@ -889,10 +829,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
     @inlineCallbacks
     def test23_test_send_all_messages(self):
-        config = self.simple_config
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
-        self.worker.init_program_db(self.config['database_name'])
         self.worker.load_data()
 
         yield self.worker.send_all_messages(self.dialogue_annoucement, '06')
