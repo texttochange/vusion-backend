@@ -1,6 +1,6 @@
 # -*- test-case-name: tests.test_ttc -*-
 
-import sys
+import sys, traceback
 import re
 
 from twisted.internet.defer import (inlineCallbacks, Deferred)
@@ -8,7 +8,7 @@ from twisted.enterprise import adbapi
 from twisted.internet import task
 
 import pymongo
-from pymongo.objectid import ObjectId
+from bson.objectid import ObjectId
 
 import redis
 
@@ -156,7 +156,7 @@ class TtcGenericWorker(ApplicationWorker):
     @inlineCallbacks
     def consume_control(self, message):
         try:
-            self.log("Control message received to %s" % (message['action'],))
+            self.log("Control message received to %r" % (message['action'],))
             if (not self.is_ready()):
                 self.log("Worker is not ready, cannot performe the action.")
                 return
@@ -167,9 +167,11 @@ class TtcGenericWorker(ApplicationWorker):
                 dialogue = self.get_dialogue(message['dialogue_obj_id'])
                 self.send_all_messages(dialogue, message['phone_number'])
         except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log(
-                "Error during consume user message: %s %s" %
-                (sys.exc_info()[0], sys.exc_info()[1]))
+                "Error during consume control message: %r" %
+                traceback.format_exception(exc_type, exc_value, exc_traceback))
+            
 
     def dispatch_event(self, message):
         self.log("Event message received %s" % (message,))
@@ -239,8 +241,8 @@ class TtcGenericWorker(ApplicationWorker):
             self.log("The action is not supported %s" % action['type-action'])
 
     def consume_user_message(self, message):
-        self.log("User message received from %s '%s' " % (message['from_addr'],
-                                                          message['content']))
+        self.log("User message received from %s '%s'" % (message['from_addr'],
+                                                         message['content']))
         try:
             ref = None
             actions = []
@@ -261,9 +263,10 @@ class TtcGenericWorker(ApplicationWorker):
             for action in actions:
                 self.run_action(message['from_addr'], action)
         except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log(
-                "Error during consume user message: %s %s" %
-                (sys.exc_info()[0], sys.exc_info()[1]))
+                "Error during consume user message: %r" %
+                traceback.format_exception(exc_type, exc_value, exc_traceback))
 
     @inlineCallbacks
     def daemon_process(self):
@@ -393,7 +396,11 @@ class TtcGenericWorker(ApplicationWorker):
                 self.log("Schedule has been saved: %s" % schedule)
         except:
             self.log("Scheduling exception: %s" % interaction)
-            self.log("Exception is %s" % (sys.exc_info()[0]))
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            self.log(
+                "Error during consume user message: %r" %
+                traceback.format_exception(exc_type, exc_value, exc_traceback))
+
 
     def get_local_time(self):
         try:
@@ -491,11 +498,10 @@ class TtcGenericWorker(ApplicationWorker):
                     failure_reason=('%s' % (e,)),
                     reference_metadata=reference_metadata)
             except:
-                self.log("Unexpected exception: %s" % toSend, 'error')
+                exc_type, exc_value, exc_traceback = sys.exc_info()
                 self.log(
-                    "Exception is %s - %s" % (sys.exc_info()[0],
-                                              sys.exc_info()[1]),
-                    'error')
+                    "Error during consume user message: %r" %
+                    traceback.format_exception(exc_type, exc_value, exc_traceback))
                 self.save_history(
                     participant_phone=toSend['participant-phone'],
                     message_content='',
