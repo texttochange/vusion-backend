@@ -69,10 +69,9 @@ class TtcGenericWorker(ApplicationWorker):
         #Set up dispatcher publisher
         self.dispatcher_publisher = yield self.publish_to(
             '%(dispatcher_name)s.control' % self.config)
-
-        #if ('dispatcher_name' in self.config):
-         #   yield self._setup_dispatcher_publisher()
-
+        
+        self.register_keywords_in_dispatcher()
+        
     def stopWorker(self):
         self.log("Worker is stopped.")
         if (self.sender.running):
@@ -241,6 +240,7 @@ class TtcGenericWorker(ApplicationWorker):
         self.log("User message received from %s '%s' " % (message['from_addr'],
                                                           message['content']))
         try:
+            ref = None
             actions = []
             active_dialogues = self.get_active_dialogues()
             for dialogue in active_dialogues:
