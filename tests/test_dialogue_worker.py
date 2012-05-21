@@ -46,6 +46,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
     dialogue_annoucement = {
         'activated': 1,
+        'auto-enrollment': 'all',
         'dialogue-id': '0',
         'interactions': [
             {'type-interaction': 'announcement',
@@ -62,7 +63,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
     dialogue_annoucement_2 = {
             "activated": 1,
-            "dialogue-id": "0",
+            "dialogue-id": "2",
             "interactions": [
                 {"type-interaction": "announcement",
                  "interaction-id": "0",
@@ -92,7 +93,10 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                     {'choice': 'Fine'},
                     {'choice': 'Ok',
                      'feedbacks':
-                     [{'content': 'Thank you'}]}
+                     [{'content': 'Thank you'}],
+                     'answer-actions':
+                     [{'type-answer-action': 'enrolling','enroll': '2' }],
+                     },
                     ],
                 'type-schedule': 'immediately'
             }
@@ -111,6 +115,42 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                 'date-time': '2012-03-12T12:30:00'
             }
         ]
+    }
+    
+    request_join = {
+        'keyword': 'www join, www',
+        'responses': [
+            {
+                'content': 'thankyou of joining',
+                },
+            {
+                'content': 'soon more is coming',
+                }],
+        'actions': [
+            {
+                'type-action': 'optin',
+                },
+            {
+                'type-action': 'enrolling',
+                'enroll': '01'
+            }]
+    }
+        
+    request_tag = {
+        'keyword': 'www tagme',
+        'actions': [
+            {
+                'type-action': 'tagging',
+                'tag': 'onetag'
+            }]
+    }
+    
+    request_leave = {
+        'keyword': 'www quit',
+        'actions': [
+            {
+                'type-action': 'optout',
+            }]
     }
 
     @inlineCallbacks
@@ -143,7 +183,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                                 'schedules',
                                 'shortcodes',
                                 'program_settings',
-                                'unattached_messages'])
+                                'unattached_messages',
+                                'requests'])
 
         #Let's rock"
         self.worker.startService()
@@ -200,7 +241,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                                                   dialogue_id.__str__())
         yield self.send(event, 'control')
 
-        self.assertEqual(3, self.collections['schedules'].count())
+        self.assertEqual(2, self.collections['schedules'].count())
 
     @inlineCallbacks
     def test02_consume_control_test_send_all_messages(self):
@@ -330,17 +371,17 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         })
         self.collections['schedules'].save({
             'date-time': dPast.strftime(self.time_format),
-            'dialogue-id': '0',
+            'dialogue-id': '2',
             'interaction-id': '0',
             'participant-phone': '09'})
         self.collections['schedules'].save({
             'date-time': dNow.strftime(self.time_format),
-            'dialogue-id': '0',
+            'dialogue-id': '2',
             'interaction-id': '1',
             'participant-phone': '09'})
         self.collections['schedules'].save({
             'date-time': dFuture.strftime(self.time_format),
-            'dialogue-id': '0',
+            'dialogue-id': '2',
             'interaction-id': '2',
             'participant-phone': '09'})
         self.collections['schedules'].save({
@@ -669,33 +710,77 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     @inlineCallbacks
     def test17_receive_inbound_message(self):
         config = self.config
-        dialogue = self.dialogue_question
-        participant = {'phone': '06'}
-
-        self.collections['dialogues'].save(dialogue)
-        self.collections['participants'].save(participant)
+        
+        self.collections['dialogues'].save(self.dialogue_question)
+        self.collections['dialogues'].save(self.dialogue_annoucement_2)
+        self.collections['participants'].save({'phone': '06'})
+        self.collections['requests'].save(self.request_join)
         self.worker.init_program_db(self.database_name)
 
-        inbound_msg_matching = self.mkmsg_in(content='Feel ok')
+        inbound_msg_matching = self.mkmsg_in(from_addr='06',
+                                             content='Feel ok')
         yield self.send(inbound_msg_matching, 'inbound')
 
         #Only message matching keyword should be forwarded to the worker
-        inbound_msg_non_matching_keyword = self.mkmsg_in(content='ok')
+        inbound_msg_non_matching_keyword = self.mkmsg_in(from_addr='06',
+                                                         content='ok')
         yield self.send(inbound_msg_non_matching_keyword, 'inbound')
 
-        inbound_msg_non_matching_answer = self.mkmsg_in(content='Feel good')
+        inbound_msg_non_matching_answer = self.mkmsg_in(from_addr='06',
+                                                        content='Feel good')
         yield self.send(inbound_msg_non_matching_answer, 'inbound')
 
-        self.assertEqual(2, self.collections['history'].count())
+        self.assertEqual(3, self.collections['history'].count())
         history = self.collections['history'].find()
         self.assertEqual('01-01', history[0]['interaction-id'])
         self.assertEqual('01', history[0]['dialogue-id'])
         self.assertEqual('Ok', history[0]['matching-answer'])
-        self.assertEqual(None, history[1]['matching-answer'])
+        self.assertEqual(None, history[2]['matching-answer'])
 
         self.assertEqual(1, self.collections['schedules'].count())
 
-    def test18_schedule_process_handle_crap_in_history(self):
+        inbound_msg_matching_request = self.mkmsg_in(content='wWw')
+        yield self.send(inbound_msg_matching_request, 'inbound')
+
+        inbound_msg_matching_request = self.mkmsg_in(content='www join')
+        yield self.send(inbound_msg_matching_request, 'inbound')
+
+        self.assertEqual(5, self.collections['history'].count())
+        self.assertEqual(3, self.collections['participants'].count())
+        self.assertEqual(6, self.collections['schedules'].count())
+
+    def test18_run_action(self):
+        self.worker.init_program_db(self.database_name)
+        
+        self.worker.run_action("08", {'type-action': 'feedback',
+                                      'content': 'message'})
+        self.assertEqual(1, self.collections['schedules'].count())
+        
+        self.worker.run_action("08", {'type-action': 'optin'})
+        self.assertEqual(1, self.collections['participants'].count())
+
+        self.worker.run_action("08", {'type-action': 'optout'})
+        self.assertEqual(1, self.collections['participants'].count())
+        self.assertTrue(self.collections['participants'].find_one({'phone': '08'})['optout'])
+        
+        self.worker.run_action("08", {'type-action': 'tagging',
+                                      'tag':'my tag'})
+        self.worker.run_action("08", {'type-action': 'tagging',
+                                      'tag': 'my second tag'})
+        self.assertTrue(self.collections['participants'].find_one({'tags': 'my tag'}))
+        
+        self.collections['dialogues'].save(self.dialogue_question)
+        self.worker.run_action("08", {'type-action': 'enrolling',
+                                      'enroll': '01'})
+        self.assertTrue(self.collections['participants'].find_one({'enrolled': '01'}))
+        self.assertEqual(2, self.collections['schedules'].count())
+
+        self.worker.run_action("08", {'type-action': 'profiling',
+                                      'label': 'gender',
+                                      'value':'Female'})
+        self.assertTrue(self.collections['participants'].find_one({'gender': 'Female'}))
+
+    def test19_schedule_process_handle_crap_in_history(self):
         config = self.simple_config
         dialogue = self.dialogue_annoucement
         participant = {'phone': '06'}
@@ -718,7 +803,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(schedules_count, 2)
 
     @inlineCallbacks
-    def test19_control_dispatcher_keyword_routing(self):
+    def test20_control_dispatcher_keyword_routing(self):
         #config = self.worker.config
         dialogue = self.dialogue_question
         participant = {"phone": "06"}
@@ -736,7 +821,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                               ['test', 'fel']])
         self.assertEqual(msg, [expected_msg])
 
-    def test20_schedule_unattach_message(self):
+    def test21_schedule_unattach_message(self):
         config = self.simple_config
         participants = [{'phone': '06'},
                         {'phone': '07'}]
@@ -782,19 +867,27 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         schedules = self.collections['schedules'].find()
         self.assertEqual(schedules[0]['participant-phone'], '07')
 
-    def test21_participant_profiling(self):
-        participant = {'phone': '06'}
-        self.collections['participants'].save(participant)
+    @inlineCallbacks
+    def test22_register_keywords_in_dispatcher(self):
+        config = self.simple_config
         self.worker.init_program_db(self.config['database_name'])
-
-        self.worker.label_participant_with_reply('06', 'gender', 'M')
-
-        participant = self.collections['participants'].find_one()
-        self.assertTrue('gender' in participant)
-        self.assertEqual(participant['gender'], 'M')
+        self.worker.load_data()
+        
+        self.collections['dialogues'].save(self.dialogue_question)
+        self.collections['requests'].save(self.request_join)
+        
+        yield self.worker.register_keywords_in_dispatcher();
+        
+        messages = self.broker.get_messages('vumi', 'dispatcher.control')
+        self.assertEqual(1, len(messages))
+        self.assertEqual([['test', 'feel'],
+                          ['test', 'fel'],
+                          ['test', 'www']],
+                         messages[0]['keyword_mappings'])
+        
 
     @inlineCallbacks
-    def test22_test_send_all_messages(self):
+    def test23_test_send_all_messages(self):
         config = self.simple_config
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)

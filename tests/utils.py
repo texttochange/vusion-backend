@@ -62,6 +62,7 @@ class MessageMaker:
         return TransportEvent(**params)
 
     def mkmsg_in(self, content='hello world',
+                 from_addr='+41791234567', 
                  session_event=TransportUserMessage.SESSION_NONE,
                  message_id='abc', transport_type=None,
                  transport_metadata=None, transport_name=None,
@@ -73,7 +74,7 @@ class MessageMaker:
         if transport_metadata is None:
             transport_metadata = {}
         return TransportUserMessage(
-            from_addr='+41791234567',
+            from_addr=from_addr,
             to_addr='9292',
             group=None,
             message_id=message_id,

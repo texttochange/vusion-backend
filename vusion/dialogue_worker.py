@@ -69,10 +69,9 @@ class TtcGenericWorker(ApplicationWorker):
         #Set up dispatcher publisher
         self.dispatcher_publisher = yield self.publish_to(
             '%(dispatcher_name)s.control' % self.config)
-
-        #if ('dispatcher_name' in self.config):
-         #   yield self._setup_dispatcher_publisher()
-
+        
+        self.register_keywords_in_dispatcher()
+        
     def stopWorker(self):
         self.log("Worker is stopped.")
         if (self.sender.running):
@@ -100,13 +99,13 @@ class TtcGenericWorker(ApplicationWorker):
         for key, value in reference_metadata.iteritems():
             history[key] = value
         self.collections['history'].save(history)
-
-    def get_current_script_id(self):
-        for script in self.collections['dialogues'].find(
-            {'activated': 1},
+    
+    def get_current_dialogue(self, dialogue_id):
+        for dialogue in self.collections['dialogues'].find(
+            {'activated': 1, 'dialogue-id': dialogue_id},
             sort=[('modified', pymongo.DESCENDING)],
             limit=1):
-            return script['_id']
+            return dialogue
         return None
 
     def get_active_dialogues(self):
@@ -139,7 +138,8 @@ class TtcGenericWorker(ApplicationWorker):
                                 'history',
                                 'schedules',
                                 'program_settings',
-                                'unattached_messages'])
+                                'unattached_messages',
+                                'requests'])
 
     def setup_collections(self, names):
         for name in names:
@@ -189,37 +189,75 @@ class TtcGenericWorker(ApplicationWorker):
                     message['failure_reason']))
         self.collections['history'].save(status)
 
+    def get_matching_request_actions(self, content, actions):
+        regx = re.compile(('(,\s|^)%s($|,)' % content), re.IGNORECASE)
+        matching_request = self.collections['requests'].find_one(
+            {'keyword': {'$regex': regx}})
+        if matching_request:
+            if 'actions' in matching_request:
+                for action in matching_request['actions']:
+                    actions.append(action)
+            if 'responses' in matching_request:
+                for response in matching_request['responses']:
+                    actions.append(
+                        {'type-action': 'feedback',
+                         'content': response['content']})
+        return actions
+    
+    def run_action(self, participant_phone, action):
+        if (action['type-action'] == 'optin'):
+            self.collections['participants'].save({'phone': participant_phone})
+        elif (action['type-action'] == 'optout'):
+            self.collections['participants'].update(
+                {'phone': participant_phone},
+                {'$set': {'optout': True}})
+        elif (action['type-action'] == 'feedback'):
+            self.collections['schedules'].save({
+                'date-time': time_to_vusion_format(self.get_local_time()),
+                'content': action['content'],
+                'type-content': 'feedback',
+                'participant-phone': participant_phone
+            })
+        elif (action['type-action'] == 'tagging'):
+            self.collections['participants'].update(
+                {'phone': participant_phone},
+                {'$push': {'tags': action['tag']}})
+        elif (action['type-action'] == 'enrolling'):
+            self.collections['participants'].update(
+                {'phone': participant_phone},
+                {'$push': {'enrolled': action['enroll']}})
+            dialogue = self.get_current_dialogue(action['enroll'])
+            participant = self.collections['participants'].find_one({'phone': participant_phone})
+            self.schedule_participant_dialogue(participant, dialogue)
+        elif (action['type-action'] == 'profiling'):
+            self.collections['participants'].update(
+                {'phone': participant_phone},
+                {'$set': {action['label']: action['value']}})            
+        else:
+            self.log("The action is not supported %s" % action['type-action'])
+
     def consume_user_message(self, message):
         self.log("User message received from %s '%s' " % (message['from_addr'],
                                                           message['content']))
         try:
+            ref = None
+            actions = []
             active_dialogues = self.get_active_dialogues()
             for dialogue in active_dialogues:
                 scriptHelper = VusionScript(dialogue['Dialogue'])
-                data = scriptHelper.get_matching_question_answer(
-                    message['content'])
-                if data:
+                ref, actions = scriptHelper.get_matching_reference_and_actions(
+                    message['content'], actions)
+                if ref:
                     break
+            actions = self.get_matching_request_actions(message['content'],
+                                                        actions)
             self.save_history(
                 message_content=message['content'],
                 participant_phone=message['from_addr'],
                 message_type='received',
-                reference_metadata={
-                    'dialogue-id': data['dialogue-id'],
-                    'interaction-id': data['interaction-id'],
-                    'matching-answer': data['matching-answer']})
-            self.label_participant_with_reply(
-                message['from_addr'],
-                data['label-for-participant-profiling'],
-                data['matching-answer'])
-            if data['feedbacks']:
-                for feedback in data['feedbacks']:
-                    self.collections['schedules'].save({
-                        'date-time': time_to_vusion_format(self.get_local_time()),
-                        'content': feedback['content'],
-                        'type-content': 'feedback',
-                        'participant-phone': message['from_addr']
-                    })
+                reference_metadata=ref)
+            for action in actions:
+                self.run_action(message['from_addr'], action)
         except:
             self.log(
                 "Error during consume user message: %s %s" %
@@ -248,38 +286,19 @@ class TtcGenericWorker(ApplicationWorker):
             return False
         return True
 
-    def has_active_script_changed(self):
-        script_id = self.get_current_script_id()
-        if script_id == None:
-            return False
-        if self.last_script_used == None:
-            self.last_script_used = script_id
-            return True
-        if self.last_script_used == script_id:
-            return False
-        self.last_script_used = script_id
-        return True
-
-    def label_participant_with_reply(self, participant_phone, label, reply):
-        if not label:
-            return
-        label = label.lower()
-        participant = self.collections['participants'].find_one(
-            {'phone': participant_phone})
-        if not participant:
-            self.log("Cannot find participant %s for profiling" %
-                     (participant_phone))
-            return
-        participant[label] = reply
-        self.collections['participants'].save(participant)
-
     def schedule(self):
         #Schedule the dialogues
         active_dialogues = self.get_active_dialogues()
         for dialogue in active_dialogues:
+            if ('auto-enrollment' in dialogue['Dialogue']
+                and dialogue['Dialogue']['auto-enrollment'] == 'all'):
+                participants = self.collections['participants'].find()
+            else:
+                participants = self.collections['participants'].find(
+                    {'enrolled': dialogue['dialogue-id']})
             self.schedule_participants_dialogue(
-                self.collections['participants'].find(),
-                dialogue['Dialogue'])
+                    participants,
+                    dialogue['Dialogue'])
         #Schedule the nonattached messages
         self.schedule_participants_unattach_messages(
             self.collections['participants'].find())
@@ -537,6 +556,11 @@ class TtcGenericWorker(ApplicationWorker):
         keywords = []
         for dialogue in self.get_active_dialogues():
             keywords += VusionScript(dialogue['Dialogue']).get_all_keywords()
+        for request in self.collections['requests'].find():
+            keyphrases = request['keyword'].split(', ')
+            for keyphrase in keyphrases:
+                if not (keyphrase.split(' ')[0]) in keywords:
+                    keywords.append(keyphrase.split(' ')[0])
         keyword_mappings = []
         for keyword in keywords:
             keyword_mappings.append((self.transport_name, keyword))
