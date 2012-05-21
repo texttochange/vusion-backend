@@ -69,9 +69,8 @@ class TtcGenericWorker(ApplicationWorker):
         #Set up dispatcher publisher
         self.dispatcher_publisher = yield self.publish_to(
             '%(dispatcher_name)s.control' % self.config)
-        
         self.register_keywords_in_dispatcher()
-        
+
     def stopWorker(self):
         self.log("Worker is stopped.")
         if (self.sender.running):
@@ -99,7 +98,7 @@ class TtcGenericWorker(ApplicationWorker):
         for key, value in reference_metadata.iteritems():
             history[key] = value
         self.collections['history'].save(history)
-    
+
     def get_current_dialogue(self, dialogue_id):
         for dialogue in self.collections['dialogues'].find(
             {'activated': 1, 'dialogue-id': dialogue_id},
@@ -203,7 +202,7 @@ class TtcGenericWorker(ApplicationWorker):
                         {'type-action': 'feedback',
                          'content': response['content']})
         return actions
-    
+
     def run_action(self, participant_phone, action):
         if (action['type-action'] == 'optin'):
             self.collections['participants'].save({'phone': participant_phone})
@@ -227,12 +226,13 @@ class TtcGenericWorker(ApplicationWorker):
                 {'phone': participant_phone},
                 {'$push': {'enrolled': action['enroll']}})
             dialogue = self.get_current_dialogue(action['enroll'])
-            participant = self.collections['participants'].find_one({'phone': participant_phone})
+            participant = self.collections['participants'].find_one(
+                {'phone': participant_phone})
             self.schedule_participant_dialogue(participant, dialogue)
         elif (action['type-action'] == 'profiling'):
             self.collections['participants'].update(
                 {'phone': participant_phone},
-                {'$set': {action['label']: action['value']}})            
+                {'$set': {action['label']: action['value']}})
         else:
             self.log("The action is not supported %s" % action['type-action'])
 

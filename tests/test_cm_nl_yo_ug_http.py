@@ -149,7 +149,7 @@ class TestResource(Resource):
 
     def render_GET(self, request):
         request.setResponseCode(self.code)
-        return self.message        
+        return self.message
 
     def render_POST(self, request):
         #log.msg(request.content.read()

@@ -45,21 +45,22 @@ class VusionScript:
 
         if not interaction:
             return reference_metadata, actions
-        
+
         reference_metadata = {
             'dialogue-id': dialogue_id,
             'interaction-id': interaction['interaction-id']}
         if 'answers' in interaction:
-            answer = self.get_matching_answer(interaction['answers'], reply)            
+            answer = self.get_matching_answer(interaction['answers'], reply)
             if not answer:
                 reference_metadata['matching-answer'] = None
             else:
                 reference_metadata['matching-answer'] = answer['choice']
                 actions = self.add_feedback_action(actions, answer)
                 if 'label-for-participant-profiling' in interaction:
-                    actions.append({'type-action': 'profiling',
-                                    'label': interaction['label-for-participant-profiling'],
-                                    'value': answer['choice']})
+                    actions.append(
+                        {'type-action': 'profiling',
+                         'label': interaction['label-for-participant-profiling'],
+                         'value': answer['choice']})
                 if 'answer-actions' in answer:
                     for answer_action in answer['answer-actions']:
                         action = answer_action
@@ -76,7 +77,7 @@ class VusionScript:
                     {'type-action': 'feedback',
                      'content': feedback['content']})
         return actions
-        
+
     def get_all_keywords(self):
         keywords = []
         for interaction in self.dialogue['interactions']:

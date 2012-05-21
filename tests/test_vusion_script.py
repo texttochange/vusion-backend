@@ -82,9 +82,9 @@ class VusionScriptTestCase(TestCase):
         script = VusionScript(self.question_answer)
 
         ref, actions = script.get_matching_reference_and_actions("feel 1", [])
-        self.assertEqual(ref,{'dialogue-id': '01',
-                              'interaction-id': '01-01',
-                              'matching-answer': 'Fine'})
+        self.assertEqual(ref, {'dialogue-id': '01',
+                               'interaction-id': '01-01',
+                               'matching-answer': 'Fine'})
         self.assertEqual(len(actions), 2)
         self.assertEqual(actions[0], {'type-action': 'feedback',
                                       'content': 'thank you'})
@@ -92,39 +92,39 @@ class VusionScriptTestCase(TestCase):
                                       'content': 'thank you again'})
 
         ref, actions = script.get_matching_reference_and_actions("feel 0", [])
-        self.assertEqual(ref,{'dialogue-id': '01',
-                              'interaction-id': '01-01',
-                              'matching-answer': None})
+        self.assertEqual(ref, {'dialogue-id': '01',
+                               'interaction-id': '01-01',
+                               'matching-answer': None})
         self.assertEqual(len(actions), 0)
 
         ref, actions = script.get_matching_reference_and_actions("feel 3", [])
-        self.assertEqual(ref,{'dialogue-id': '01',
-                              'interaction-id': '01-01',
-                              'matching-answer': None})
+        self.assertEqual(ref, {'dialogue-id': '01',
+                               'interaction-id': '01-01',
+                               'matching-answer': None})
         self.assertEqual(len(actions), 0)
 
         ref, actions = script.get_matching_reference_and_actions("feel ok", [])
-        self.assertEqual(ref,{'dialogue-id': '01',
-                              'interaction-id': '01-01',
-                              'matching-answer': 'Ok'})
+        self.assertEqual(ref, {'dialogue-id': '01',
+                               'interaction-id': '01-01',
+                               'matching-answer': 'Ok'})
         self.assertEqual(len(actions), 0)
 
         ref, actions = script.get_matching_reference_and_actions("fel ok", [])
-        self.assertEqual(ref,{'dialogue-id': '01',
-                              'interaction-id': '01-01',
-                              'matching-answer': 'Ok'})
+        self.assertEqual(ref, {'dialogue-id': '01',
+                               'interaction-id': '01-01',
+                               'matching-answer': 'Ok'})
         self.assertEqual(len(actions), 0)
-       
+
         ref, actions = script.get_matching_reference_and_actions("HOW good", [])
-        self.assertEqual(ref,{'dialogue-id': '01',
-                              'interaction-id': '01-02'})
+        self.assertEqual(ref, {'dialogue-id': '01',
+                               'interaction-id': '01-02'})
         self.assertEqual(len(actions), 1)
         self.assertEqual(actions[0], {'type-action': 'feedback',
                                       'content': 'thank you for this answer'})
 
         script = VusionScript(self.other_question_answer)
         ref, actions = script.get_matching_reference_and_actions("something good", [])
-        
+
         self.assertEqual(ref, {})
         self.assertEqual(actions, [])
 

@@ -18,6 +18,7 @@ from xml.etree import ElementTree
 
 import re
 
+
 ##This transport is supposed to send and receive sms in 2 different ways.
 ##To send sms we use the CM API
 ##To receive sms we use the YO Interface to forward the sms
@@ -62,7 +63,7 @@ class CmYoTransport(Transport):
             log.msg("Connection failed sending message: %s" % message)
         except Exception as ex:
             log.msg("Unexpected error %s" % repr(ex))
-        
+
         if response.code != 200:
             log.msg("Http Error %s: %s"
                     % (response.code, response.delivered_body))
@@ -135,7 +136,7 @@ class ReceiveSMSResource(Resource):
 
 
 class CMXMLParser():
-    
+
     def build(self, messagedict):
         messages = ElementTree.Element('MESSAGES')
         customer = ElementTree.SubElement(messages, 'CUSTOMER')
