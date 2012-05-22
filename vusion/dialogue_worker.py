@@ -55,7 +55,8 @@ class TtcGenericWorker(ApplicationWorker):
         self._d.callback(None)
 
         self.collections = {}
-        self.init_program_db(self.config['database_name'])
+        self.init_program_db(self.config['database_name'],
+                             self.config['vusion_database_name'])
 
         send_loop_period = self.config['send_loop_period'] if 'send_loop_period' in self.config else "60"
         self.sender = task.LoopingCall(self.daemon_process)
@@ -125,15 +126,15 @@ class TtcGenericWorker(ApplicationWorker):
             {'_id': ObjectId(dialogue_id)})
         return dialogue
 
-    def init_program_db(self, database_name):
+    def init_program_db(self, database_name, vusion_database_name):
         self.log("Initialization of the program")
         self.database_name = database_name
+        self.vusion_database_name = vusion_database_name
         self.log("Connecting to database: %s" % self.database_name)
 
         #Initilization of the database
         connection = pymongo.Connection("localhost", 27017)
         self.db = connection[self.database_name]
-
         self.setup_collections(['dialogues',
                                 'participants',
                                 'history',
@@ -141,6 +142,9 @@ class TtcGenericWorker(ApplicationWorker):
                                 'program_settings',
                                 'unattached_messages',
                                 'requests'])
+        
+        self.db = connection[self.vusion_database_name]
+        self.setup_collections(['templates'])
 
     def setup_collections(self, names):
         for name in names:
@@ -577,10 +581,15 @@ class TtcGenericWorker(ApplicationWorker):
                          'keyword_mappings': keyword_mappings})
         yield self.dispatcher_publisher.publish_message(msg)
 
+    #TODO no template defined and no default template defined... what to do?
     def generate_message(self, interaction):
         message = interaction['content']
-        if ('type-interaction' in interaction and
-            interaction['type-interaction'] == 'question-answer'):
+        if ('type-interaction' in interaction and interaction['type-interaction'] == 'question-answer'):
+            if 'template' in interaction:
+                pass
+            else:
+                default_template = self.collections['program_settings'].find_one({"key": "default_template"})
+                template = self.collections['templates'].find_one({"_id": default_template['value']})
             keyword_prefix = ''
             if 'keyword' in interaction:
                 keyword = split_keywords(interaction['keyword'])[0]

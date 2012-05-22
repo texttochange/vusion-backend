@@ -153,14 +153,21 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                 'type-action': 'optout',
             }]
     }
+    
+    template = {
+        'name': 'my template',
+        'template': 'QUESTION/r/nANSWERS/r/nTo reply type KEYWORD<space><AnswerNb> send to SHORTCODE' 
+        }
 
     @inlineCallbacks
     def setUp(self):
         self.transport_name = 'test'
         self.control_name = 'mycontrol'
-        self.database_name = 'test'
+        self.database_name = 'test_program_db'
+        self.vusion_database_name = 'test_vusion_db'
         self.config = {'transport_name': self.transport_name,
                        'database_name': self.database_name,
+                       'vusion_database_name': self.vusion_database_name,
                        'control_name': self.control_name,
                        'dispatcher_name': 'dispatcher'}
         self.worker = get_stubbed_worker(TtcGenericWorker,
@@ -186,6 +193,9 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                                 'program_settings',
                                 'unattached_messages',
                                 'requests'])
+        self.db = connection[self.config['vusion_database_name']]
+        self.setup_collections(['templates'])
+        
         self.drop_collections()
 
         #Let's rock"
@@ -236,7 +246,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         event = self.mkmsg_dialogueworker_control('update-schedule',
                                                   dialogue_id.__str__())
         yield self.send(event, 'control')
-
+        
         self.assertEqual(2, self.collections['schedules'].count())
 
     @inlineCallbacks
@@ -557,6 +567,13 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         message_two = self.worker.generate_message(interaction_using_tag)
         self.assertRaises(MissingData, self.worker.customize_message, '07', message_two)
 
+        #start testing the generate function
+        saved_template_id = self.collections['templates'].save(self.template)
+        self.collections['program_settings'].save(
+            {'key': 'default_template',
+             'value': saved_template_id}
+        )
+
         interaction_closed_question = {
             'type-interaction': 'question-answer',
             'content': 'How are you?',
@@ -570,7 +587,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         self.assertEqual(
             close_question,
-            "How are you? 1. Fine 2. Ok To reply send: FEEL(space)(Answer Nr) to 8181")
+            "How are you?\r\n 1. Fine\r\n 2. Ok\r\n To reply send: FEEL<space><AnswerNr> to 8181")
 
         interaction_open_question = {
             'type-interaction': 'question-answer',
