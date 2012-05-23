@@ -110,6 +110,10 @@ class ReceiveSMSResource(Resource):
         self.publish_func = publish_func
         self.transport_name = self.config['transport_name']
 
+    def phone_format_from_yo(self, phone):
+        regex = re.compile('^00')
+        return re.sub(regex, '+', phone)    
+
     @inlineCallbacks
     def do_render(self, request):
         log.msg('got hit with %s' % request.args)
@@ -121,7 +125,7 @@ class ReceiveSMSResource(Resource):
                     transport_type='sms',
                     message_id='abc',
                     to_addr=request.args['code'][0],
-                    from_addr=request.args['sender'][0],
+                    from_addr=self.phone_format_from_yo(request.args['sender'][0]),
                     content=request.args['message'][0],
                     transport_metadata={}
             )
