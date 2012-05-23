@@ -583,33 +583,44 @@ class TtcGenericWorker(ApplicationWorker):
 
     #TODO no template defined and no default template defined... what to do?
     def generate_message(self, interaction):
+        regex_QUESTION = re.compile('QUESTION')
+        regex_ANSWERS = re.compile('ANSWERS')
+        regex_ANSWER = re.compile('ANSWER')
+        regex_SHORTCODE = re.compile('SHORTCODE')
+        regex_KEYWORD = re.compile('KEYWORD')
+        regex_Breakline = re.compile('\\r\\n')
+
         message = interaction['content']
         if ('type-interaction' in interaction and interaction['type-interaction'] == 'question-answer'):
             if 'template' in interaction:
+                #need to get the template
                 pass
             else:
-                default_template = self.collections['program_settings'].find_one({"key": "default_template"})
+                if (interaction['type-question']=='closed-question'):
+                    default_template = self.collections['program_settings'].find_one({"key": "default_template_closed_question"})
+                elif (interaction['type-question']=='open-question'):
+                    default_template = self.collections['program_settings'].find_one({"key": "default_template_open_question"})
+                else:
+                    #no default for this question type
+                    pass
                 template = self.collections['templates'].find_one({"_id": default_template['value']})
-            keyword_prefix = ''
-            if 'keyword' in interaction:
-                keyword = split_keywords(interaction['keyword'])[0]
-                if not keyword is '':
-                    keyword_prefix = ("%s(space)" % (keyword.upper()))
-            if 'answers' in interaction:
+            #replace question
+            message = re.sub(regex_QUESTION, interaction['content'], template['template'])
+            #replace answers
+            if (interaction['type-question']=='closed-question'):
                 i = 1
+                answers = ""
                 for answer in interaction['answers']:
-                    message = ('%s %s. %s' % (message, i, answer['choice']))
+                    answers = ('%s%s. %s\\r\\n' % (answers, i, answer['choice']))
                     i = i + 1
-                message = ('%s To reply send: %s(Answer Nr) to %s'
-                           % (message,
-                              keyword_prefix,
-                              self.properties['shortcode']))
-            if 'answer-label' in interaction:
-                message = ('%s To reply send: %s(%s) to %s'
-                           % (message,
-                              keyword_prefix,
-                              interaction['answer-label'],
-                              self.properties['shortcode']))
+                message = re.sub(regex_ANSWERS, answers, message)
+            #replace keyword
+            keyword = split_keywords(interaction['keyword'])[0]            
+            message = re.sub(regex_KEYWORD, keyword.upper(), message)
+            #replace shortcode
+            message = re.sub(regex_SHORTCODE, self.properties['shortcode'], message)
+            if (interaction['type-question']=='open-question'):
+                message = re.sub(regex_ANSWER, interaction['answer-label'], message)
         return message
 
     def customize_message(self, participant_phone, message):

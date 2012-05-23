@@ -154,9 +154,16 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             }]
     }
     
-    template = {
+    template_closed_question = {
         'name': 'my template',
-        'template': 'QUESTION/r/nANSWERS/r/nTo reply type KEYWORD<space><AnswerNb> send to SHORTCODE' 
+        'type-question': 'closed-question',
+        'template': 'QUESTION\r\nANSWERS To reply send: KEYWORD<space><AnswerNb> to SHORTCODE' 
+        }
+
+    template_open_question = {
+        'name': 'my other template',
+        'type-question': 'open-question',
+        'template': 'QUESTION\r\n To reply send: KEYWORD<space><ANSWER> to SHORTCODE' 
         }
 
     @inlineCallbacks
@@ -568,14 +575,15 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertRaises(MissingData, self.worker.customize_message, '07', message_two)
 
         #start testing the generate function
-        saved_template_id = self.collections['templates'].save(self.template)
+        saved_template_id = self.collections['templates'].save(self.template_closed_question)
         self.collections['program_settings'].save(
-            {'key': 'default_template',
+            {'key': 'default_template_closed_question',
              'value': saved_template_id}
         )
 
         interaction_closed_question = {
             'type-interaction': 'question-answer',
+            'type-question': 'closed-question',
             'content': 'How are you?',
             'keyword': 'FEEL',
             'answers': [
@@ -587,10 +595,18 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         self.assertEqual(
             close_question,
-            "How are you?\r\n 1. Fine\r\n 2. Ok\r\n To reply send: FEEL<space><AnswerNr> to 8181")
+            "How are you?\r\n1. Fine\r\n2. Ok\r\n To reply send: FEEL<space><AnswerNb> to 8181")
+
+        saved_template_id = self.collections['templates'].save(self.template_open_question)
+        self.collections['program_settings'].save(
+            {'key': 'default_template_open_question',
+             'value': saved_template_id}
+        )
+
 
         interaction_open_question = {
             'type-interaction': 'question-answer',
+            'type-question': 'open-question',
             'content': 'Which dealer did you buy the system from?',
             'keyword': 'DEALER, deal',
             'answer-label': 'Name dealer',
@@ -600,10 +616,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         self.assertEqual(
             open_question,
-            "Which dealer did you buy the system from? To reply send: DEALER(space)(Name dealer) to 8181")
+            "Which dealer did you buy the system from?\r\n To reply send: DEALER<space><Name dealer> to 8181")
 
         interaction_no_keyword = {
             'type-interaction': 'question-answer',
+            'type-question': 'open-question',
             'content': 'Which dealer did you buy the system from?',
             'keyword': '',
             'answer-label': 'Name dealer',
