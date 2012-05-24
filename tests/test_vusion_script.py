@@ -13,6 +13,7 @@ class VusionScriptTestCase(TestCase):
                 'type-interaction': 'question-answer',
                 "content": 'How are you?',
                 'keyword': 'FEEL, Fel',
+                'type-question': 'closed-question',
                 'answers': [
                     {'choice': 'Fine',
                      'feedbacks': [
@@ -26,9 +27,10 @@ class VusionScriptTestCase(TestCase):
             {
                 'interaction-id': '01-02',
                 'type-interaction': 'question-answer',
-                "content": 'How are you?',
-                'keyword': 'HOW',
-                'answer-label': 'reply',
+                "content": 'What is your name?',
+                'keyword': 'name',
+                'type-question': 'open-question',
+                'answer-label': 'name',
                 'feedbacks': [
                          {'content':'thank you for this answer'}],
                 'type-schedule': 'immediately'
@@ -115,12 +117,25 @@ class VusionScriptTestCase(TestCase):
                                'matching-answer': 'Ok'})
         self.assertEqual(len(actions), 0)
 
-        ref, actions = script.get_matching_reference_and_actions("HOW good", [])
+        ref, actions = script.get_matching_reference_and_actions("name john doe", [])
         self.assertEqual(ref, {'dialogue-id': '01',
                                'interaction-id': '01-02'})
-        self.assertEqual(len(actions), 1)
+        self.assertEqual(len(actions), 2)
         self.assertEqual(actions[0], {'type-action': 'feedback',
                                       'content': 'thank you for this answer'})
+        self.assertEqual(actions[1], {'type-action': 'profiling',
+                                      'label': 'name',
+                                      'value': 'john doe'})
+
+        ref, actions = script.get_matching_reference_and_actions("name", [])
+        self.assertEqual(ref, {'dialogue-id': '01',
+                               'interaction-id': '01-02'})
+        self.assertEqual(len(actions), 2)
+        self.assertEqual(actions[0], {'type-action': 'feedback',
+                                      'content': 'thank you for this answer'})
+        self.assertEqual(actions[1], {'type-action': 'profiling',
+                                      'label': 'name',
+                                      'value': ''})
 
         script = VusionScript(self.other_question_answer)
         ref, actions = script.get_matching_reference_and_actions("something good", [])

@@ -68,8 +68,17 @@ class VusionScript:
                         actions.append(action)
         else:
             actions = self.add_feedback_action(actions, interaction)
+            if 'answer-label' in interaction:
+                actions.append(
+                    {'type-action': 'profiling',
+                     'label': interaction['answer-label'],
+                     'value': self.get_open_answer(message)})
         return reference_metadata, actions
 
+    def get_open_answer(self, message):
+          words = (message or '').split(' ')
+          return " ".join(words[1:])
+        
     def add_feedback_action(self, actions, obj):
         if 'feedbacks' in obj:
             for feedback in obj['feedbacks']:

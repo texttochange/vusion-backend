@@ -103,6 +103,22 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             }
         ]
     }
+    
+    dialogue_open_question = {
+        'activated': 1,
+        'dialogue-id': '04',
+        'interactions': [
+            {
+                'interaction-id': '01-01',
+                'type-interaction': 'question-answer',
+                'content': 'How are you?',
+                'keyword': 'name',
+                'type-question': 'open-question',
+                'answer-label': 'name',
+                'type-schedule': 'immediately'
+            }
+        ]
+    }
 
     dialogue_announcement_fixedtime = {
         'activated': 1,
@@ -749,6 +765,17 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(3, self.collections['participants'].count())
         self.assertEqual(6, self.collections['schedules'].count())
 
+        self.collections['dialogues'].save(self.dialogue_open_question)
+        
+        inbound_msg_matching_request = self.mkmsg_in(
+            from_addr='06',
+            content='name john doe')
+        yield self.send(inbound_msg_matching_request, 'inbound')
+
+        participant = self.collections['participants'].find_one({'phone': '06'})
+        self.assertEqual('john doe', participant['name'])
+
+
     def test18_run_action(self):
         self.worker.init_program_db(self.database_name)
 
@@ -769,12 +796,28 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.worker.run_action("08", {'type-action': 'tagging',
                                       'tag': 'my second tag'})
         self.assertTrue(self.collections['participants'].find_one({'tags': 'my tag'}))
+        self.worker.run_action("08", {'type-action': 'tagging',
+                                      'tag': 'my tag'})
+        self.assertEqual(
+            ['my tag', 'my second tag'], 
+            self.collections['participants'].find_one({'tags': 'my tag'})['tags'])
 
         self.collections['dialogues'].save(self.dialogue_question)
         self.worker.run_action("08", {'type-action': 'enrolling',
                                       'enroll': '01'})
         self.assertTrue(self.collections['participants'].find_one({'enrolled': '01'}))
         self.assertEqual(2, self.collections['schedules'].count())
+        
+        self.worker.run_action("08", {'type-action': 'enrolling',
+                                      'enroll': '01'})
+        self.assertEqual(
+            1, 
+            len(self.collections['participants'].find_one({'phone': '08'})['enrolled']))
+
+        #Enrolling a new number will opt it in
+        self.worker.run_action("09", {'type-action': 'enrolling',
+                                      'enroll': '01'})
+        self.assertTrue(self.collections['participants'].find_one({'phone':'09','enrolled': '01'}))
 
         self.worker.run_action("08", {'type-action': 'profiling',
                                       'label': 'gender',

@@ -56,6 +56,7 @@ class CmYoTransportTestCase(TransportTestCase):
             )
 
     def mkmsg_in(self, content='Hello World',
+                 from_addr='41791234567',
                  session_event=TransportUserMessage.SESSION_NONE,
                  message_id='abc', transport_type=None,
                  transport_metadata=None):
@@ -64,7 +65,7 @@ class CmYoTransportTestCase(TransportTestCase):
         if transport_metadata is None:
             transport_metadata = {}
         return TransportUserMessage(
-            from_addr='41791234567',
+            from_addr='+41791234567',
             to_addr='9292',
             group=None,
             message_id=message_id,
@@ -126,7 +127,7 @@ class CmYoTransportTestCase(TransportTestCase):
 
     @inlineCallbacks
     def test04_receiving_one_sms(self):
-        url = "http://localhost:%s%s?sender=41791234567&code=9292&message=Hello+World" % (self.config['receive_port'],
+        url = "http://localhost:%s%s?sender=0041791234567&code=9292&message=Hello+World" % (self.config['receive_port'],
                                          self.config['receive_path'])
         response = yield http_request_full(url, method='GET')
         [smsg] = self.get_dispatched('cm.inbound')
@@ -152,6 +153,5 @@ class TestResource(Resource):
         return self.message
 
     def render_POST(self, request):
-        #log.msg(request.content.read()
         request.setResponseCode(self.code)
         return self.message
