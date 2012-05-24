@@ -762,12 +762,28 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.worker.run_action("08", {'type-action': 'tagging',
                                       'tag': 'my second tag'})
         self.assertTrue(self.collections['participants'].find_one({'tags': 'my tag'}))
+        self.worker.run_action("08", {'type-action': 'tagging',
+                                      'tag': 'my tag'})
+        self.assertEqual(
+            ['my tag', 'my second tag'], 
+            self.collections['participants'].find_one({'tags': 'my tag'})['tags'])
 
         self.collections['dialogues'].save(self.dialogue_question)
         self.worker.run_action("08", {'type-action': 'enrolling',
                                       'enroll': '01'})
         self.assertTrue(self.collections['participants'].find_one({'enrolled': '01'}))
         self.assertEqual(2, self.collections['schedules'].count())
+        
+        self.worker.run_action("08", {'type-action': 'enrolling',
+                                      'enroll': '01'})
+        self.assertEqual(
+            1, 
+            len(self.collections['participants'].find_one({'phone': '08'})['enrolled']))
+
+        #Enrolling a new number will opt it in
+        self.worker.run_action("09", {'type-action': 'enrolling',
+                                      'enroll': '01'})
+        self.assertTrue(self.collections['participants'].find_one({'phone':'09','enrolled': '01'}))
 
         self.worker.run_action("08", {'type-action': 'profiling',
                                       'label': 'gender',

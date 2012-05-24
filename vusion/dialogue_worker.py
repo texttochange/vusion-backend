@@ -223,12 +223,12 @@ class TtcGenericWorker(ApplicationWorker):
             })
         elif (action['type-action'] == 'tagging'):
             self.collections['participants'].update(
-                {'phone': participant_phone},
+                {'phone': participant_phone, 'tags': {'$ne':action['tag']}},
                 {'$push': {'tags': action['tag']}})
         elif (action['type-action'] == 'enrolling'):
             self.collections['participants'].update(
-                {'phone': participant_phone},
-                {'$push': {'enrolled': action['enroll']}})
+                {'phone': participant_phone, 'enrolled': {'$ne': action['enroll']}},
+                {'$push': {'enrolled': action['enroll']}}, True)
             dialogue = self.get_current_dialogue(action['enroll'])
             participant = self.collections['participants'].find_one(
                 {'phone': participant_phone})
