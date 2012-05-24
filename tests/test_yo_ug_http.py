@@ -1,5 +1,6 @@
 from uuid import uuid4
 from datetime import datetime
+import re
 
 from twisted.internet.defer import inlineCallbacks
 from twisted.web import http
@@ -55,6 +56,7 @@ class YoUgHttpTransportTestCase(TransportTestCase):
             )
 
     def mkmsg_in(self, content='Hello World',
+                 from_addr='+41791234567',
                  session_event=TransportUserMessage.SESSION_NONE,
                  message_id='abc', transport_type=None,
                  transport_metadata=None):
@@ -63,7 +65,7 @@ class YoUgHttpTransportTestCase(TransportTestCase):
         if transport_metadata is None:
             transport_metadata = {}
         return TransportUserMessage(
-            from_addr='41791234567',
+            from_addr=from_addr,
             to_addr='9292',
             group=None,
             message_id=message_id,
@@ -101,7 +103,7 @@ class YoUgHttpTransportTestCase(TransportTestCase):
 
         #HTTP response
         yield self.make_resource_worker(mocked_message, mocked_error)
-        yield self.dispatch(self.mkmsg_out(to_addr='256788601462'))
+        yield self.dispatch(self.mkmsg_out(to_addr='+256788601462'))
 
         [smsg] = self.get_dispatched('yo.event')
         self.assertEqual(self.mkmsg_fail(
@@ -116,7 +118,7 @@ class YoUgHttpTransportTestCase(TransportTestCase):
 
         #HTTP response
         yield self.make_resource_worker(mocked_message)
-        yield self.dispatch(self.mkmsg_out(to_addr='788601462'))
+        yield self.dispatch(self.mkmsg_out(to_addr='+788601462'))
         [smsg] = self.get_dispatched('yo.event')
         self.assertEqual(self.mkmsg_fail(
             failure_level='service',
@@ -132,7 +134,8 @@ class YoUgHttpTransportTestCase(TransportTestCase):
         [smsg] = self.get_dispatched('yo.inbound')
 
         self.assertEqual(response.code, http.OK)
-        self.assertEqual(self.mkmsg_in(content='Hello World'),
+        self.assertEqual(self.mkmsg_in(from_addr='+41791234567',
+                                       content='Hello World'),
                          TransportMessage.from_json(smsg.body))
 
     def get_dispatched(self, rkey):
@@ -148,9 +151,10 @@ class TestResource(Resource):
         self.send_id = send_id
 
     def render_GET(self, request):
-        #log.msg(request.content.read()
+        regex = re.compile('^(\+|00|0)')
         request.setResponseCode(self.code)
         if (not ('destinations' in request.args) or
+            regex.match(request.args['destinations'][0]) or
             not ('origin' in request.args) or
             not ('password' in request.args) or
             not ('sms_content' in request.args) or
