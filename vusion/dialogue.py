@@ -5,7 +5,7 @@ def split_keywords(keywords):
     return [k.lower() for k in (keywords or '').split(', ')]
 
 
-class VusionScript:
+class Dialogue:
 
     def __init__(self, dialogue):
         self.dialogue = dialogue

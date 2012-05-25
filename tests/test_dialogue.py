@@ -1,6 +1,6 @@
 from twisted.trial.unittest import TestCase
 
-from vusion.vusion_script import VusionScript
+from vusion.dialogue import Dialogue
 
 
 class VusionScriptTestCase(TestCase):
@@ -81,7 +81,7 @@ class VusionScriptTestCase(TestCase):
         pass
 
     def test_get_matchin_question_answer(self):
-        script = VusionScript(self.question_answer)
+        script = Dialogue(self.question_answer)
 
         ref, actions = script.get_matching_reference_and_actions("feel 1", [])
         self.assertEqual(ref, {'dialogue-id': '01',
@@ -137,7 +137,7 @@ class VusionScriptTestCase(TestCase):
                                       'label': 'name',
                                       'value': ''})
 
-        script = VusionScript(self.other_question_answer)
+        script = Dialogue(self.other_question_answer)
         ref, actions = script.get_matching_reference_and_actions("something good", [])
 
         self.assertEqual(ref, {})
@@ -153,7 +153,7 @@ class VusionScriptTestCase(TestCase):
                                       'value': 'Male'})
 
     def test_get_all_keywords(self):
-        script = VusionScript(self.question_answer)
+        script = Dialogue(self.question_answer)
 
         self.assertTrue(script.get_all_keywords(),
                         ['feel', 'fel'])

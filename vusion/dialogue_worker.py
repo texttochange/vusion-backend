@@ -20,7 +20,7 @@ from vumi.message import Message, TransportUserMessage, TransportEvent
 from vumi.application import SessionManager
 from vumi import log
 
-from vusion.vusion_script import VusionScript, split_keywords
+from vusion.dialogue import Dialogue, split_keywords
 from vusion.utils import (time_to_vusion_format, get_local_time,
                           get_local_time_as_timestamp, time_from_vusion_format)
 from vusion.error import MissingData, SendingDatePassed, VusionError
@@ -254,7 +254,7 @@ class TtcGenericWorker(ApplicationWorker):
             actions = []
             active_dialogues = self.get_active_dialogues()
             for dialogue in active_dialogues:
-                scriptHelper = VusionScript(dialogue['Dialogue'])
+                scriptHelper = Dialogue(dialogue['Dialogue'])
                 ref, actions = scriptHelper.get_matching_reference_and_actions(
                     message['content'], actions)
                 if ref:
@@ -572,7 +572,7 @@ class TtcGenericWorker(ApplicationWorker):
         self.log('Synchronizing with dispatcher')
         keywords = []
         for dialogue in self.get_active_dialogues():
-            keywords += VusionScript(dialogue['Dialogue']).get_all_keywords()
+            keywords += Dialogue(dialogue['Dialogue']).get_all_keywords()
         for request in self.collections['requests'].find():
             keyphrases = request['keyword'].split(', ')
             for keyphrase in keyphrases:
