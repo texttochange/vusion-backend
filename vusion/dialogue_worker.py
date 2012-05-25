@@ -351,9 +351,10 @@ class TtcGenericWorker(ApplicationWorker):
 
     #TODO: decide which id should be in an schedule object
     def schedule_participant_dialogue(self, participant, dialogue):
-        previousSendDateTime = None
-        #self.log('Scheduling for %s dialogue %r' % (participant, dialogue))
         try:
+            previousSendDateTime = None
+            if not 'interactions' in dialogue:
+                return
             for interaction in dialogue['interactions']:
                 schedule = self.collections['schedules'].find_one({
                     "participant-phone": participant['phone'],
@@ -406,9 +407,8 @@ class TtcGenericWorker(ApplicationWorker):
             self.log("Scheduling exception: %s" % interaction)
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log(
-                "Error during consume user message: %r" %
+                "Error during schedule message: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
-
 
     def get_local_time(self):
         try:
