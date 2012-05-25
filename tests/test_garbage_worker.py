@@ -17,12 +17,13 @@ class GarabageWorkerTestCase(TestCase, MessageMaker):
     def setUp(self):
         self.config = {
             'database_name': 'test',
-            'application_name': 'garbage'
+            'application_name': 'garbage',
+            'transport_name': 'garbage'
         }
 
         connection = pymongo.Connection('localhost', 27017)
-        self.db = connection[self.config['database_name']]
-        self.unmatchable_reply = self.db['unmatchable_reply']
+        db = connection[self.config['database_name']]
+        self.unmatchable_reply = db['unmatchable_reply']
         self.unmatchable_reply.drop()
 
         self.worker = get_stubbed_worker(GarbageWorker,
@@ -37,7 +38,7 @@ class GarabageWorkerTestCase(TestCase, MessageMaker):
     @inlineCallbacks
     def send(self, msg):
         self.broker.publish_message(
-            'vumi', self.config['application_name'], msg)
+            'vumi', '%s.inbound' % self.config['transport_name'], msg)
         yield self.broker.kick_delivery()
 
     @inlineCallbacks

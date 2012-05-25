@@ -818,7 +818,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertTrue(self.collections['participants'].find_one({'gender': 'Female'}))
 
     def test19_schedule_process_handle_crap_in_history(self):
-        #config = self.simple_config
         dialogue = self.dialogue_annoucement
         participant = {'phone': '06'}
 
@@ -826,7 +825,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collections['participants'].save(participant)
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
-        #self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
         self.save_status(participant_phone="06",
@@ -887,15 +885,19 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     def test22_register_keywords_in_dispatcher(self):        
         self.collections['dialogues'].save(self.dialogue_question)
         self.collections['requests'].save(self.request_join)
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
         
         yield self.worker.register_keywords_in_dispatcher()
 
         messages = self.broker.get_messages('vumi', 'dispatcher.control')
         self.assertEqual(1, len(messages))
-        self.assertEqual([['test', 'feel'],
-                          ['test', 'fel'],
-                          ['test', 'www']],
-                         messages[0]['keyword_mappings'])
+        self.assertEqual([
+            {'app': 'test','keyword': 'feel','to_addr': '8181'},
+            {'app': 'test', 'keyword': 'fel', 'to_addr': '8181'},
+            {'app': 'test', 'keyword': 'www', 'to_addr': '8181'}],
+            messages[0]['rules'])
 
     @inlineCallbacks
     def test23_test_send_all_messages(self):

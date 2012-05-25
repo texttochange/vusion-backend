@@ -24,6 +24,7 @@ from vusion.vusion_script import VusionScript, split_keywords
 from vusion.utils import (time_to_vusion_format, get_local_time,
                           get_local_time_as_timestamp, time_from_vusion_format)
 from vusion.error import MissingData, SendingDatePassed, VusionError
+from vusion.message import DispatcherControl
 
 
 class TtcGenericWorker(ApplicationWorker):
@@ -577,12 +578,13 @@ class TtcGenericWorker(ApplicationWorker):
             for keyphrase in keyphrases:
                 if not (keyphrase.split(' ')[0]) in keywords:
                     keywords.append(keyphrase.split(' ')[0])
-        keyword_mappings = []
+        rules = []
         for keyword in keywords:
-            keyword_mappings.append((self.transport_name, keyword))
-        msg = Message(**{'message_type': 'add_exposed',
-                         'exposed_name': self.transport_name,
-                         'keyword_mappings': keyword_mappings})
+            rules.append({'app': self.transport_name,
+                          'keyword': keyword,
+                          'to_addr': self.properties['shortcode']})
+        msg = DispatcherControl(action='add_exposed',
+            exposed_name=self.transport_name,rules=rules)
         yield self.dispatcher_publisher.publish_message(msg)
 
     #TODO no template defined and no default template defined... what to do?

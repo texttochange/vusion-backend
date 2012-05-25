@@ -10,6 +10,7 @@ from vumi.dispatchers.tests.test_base import (DispatcherTestCase,
                                               TestBaseDispatchWorker)
 from vumi.dispatchers.base import BaseDispatchWorker
 
+from vusion.message import DispatcherControl
 from dispatchers import ContentKeywordRouter
 from dispatchers.ttc_dispatcher import DynamicDispatchWorker
 from tests.utils import MessageMaker
@@ -74,15 +75,17 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
 
     @inlineCallbacks
     def test_control_register_exposed(self):
-        control_msg_add = self.mkmsg_dispatcher_control(message_type='add_exposed',
-                                         exposed_name='app2',
-                                         rules=[
-                                             {'app': 'app2', 'keyword': 'keyword2'},
-                                             {'app': 'app2', 'keyword': 'keyword3'},
-                                         ])
-        control_msg_remove = self.mkmsg_dispatcher_control(message_type='remove_exposed',
-                                         exposed_name='app2'
-                                         )
+        control_msg_add = self.mkmsg_dispatcher_control(
+            action='add_exposed',
+            exposed_name='app2',
+            rules=[
+                {'app': 'app2', 'keyword': 'keyword2'},
+                {'app': 'app2', 'keyword': 'keyword3'},
+            ])
+        control_msg_remove = self.mkmsg_dispatcher_control(
+            action='remove_exposed',
+            exposed_name='app2'
+        )
         in_msg = self.mkmsg_in(content='keyword2')
         out_msg = self.mkmsg_out(from_addr='8181')
 

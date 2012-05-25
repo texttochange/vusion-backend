@@ -9,6 +9,7 @@ from vumi.dispatchers.base import SimpleDispatchRouter, BaseDispatchWorker
 from vumi import log
 from vumi.message import Message, TransportUserMessage
 
+from vusion.message import DispatcherControl
 
 def get_first_word(content, delimiter=' '):
     """
@@ -40,7 +41,7 @@ class DynamicDispatchWorker(BaseDispatchWorker):
         self.control = yield self.consume(
             '%s.control' % self.config['dispatcher_name'],
             self.receive_control_message,
-            message_class=Message)
+            message_class=DispatcherControl)
 
     @inlineCallbacks
     def setup_exposed(self, name):
@@ -93,11 +94,11 @@ class DynamicDispatchWorker(BaseDispatchWorker):
 
     def receive_control_message(self, msg):
         log.debug('Received control message %s' % (msg,))
-        if msg['message_type'] == 'add_exposed':
+        if msg['action'] == 'add_exposed':
             self.setup_exposed(msg['exposed_name'])
             self.append_mapping(msg['exposed_name'], msg['rules'])
             return
-        if msg['message_type'] == 'remove_exposed':
+        if msg['action'] == 'remove_exposed':
             self.remove_exposed(msg['exposed_name'])
             self.clear_mapping(msg['exposed_name'])
             return
