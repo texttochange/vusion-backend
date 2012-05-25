@@ -62,15 +62,16 @@ class TtcGenericWorker(ApplicationWorker):
         self.sender = task.LoopingCall(self.daemon_process)
         self.sender.start(float(send_loop_period))
 
+        #Set up dispatcher publisher
+        self.dispatcher_publisher = yield self.publish_to(
+            '%(dispatcher_name)s.control' % self.config)
+        
         #Set up control consumer
         self.control_consumer = yield self.consume(
             '%(control_name)s.control' % self.config,
             self.consume_control,
             message_class=Message)
-        #Set up dispatcher publisher
-        self.dispatcher_publisher = yield self.publish_to(
-            '%(dispatcher_name)s.control' % self.config)
-        
+                
         if self.is_ready():
             yield self.register_keywords_in_dispatcher()
 
@@ -169,7 +170,7 @@ class TtcGenericWorker(ApplicationWorker):
                 self.schedule()
             elif message['action'] == 'test-send-all-messages':
                 dialogue = self.get_dialogue(message['dialogue_obj_id'])
-                self.send_all_messages(dialogue, message['phone_number'])
+                yield self.send_all_messages(dialogue, message['phone_number'])
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log(
@@ -257,8 +258,9 @@ class TtcGenericWorker(ApplicationWorker):
                     message['content'], actions)
                 if ref:
                     break
-            actions = self.get_matching_request_actions(message['content'],
-                                                        actions)
+            actions = self.get_matching_request_actions(
+                message['content'],
+                actions)
             self.save_history(
                 message_content=message['content'],
                 participant_phone=message['from_addr'],
@@ -611,7 +613,7 @@ class TtcGenericWorker(ApplicationWorker):
                 i = 1
                 answers = ""
                 for answer in interaction['answers']:
-                    answers = ('%s%s. %s\\r\\n' % (answers, i, answer['choice']))
+                    answers = ('%s%s. %s\\n' % (answers, i, answer['choice']))
                     i = i + 1
                 message = re.sub(regex_ANSWERS, answers, message)
             #replace keyword
@@ -621,6 +623,7 @@ class TtcGenericWorker(ApplicationWorker):
             message = re.sub(regex_SHORTCODE, self.properties['shortcode'], message)
             if (interaction['type-question']=='open-question'):
                 message = re.sub(regex_ANSWER, interaction['answer-label'], message)
+            message = re.sub(regex_Breakline, '\n', message)
         return message
 
     def customize_message(self, participant_phone, message):

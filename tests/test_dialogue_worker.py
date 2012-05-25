@@ -346,7 +346,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collections['participants'].save(participant)
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
-        self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
         self.worker.schedule_participant_dialogue(
@@ -559,8 +558,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEquals(schedule_datetime.hour, dFuture.hour)
         self.assertEquals(schedule_datetime.minute, dFuture.minute)
 
-    #@inlineCallbacks
-    def test12_generate_message(self):
+    def test11_customize_message(self):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -590,7 +588,12 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         message_two = self.worker.generate_message(interaction_using_tag)
         self.assertRaises(MissingData, self.worker.customize_message, '07', message_two)
 
-        #start testing the generate function
+    #@inlineCallbacks
+    def test12_generate_message(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
         saved_template_id = self.collections['templates'].save(self.template_closed_question)
         self.collections['program_settings'].save(
             {'key': 'default_template_closed_question',
@@ -611,14 +614,13 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         self.assertEqual(
             close_question,
-            "How are you?\r\n1. Fine\r\n2. Ok\r\n To reply send: FEEL<space><AnswerNb> to 8181")
+            "How are you?\n1. Fine\n2. Ok\n To reply send: FEEL<space><AnswerNb> to 8181")
 
         saved_template_id = self.collections['templates'].save(self.template_open_question)
         self.collections['program_settings'].save(
             {'key': 'default_template_open_question',
              'value': saved_template_id}
         )
-
 
         interaction_open_question = {
             'type-interaction': 'question-answer',
@@ -632,33 +634,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         self.assertEqual(
             open_question,
-            "Which dealer did you buy the system from?\r\n To reply send: DEALER<space><Name dealer> to 8181")
-
-        interaction_no_keyword = {
-            'type-interaction': 'question-answer',
-            'type-question': 'open-question',
-            'content': 'Which dealer did you buy the system from?',
-            'keyword': '',
-            'answer-label': 'Name dealer',
-        }
-
-        open_question = self.worker.generate_message(interaction_no_keyword)
-
-        self.assertEqual(
-            open_question,
-            "Which dealer did you buy the system from? To reply send: (Name dealer) to 8181")
-
-        interaction_no_keyword_field = {
-            'type-interaction': 'question-answer',
-            'content': 'Which dealer did you buy the system from?',
-            'answer-label': 'Name dealer',
-        }
-
-        open_question = self.worker.generate_message(interaction_no_keyword_field)
-
-        self.assertEqual(
-            open_question,
-            "Which dealer did you buy the system from? To reply send: (Name dealer) to 8181")
+            "Which dealer did you buy the system from?\n To reply send: DEALER<space><Name dealer> to 8181")
 
     @inlineCallbacks
     def test13_received_delivered(self):
@@ -777,8 +753,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
 
     def test18_run_action(self):
-        self.worker.init_program_db(self.database_name)
-
         self.worker.run_action("08", {'type-action': 'feedback',
                                       'content': 'message'})
         self.assertEqual(1, self.collections['schedules'].count())
