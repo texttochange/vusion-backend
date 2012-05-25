@@ -170,17 +170,24 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             }]
     }
     
+    unattach_message = {
+            'to': 'all participants',
+            'content': 'Hello everyone',
+            'type-schedule': 'fixed-time',
+            'schedule': '2100-03-12T12:30:00'
+    }
+
     template_closed_question = {
         'name': 'my template',
         'type-question': 'closed-question',
         'template': 'QUESTION\r\nANSWERS To reply send: KEYWORD<space><AnswerNb> to SHORTCODE' 
-        }
+    }
 
     template_open_question = {
         'name': 'my other template',
         'type-question': 'open-question',
         'template': 'QUESTION\r\n To reply send: KEYWORD<space><ANSWER> to SHORTCODE' 
-        }
+    }
 
     @inlineCallbacks
     def setUp(self):
@@ -258,8 +265,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     #TODO: reduce the scope of the update-schedule
     @inlineCallbacks
     def test01_consume_control_update_schedule(self):
-        dialogue_announcement_id = self.collections['dialogues'].save(
-            self.dialogue_annoucement)
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data() 
+        
+        self.collections['dialogues'].save(self.dialogue_annoucement)
         self.collections['dialogues'].save(self.dialogue_question)
         self.collections['participants'].save({'phone': '08'})
         self.collections['participants'].save({'phone': '09', 'optout':True})
@@ -270,15 +280,16 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             {'phone': '11', 
              'enrolled':self.dialogue_question['dialogue-id'],
              'optout': True})
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-
-        event = self.mkmsg_dialogueworker_control('update-schedule',
-                                                  dialogue_announcement_id.__str__())
-        yield self.send(event, 'control')
-        
+ 
+        event = self.mkmsg_dialogueworker_control('update-schedule')
+        yield self.send(event, 'control')       
         self.assertEqual(5, self.collections['schedules'].count())
+
+        self.collections['unattached_messages'].save(self.unattach_message)
+        
+        event = self.mkmsg_dialogueworker_control('update-schedule')
+        yield self.send(event, 'control')       
+        self.assertEqual(7, self.collections['schedules'].count())
 
     @inlineCallbacks
     def test02_consume_control_test_send_all_messages(self):

@@ -314,7 +314,7 @@ class TtcGenericWorker(ApplicationWorker):
                     dialogue['Dialogue'])
         #Schedule the nonattached messages
         self.schedule_participants_unattach_messages(
-            self.collections['participants'].find())
+            self.collections['participants'].find({'optout':{'$ne':True}}))
 
     def get_future_unattach_messages(self):
         return self.collections['unattached_messages'].find({
@@ -323,7 +323,7 @@ class TtcGenericWorker(ApplicationWorker):
             }})
 
     def schedule_participants_unattach_messages(self, participants):
-        for participant in self.collections['participants'].find():
+        for participant in participants:
             self.schedule_participant_unattach_messages(participant)
 
     def schedule_participant_unattach_messages(self, participant):
@@ -354,7 +354,7 @@ class TtcGenericWorker(ApplicationWorker):
         previousSendDateTime = None
         #self.log('Scheduling for %s dialogue %r' % (participant, dialogue))
         try:
-            for interaction in dialogue.get('interactions'):
+            for interaction in dialogue['interactions']:
                 schedule = self.collections['schedules'].find_one({
                     "participant-phone": participant['phone'],
                     "dialogue-id": dialogue["dialogue-id"],

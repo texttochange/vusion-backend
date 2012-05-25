@@ -142,7 +142,7 @@ class MessageMaker:
             worker_class=worker_class,
             config=config)
 
-    def mkmsg_dialogueworker_control(self, action, dialogue_obj_id,
+    def mkmsg_dialogueworker_control(self, action, dialogue_obj_id=None,
                                      phone_number=None):
         return Message(
             action=action,
