@@ -89,6 +89,8 @@ class VusionScript:
 
     def get_all_keywords(self):
         keywords = []
+        if not 'interactions' in self.dialogue:
+            return keywords
         for interaction in self.dialogue['interactions']:
             if 'keyword' in interaction:
                 interaction_keywords = self.split_keywords(interaction['keyword'])

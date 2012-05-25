@@ -7,14 +7,17 @@ m4h:
     control_name: m4h
     transport_name: m4h
     database_name: m4h
+    vusion_database_name: vusion
     dispatcher_name: dispatcher
 mrs:
     control_name: mrs
     transport_name: mrs
     database_name: mrs
+    vusion_database_name: vusion
     dispatcher_name: dispatcher
 wiki:
     control_name: wiki
     transport_name: wiki
     database_name: wiki
+    vusion_database_name: vusion
     dispatcher_name: dispatcher
