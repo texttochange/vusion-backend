@@ -17,7 +17,7 @@ class VusionScript:
         return [k.lower() for k in (keywords or '').split(', ')]
 
     def get_matching_interaction(self, keyword):
-        if not 'interaction' in self.dialogue:
+        if not 'interactions' in self.dialogue:
             return None, None
         for interaction in self.dialogue['interactions']:
             if not interaction['type-interaction'] == 'question-answer':

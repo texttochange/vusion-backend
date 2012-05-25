@@ -1,3 +1,3 @@
-from ttc_dispatcher import ContentKeywordRouter, DynamicDispatchWorker
+from ttc_dispatcher import DynamicDispatchWorker
 
-__all__ = ["ContentKeywordRouter", "DynamicDispatchWorker"]
+__all__ = ["DynamicDispatchWorker"]
