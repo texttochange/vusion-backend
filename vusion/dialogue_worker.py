@@ -303,10 +303,12 @@ class TtcGenericWorker(ApplicationWorker):
         for dialogue in active_dialogues:
             if ('auto-enrollment' in dialogue['Dialogue']
                 and dialogue['Dialogue']['auto-enrollment'] == 'all'):
-                participants = self.collections['participants'].find()
+                participants = self.collections['participants'].find(
+                    {'optout':{'$ne':True}})
             else:
                 participants = self.collections['participants'].find(
-                    {'enrolled': dialogue['dialogue-id']})
+                    {'enrolled': dialogue['dialogue-id'],
+                     'optout':{'$ne':True}})
             self.schedule_participants_dialogue(
                     participants,
                     dialogue['Dialogue'])

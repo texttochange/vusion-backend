@@ -258,19 +258,27 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     #TODO: reduce the scope of the update-schedule
     @inlineCallbacks
     def test01_consume_control_update_schedule(self):
-        dialogue_id = self.collections['dialogues'].save(
+        dialogue_announcement_id = self.collections['dialogues'].save(
             self.dialogue_annoucement)
         self.collections['dialogues'].save(self.dialogue_question)
         self.collections['participants'].save({'phone': '08'})
+        self.collections['participants'].save({'phone': '09', 'optout':True})
+        self.collections['participants'].save(
+            {'phone': '10', 
+             'enrolled':self.dialogue_question['dialogue-id']})
+        self.collections['participants'].save(
+            {'phone': '11', 
+             'enrolled':self.dialogue_question['dialogue-id'],
+             'optout': True})
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
 
         event = self.mkmsg_dialogueworker_control('update-schedule',
-                                                  dialogue_id.__str__())
+                                                  dialogue_announcement_id.__str__())
         yield self.send(event, 'control')
         
-        self.assertEqual(2, self.collections['schedules'].count())
+        self.assertEqual(5, self.collections['schedules'].count())
 
     @inlineCallbacks
     def test02_consume_control_test_send_all_messages(self):
