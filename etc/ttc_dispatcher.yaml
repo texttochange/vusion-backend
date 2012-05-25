@@ -5,9 +5,9 @@ transport_names:
         - yo8282
         - nllong
 transport_mappings:
-        8282: yo8282
-        8181: yo8181
-        +31642500021: nllong
+        '8282': yo8282
+        '8181': yo8181
+        '+31642500021': nllong
 exposed_names: 
         - m4h 
         - mrs
