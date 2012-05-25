@@ -1,6 +1,7 @@
 # -*- tst-case-name tests.test_ttc_dispatcher
 
 import redis
+import functools
 
 from twisted.internet.defer import inlineCallbacks
 
@@ -32,7 +33,7 @@ class DynamicDispatchWorker(BaseDispatchWorker):
         log.debug('Starting Dynamic Dispatcher %s' % (self.config,))
         super(DynamicDispatchWorker, self).startWorker()
         yield self.setup_control()
-        yield self.setup_garbage()
+        #yield self.setup_garbage()
 
     @inlineCallbacks
     def setup_control(self):
@@ -40,15 +41,6 @@ class DynamicDispatchWorker(BaseDispatchWorker):
             '%s.control' % self.config['dispatcher_name'],
             self.receive_control_message,
             message_class=Message)
-
-    @inlineCallbacks
-    def setup_garbage(self):
-        self.garbage = yield self.publish_to('garbage')
-
-    def dispatch_inbound_message(self, msg):
-        if not self._router.dispatch_inbound_message(msg):
-            self.garbage.publish_message(msg)
-        return
 
     @inlineCallbacks
     def setup_exposed(self, name):
@@ -60,7 +52,8 @@ class DynamicDispatchWorker(BaseDispatchWorker):
                 ('%s.event' % (name,)).encode('utf-8'))
             self.exposed_consumer[name] = yield self.consume(
                 ('%s.outbound' % (name,)).encode('utf-8'),
-                self.dispatch_outbound_message,
+                functools.partial(self.dispatch_outbound_message,
+                                  name),
                 message_class=TransportUserMessage)
 
     def remove_exposed(self, name):
@@ -71,45 +64,45 @@ class DynamicDispatchWorker(BaseDispatchWorker):
             self.config['exposed_names'].remove(name)
 
     #Need to check if the (name, rule) is not already there
-    def append_mapping(self, exposed_name, mappings_to_add):
-        self.remove_non_present_mappings(exposed_name, mappings_to_add)
-        for (name, rule) in mappings_to_add:
-            if (name, rule) not in self._router.keyword_mappings:
-                self._router.keyword_mappings.append((name, rule))
+    def append_mapping(self, exposed_name, rules):
+        self.remove_non_present_mappings(exposed_name, rules)
+        for rule in rules:
+            if rule not in self._router.rules:
+                self._router.rules.append(rule)
 
-    def remove_non_present_mappings(self, exposed_name, mappings_to_add):
+    def remove_non_present_mappings(self, exposed_name, rules):
         non_present_mappings = self.get_non_present_mapping(
             self.get_mapping(exposed_name),
-            mappings_to_add)
-        for (name, rule) in non_present_mappings:
-                self._router.keyword_mappings.remove((name, rule))
+            rules)
+        for rule in non_present_mappings:
+            self._router.rules.remove(rule)
 
     def get_mapping(self, name_to_get):
-        return [(name, rule) for (name, rule) in self._router.keyword_mappings
-                if name == name_to_get]
+        return [rule for rule in self._router.rules
+                if rule['app'] == name_to_get]
 
     def get_non_present_mapping(self, current_mappings, new_mappings):
-        return [(name, rule) for (name, rule) in current_mappings
-                if (name, rule) not in new_mappings]
+        return [rule for rule in current_mappings
+                if rule not in new_mappings]
 
     def clear_mapping(self, name_to_clear):
-        self._router.keyword_mappings = [(name, rule)
-                                          for (name, rule)
-                                          in self._router.keyword_mappings
-                                          if name != name_to_clear]
+        self._router.rules = [rule
+                              for rule
+                              in self._router.rules
+                              if name_to_clear != rule['app']]
 
     def receive_control_message(self, msg):
         log.debug('Received control message %s' % (msg,))
         if msg['message_type'] == 'add_exposed':
             self.setup_exposed(msg['exposed_name'])
-            self.append_mapping(msg['exposed_name'], msg['keyword_mappings'])
+            self.append_mapping(msg['exposed_name'], msg['rules'])
             return
         if msg['message_type'] == 'remove_exposed':
             self.remove_exposed(msg['exposed_name'])
             self.clear_mapping(msg['exposed_name'])
             return
 
-
+##Deprecated use the Vumi ContentKeyword Router
 class ContentKeywordRouter(SimpleDispatchRouter):
     """Router that dispatches based on msg content first word also named as the
      keyword in the sms context.

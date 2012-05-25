@@ -123,13 +123,13 @@ class MessageMaker:
             )
 
     def mkmsg_dispatcher_control(self, message_type='add_exposed',
-                                 exposed_name='app2', keyword_mappings=None):
-        if keyword_mappings == None:
-            keyword_mappings = []
+                                 exposed_name='app2', rules=None):
+        if rules == None:
+            rules = []
         return Message(
             message_type=message_type,
             exposed_name=exposed_name,
-            keyword_mappings=keyword_mappings)
+            rules=rules)
 
     def mkmsg_multiworker_control(self, message_type='add_worker',
                                   worker_name='m4h', worker_class=None,

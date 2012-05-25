@@ -25,15 +25,21 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
     def get_worker(self):
         config = {
             'dispatcher_name': 'vusion',
-            'router_class': 'dispatchers.ContentKeywordRouter',
-            'exposed_names': ['app1'],
+            'router_class': 'vumi.dispatchers.ContentKeywordRouter',
+            'exposed_names': ['app1', 'fallback_app'],
             'keyword_mappings': {
                 'app1': 'keyword1'
                 },
+            'rules': [{
+                'app': 'app1',
+                'keyword': 'keyword2',
+                'to_addr': '8181'
+                }],
             'transport_names': ['transport1'],
             'transport_mappings': {
-                'transport1': 'shortcode1'
+                '8181': 'transport1'
                 },
+            'fallback_application': 'fallback_app',
             'expire_routing_memory': '1'
         }
         self.worker = get_stubbed_worker(DynamicDispatchWorker, config)
@@ -62,23 +68,23 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
 
     @inlineCallbacks
     def test_unmatching_routing(self):
-        in_msg = self.mkmsg_in(content='keyword2')
+        in_msg = self.mkmsg_in(content='keyword3')
         yield self.dispatch(in_msg, 'transport1.inbound')
-        self.assert_messages('garbage', [in_msg])
+        self.assert_messages('fallback_app.inbound', [in_msg])
 
     @inlineCallbacks
     def test_control_register_exposed(self):
         control_msg_add = self.mkmsg_dispatcher_control(message_type='add_exposed',
                                          exposed_name='app2',
-                                         keyword_mappings=[
-                                             ['app2', 'keyword2'],
-                                             ['app2', 'keyword3']
+                                         rules=[
+                                             {'app': 'app2', 'keyword': 'keyword2'},
+                                             {'app': 'app2', 'keyword': 'keyword3'},
                                          ])
         control_msg_remove = self.mkmsg_dispatcher_control(message_type='remove_exposed',
                                          exposed_name='app2'
                                          )
         in_msg = self.mkmsg_in(content='keyword2')
-        out_msg = self.mkmsg_out(from_addr='shortcode1')
+        out_msg = self.mkmsg_out(from_addr='8181')
 
         yield self.dispatch(in_msg, 'transport1.inbound')
         self.assert_no_messages('app2.inbound')
@@ -99,23 +105,37 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
         self.assert_no_messages('app2.inbound')
 
     def test_append_mapping(self):
-        add_mappings = [['app2', 'keyword2'],
-                       ['app2', 'keyword3']]
-
+        add_mappings = [
+            {'app': 'app2', 
+             'keyword': 'keyword2',
+             'to_addr': '8181'},
+            {'app': 'app2', 
+             'to_addr': 'keyword3'}
+        ]
+        
         self.worker.append_mapping('app2', add_mappings)
         self.worker.append_mapping('app2', add_mappings)
 
-        self.assertEqual(self.worker._router.keyword_mappings,
-                         [('app1', 'keyword1'),
-                          ('app2', 'keyword2'),
-                          ('app2', 'keyword3')])
-
-        self.worker.append_mapping('app2', [['app2', 'keyword2']])
-
-        self.assertEqual(self.worker._router.keyword_mappings,
-                         [('app1', 'keyword1'),
-                          ('app2', 'keyword2')])
-
+        self.assertEqual(
+            self.worker._router.rules,
+            [{'app': 'app1', 'keyword': 'keyword2', 'to_addr': '8181'},
+             {'app': 'app1', 'keyword': 'keyword1'},
+             {'app': 'app2', 'keyword': 'keyword2', 'to_addr': '8181'},
+             {'app': 'app2', 'to_addr': 'keyword3'}]
+        )
+        
+        self.worker.append_mapping(
+            'app2', 
+            [{'app': 'app2', 'keyword': 'keyword2', 'to_addr': '8181'}]
+        )
+        
+        self.assertEqual(
+            self.worker._router.rules,
+            [{'app': 'app1', 'keyword': 'keyword2', 'to_addr': '8181'},
+             {'app': 'app1', 'keyword': 'keyword1'},
+             {'app': 'app2', 'keyword': 'keyword2', 'to_addr': '8181'}]
+        )
+            
 
 class TestContentKeywordRouter(DispatcherTestCase):
 
