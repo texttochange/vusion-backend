@@ -23,7 +23,7 @@ class YoUgHttpTransport(Transport):
         resource = cls(self.config, publish_func)
         self._resources.append(resource)
         return (resource, self.config['receive_path'])
-    
+
     def phone_format_to_yo(self, phone):
         regex = re.compile('^\+')
         return re.sub(regex, '', phone)
@@ -88,7 +88,7 @@ class YoUgHttpTransport(Transport):
                     delivery_status='failed',
                     failure_level='service',
                     failure_code=ybs_status,
-                    failure_reason= ybs_msg
+                    failure_reason=ybs_msg
                 )
                 return
 
@@ -118,7 +118,7 @@ class ReceiveSMSResource(Resource):
         self.transport_name = self.config['transport_name']
 
     def phone_format_from_yo(self, phone):
-        return ('+%s' % phone)    
+        return ('+%s' % phone)
 
     @inlineCallbacks
     def do_render(self, request):

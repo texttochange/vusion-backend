@@ -103,7 +103,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             }
         ]
     }
-    
+
     dialogue_open_question = {
         'activated': 1,
         'dialogue-id': '04',
@@ -169,7 +169,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                 'type-action': 'optout',
             }]
     }
-    
+
     unattach_message = {
             'to': 'all participants',
             'content': 'Hello everyone',
@@ -180,13 +180,13 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     template_closed_question = {
         'name': 'my template',
         'type-question': 'closed-question',
-        'template': 'QUESTION\r\nANSWERS To reply send: KEYWORD<space><AnswerNb> to SHORTCODE' 
+        'template': 'QUESTION\r\nANSWERS To reply send: KEYWORD<space><AnswerNb> to SHORTCODE'
     }
 
     template_open_question = {
         'name': 'my other template',
         'type-question': 'open-question',
-        'template': 'QUESTION\r\n To reply send: KEYWORD<space><ANSWER> to SHORTCODE' 
+        'template': 'QUESTION\r\n To reply send: KEYWORD<space><ANSWER> to SHORTCODE'
     }
 
     @inlineCallbacks
@@ -225,7 +225,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                                 'requests'])
         self.db = connection[self.config['vusion_database_name']]
         self.setup_collections(['templates'])
-        
+
         self.drop_collections()
 
         #Let's rock"
@@ -267,28 +267,28 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     def test01_consume_control_update_schedule(self):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
-        self.worker.load_data() 
-        
+        self.worker.load_data()
+
         self.collections['dialogues'].save(self.dialogue_annoucement)
         self.collections['dialogues'].save(self.dialogue_question)
         self.collections['participants'].save({'phone': '08'})
-        self.collections['participants'].save({'phone': '09', 'optout':True})
+        self.collections['participants'].save({'phone': '09', 'optout': True})
         self.collections['participants'].save(
-            {'phone': '10', 
-             'enrolled':self.dialogue_question['dialogue-id']})
+            {'phone': '10',
+             'enrolled': self.dialogue_question['dialogue-id']})
         self.collections['participants'].save(
-            {'phone': '11', 
-             'enrolled':self.dialogue_question['dialogue-id'],
+            {'phone': '11',
+             'enrolled': self.dialogue_question['dialogue-id'],
              'optout': True})
- 
+
         event = self.mkmsg_dialogueworker_control('update-schedule')
-        yield self.send(event, 'control')       
+        yield self.send(event, 'control')
         self.assertEqual(5, self.collections['schedules'].count())
 
         self.collections['unattached_messages'].save(self.unattach_message)
-        
+
         event = self.mkmsg_dialogueworker_control('update-schedule')
-        yield self.send(event, 'control')       
+        yield self.send(event, 'control')
         self.assertEqual(7, self.collections['schedules'].count())
 
     @inlineCallbacks
@@ -345,7 +345,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
              'modified': '50'})
 
         self.collections['participants'].save({'phone': '06'})
-        
+
         dialogues = self.worker.get_active_dialogues()
         self.assertEqual(len(dialogues), 2)
         self.assertEqual(dialogues[0]['Dialogue']['_id'],
@@ -535,7 +535,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
              'participant-phone': '06',
              'interaction-id': '1',
              'dialogue-id': '0'})
-        
+
         #Declare collection for loging messages
         self.save_status(timestamp=dLaterPast.strftime(self.time_format),
                          participant_phone='06',
@@ -727,7 +727,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collections['dialogues'].save(self.dialogue_annoucement_2)
         self.collections['participants'].save({'phone': '06'})
         self.collections['requests'].save(self.request_join)
-        
+
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
                                              content='Feel ok')
         yield self.send(inbound_msg_matching, 'inbound')
@@ -761,7 +761,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(6, self.collections['schedules'].count())
 
         self.collections['dialogues'].save(self.dialogue_open_question)
-        
+
         inbound_msg_matching_request = self.mkmsg_in(
             from_addr='06',
             content='name john doe')
@@ -769,7 +769,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         participant = self.collections['participants'].find_one({'phone': '06'})
         self.assertEqual('john doe', participant['name'])
-
 
     def test18_run_action(self):
         self.worker.run_action("08", {'type-action': 'feedback',
@@ -792,7 +791,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.worker.run_action("08", {'type-action': 'tagging',
                                       'tag': 'my tag'})
         self.assertEqual(
-            ['my tag', 'my second tag'], 
+            ['my tag', 'my second tag'],
             self.collections['participants'].find_one({'tags': 'my tag'})['tags'])
 
         self.collections['dialogues'].save(self.dialogue_question)
@@ -800,17 +799,19 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                                       'enroll': '01'})
         self.assertTrue(self.collections['participants'].find_one({'enrolled': '01'}))
         self.assertEqual(2, self.collections['schedules'].count())
-        
+
         self.worker.run_action("08", {'type-action': 'enrolling',
                                       'enroll': '01'})
         self.assertEqual(
-            1, 
+            1,
             len(self.collections['participants'].find_one({'phone': '08'})['enrolled']))
 
         #Enrolling a new number will opt it in
         self.worker.run_action("09", {'type-action': 'enrolling',
                                       'enroll': '01'})
-        self.assertTrue(self.collections['participants'].find_one({'phone':'09','enrolled': '01'}))
+        self.assertTrue(
+            self.collections['participants'].find_one({'phone': '09',
+                                                       'enrolled': '01'}))
 
         self.worker.run_action("08", {'type-action': 'profiling',
                                       'label': 'gender',
@@ -882,19 +883,19 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(schedules[0]['participant-phone'], '07')
 
     @inlineCallbacks
-    def test22_register_keywords_in_dispatcher(self):        
+    def test22_register_keywords_in_dispatcher(self):
         self.collections['dialogues'].save(self.dialogue_question)
         self.collections['requests'].save(self.request_join)
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
-        
+
         yield self.worker.register_keywords_in_dispatcher()
 
         messages = self.broker.get_messages('vumi', 'dispatcher.control')
         self.assertEqual(1, len(messages))
         self.assertEqual([
-            {'app': 'test','keyword': 'feel','to_addr': '8181'},
+            {'app': 'test', 'keyword': 'feel', 'to_addr': '8181'},
             {'app': 'test', 'keyword': 'fel', 'to_addr': '8181'},
             {'app': 'test', 'keyword': 'www', 'to_addr': '8181'}],
             messages[0]['rules'])

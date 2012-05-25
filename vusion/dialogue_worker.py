@@ -1,6 +1,7 @@
 # -*- test-case-name: tests.test_ttc -*-
 
-import sys, traceback
+import sys
+import traceback
 import re
 
 from twisted.internet.defer import (inlineCallbacks, Deferred)
@@ -66,13 +67,13 @@ class TtcGenericWorker(ApplicationWorker):
         #Set up dispatcher publisher
         self.dispatcher_publisher = yield self.publish_to(
             '%(dispatcher_name)s.control' % self.config)
-        
+
         #Set up control consumer
         self.control_consumer = yield self.consume(
             '%(control_name)s.control' % self.config,
             self.consume_control,
             message_class=Message)
-                
+
         if self.is_ready():
             yield self.register_keywords_in_dispatcher()
 
@@ -144,7 +145,7 @@ class TtcGenericWorker(ApplicationWorker):
                                 'program_settings',
                                 'unattached_messages',
                                 'requests'])
-        
+
         self.db = connection[self.vusion_database_name]
         self.setup_collections(['templates'])
 
@@ -177,7 +178,6 @@ class TtcGenericWorker(ApplicationWorker):
             self.log(
                 "Error during consume control message: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
-            
 
     def dispatch_event(self, message):
         self.log("Event message received %s" % (message,))
@@ -229,11 +229,13 @@ class TtcGenericWorker(ApplicationWorker):
             })
         elif (action['type-action'] == 'tagging'):
             self.collections['participants'].update(
-                {'phone': participant_phone, 'tags': {'$ne':action['tag']}},
+                {'phone': participant_phone,
+                 'tags': {'$ne': action['tag']}},
                 {'$push': {'tags': action['tag']}})
         elif (action['type-action'] == 'enrolling'):
             self.collections['participants'].update(
-                {'phone': participant_phone, 'enrolled': {'$ne': action['enroll']}},
+                {'phone': participant_phone,
+                 'enrolled': {'$ne': action['enroll']}},
                 {'$push': {'enrolled': action['enroll']}}, True)
             dialogue = self.get_current_dialogue(action['enroll'])
             participant = self.collections['participants'].find_one(
@@ -305,17 +307,17 @@ class TtcGenericWorker(ApplicationWorker):
             if ('auto-enrollment' in dialogue['Dialogue']
                 and dialogue['Dialogue']['auto-enrollment'] == 'all'):
                 participants = self.collections['participants'].find(
-                    {'optout':{'$ne':True}})
+                    {'optout': {'$ne': True}})
             else:
                 participants = self.collections['participants'].find(
                     {'enrolled': dialogue['dialogue-id'],
-                     'optout':{'$ne':True}})
+                     'optout': {'$ne': True}})
             self.schedule_participants_dialogue(
                     participants,
                     dialogue['Dialogue'])
         #Schedule the nonattached messages
         self.schedule_participants_unattach_messages(
-            self.collections['participants'].find({'optout':{'$ne':True}}))
+            self.collections['participants'].find({'optout': {'$ne': True}}))
 
     def get_future_unattach_messages(self):
         return self.collections['unattached_messages'].find({
@@ -584,7 +586,7 @@ class TtcGenericWorker(ApplicationWorker):
                           'keyword': keyword,
                           'to_addr': self.properties['shortcode']})
         msg = DispatcherControl(action='add_exposed',
-            exposed_name=self.transport_name,rules=rules)
+            exposed_name=self.transport_name, rules=rules)
         yield self.dispatcher_publisher.publish_message(msg)
 
     #TODO no template defined and no default template defined... what to do?
@@ -602,9 +604,9 @@ class TtcGenericWorker(ApplicationWorker):
                 #need to get the template
                 pass
             else:
-                if (interaction['type-question']=='closed-question'):
+                if (interaction['type-question'] == 'closed-question'):
                     default_template = self.collections['program_settings'].find_one({"key": "default_template_closed_question"})
-                elif (interaction['type-question']=='open-question'):
+                elif (interaction['type-question'] == 'open-question'):
                     default_template = self.collections['program_settings'].find_one({"key": "default_template_open_question"})
                 else:
                     #no default for this question type
@@ -613,7 +615,7 @@ class TtcGenericWorker(ApplicationWorker):
             #replace question
             message = re.sub(regex_QUESTION, interaction['content'], template['template'])
             #replace answers
-            if (interaction['type-question']=='closed-question'):
+            if (interaction['type-question'] == 'closed-question'):
                 i = 1
                 answers = ""
                 for answer in interaction['answers']:
@@ -621,11 +623,11 @@ class TtcGenericWorker(ApplicationWorker):
                     i = i + 1
                 message = re.sub(regex_ANSWERS, answers, message)
             #replace keyword
-            keyword = split_keywords(interaction['keyword'])[0]            
+            keyword = split_keywords(interaction['keyword'])[0]
             message = re.sub(regex_KEYWORD, keyword.upper(), message)
             #replace shortcode
             message = re.sub(regex_SHORTCODE, self.properties['shortcode'], message)
-            if (interaction['type-question']=='open-question'):
+            if (interaction['type-question'] == 'open-question'):
                 message = re.sub(regex_ANSWER, interaction['answer-label'], message)
             message = re.sub(regex_Breakline, '\n', message)
         return message

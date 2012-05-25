@@ -7,6 +7,7 @@ from vumi.message import (TransportEvent, TransportMessage,
 from vumi.transports.failures import FailureMessage
 from vusion.message import DispatcherControl
 
+
 class DataLayerUtils:
 
     def setup_collections(self, names):

@@ -78,9 +78,9 @@ class Dialogue:
         return reference_metadata, actions
 
     def get_open_answer(self, message):
-          words = (message or '').split(' ')
-          return " ".join(words[1:])
-        
+        words = (message or '').split(' ')
+        return " ".join(words[1:])
+
     def add_feedback_action(self, actions, obj):
         if 'feedbacks' in obj:
             for feedback in obj['feedbacks']:

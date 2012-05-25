@@ -39,7 +39,8 @@ class CmYoTransport(Transport):
                        self.config['receive_path'])
             ]
         self.receipt_resource = yield self.start_web_resources(
-            resources, self.config['receive_port'])
+            resources,
+            self.config['receive_port'])
 
     @inlineCallbacks
     def handle_outbound_message(self, message):
@@ -112,7 +113,7 @@ class ReceiveSMSResource(Resource):
 
     def phone_format_from_yo(self, phone):
         regex = re.compile('^00')
-        return re.sub(regex, '+', phone)    
+        return re.sub(regex, '+', phone)
 
     @inlineCallbacks
     def do_render(self, request):

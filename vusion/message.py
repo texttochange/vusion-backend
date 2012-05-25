@@ -9,7 +9,6 @@ class DispatcherControl(Message):
 
 
 class WorkerControl(Message):
-    
+
     def validate_fields(self):
         self.assert_field_present('action')
-    
