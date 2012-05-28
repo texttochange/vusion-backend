@@ -24,7 +24,8 @@ from vumi import log
 from vusion.dialogue import Dialogue, split_keywords
 from vusion.utils import (time_to_vusion_format, get_local_time,
                           get_local_time_as_timestamp, time_from_vusion_format)
-from vusion.error import MissingData, SendingDatePassed, VusionError
+from vusion.error import (MissingData, SendingDatePassed, VusionError,
+                          MissingTemplate)
 from vusion.message import DispatcherControl
 
 
@@ -604,14 +605,22 @@ class TtcGenericWorker(ApplicationWorker):
                 #need to get the template
                 pass
             else:
+                default_template = None
                 if (interaction['type-question'] == 'closed-question'):
-                    default_template = self.collections['program_settings'].find_one({"key": "default_template_closed_question"})
+                    default_template = self.collections['program_settings'].find_one({"key": "default-template-closed-question"})
                 elif (interaction['type-question'] == 'open-question'):
-                    default_template = self.collections['program_settings'].find_one({"key": "default_template_open_question"})
+                    default_template = self.collections['program_settings'].find_one({"key": "default-template-open-question"})
                 else:
-                    #no default for this question type
                     pass
-                template = self.collections['templates'].find_one({"_id": default_template['value']})
+                if (default_template is None):
+                    raise MissingTemplate(
+                        "Cannot find default template for %s" %
+                        (interaction['type-question'],))
+                template = self.collections['templates'].find_one({"_id": ObjectId(default_template['value'])})
+                if (template is None):
+                    raise MissingTemplate(
+                        "Cannot find specified template id %s" %
+                        (default_template['value'],))
             #replace question
             message = re.sub(regex_QUESTION, interaction['content'], template['template'])
             #replace answers

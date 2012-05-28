@@ -3,6 +3,7 @@ from twisted.internet.defer import inlineCallbacks
 
 import pymongo
 import json
+from bson.objectid import ObjectId
 
 from datetime import datetime, time, date, timedelta
 import pytz
@@ -12,7 +13,7 @@ from vumi.message import Message, TransportEvent, TransportUserMessage
 
 from vusion import TtcGenericWorker
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
-from vusion.error import MissingData
+from vusion.error import MissingData, MissingTemplate
 from transports import YoUgHttpTransport
 from tests.utils import MessageMaker, DataLayerUtils
 
@@ -613,12 +614,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
 
-        saved_template_id = self.collections['templates'].save(self.template_closed_question)
-        self.collections['program_settings'].save(
-            {'key': 'default_template_closed_question',
-             'value': saved_template_id}
-        )
-
         interaction_closed_question = {
             'type-interaction': 'question-answer',
             'type-question': 'closed-question',
@@ -628,6 +623,14 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                 {'choice': 'Fine'},
                 {'choice': 'Ok'}],
         }
+        
+        self.assertRaises(MissingTemplate, self.worker.generate_message, interaction_closed_question)
+        
+        saved_template_id = self.collections['templates'].save(self.template_closed_question)
+        self.collections['program_settings'].save(
+            {'key': 'default-template-closed-question',
+             'value': saved_template_id}
+        )
 
         close_question = self.worker.generate_message(interaction_closed_question)
 
@@ -637,7 +640,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         saved_template_id = self.collections['templates'].save(self.template_open_question)
         self.collections['program_settings'].save(
-            {'key': 'default_template_open_question',
+            {'key': 'default-template-open-question',
              'value': saved_template_id}
         )
 
@@ -654,6 +657,14 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(
             open_question,
             "Which dealer did you buy the system from?\n To reply send: DEALER<space><Name dealer> to 8181")
+        
+        self.collections['program_settings'].drop()
+        self.collections['program_settings'].save(
+            {'key': 'default-template-open-question',
+             'value': ObjectId("4fc343509fa4da5e11000000")}
+        )
+        
+        self.assertRaises(MissingTemplate, self.worker.generate_message, interaction_open_question)
 
     @inlineCallbacks
     def test13_received_delivered(self):
