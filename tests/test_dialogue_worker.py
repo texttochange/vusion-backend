@@ -623,9 +623,9 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                 {'choice': 'Fine'},
                 {'choice': 'Ok'}],
         }
-        
+
         self.assertRaises(MissingTemplate, self.worker.generate_message, interaction_closed_question)
-        
+
         saved_template_id = self.collections['templates'].save(self.template_closed_question)
         self.collections['program_settings'].save(
             {'key': 'default-template-closed-question',
@@ -657,13 +657,13 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(
             open_question,
             "Which dealer did you buy the system from?\n To reply send: DEALER<space><Name dealer> to 8181")
-        
+
         self.collections['program_settings'].drop()
         self.collections['program_settings'].save(
             {'key': 'default-template-open-question',
              'value': ObjectId("4fc343509fa4da5e11000000")}
         )
-        
+
         self.assertRaises(MissingTemplate, self.worker.generate_message, interaction_open_question)
 
     @inlineCallbacks
@@ -793,6 +793,12 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(1, self.collections['participants'].count())
         self.assertTrue(self.collections['participants'].find_one(
             {'phone': '08'})['optout'])
+
+        #Participant can opt-in again
+        self.worker.run_action("08", {'type-action': 'optin'})
+        self.assertEqual(1, self.collections['participants'].count())
+        self.assertFalse(self.collections['participants'].find_one(
+            {'phone': '08', 'optout': True}))
 
         self.worker.run_action("08", {'type-action': 'tagging',
                                       'tag': 'my tag'})

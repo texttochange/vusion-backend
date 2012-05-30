@@ -216,7 +216,9 @@ class TtcGenericWorker(ApplicationWorker):
 
     def run_action(self, participant_phone, action):
         if (action['type-action'] == 'optin'):
-            self.collections['participants'].save({'phone': participant_phone})
+            self.collections['participants'].update(
+                {'phone': participant_phone},
+                {'$unset': {'optout': 1}}, True)
         elif (action['type-action'] == 'optout'):
             self.collections['participants'].update(
                 {'phone': participant_phone},
