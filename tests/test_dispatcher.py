@@ -104,6 +104,7 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
 
         yield self.dispatch(control_msg_remove, 'vusion.control')
         yield self.dispatch(in_msg, 'transport1.inbound')
+        self.assertNotIn('app2', self.worker.exposed_consumer)
         self.assert_no_messages('app2.inbound')
 
     def test_append_mapping(self):

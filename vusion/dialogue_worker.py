@@ -39,9 +39,8 @@ class TtcGenericWorker(ApplicationWorker):
         super(TtcGenericWorker, self).startService()
 
     @inlineCallbacks
-    def startWorker(self):
+    def setup_application(self):
         log.msg("One Generic Worker is starting")
-        super(TtcGenericWorker, self).startWorker()
 
         #Store basic configuration data
         self.transport_name = self.config['transport_name']
@@ -74,12 +73,17 @@ class TtcGenericWorker(ApplicationWorker):
             '%(control_name)s.control' % self.config,
             self.consume_control,
             message_class=Message)
+        self._consumers.append(self.control_consumer)
 
+        self.load_data()
         if self.is_ready():
             yield self.register_keywords_in_dispatcher()
 
-    def stopWorker(self):
+    @inlineCallbacks
+    def teardown_application(self):
         self.log("Worker is stopped.")
+        if self.is_ready():
+            yield self.unregister_from_dispatcher()
         if (self.sender.running):
             self.sender.stop()
 
@@ -165,6 +169,7 @@ class TtcGenericWorker(ApplicationWorker):
     def consume_control(self, message):
         try:
             self.log("Control message received to %r" % (message['action'],))
+            self.load_data()
             if (not self.is_ready()):
                 self.log("Worker is not ready, cannot performe the action.")
                 return
@@ -294,11 +299,11 @@ class TtcGenericWorker(ApplicationWorker):
             self.properties[program_setting['key']] = program_setting['value']
 
     def is_ready(self):
-        if 'shortcode' not in self.properties:
+        if not 'shortcode' in self.properties:
             self.log('Shortcode not defined')
             return False
-        if (('timezone' not in self.properties)
-            and (self.properties['timezone'] not in pytz.all_timezones)):
+        if ((not 'timezone' in self.properties)
+            or (not self.properties['timezone'] in pytz.all_timezones)):
             self.log('Timezone not defined or not supported')
             return False
         return True
@@ -590,6 +595,12 @@ class TtcGenericWorker(ApplicationWorker):
                           'to_addr': self.properties['shortcode']})
         msg = DispatcherControl(action='add_exposed',
             exposed_name=self.transport_name, rules=rules)
+        yield self.dispatcher_publisher.publish_message(msg)
+
+    @inlineCallbacks
+    def unregister_from_dispatcher(self):
+        msg = DispatcherControl(action='remove_exposed',
+                                exposed_name=self.transport_name)
         yield self.dispatcher_publisher.publish_message(msg)
 
     #TODO no template defined and no default template defined... what to do?

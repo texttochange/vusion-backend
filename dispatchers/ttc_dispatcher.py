@@ -33,9 +33,43 @@ class DynamicDispatchWorker(BaseDispatchWorker):
     @inlineCallbacks
     def startWorker(self):
         log.debug('Starting Dynamic Dispatcher %s' % (self.config,))
+        self.exposed_consumer = {}
+        self.exposed_publisher = {}
+        self.exposed_event_publisher = {}
+        self.transport_consumer = {}
+        self.transport_publisher = {}
+        self.transport_event_consumer = {}
         super(DynamicDispatchWorker, self).startWorker()
         yield self.setup_control()
-        #yield self.setup_garbage()
+
+    #the stopping of a dispatcher is not implement yet in vumi
+    @inlineCallbacks
+    def stopWorker(self):
+        log.debug('Stoping Dynamic Dispatcher')
+        yield self.control.stop()
+        super(DynamicDispatchWorker, self).stopWorker()
+
+    @inlineCallbacks
+    def setup_exposed_publishers(self):
+        for exposed_name in self._exposed_names:
+            if (exposed_name in self.exposed_publisher and 
+                exposed_name in self.exposed_event_publisher):
+                continue
+            self.exposed_publisher[exposed_name] = yield self.publish_to(
+                '%s.inbound' % (exposed_name,))
+            self.exposed_event_publisher[exposed_name] = yield self.publish_to(
+                '%s.event' % (exposed_name,))
+
+    @inlineCallbacks
+    def setup_exposed_consumers(self):
+        for exposed_name in self._exposed_names:
+            if exposed_name in self.exposed_consumer:
+                continue
+            self.exposed_consumer[exposed_name] = yield self.consume(
+                '%s.outbound' % (exposed_name,),
+                functools.partial(self.dispatch_outbound_message,
+                                  exposed_name),
+                message_class=TransportUserMessage)
 
     @inlineCallbacks
     def setup_control(self):
@@ -46,8 +80,9 @@ class DynamicDispatchWorker(BaseDispatchWorker):
 
     @inlineCallbacks
     def setup_exposed(self, name):
+        log.debug("Setup exposed %s" % (name,))
         if not name in self.config['exposed_names']:
-            self.config['exposed_names'].append(name)
+            self.config['exposed_names'].append(name.encode('utf-8'))
             self.exposed_publisher[name] = yield self.publish_to(
                 ('%s.inbound' % (name,)).encode('utf-8'))
             self.exposed_event_publisher[name] = yield self.publish_to(
@@ -58,11 +93,13 @@ class DynamicDispatchWorker(BaseDispatchWorker):
                                   name),
                 message_class=TransportUserMessage)
 
+    @inlineCallbacks
     def remove_exposed(self, name):
         if name in self.config['exposed_names']:
             self.exposed_publisher.pop(name)
             self.exposed_event_publisher.pop(name)
-            self.exposed_consumer.pop(name)
+            consumer = self.exposed_consumer.pop(name)
+            yield consumer.stop()
             self.config['exposed_names'].remove(name)
 
     #Need to check if the (name, rule) is not already there
@@ -94,12 +131,19 @@ class DynamicDispatchWorker(BaseDispatchWorker):
                               if name_to_clear != rule['app']]
 
     def receive_control_message(self, msg):
-        log.debug('Received control message %s' % (msg,))
-        if msg['action'] == 'add_exposed':
-            self.setup_exposed(msg['exposed_name'])
-            self.append_mapping(msg['exposed_name'], msg['rules'])
-            return
-        if msg['action'] == 'remove_exposed':
-            self.remove_exposed(msg['exposed_name'])
-            self.clear_mapping(msg['exposed_name'])
-            return
+        try:
+            log.debug('Received control message %s' % (msg,))
+            if msg['action'] == 'add_exposed':
+                self.setup_exposed(msg['exposed_name'])
+                self.append_mapping(msg['exposed_name'], msg['rules'])
+                return
+            if msg['action'] == 'remove_exposed':
+                self.clear_mapping(msg['exposed_name'])
+                self.remove_exposed(msg['exposed_name'])
+                return
+        except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            log.error(
+                "Error during consume control message: %r" %
+                traceback.format_exception(exc_type, exc_value, exc_traceback))
+

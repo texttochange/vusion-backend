@@ -9,9 +9,6 @@ transport_mappings:
         '8181': yo8181
         '+31642500021': nllong
 exposed_names: 
-        - m4h 
-        - mrs
-        - wiki
         - garbage
 fallback_application: garbage
 expire_routing_memory: 20
