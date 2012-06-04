@@ -124,8 +124,8 @@ class ReceiveSMSResource(Resource):
             yield self.publish_func(
                  transport_name=self.transport_name,
                     transport_type='sms',
-                    to_addr=request.args['recipient'][0],
-                    from_addr=self.phone_format_from_cm(request.args['originator'][0]),
+                    to_addr=request.args['originator'][0],
+                    from_addr=self.phone_format_from_cm(request.args['recipient'][0]),
                     content=request.args['message'][0],
                     transport_metadata={}
             )

@@ -127,7 +127,7 @@ class CmTransportTestCase(TransportTestCase):
 
     @inlineCallbacks
     def test04_receiving_one_sms(self):
-        url = ("""http://localhost:%s%s?recipient=9292&operator=MTN&originator=0041791234567&message=Hello+World""" 
+        url = ("""http://localhost:%s%s?recipient=0041791234567&operator=MTN&originator=9292&message=Hello+World""" 
                % (self.config['receive_port'], self.config['receive_path']))
         response = yield http_request_full(url, method='GET')
         [smsg] = self.get_dispatched('cm.inbound')
