@@ -22,7 +22,7 @@ import re
 ##This transport is supposed to send and receive sms in 2 different ways.
 ##To send sms we use the CM API
 ##To receive sms we use the YO Interface to forward the sms
-class CmYoTransport(Transport):
+class CmTransport(Transport):
 
     def mkres(self, cls, publish_func, path_key):
         resource = cls(self.config, publish_func)
@@ -111,7 +111,7 @@ class ReceiveSMSResource(Resource):
         self.publish_func = publish_func
         self.transport_name = self.config['transport_name']
 
-    def phone_format_from_yo(self, phone):
+    def phone_format_from_cm(self, phone):
         regex = re.compile('^00')
         return re.sub(regex, '+', phone)
 
@@ -124,8 +124,8 @@ class ReceiveSMSResource(Resource):
             yield self.publish_func(
                  transport_name=self.transport_name,
                     transport_type='sms',
-                    to_addr=request.args['code'][0],
-                    from_addr=self.phone_format_from_yo(request.args['sender'][0]),
+                    to_addr=request.args['recipient'][0],
+                    from_addr=self.phone_format_from_cm(request.args['originator'][0]),
                     content=request.args['message'][0],
                     transport_metadata={}
             )

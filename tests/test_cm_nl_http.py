@@ -6,22 +6,22 @@ from twisted.web import http
 from twisted.web.resource import Resource
 
 from vumi.transports.tests.test_base import TransportTestCase
-from transports import CmYoTransport
+from transports import CmTransport
 from vumi.tests.utils import (get_stubbed_worker, TestResourceWorker,
                               RegexMatcher, UTCNearNow)
 from vumi.utils import http_request_full
 from vumi.message import TransportMessage, TransportEvent, TransportUserMessage
 
 
-class CmYoTransportTestCase(TransportTestCase):
+class CmTransportTestCase(TransportTestCase):
 
     transport_name = 'cm'
     transport_type = 'sms'
-    transport_class = CmYoTransport
+    transport_class = CmTransport
 
     @inlineCallbacks
     def setUp(self):
-        yield super(CmYoTransportTestCase, self).setUp()
+        yield super(CmTransportTestCase, self).setUp()
         self.send_path = '/sendsms'
         self.send_port = 9999
         self.config = {
@@ -30,7 +30,7 @@ class CmYoTransportTestCase(TransportTestCase):
             'login': 'login',
             'password': 'password',
             'customer_id': '3454',
-            'receive_path': '/yo',
+            'receive_path': '/cm',
             'receive_port': 9998
         }
         self.worker = yield self.get_transport(self.config)
@@ -68,7 +68,7 @@ class CmYoTransportTestCase(TransportTestCase):
             from_addr='+41791234567',
             to_addr='9292',
             group=None,
-            message_id=message_id,
+            #message_id=message_id,
             transport_name=self.transport_name,
             transport_type=transport_type,
             transport_metadata=transport_metadata,
@@ -127,8 +127,8 @@ class CmYoTransportTestCase(TransportTestCase):
 
     @inlineCallbacks
     def test04_receiving_one_sms(self):
-        url = "http://localhost:%s%s?sender=0041791234567&code=9292&message=Hello+World" % (self.config['receive_port'],
-                                         self.config['receive_path'])
+        url = ("""http://localhost:%s%s?recipient=9292&operator=MTN&originator=0041791234567&message=Hello+World""" 
+               % (self.config['receive_port'], self.config['receive_path']))
         response = yield http_request_full(url, method='GET')
         [smsg] = self.get_dispatched('cm.inbound')
 
@@ -138,9 +138,7 @@ class CmYoTransportTestCase(TransportTestCase):
         self.assertEqual('9292',
                          TransportMessage.from_json(smsg.body)['to_addr'])
         self.assertEqual('+41791234567',
-                         TransportMessage.from_json(smsg.body)['from_addr'])
-
-
+                         TransportMessage.from_json(smsg.body)['from_addr'])        
 
     def get_dispatched(self, rkey):
         return self._amqp.get_dispatched('vumi', rkey)

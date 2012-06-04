@@ -81,8 +81,8 @@ class DynamicDispatchWorker(BaseDispatchWorker):
     @inlineCallbacks
     def setup_exposed(self, name):
         log.debug("Setup exposed %s" % (name,))
-        if not name in self.config['exposed_names']:
-            self.config['exposed_names'].append(name.encode('utf-8'))
+        if not name in self._exposed_names:
+            self._exposed_names.append(name.encode('utf-8'))
             self.exposed_publisher[name] = yield self.publish_to(
                 ('%s.inbound' % (name,)).encode('utf-8'))
             self.exposed_event_publisher[name] = yield self.publish_to(

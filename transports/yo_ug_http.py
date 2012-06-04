@@ -127,13 +127,12 @@ class ReceiveSMSResource(Resource):
         request.setHeader('Content-Type', 'text/plain')
         try:
             yield self.publish_func(
-                 transport_name=self.transport_name,
-                    transport_type='sms',
-                    message_id='abc',
-                    to_addr=request.args['code'][0],
-                    from_addr=self.phone_format_from_yo(request.args['sender'][0]),
-                    content=request.args['message'][0],
-                    transport_metadata={}
+                transport_name=self.transport_name,
+                transport_type='sms',
+                to_addr=request.args['code'][0],
+                from_addr=self.phone_format_from_yo(request.args['sender'][0]),
+                content=request.args['message'][0],
+                transport_metadata={}
             )
         except Exception, e:
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)

@@ -134,9 +134,13 @@ class YoUgHttpTransportTestCase(TransportTestCase):
         [smsg] = self.get_dispatched('yo.inbound')
 
         self.assertEqual(response.code, http.OK)
-        self.assertEqual(self.mkmsg_in(from_addr='+41791234567',
-                                       content='Hello World'),
-                         TransportMessage.from_json(smsg.body))
+        self.assertEqual('Hello World',
+                         TransportMessage.from_json(smsg.body)['content'])
+        self.assertEqual('+41791234567',
+                         TransportMessage.from_json(smsg.body)['from_addr'])
+        self.assertEqual('9292',
+                         TransportMessage.from_json(smsg.body)['to_addr'])
+
 
     def get_dispatched(self, rkey):
         return self._amqp.get_dispatched('vumi', rkey)
