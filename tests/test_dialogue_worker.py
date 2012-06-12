@@ -903,6 +903,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     def test22_register_keywords_in_dispatcher(self):
         self.collections['dialogues'].save(self.dialogue_question)
         self.collections['requests'].save(self.request_join)
+        self.collections['requests'].save(self.request_leave)
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
