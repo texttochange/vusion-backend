@@ -387,6 +387,8 @@ class TtcGenericWorker(ApplicationWorker):
                     else:
                         sendingDateTime = self.get_local_time()
                 elif (interaction['type-schedule'] == 'wait'):
+                    if (previousSendDateTime is None):
+                        previousSendDateTime = self.get_local_time()
                     sendingDateTime = previousSendDateTime + timedelta(minutes=int(interaction['minutes']))
                 elif (interaction['type-schedule'] == 'fixed-time'):
                     sendingDateTime = time_from_vusion_format(interaction['date-time'])
