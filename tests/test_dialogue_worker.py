@@ -3,6 +3,7 @@ from twisted.internet.defer import inlineCallbacks
 
 import pymongo
 import json
+from bson.objectid import ObjectId
 
 from datetime import datetime, time, date, timedelta
 import pytz
@@ -12,7 +13,7 @@ from vumi.message import Message, TransportEvent, TransportUserMessage
 
 from vusion import TtcGenericWorker
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
-from vusion.error import MissingData
+from vusion.error import MissingData, MissingTemplate
 from transports import YoUgHttpTransport
 from tests.utils import MessageMaker, DataLayerUtils
 
@@ -104,6 +105,22 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         ]
     }
 
+    dialogue_open_question = {
+        'activated': 1,
+        'dialogue-id': '04',
+        'interactions': [
+            {
+                'interaction-id': '01-01',
+                'type-interaction': 'question-answer',
+                'content': 'How are you?',
+                'keyword': 'name',
+                'type-question': 'open-question',
+                'answer-label': 'name',
+                'type-schedule': 'immediately'
+            }
+        ]
+    }
+
     dialogue_announcement_fixedtime = {
         'activated': 1,
         'dialogue-id': '1',
@@ -154,13 +171,34 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             }]
     }
 
+    unattach_message = {
+            'to': 'all participants',
+            'content': 'Hello everyone',
+            'type-schedule': 'fixed-time',
+            'schedule': '2100-03-12T12:30:00'
+    }
+
+    template_closed_question = {
+        'name': 'my template',
+        'type-question': 'closed-question',
+        'template': 'QUESTION\r\nANSWERS To reply send: KEYWORD<space><AnswerNb> to SHORTCODE'
+    }
+
+    template_open_question = {
+        'name': 'my other template',
+        'type-question': 'open-question',
+        'template': 'QUESTION\r\n To reply send: KEYWORD<space><ANSWER> to SHORTCODE'
+    }
+
     @inlineCallbacks
     def setUp(self):
         self.transport_name = 'test'
         self.control_name = 'mycontrol'
-        self.database_name = 'test'
+        self.database_name = 'test_program_db'
+        self.vusion_database_name = 'test_vusion_db'
         self.config = {'transport_name': self.transport_name,
                        'database_name': self.database_name,
+                       'vusion_database_name': self.vusion_database_name,
                        'control_name': self.control_name,
                        'dispatcher_name': 'dispatcher'}
         self.worker = get_stubbed_worker(TtcGenericWorker,
@@ -186,6 +224,9 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                                 'program_settings',
                                 'unattached_messages',
                                 'requests'])
+        self.db = connection[self.config['vusion_database_name']]
+        self.setup_collections(['templates'])
+
         self.drop_collections()
 
         #Let's rock"
@@ -225,19 +266,31 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     #TODO: reduce the scope of the update-schedule
     @inlineCallbacks
     def test01_consume_control_update_schedule(self):
-        dialogue_id = self.collections['dialogues'].save(
-            self.dialogue_annoucement)
-        self.collections['dialogues'].save(self.dialogue_question)
-        self.collections['participants'].save({'phone': '08'})
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
 
-        event = self.mkmsg_dialogueworker_control('update-schedule',
-                                                  dialogue_id.__str__())
-        yield self.send(event, 'control')
+        self.collections['dialogues'].save(self.dialogue_annoucement)
+        self.collections['dialogues'].save(self.dialogue_question)
+        self.collections['participants'].save({'phone': '08'})
+        self.collections['participants'].save({'phone': '09', 'optout': True})
+        self.collections['participants'].save(
+            {'phone': '10',
+             'enrolled': self.dialogue_question['dialogue-id']})
+        self.collections['participants'].save(
+            {'phone': '11',
+             'enrolled': self.dialogue_question['dialogue-id'],
+             'optout': True})
 
-        self.assertEqual(2, self.collections['schedules'].count())
+        event = self.mkmsg_dialogueworker_control('update-schedule')
+        yield self.send(event, 'control')
+        self.assertEqual(5, self.collections['schedules'].count())
+
+        self.collections['unattached_messages'].save(self.unattach_message)
+
+        event = self.mkmsg_dialogueworker_control('update-schedule')
+        yield self.send(event, 'control')
+        self.assertEqual(7, self.collections['schedules'].count())
 
     @inlineCallbacks
     def test02_consume_control_test_send_all_messages(self):
@@ -293,7 +346,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
              'modified': '50'})
 
         self.collections['participants'].save({'phone': '06'})
-        
+
         dialogues = self.worker.get_active_dialogues()
         self.assertEqual(len(dialogues), 2)
         self.assertEqual(dialogues[0]['Dialogue']['_id'],
@@ -313,7 +366,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collections['participants'].save(participant)
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
-        self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
         self.worker.schedule_participant_dialogue(
@@ -484,7 +536,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
              'participant-phone': '06',
              'interaction-id': '1',
              'dialogue-id': '0'})
-        
+
         #Declare collection for loging messages
         self.save_status(timestamp=dLaterPast.strftime(self.time_format),
                          participant_phone='06',
@@ -526,8 +578,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEquals(schedule_datetime.hour, dFuture.hour)
         self.assertEquals(schedule_datetime.minute, dFuture.minute)
 
-    #@inlineCallbacks
-    def test12_generate_message(self):
+    def test11_customize_message(self):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -557,8 +608,15 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         message_two = self.worker.generate_message(interaction_using_tag)
         self.assertRaises(MissingData, self.worker.customize_message, '07', message_two)
 
+    #@inlineCallbacks
+    def test12_generate_message(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
         interaction_closed_question = {
             'type-interaction': 'question-answer',
+            'type-question': 'closed-question',
             'content': 'How are you?',
             'keyword': 'FEEL',
             'answers': [
@@ -566,14 +624,29 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
                 {'choice': 'Ok'}],
         }
 
+        self.assertRaises(MissingTemplate, self.worker.generate_message, interaction_closed_question)
+
+        saved_template_id = self.collections['templates'].save(self.template_closed_question)
+        self.collections['program_settings'].save(
+            {'key': 'default-template-closed-question',
+             'value': saved_template_id}
+        )
+
         close_question = self.worker.generate_message(interaction_closed_question)
 
         self.assertEqual(
             close_question,
-            "How are you? 1. Fine 2. Ok To reply send: FEEL(space)(Answer Nr) to 8181")
+            "How are you?\n1. Fine\n2. Ok\n To reply send: FEEL<space><AnswerNb> to 8181")
+
+        saved_template_id = self.collections['templates'].save(self.template_open_question)
+        self.collections['program_settings'].save(
+            {'key': 'default-template-open-question',
+             'value': saved_template_id}
+        )
 
         interaction_open_question = {
             'type-interaction': 'question-answer',
+            'type-question': 'open-question',
             'content': 'Which dealer did you buy the system from?',
             'keyword': 'DEALER, deal',
             'answer-label': 'Name dealer',
@@ -583,32 +656,15 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         self.assertEqual(
             open_question,
-            "Which dealer did you buy the system from? To reply send: DEALER(space)(Name dealer) to 8181")
+            "Which dealer did you buy the system from?\n To reply send: DEALER<space><Name dealer> to 8181")
 
-        interaction_no_keyword = {
-            'type-interaction': 'question-answer',
-            'content': 'Which dealer did you buy the system from?',
-            'keyword': '',
-            'answer-label': 'Name dealer',
-        }
+        self.collections['program_settings'].drop()
+        self.collections['program_settings'].save(
+            {'key': 'default-template-open-question',
+             'value': ObjectId("4fc343509fa4da5e11000000")}
+        )
 
-        open_question = self.worker.generate_message(interaction_no_keyword)
-
-        self.assertEqual(
-            open_question,
-            "Which dealer did you buy the system from? To reply send: (Name dealer) to 8181")
-
-        interaction_no_keyword_field = {
-            'type-interaction': 'question-answer',
-            'content': 'Which dealer did you buy the system from?',
-            'answer-label': 'Name dealer',
-        }
-
-        open_question = self.worker.generate_message(interaction_no_keyword_field)
-
-        self.assertEqual(
-            open_question,
-            "Which dealer did you buy the system from? To reply send: (Name dealer) to 8181")
+        self.assertRaises(MissingTemplate, self.worker.generate_message, interaction_open_question)
 
     @inlineCallbacks
     def test13_received_delivered(self):
@@ -682,7 +738,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collections['dialogues'].save(self.dialogue_annoucement_2)
         self.collections['participants'].save({'phone': '06'})
         self.collections['requests'].save(self.request_join)
-        
+
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
                                              content='Feel ok')
         yield self.send(inbound_msg_matching, 'inbound')
@@ -715,9 +771,17 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(3, self.collections['participants'].count())
         self.assertEqual(6, self.collections['schedules'].count())
 
-    def test18_run_action(self):
-        self.worker.init_program_db(self.database_name)
+        self.collections['dialogues'].save(self.dialogue_open_question)
 
+        inbound_msg_matching_request = self.mkmsg_in(
+            from_addr='06',
+            content='name john doe')
+        yield self.send(inbound_msg_matching_request, 'inbound')
+
+        participant = self.collections['participants'].find_one({'phone': '06'})
+        self.assertEqual('john doe', participant['name'])
+
+    def test18_run_action(self):
         self.worker.run_action("08", {'type-action': 'feedback',
                                       'content': 'message'})
         self.assertEqual(1, self.collections['schedules'].count())
@@ -730,11 +794,22 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertTrue(self.collections['participants'].find_one(
             {'phone': '08'})['optout'])
 
+        #Participant can opt-in again
+        self.worker.run_action("08", {'type-action': 'optin'})
+        self.assertEqual(1, self.collections['participants'].count())
+        self.assertFalse(self.collections['participants'].find_one(
+            {'phone': '08', 'optout': True}))
+
         self.worker.run_action("08", {'type-action': 'tagging',
                                       'tag': 'my tag'})
         self.worker.run_action("08", {'type-action': 'tagging',
                                       'tag': 'my second tag'})
         self.assertTrue(self.collections['participants'].find_one({'tags': 'my tag'}))
+        self.worker.run_action("08", {'type-action': 'tagging',
+                                      'tag': 'my tag'})
+        self.assertEqual(
+            ['my tag', 'my second tag'],
+            self.collections['participants'].find_one({'tags': 'my tag'})['tags'])
 
         self.collections['dialogues'].save(self.dialogue_question)
         self.worker.run_action("08", {'type-action': 'enrolling',
@@ -742,13 +817,25 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertTrue(self.collections['participants'].find_one({'enrolled': '01'}))
         self.assertEqual(2, self.collections['schedules'].count())
 
+        self.worker.run_action("08", {'type-action': 'enrolling',
+                                      'enroll': '01'})
+        self.assertEqual(
+            1,
+            len(self.collections['participants'].find_one({'phone': '08'})['enrolled']))
+
+        #Enrolling a new number will opt it in
+        self.worker.run_action("09", {'type-action': 'enrolling',
+                                      'enroll': '01'})
+        self.assertTrue(
+            self.collections['participants'].find_one({'phone': '09',
+                                                       'enrolled': '01'}))
+
         self.worker.run_action("08", {'type-action': 'profiling',
                                       'label': 'gender',
                                       'value': 'Female'})
         self.assertTrue(self.collections['participants'].find_one({'gender': 'Female'}))
 
     def test19_schedule_process_handle_crap_in_history(self):
-        #config = self.simple_config
         dialogue = self.dialogue_annoucement
         participant = {'phone': '06'}
 
@@ -756,7 +843,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.collections['participants'].save(participant)
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
-        #self.worker.init_program_db(config['database_name'])
         self.worker.load_data()
 
         self.save_status(participant_phone="06",
@@ -814,18 +900,23 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(schedules[0]['participant-phone'], '07')
 
     @inlineCallbacks
-    def test22_register_keywords_in_dispatcher(self):        
+    def test22_register_keywords_in_dispatcher(self):
         self.collections['dialogues'].save(self.dialogue_question)
         self.collections['requests'].save(self.request_join)
-        
+        self.collections['requests'].save(self.request_leave)
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
         yield self.worker.register_keywords_in_dispatcher()
 
         messages = self.broker.get_messages('vumi', 'dispatcher.control')
         self.assertEqual(1, len(messages))
-        self.assertEqual([['test', 'feel'],
-                          ['test', 'fel'],
-                          ['test', 'www']],
-                         messages[0]['keyword_mappings'])
+        self.assertEqual([
+            {'app': 'test', 'keyword': 'feel', 'to_addr': '8181'},
+            {'app': 'test', 'keyword': 'fel', 'to_addr': '8181'},
+            {'app': 'test', 'keyword': 'www', 'to_addr': '8181'}],
+            messages[0]['rules'])
 
     @inlineCallbacks
     def test23_test_send_all_messages(self):

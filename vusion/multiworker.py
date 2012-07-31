@@ -17,7 +17,7 @@ class VusionMultiWorker(MultiWorker):
         self.worker_creator = self.WORKER_CREATOR(self.options)
         for wname, wclass in self.config.get('workers', {}).items():
             worker = self.create_worker(wname, wclass)
-            self.workers['wname'] = worker
+            self.workers[wname] = worker
 
     @inlineCallbacks
     def startWorker(self):

@@ -8,3 +8,7 @@ class MissingData(VusionError):
 
 class SendingDatePassed(VusionError):
     pass
+
+
+class MissingTemplate(VusionError):
+    pass

@@ -1,6 +1,7 @@
 # -*- test-case-name: tests.test_ttc -*-
 
-import sys, traceback
+import sys
+import traceback
 import re
 
 from twisted.internet.defer import (inlineCallbacks, Deferred)
@@ -20,10 +21,12 @@ from vumi.message import Message, TransportUserMessage, TransportEvent
 from vumi.application import SessionManager
 from vumi import log
 
-from vusion.vusion_script import VusionScript, split_keywords
+from vusion.dialogue import Dialogue, split_keywords
 from vusion.utils import (time_to_vusion_format, get_local_time,
                           get_local_time_as_timestamp, time_from_vusion_format)
-from vusion.error import MissingData, SendingDatePassed, VusionError
+from vusion.error import (MissingData, SendingDatePassed, VusionError,
+                          MissingTemplate)
+from vusion.message import DispatcherControl
 
 
 class TtcGenericWorker(ApplicationWorker):
@@ -36,9 +39,8 @@ class TtcGenericWorker(ApplicationWorker):
         super(TtcGenericWorker, self).startService()
 
     @inlineCallbacks
-    def startWorker(self):
+    def setup_application(self):
         log.msg("One Generic Worker is starting")
-        super(TtcGenericWorker, self).startWorker()
 
         #Store basic configuration data
         self.transport_name = self.config['transport_name']
@@ -55,26 +57,33 @@ class TtcGenericWorker(ApplicationWorker):
         self._d.callback(None)
 
         self.collections = {}
-        self.init_program_db(self.config['database_name'])
+        self.init_program_db(self.config['database_name'],
+                             self.config['vusion_database_name'])
 
         send_loop_period = self.config['send_loop_period'] if 'send_loop_period' in self.config else "60"
         self.sender = task.LoopingCall(self.daemon_process)
         self.sender.start(float(send_loop_period))
+
+        #Set up dispatcher publisher
+        self.dispatcher_publisher = yield self.publish_to(
+            '%(dispatcher_name)s.control' % self.config)
 
         #Set up control consumer
         self.control_consumer = yield self.consume(
             '%(control_name)s.control' % self.config,
             self.consume_control,
             message_class=Message)
-        #Set up dispatcher publisher
-        self.dispatcher_publisher = yield self.publish_to(
-            '%(dispatcher_name)s.control' % self.config)
-        
+        self._consumers.append(self.control_consumer)
+
+        self.load_data()
         if self.is_ready():
             yield self.register_keywords_in_dispatcher()
 
-    def stopWorker(self):
+    @inlineCallbacks
+    def teardown_application(self):
         self.log("Worker is stopped.")
+        if self.is_ready():
+            yield self.unregister_from_dispatcher()
         if (self.sender.running):
             self.sender.stop()
 
@@ -125,15 +134,15 @@ class TtcGenericWorker(ApplicationWorker):
             {'_id': ObjectId(dialogue_id)})
         return dialogue
 
-    def init_program_db(self, database_name):
+    def init_program_db(self, database_name, vusion_database_name):
         self.log("Initialization of the program")
         self.database_name = database_name
+        self.vusion_database_name = vusion_database_name
         self.log("Connecting to database: %s" % self.database_name)
 
         #Initilization of the database
         connection = pymongo.Connection("localhost", 27017)
         self.db = connection[self.database_name]
-
         self.setup_collections(['dialogues',
                                 'participants',
                                 'history',
@@ -141,6 +150,9 @@ class TtcGenericWorker(ApplicationWorker):
                                 'program_settings',
                                 'unattached_messages',
                                 'requests'])
+
+        self.db = connection[self.vusion_database_name]
+        self.setup_collections(['templates'])
 
     def setup_collections(self, names):
         for name in names:
@@ -157,6 +169,7 @@ class TtcGenericWorker(ApplicationWorker):
     def consume_control(self, message):
         try:
             self.log("Control message received to %r" % (message['action'],))
+            self.load_data()
             if (not self.is_ready()):
                 self.log("Worker is not ready, cannot performe the action.")
                 return
@@ -165,13 +178,12 @@ class TtcGenericWorker(ApplicationWorker):
                 self.schedule()
             elif message['action'] == 'test-send-all-messages':
                 dialogue = self.get_dialogue(message['dialogue_obj_id'])
-                self.send_all_messages(dialogue, message['phone_number'])
+                yield self.send_all_messages(dialogue, message['phone_number'])
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log(
                 "Error during consume control message: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
-            
 
     def dispatch_event(self, message):
         self.log("Event message received %s" % (message,))
@@ -209,7 +221,9 @@ class TtcGenericWorker(ApplicationWorker):
 
     def run_action(self, participant_phone, action):
         if (action['type-action'] == 'optin'):
-            self.collections['participants'].save({'phone': participant_phone})
+            self.collections['participants'].update(
+                {'phone': participant_phone},
+                {'$unset': {'optout': 1}}, True)
         elif (action['type-action'] == 'optout'):
             self.collections['participants'].update(
                 {'phone': participant_phone},
@@ -223,12 +237,14 @@ class TtcGenericWorker(ApplicationWorker):
             })
         elif (action['type-action'] == 'tagging'):
             self.collections['participants'].update(
-                {'phone': participant_phone},
+                {'phone': participant_phone,
+                 'tags': {'$ne': action['tag']}},
                 {'$push': {'tags': action['tag']}})
         elif (action['type-action'] == 'enrolling'):
             self.collections['participants'].update(
-                {'phone': participant_phone},
-                {'$push': {'enrolled': action['enroll']}})
+                {'phone': participant_phone,
+                 'enrolled': {'$ne': action['enroll']}},
+                {'$push': {'enrolled': action['enroll']}}, True)
             dialogue = self.get_current_dialogue(action['enroll'])
             participant = self.collections['participants'].find_one(
                 {'phone': participant_phone})
@@ -248,13 +264,14 @@ class TtcGenericWorker(ApplicationWorker):
             actions = []
             active_dialogues = self.get_active_dialogues()
             for dialogue in active_dialogues:
-                scriptHelper = VusionScript(dialogue['Dialogue'])
+                scriptHelper = Dialogue(dialogue['Dialogue'])
                 ref, actions = scriptHelper.get_matching_reference_and_actions(
                     message['content'], actions)
                 if ref:
                     break
-            actions = self.get_matching_request_actions(message['content'],
-                                                        actions)
+            actions = self.get_matching_request_actions(
+                message['content'],
+                actions)
             self.save_history(
                 message_content=message['content'],
                 participant_phone=message['from_addr'],
@@ -282,11 +299,11 @@ class TtcGenericWorker(ApplicationWorker):
             self.properties[program_setting['key']] = program_setting['value']
 
     def is_ready(self):
-        if 'shortcode' not in self.properties:
+        if not 'shortcode' in self.properties:
             self.log('Shortcode not defined')
             return False
-        if (('timezone' not in self.properties)
-            and (self.properties['timezone'] not in pytz.all_timezones)):
+        if ((not 'timezone' in self.properties)
+            or (not self.properties['timezone'] in pytz.all_timezones)):
             self.log('Timezone not defined or not supported')
             return False
         return True
@@ -297,16 +314,18 @@ class TtcGenericWorker(ApplicationWorker):
         for dialogue in active_dialogues:
             if ('auto-enrollment' in dialogue['Dialogue']
                 and dialogue['Dialogue']['auto-enrollment'] == 'all'):
-                participants = self.collections['participants'].find()
+                participants = self.collections['participants'].find(
+                    {'optout': {'$ne': True}})
             else:
                 participants = self.collections['participants'].find(
-                    {'enrolled': dialogue['dialogue-id']})
+                    {'enrolled': dialogue['dialogue-id'],
+                     'optout': {'$ne': True}})
             self.schedule_participants_dialogue(
                     participants,
                     dialogue['Dialogue'])
         #Schedule the nonattached messages
         self.schedule_participants_unattach_messages(
-            self.collections['participants'].find())
+            self.collections['participants'].find({'optout': {'$ne': True}}))
 
     def get_future_unattach_messages(self):
         return self.collections['unattached_messages'].find({
@@ -315,7 +334,7 @@ class TtcGenericWorker(ApplicationWorker):
             }})
 
     def schedule_participants_unattach_messages(self, participants):
-        for participant in self.collections['participants'].find():
+        for participant in participants:
             self.schedule_participant_unattach_messages(participant)
 
     def schedule_participant_unattach_messages(self, participant):
@@ -343,10 +362,11 @@ class TtcGenericWorker(ApplicationWorker):
 
     #TODO: decide which id should be in an schedule object
     def schedule_participant_dialogue(self, participant, dialogue):
-        previousSendDateTime = None
-        #self.log('Scheduling for %s dialogue %r' % (participant, dialogue))
         try:
-            for interaction in dialogue.get('interactions'):
+            previousSendDateTime = None
+            if not 'interactions' in dialogue:
+                return
+            for interaction in dialogue['interactions']:
                 schedule = self.collections['schedules'].find_one({
                     "participant-phone": participant['phone'],
                     "dialogue-id": dialogue["dialogue-id"],
@@ -367,6 +387,8 @@ class TtcGenericWorker(ApplicationWorker):
                     else:
                         sendingDateTime = self.get_local_time()
                 elif (interaction['type-schedule'] == 'wait'):
+                    if (previousSendDateTime is None):
+                        previousSendDateTime = self.get_local_time()
                     sendingDateTime = previousSendDateTime + timedelta(minutes=int(interaction['minutes']))
                 elif (interaction['type-schedule'] == 'fixed-time'):
                     sendingDateTime = time_from_vusion_format(interaction['date-time'])
@@ -398,9 +420,8 @@ class TtcGenericWorker(ApplicationWorker):
             self.log("Scheduling exception: %s" % interaction)
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log(
-                "Error during consume user message: %r" %
+                "Error during schedule message: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
-
 
     def get_local_time(self):
         try:
@@ -563,44 +584,76 @@ class TtcGenericWorker(ApplicationWorker):
         self.log('Synchronizing with dispatcher')
         keywords = []
         for dialogue in self.get_active_dialogues():
-            keywords += VusionScript(dialogue['Dialogue']).get_all_keywords()
+            keywords += Dialogue(dialogue['Dialogue']).get_all_keywords()
         for request in self.collections['requests'].find():
             keyphrases = request['keyword'].split(', ')
             for keyphrase in keyphrases:
                 if not (keyphrase.split(' ')[0]) in keywords:
                     keywords.append(keyphrase.split(' ')[0])
-        keyword_mappings = []
+        rules = []
         for keyword in keywords:
-            keyword_mappings.append((self.transport_name, keyword))
-        msg = Message(**{'message_type': 'add_exposed',
-                         'exposed_name': self.transport_name,
-                         'keyword_mappings': keyword_mappings})
+            rules.append({'app': self.transport_name,
+                          'keyword': keyword,
+                          'to_addr': self.properties['shortcode']})
+        msg = DispatcherControl(action='add_exposed',
+            exposed_name=self.transport_name, rules=rules)
         yield self.dispatcher_publisher.publish_message(msg)
 
+    @inlineCallbacks
+    def unregister_from_dispatcher(self):
+        msg = DispatcherControl(action='remove_exposed',
+                                exposed_name=self.transport_name)
+        yield self.dispatcher_publisher.publish_message(msg)
+
+    #TODO no template defined and no default template defined... what to do?
     def generate_message(self, interaction):
+        regex_QUESTION = re.compile('QUESTION')
+        regex_ANSWERS = re.compile('ANSWERS')
+        regex_ANSWER = re.compile('ANSWER')
+        regex_SHORTCODE = re.compile('SHORTCODE')
+        regex_KEYWORD = re.compile('KEYWORD')
+        regex_Breakline = re.compile('\\r\\n')
+
         message = interaction['content']
-        if ('type-interaction' in interaction and
-            interaction['type-interaction'] == 'question-answer'):
-            keyword_prefix = ''
-            if 'keyword' in interaction:
-                keyword = split_keywords(interaction['keyword'])[0]
-                if not keyword is '':
-                    keyword_prefix = ("%s(space)" % (keyword.upper()))
-            if 'answers' in interaction:
+        if ('type-interaction' in interaction and interaction['type-interaction'] == 'question-answer'):
+            if 'template' in interaction:
+                #need to get the template
+                pass
+            else:
+                default_template = None
+                if (interaction['type-question'] == 'closed-question'):
+                    default_template = self.collections['program_settings'].find_one({"key": "default-template-closed-question"})
+                elif (interaction['type-question'] == 'open-question'):
+                    default_template = self.collections['program_settings'].find_one({"key": "default-template-open-question"})
+                else:
+                    pass
+                if (default_template is None):
+                    raise MissingTemplate(
+                        "Cannot find default template for %s" %
+                        (interaction['type-question'],))
+                template = self.collections['templates'].find_one({"_id": ObjectId(default_template['value'])})
+                if (template is None):
+                    raise MissingTemplate(
+                        "Cannot find specified template id %s" %
+                        (default_template['value'],))
+            #replace question
+            message = re.sub(regex_QUESTION, interaction['content'], template['template'])
+            #replace answers
+            if (interaction['type-question'] == 'closed-question'):
                 i = 1
+                answers = ""
                 for answer in interaction['answers']:
-                    message = ('%s %s. %s' % (message, i, answer['choice']))
+                    answers = ('%s%s. %s\\n' % (answers, i, answer['choice']))
                     i = i + 1
-                message = ('%s To reply send: %s(Answer Nr) to %s'
-                           % (message,
-                              keyword_prefix,
-                              self.properties['shortcode']))
-            if 'answer-label' in interaction:
-                message = ('%s To reply send: %s(%s) to %s'
-                           % (message,
-                              keyword_prefix,
-                              interaction['answer-label'],
-                              self.properties['shortcode']))
+                message = re.sub(regex_ANSWERS, answers, message)
+            #replace keyword
+            keyword = split_keywords(interaction['keyword'])[0]
+            message = re.sub(regex_KEYWORD, keyword.upper(), message)
+            #replace shortcode
+            message = re.sub(regex_SHORTCODE, self.properties['shortcode'], message)
+            if (interaction['type-question'] == 'open-question'):
+                message = re.sub(regex_ANSWER, interaction['answer-label'], message)
+            message = re.sub(regex_Breakline, '\n', message)
         return message
 
     def customize_message(self, participant_phone, message):

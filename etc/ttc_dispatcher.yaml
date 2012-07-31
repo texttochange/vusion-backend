@@ -1,15 +1,16 @@
-router_class: dispatchers.ContentKeywordRouter
 dispatcher_name: dispatcher
+router_class: vumi.dispatchers.ContentKeywordRouter
 transport_names: 
         - yo8181
         - yo8282
         - nllong
+        - cm3669
 transport_mappings:
-        yo8282: '8282'
-        yo8181: '8181'
-        nllong: '+31642500021'
+        '8282': yo8282
+        '8181': yo8181
+        '+31642500021': nllong
+        '3669': cm3669
 exposed_names: 
-        - m4h 
-        - mrs
-        - wiki
+        - garbage
+fallback_application: garbage
 expire_routing_memory: 20

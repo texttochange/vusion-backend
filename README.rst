@@ -38,10 +38,10 @@ Update `etc/config/*.yaml` with your aggregator account details and run the foll
 ::
 
 	$ source ve/bin/activate
-	$ supervisord -c etc/supervisord.ttcpoc.conf
+	$ supervisord -c etc/supervisord.vusion.conf
 
 if it fails try this:
-	$ supervisord -c etc/supervisord.ttcpoc.conf
+	$ supervisord -c etc/supervisord.vusion.conf
 
 
 Tests

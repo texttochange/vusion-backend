@@ -33,7 +33,8 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker):
             'control_name': 'test',
             'transport_name': 'test',
             'dispatcher_name': 'dispatcher',
-            'database_name': 'test'
+            'database_name': 'test',
+            'vusion_database_name': 'test2'
             }
         }
 
@@ -64,7 +65,8 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker):
             'control_name': 'test2',
             'transport_name': 'test2',
             'dispatcher_name': 'dispatcher2',
-            'database_name': 'test2'
+            'database_name': 'test2',
+            'vusion_database_name': 'test3'
         }
 
         worker = yield self.get_multiwoker(self.base_config)

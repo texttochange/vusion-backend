@@ -5,6 +5,7 @@ from datetime import datetime
 from vumi.message import (TransportEvent, TransportMessage,
                           TransportUserMessage, Message)
 from vumi.transports.failures import FailureMessage
+from vusion.message import DispatcherControl
 
 
 class DataLayerUtils:
@@ -122,14 +123,14 @@ class MessageMaker:
             reason=reason,
             )
 
-    def mkmsg_dispatcher_control(self, message_type='add_exposed',
-                                 exposed_name='app2', keyword_mappings=None):
-        if keyword_mappings == None:
-            keyword_mappings = []
-        return Message(
-            message_type=message_type,
+    def mkmsg_dispatcher_control(self, action='add_exposed',
+                                 exposed_name='app2', rules=None):
+        if rules == None:
+            rules = []
+        return DispatcherControl(
+            action=action,
             exposed_name=exposed_name,
-            keyword_mappings=keyword_mappings)
+            rules=rules)
 
     def mkmsg_multiworker_control(self, message_type='add_worker',
                                   worker_name='m4h', worker_class=None,
@@ -142,7 +143,7 @@ class MessageMaker:
             worker_class=worker_class,
             config=config)
 
-    def mkmsg_dialogueworker_control(self, action, dialogue_obj_id,
+    def mkmsg_dialogueworker_control(self, action, dialogue_obj_id=None,
                                      phone_number=None):
         return Message(
             action=action,
