@@ -38,3 +38,11 @@ class GarbageWorker(Worker):
             'message-content': msg['content'],
             'timestamp': timestamp,
         })
+        error_message_from_template = TransportUserMessage(**{
+                'from_addr': '8282',
+                'to_addr': '0712747841',
+                'transport_name': None,
+                'transport_type': None,
+                'transport_metadata': None,
+                'content': 'This message does not match any keywords'})
+        self.transport_publisher.publish_message(error_message_from_template)

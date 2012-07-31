@@ -41,11 +41,21 @@ class GarabageWorkerTestCase(TestCase, MessageMaker):
         yield self.broker.kick_delivery()
 
     @inlineCallbacks
-    def test_receive_user_message(self):
+    def test_receive_user_message_without_error_template(self):
         msg = self.mkmsg_in()
 
         yield self.send(msg)
 
         stored = self.unmatchable_reply.find_one()
-
         self.assertTrue(stored)
+        
+    @inlineCallbacks
+    def test_receive_user_message_with_error_template(self):
+        msg = self.mkmsg_in()
+        
+        yield self.send(msg)
+        
+        self.assertTrue(self.unmatchable_reply.find_one())
+        
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 1)
