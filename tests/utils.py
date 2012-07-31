@@ -64,6 +64,7 @@ class MessageMaker:
 
     def mkmsg_in(self, content='hello world',
                  from_addr='+41791234567',
+                 to_addr='9292',
                  session_event=TransportUserMessage.SESSION_NONE,
                  message_id='abc', transport_type=None,
                  transport_metadata=None, transport_name=None,
@@ -76,7 +77,7 @@ class MessageMaker:
             transport_metadata = {}
         return TransportUserMessage(
             from_addr=from_addr,
-            to_addr='9292',
+            to_addr=to_addr,
             group=None,
             message_id=message_id,
             transport_name=transport_name,
@@ -149,3 +150,21 @@ class MessageMaker:
             action=action,
             dialogue_obj_id=dialogue_obj_id,
             phone_number=phone_number)
+  
+        
+class ObjectMaker:
+    
+    def mkobj_template_unmatching_keyword(self):
+        return {
+           'name': 'error template',
+           'type-template': 'unmatching-keyword',
+           'template': 'KEYWORD does not match any keyword.'
+        }
+        
+    def mkobj_shortcode(self, error_template=None):
+        return {
+            'country': 'Uganda',
+            'internationalprefix': '256',
+            'shortcode': '8282',
+            'error-template': error_template
+        }

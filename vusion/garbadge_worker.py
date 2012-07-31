@@ -1,4 +1,5 @@
 # -*- test-case-name: tests.test_ttc -*-
+import re
 
 from twisted.internet.defer import Deferred, inlineCallbacks
 
@@ -7,6 +8,7 @@ import pymongo
 from vumi.application import ApplicationWorker
 from vumi.message import TransportUserMessage
 from vumi import log
+from vumi.utils import get_first_word
 
 from vusion.utils import time_to_vusion_format
 
@@ -22,8 +24,15 @@ class GarbageWorker(ApplicationWorker):
         if not 'unmatchable_reply' in db.collection_names():
             db.create_collection('unmatchable_reply')
         self.unmatchable_reply_collection = db['unmatchable_reply']
+        #if not 'shortcodes' in db.collection_names():
+            #db.create_collection('shortcodes')
+        self.shortcodes_collection = db['shortcodes']
+        self.templates_collection = db['templates']
 
+    @inlineCallbacks
     def consume_user_message(self, msg):
+        regex_KEYWORD = re.compile('KEYWORD')
+        
         log.debug("Consumer user message %s" % (msg,))
         if msg['timestamp']:
             timestamp = time_to_vusion_format(msg['timestamp'])
@@ -33,14 +42,22 @@ class GarbageWorker(ApplicationWorker):
              'message-content': msg['content'],
              'timestamp': timestamp,
              })
-        error_message_from_template = TransportUserMessage(**{
-                'from_addr': '8282',
-                'to_addr': '0712747841',
-                'transport_name': None,
-                'transport_type': None,
-                'transport_metadata': None,
-                'content': 'This message does not match any keywords'})
-        self.transport_publisher.publish_message(error_message_from_template)
+        
+        code = self.shortcodes_collection.find_one({'shortcode': msg['to_addr']})
+        if code is None:
+            return
+        template = self.templates_collection.find_one({'_id': code['error-template']})
+        if template is None:
+            return        
+        error_message = TransportUserMessage(**{
+                'from_addr': msg['to_addr'],
+                'to_addr': msg['from_addr'],
+                'transport_name': msg['transport_name'],
+                'transport_type': msg['transport_type'],
+                'transport_metadata': msg['transport_metadata'],
+                'content': re.sub(regex_KEYWORD, get_first_word(msg['content']), template['template'])
+                })
+        yield self.transport_publisher.publish_message(error_message)
 
     def dispatch_event(self, msg):
         pass
