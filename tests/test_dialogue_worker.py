@@ -189,6 +189,12 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         'type-question': 'open-question',
         'template': 'QUESTION\r\n To reply send: KEYWORD<space><ANSWER> to SHORTCODE'
     }
+    
+    template_unmatching_answer = {
+        'name': 'unmatching answers template',
+        'type-action': 'unmatching-answer',
+        'template': 'ANSWER does not match any answer'
+    }
 
     @inlineCallbacks
     def setUp(self):
@@ -782,9 +788,30 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual('john doe', participant['name'])
 
     def test18_run_action(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        
+        saved_template_id = self.collections['templates'].save(
+            self.template_unmatching_answer)
+        self.collections['program_settings'].save(
+            {'key': 'default-template-unmatching-answer',
+             'value': saved_template_id}
+        )
+        
         self.worker.run_action("08", {'type-action': 'feedback',
                                       'content': 'message'})
         self.assertEqual(1, self.collections['schedules'].count())
+        
+        self.worker.run_action("08", {'type-action': 'unmatching-answer',
+                                      'answer': 'best'})        
+        unmatching_template = self.collections['program_settings'].find_one({
+            'key': 'default-template-unmatching-answer'})        
+        self.assertEqual(saved_template_id, unmatching_template['value'])
+        self.assertEqual(2, self.collections['schedules'].count())
+        schedules = self.collections['schedules'].find()
+        self.assertEqual(schedules[1]['content'],
+            "best does not match any answer")
 
         self.worker.run_action("08", {'type-action': 'optin'})
         self.assertEqual(1, self.collections['participants'].count())
@@ -815,7 +842,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.worker.run_action("08", {'type-action': 'enrolling',
                                       'enroll': '01'})
         self.assertTrue(self.collections['participants'].find_one({'enrolled': '01'}))
-        self.assertEqual(2, self.collections['schedules'].count())
+        self.assertEqual(3, self.collections['schedules'].count())
 
         self.worker.run_action("08", {'type-action': 'enrolling',
                                       'enroll': '01'})

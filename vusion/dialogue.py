@@ -55,6 +55,9 @@ class Dialogue:
             answer = self.get_matching_answer(interaction['answers'], reply)
             if not answer:
                 reference_metadata['matching-answer'] = None
+                actions.append({
+                    'type-action': 'unmatching-answer',
+                    'answer': reply})
             else:
                 reference_metadata['matching-answer'] = answer['choice']
                 actions = self.add_feedback_action(actions, answer)
