@@ -97,13 +97,15 @@ class VusionScriptTestCase(TestCase):
         self.assertEqual(ref, {'dialogue-id': '01',
                                'interaction-id': '01-01',
                                'matching-answer': None})
-        self.assertEqual(len(actions), 0)
+        self.assertEqual(len(actions), 1)
+        self.assertEqual(actions[0],{'type-action': 'unmatching-answer',
+                                     'answer': '0'})
 
         ref, actions = script.get_matching_reference_and_actions("feel 3", [])
         self.assertEqual(ref, {'dialogue-id': '01',
                                'interaction-id': '01-01',
                                'matching-answer': None})
-        self.assertEqual(len(actions), 0)
+        self.assertEqual(len(actions), 1)
 
         ref, actions = script.get_matching_reference_and_actions("feel ok", [])
         self.assertEqual(ref, {'dialogue-id': '01',

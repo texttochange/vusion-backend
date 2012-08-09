@@ -220,6 +220,8 @@ class TtcGenericWorker(ApplicationWorker):
         return actions
 
     def run_action(self, participant_phone, action):
+        regex_ANSWER = re.compile('ANSWER')
+        
         if (action['type-action'] == 'optin'):
             self.collections['participants'].update(
                 {'phone': participant_phone},
@@ -235,6 +237,31 @@ class TtcGenericWorker(ApplicationWorker):
                 'type-content': 'feedback',
                 'participant-phone': participant_phone
             })
+        elif (action['type-action'] == 'unmatching-answer'):
+            setting = self.collections['program_settings'].find_one({
+                'key': 'default-template-unmatching-answer'})
+            if setting is None:
+                return
+            template = self.collections['templates'].find_one({
+                '_id': ObjectId(setting['value'])})
+            if template is None:
+                return
+            error_message = TransportUserMessage(**{
+                'from_addr': '8282',
+                'to_addr': participant_phone,
+                'transport_name': None,
+                'transport_type': None,
+                'transport_metadata': None,
+                'content': re.sub(regex_ANSWER, action['answer'], template['template'])
+            })
+            self.collections['schedules'].save({
+                'date-time': time_to_vusion_format(self.get_local_time()),
+                'content': error_message['content'],
+                'type-content': 'feedback',
+                'participant-phone': participant_phone
+            })
+            log.debug("Reply '%s' sent to %s" %
+                (error_message['content'], error_message['to_addr']))
         elif (action['type-action'] == 'tagging'):
             self.collections['participants'].update(
                 {'phone': participant_phone,
@@ -277,6 +304,7 @@ class TtcGenericWorker(ApplicationWorker):
                 participant_phone=message['from_addr'],
                 message_type='received',
                 reference_metadata=ref)
+            self.log("actions %s reference %s" % (actions, ref))
             for action in actions:
                 self.run_action(message['from_addr'], action)
         except:
