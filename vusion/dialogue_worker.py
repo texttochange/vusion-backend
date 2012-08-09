@@ -357,7 +357,7 @@ class TtcGenericWorker(ApplicationWorker):
 
     def get_future_unattach_messages(self):
         return self.collections['unattached_messages'].find({
-            'schedule': {
+            'fixed-time': {
                 '$gt': time_to_vusion_format(self.get_local_time())
             }})
 
@@ -381,7 +381,7 @@ class TtcGenericWorker(ApplicationWorker):
                 'participant-phone': participant['phone'],
                 'unattach-id': unattach_message['_id'],
                 }
-            schedule['date-time'] = unattach_message['schedule']
+            schedule['date-time'] = unattach_message['fixed-time']
             self.collections['schedules'].save(schedule)
 
     def schedule_participants_dialogue(self, participants, dialogue):
