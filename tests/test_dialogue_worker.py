@@ -895,11 +895,13 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             {
                 'to': 'all participants',
                 'content': 'Hello everyone',
-                'schedule': time_to_vusion_format(dFuture)},
+                'schedule': 'fixed-time',
+                'fixed-time': time_to_vusion_format(dFuture)},
             {
                 'to': 'all participants',
                 'content': 'Hello again',
-                'schedule': time_to_vusion_format(dPast)}]
+                'schedule': 'fixed-time',
+                'fixed-time': time_to_vusion_format(dPast)}]
 
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
