@@ -53,7 +53,7 @@ class Dialogue:
             'interaction-id': interaction['interaction-id']}
         if 'answers' in interaction:
             answer = self.get_matching_answer(interaction['answers'], reply)
-            if not answer:
+            if not answer or answer is None:
                 reference_metadata['matching-answer'] = None
                 actions.append({
                     'type-action': 'unmatching-answer',
