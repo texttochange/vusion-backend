@@ -5,6 +5,8 @@ echo "`basename $0` {start|stop|restart}"
 exit
 fi
 
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 case "$1" in
 start)
 if ps ax | grep -v grep | grep -v bash | grep supervisord > /dev/null
@@ -12,19 +14,18 @@ then
     echo "supervisord.vusion service already running."
 else
     echo "supervisord.vusion is starting...."
-    source ve/bin/activate
-    supervisord -c etc/supervisord.vusion.conf
+    source $DIR/ve/bin/activate
+    supervisord -c $DIR/etc/supervisord.vusion.conf
 fi
 ;;
 
 stop)
-source ve/bin/activate
-supervisorctl -c etc/supervisord.vusion.conf shutdown
+source $DIR/ve/bin/activate
+supervisorctl -c $DIR/etc/supervisord.vusion.conf shutdown
 ;;
 
 restart)
-source ve/bin/activate
-supervisorctl -c etc/supervisord.vusion.conf restart all
+source $DIR/ve/bin/activate
 ;;
 
 esac
