@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ -z "$1" ]; then
-echo "`basename $0` {start|stop|restart|status|install}"
+echo "`basename $0` {start|stop|restart|reload|status|install}"
 exit
 fi
 
@@ -43,6 +43,16 @@ then
     echo "supervisord.vusion is restarting...." 
     source $DIR/ve/bin/activate
     supervisorctl -c $DIR/etc/supervisord.vusion.conf restart all
+fi
+;;
+
+reload)
+if ( is_running )
+then
+    echo "supervisord.vusion is stopping... and then restarting..."
+    source $DIR/ve/bin/activate
+    supervisorctl -c $DIR/etc/supervisord.vusion.conf shutdown
+    supervisord -c $DIR/etc/supervisord.vusion.conf
 fi
 ;;
 
