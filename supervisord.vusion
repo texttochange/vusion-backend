@@ -1,18 +1,27 @@
 #!/bin/bash
 
 if [ -z "$1" ]; then
-echo "`basename $0` {start|stop|restart}"
+echo "`basename $0` {start|stop|restart|status|install}"
 exit
 fi
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+is_running(){
+if ps ax | grep -v grep | grep -v bash | grep supervisord.vusion > /dev/null
+then
+    #echo "supervisord.vusion is running." 
+    return 0
+else
+    #echo "supervisord.vusion is stopped."
+    return 1
+fi
+}
+
 case "$1" in
 start)
-if ps ax | grep -v grep | grep -v bash | grep supervisord > /dev/null
+if ( ! is_running )
 then
-    echo "supervisord.vusion service already running."
-else
     echo "supervisord.vusion is starting...."
     source $DIR/ve/bin/activate
     supervisord -c $DIR/etc/supervisord.vusion.conf
@@ -20,12 +29,37 @@ fi
 ;;
 
 stop)
-source $DIR/ve/bin/activate
-supervisorctl -c $DIR/etc/supervisord.vusion.conf shutdown
+if ( is_running )
+then
+    echo "supervisord.vusion is stopping...."
+    source $DIR/ve/bin/activate
+    supervisorctl -c $DIR/etc/supervisord.vusion.conf shutdown
+fi
 ;;
 
 restart)
-source $DIR/ve/bin/activate
+if ( is_running )
+then
+    echo "supervisord.vusion is restarting...." 
+    source $DIR/ve/bin/activate
+    supervisorctl -c $DIR/etc/supervisord.vusion.conf restart all
+fi
 ;;
 
+status)
+if ( is_running )
+then 
+    echo "running"
+    exit 0
+else
+    echo "stopped"
+    exit 0
+fi
+;;
+
+install)
+virtualenv ve
+source $DIR/ve/bin/activate
+pip install -r requirements.pip
+;;
 esac
