@@ -55,6 +55,7 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker):
     def get_multiwoker(self, config):
         self.worker = get_stubbed_worker(StubbedVusionMultiWorker, config)
         self.worker.startService()
+        self.worker.startWorker()
         self.broker = self.worker._amqp_client.broker
         yield self.worker.wait_for_workers()
         returnValue(self.worker)
@@ -69,7 +70,7 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker):
             'vusion_database_name': 'test3'
         }
 
-        worker = yield self.get_multiwoker(self.base_config)
+        yield self.get_multiwoker(self.base_config)
 
         yield self.send_control(
             'vusion',
@@ -78,9 +79,10 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker):
                 worker_name='worker2',
                 worker_class='vusion.TtcGenericWorker',
                 config=new_worker_config))
-        self.assertTrue(True)
-
+        
         yield self.worker.wait_for_workers()
+
+        self.assertTrue('worker2' in self.worker.workers)
 
         yield self.send_control(
             'vusion',
@@ -88,7 +90,8 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker):
                 message_type='remove_worker',
                 worker_name='worker2'))
 
-        self.assertTrue(True)
+        yield self.worker.wait_for_workers()
 
-        yield worker.stopService()
-        self.assertTrue(True)
+        self.assertFalse('worker2' in self.worker.workers)
+
+        yield self.worker.stopService()

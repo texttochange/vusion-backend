@@ -21,3 +21,20 @@ def get_local_time(timezone):
 
 def get_local_time_as_timestamp(local_time):
     return long(time.mktime(local_time.timetuple()))
+
+#TODO remove DataLayerUtils in tests package
+class DataLayerUtils:
+
+    def setup_collections(self, names):
+        for name in names:
+            self.setup_collection(name)
+
+    def setup_collection(self, name):
+        if name in self.db.collection_names():
+            self.collections[name] = self.db[name]
+        else:
+            self.collections[name] = self.db.create_collection(name)
+
+    def drop_collections(self):
+        for name, collection in self.collections.items():
+            collection.drop()
