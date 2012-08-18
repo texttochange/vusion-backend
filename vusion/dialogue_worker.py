@@ -36,6 +36,11 @@ class TtcGenericWorker(ApplicationWorker):
 
     def startService(self):
         self._d = Deferred()
+        self._consumers = []
+        self.properties = {}
+        self.sender = None
+        self.r_prefix = None
+        self.control_name = None
         super(TtcGenericWorker, self).startService()
 
     @inlineCallbacks
@@ -84,7 +89,7 @@ class TtcGenericWorker(ApplicationWorker):
         self.log("Worker is stopped.")
         if self.is_ready():
             yield self.unregister_from_dispatcher()
-        if (self.sender.running):
+        if (self.sender and self.sender.running):
             self.sender.stop()
 
     def save_history(self, message_content, participant_phone, message_type,
@@ -589,13 +594,15 @@ class TtcGenericWorker(ApplicationWorker):
     def log(self, msg, level='msg'):
         timezone = None
         local_time = self.get_local_time()
+        if self.r_prefix is None or self.control_name is None:
+           return
         rkey = "%slogs" % (self.r_prefix,)
         self.r_server.zremrangebyscore(
-            rkey,
-            1,
-            get_local_time_as_timestamp(
-                local_time - timedelta(hours=2))
-        )
+               rkey,
+               1,
+               get_local_time_as_timestamp(
+                   local_time - timedelta(hours=2))
+           )
         self.r_server.zadd(
             rkey,
             "[%s] %s" % (

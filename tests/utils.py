@@ -10,6 +10,9 @@ from vusion.message import DispatcherControl
 
 class DataLayerUtils:
 
+    def __init__(self):
+        self.collections = {}
+
     def setup_collections(self, names):
         for name in names:
             self.setup_collection(name)

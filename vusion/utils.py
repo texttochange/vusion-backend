@@ -25,6 +25,9 @@ def get_local_time_as_timestamp(local_time):
 #TODO remove DataLayerUtils in tests package
 class DataLayerUtils:
 
+    def __init__(self):
+        self.collections = {}
+
     def setup_collections(self, names):
         for name in names:
             self.setup_collection(name)

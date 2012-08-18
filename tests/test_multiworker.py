@@ -2,12 +2,14 @@ from twisted.trial.unittest import TestCase
 from twisted.internet.defer import (Deferred, DeferredList,
                                     inlineCallbacks, returnValue)
 
+import pymongo
+
 from vumi.multiworker import MultiWorker
 from vumi.tests.utils import StubbedWorkerCreator, get_stubbed_worker
 from vumi.tests.test_multiworker import ToyWorker
 
 from vusion import VusionMultiWorker, TtcGenericWorker
-from tests.utils import MessageMaker
+from tests.utils import MessageMaker, DataLayerUtils
 
 
 class StubbedVusionMultiWorker(VusionMultiWorker):
@@ -21,11 +23,12 @@ class StubbedVusionMultiWorker(VusionMultiWorker):
         return DeferredList([w._d for w in self.workers.values()])
 
 
-class VusionMultiWorkerTestCase(TestCase, MessageMaker):
+class VusionMultiWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     timeout = 3
 
     base_config = {
         'application_name': 'vusion',
+        'vusion_database_name': 'test2',
         'workers': {
             'worker1': 'vusion.TtcGenericWorker'
             },
@@ -37,12 +40,25 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker):
             'vusion_database_name': 'test2'
             }
         }
+    
+    new_worker_config = {
+        'control_name': 'test2',
+        'transport_name': 'test2',
+        'dispatcher_name': 'dispatcher2',
+        'database_name': 'test2',
+        'vusion_database_name': 'test3'
+    }
 
     def setUp(self):
-        pass
+        DataLayerUtils.__init__(self)
+        conn = pymongo.Connection()
+        self.db = conn[self.base_config['vusion_database_name']]
+        self.setup_collection('workers')
+        self.collections['workers'].drop()
 
     @inlineCallbacks
     def tearDown(self):
+        yield self.worker.wait_for_workers()        
         yield self.worker.stopService()
 
     def send_control(self, rkey, message, exchange='vumi'):
@@ -61,16 +77,11 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker):
         returnValue(self.worker)
 
     @inlineCallbacks
-    def test_start_stop_workers(self):
-        new_worker_config = {
-            'control_name': 'test2',
-            'transport_name': 'test2',
-            'dispatcher_name': 'dispatcher2',
-            'database_name': 'test2',
-            'vusion_database_name': 'test3'
-        }
+    def test_add_remove_workers(self):
 
         yield self.get_multiwoker(self.base_config)
+
+        self.assertEqual(self.collections['workers'].count(), 1)
 
         yield self.send_control(
             'vusion',
@@ -78,10 +89,24 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker):
                 message_type='add_worker',
                 worker_name='worker2',
                 worker_class='vusion.TtcGenericWorker',
-                config=new_worker_config))
+                config=self.new_worker_config))
         
         yield self.worker.wait_for_workers()
 
+        self.assertEqual(self.collections['workers'].count(), 2)
+        self.assertTrue('worker2' in self.worker.workers)
+
+        yield self.send_control(
+            'vusion',
+            self.mkmsg_multiworker_control(
+                message_type='add_worker',
+                worker_name='worker2',
+                worker_class='vusion.TtcGenericWorker',
+                config=self.new_worker_config))
+        
+        yield self.worker.wait_for_workers()
+
+        self.assertEqual(self.collections['workers'].count(), 2)
         self.assertTrue('worker2' in self.worker.workers)
 
         yield self.send_control(
@@ -91,7 +116,27 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker):
                 worker_name='worker2'))
 
         yield self.worker.wait_for_workers()
-
+        
+        self.assertEqual(self.collections['workers'].count(), 1)
         self.assertFalse('worker2' in self.worker.workers)
 
-        yield self.worker.stopService()
+    @inlineCallbacks
+    def test_startup(self):
+        #The worker1 class and config store in the database are overwrite by the config file
+        self.collections['workers'].save({
+            'name': 'worker1',
+            'class': 'vumi.tests.test_multiworker.ToyWorker',
+            'config': self.new_worker_config})
+        
+        self.collections['workers'].save({
+            'name': 'worker2',
+            'class': 'vumi.tests.test_multiworker.ToyWorker',
+            'config': self.new_worker_config})
+               
+        yield self.get_multiwoker(self.base_config)
+        yield self.worker.wait_for_workers()
+
+        self.assertTrue('worker1' in self.worker.workers)
+        self.assertTrue(isinstance(self.worker.workers['worker1'], TtcGenericWorker))
+        self.assertTrue('worker2' in self.worker.workers)
+        self.assertTrue(isinstance(self.worker.workers['worker2'], ToyWorker))
