@@ -94,51 +94,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             'interaction-id': interaction_id
         })
 
-    #TODO: reduce the scope of the update-schedule
-    @inlineCallbacks
-    def test01_consume_control_update_schedule(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-
-        self.collections['dialogues'].save(self.dialogue_annoucement)
-        self.collections['dialogues'].save(self.dialogue_question)
-        self.collections['participants'].save({'phone': '08'})
-        self.collections['participants'].save({'phone': '09', 'optout': True})
-        self.collections['participants'].save(
-            {'phone': '10',
-             'enrolled': self.dialogue_question['dialogue-id']})
-        self.collections['participants'].save(
-            {'phone': '11',
-             'enrolled': self.dialogue_question['dialogue-id'],
-             'optout': True})
-
-        event = self.mkmsg_dialogueworker_control('update-schedule')
-        yield self.send(event, 'control')
-        self.assertEqual(5, self.collections['schedules'].count())
-
-        self.collections['unattached_messages'].save(self.unattach_message)
-
-        event = self.mkmsg_dialogueworker_control('update-schedule')
-        yield self.send(event, 'control')
-        self.assertEqual(7, self.collections['schedules'].count())
-
-    @inlineCallbacks
-    def test02_consume_control_test_send_all_messages(self):
-        dialogue_id = self.collections['dialogues'].save(
-            self.dialogue_annoucement)
-        self.collections['participants'].save({'phone': '08'})
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-
-        event = self.mkmsg_dialogueworker_control('test-send-all-messages',
-                                                  dialogue_id.__str__(),
-                                                  phone_number='08')
-        yield self.send(event, 'control')
-
-        messages = self.broker.get_messages('vumi', 'test.outbound')
-        self.assertEqual(len(messages), 2)
 
     def test03_multiple_dialogue_in_collection(self):
         dNow = datetime.now()
@@ -716,17 +671,13 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         dFuture = dNow + timedelta(minutes=30)
         dPast = dNow - timedelta(minutes=30)
 
-        unattach_messages = [
-            {
-                'to': 'all participants',
-                'content': 'Hello everyone',
-                'schedule': 'fixed-time',
-                'fixed-time': time_to_vusion_format(dFuture)},
-            {
-                'to': 'all participants',
-                'content': 'Hello again',
-                'schedule': 'fixed-time',
-                'fixed-time': time_to_vusion_format(dPast)}]
+        unattach_messages = [ 
+            self.mkobj_unattach_message(
+                fixed_time=time_to_vusion_format(dFuture)),
+            self.mkobj_unattach_message(
+                content='Hello again',
+                fixed_time=time_to_vusion_format(dPast))
+        ]
 
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
@@ -736,12 +687,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         unattach_id = self.collections['unattached_messages'].save(unattach_messages[0])
         self.collections['unattached_messages'].save(unattach_messages[1])
 
-        self.collections['history'].save({
-            'participant-phone': '06',
-            'message-type': 'sent',
-            'message-status': 'delivered',
-            'unattach-id': unattach_id
-        })
+        self.collections['history'].save(self.mkobj_history_unattach(unattach_id))
 
         self.worker.load_data()
 
@@ -786,3 +732,54 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual(messages[0]['to_addr'], "06")
         self.assertEqual(messages[1]['content'], "How are you")
         self.assertEqual(messages[1]['to_addr'], "06")
+
+    #TODO: last 2 tests are not isolate, somehow the starting of the worker 
+    # is called later which is breacking the other tests
+    #TODO: reduce the scope of the update-schedule
+    @inlineCallbacks
+    def test24_consume_control_update_schedule(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
+        self.collections['dialogues'].save(self.dialogue_annoucement)
+        self.collections['dialogues'].save(self.dialogue_question)
+        self.collections['participants'].save(
+            self.mkobj_participant(participant_phone='08'))
+        self.collections['participants'].save(
+            self.mkobj_participant(participant_phone='09', optout=True))
+        self.collections['participants'].save(
+            self.mkobj_participant(participant_phone='10',
+                                   enrolled=self.dialogue_question['dialogue-id']))
+        self.collections['participants'].save(
+            self.mkobj_participant(participant_phone='11',
+                                   enrolled=self.dialogue_question['dialogue-id'],
+                                   optout=True))
+
+        event = self.mkmsg_dialogueworker_control('update-schedule')
+        yield self.send(event, 'control')
+        self.assertEqual(5, self.collections['schedules'].count())
+
+        self.collections['unattached_messages'].save(
+            self.mkobj_unattach_message())
+
+        event = self.mkmsg_dialogueworker_control('update-schedule')
+        yield self.send(event, 'control')
+        self.assertEqual(7, self.collections['schedules'].count())
+
+    @inlineCallbacks
+    def test25_consume_control_test_send_all_messages(self):
+        dialogue_id = self.collections['dialogues'].save(
+            self.dialogue_annoucement)
+        self.collections['participants'].save({'phone': '08'})
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
+        event = self.mkmsg_dialogueworker_control('test-send-all-messages',
+                                                  dialogue_id.__str__(),
+                                                  phone_number='08')
+        yield self.send(event, 'control')
+
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 2)

@@ -40,7 +40,11 @@ class TtcGenericWorker(ApplicationWorker):
         self.properties = {}
         self.sender = None
         self.r_prefix = None
+        self.r_config = {}
         self.control_name = None
+        self.transport_name = None
+        self.transport_type = None
+        self.program_name = None
         super(TtcGenericWorker, self).startService()
 
     @inlineCallbacks

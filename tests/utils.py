@@ -323,12 +323,16 @@ class ObjectMaker:
             }]
     }
 
-    unattach_message = {
-            'to': 'all participants',
-            'content': 'Hello everyone',
-            'type-schedule': 'fixed-time',
-            'schedule': '2100-03-12T12:30:00'
-    }
+    def mkobj_unattach_message(self, recipient='all participants',
+                               content='Hello everyone',
+                               type_schedule='fixed-time',
+                               fixed_time='2100-03-12T12:30:00'):
+        return {
+            'to': recipient,
+            'content': content,
+            'type-schedule': type_schedule,
+            'fixed-time': fixed_time
+        }
 
     template_closed_question = {
         'name': 'my template',
@@ -347,3 +351,20 @@ class ObjectMaker:
         'type-action': 'unmatching-answer',
         'template': 'ANSWER does not match any answer'
     }
+    
+    def mkobj_history_unattach(self, unattach_id,
+                               participant_phone='06'):
+        return {
+            'participant-phone': participant_phone,
+            'message-type': 'sent',
+            'message-status': 'delivered',
+            'unattach-id': unattach_id
+        }
+    
+    def mkobj_participant(self, participant_phone='06',
+                          enrolled=None, optout=None):
+        return { 
+            'phone': participant_phone,
+            'enrolled': enrolled,
+            'optout': optout
+            }
