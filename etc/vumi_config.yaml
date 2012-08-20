@@ -1,5 +1,5 @@
-hostname:
-port:
+hostname: localhost
+port: 5672
 username: vumi
 password: vumi
 vhost: /develop

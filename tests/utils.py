@@ -10,6 +10,9 @@ from vusion.message import DispatcherControl
 
 class DataLayerUtils:
 
+    def __init__(self):
+        self.collections = {}
+
     def setup_collections(self, names):
         for name in names:
             self.setup_collection(name)
@@ -168,3 +171,200 @@ class ObjectMaker:
             'shortcode': '8282',
             'error-template': error_template
         }
+
+    time_format = '%Y-%m-%dT%H:%M:%S'
+
+    simple_config = {
+        'database_name': 'test',
+        'dispatcher': 'dispatcher',
+        'transport_name': 'app',
+        }
+
+    program_settings = [{
+        'key': 'shortcode',
+        'value': '8181'
+        }, {
+        'key': 'internationalprefix',
+        'value': '256'
+        }, {
+        'key': 'timezone',
+        'value': 'Africa/Kampala'
+        }]
+
+    shortcodes = {
+        'country': 'Uganda',
+        'internationalprefix': '256',
+        'shortcode': '8181'
+    }
+
+    dialogue_annoucement = {
+        'activated': 1,
+        'auto-enrollment': 'all',
+        'dialogue-id': '0',
+        'interactions': [
+            {'type-interaction': 'announcement',
+             'interaction-id': '0',
+             'content': 'Hello',
+             'type-schedule': 'immediately'},
+            {'type-interaction': 'announcement',
+             'interaction-id': '1',
+             'content': 'How are you',
+             'type-schedule': 'wait',
+             'minutes': '60'},
+        ]
+    }
+
+    dialogue_annoucement_2 = {
+            "activated": 1,
+            "dialogue-id": "2",
+            "interactions": [
+                {"type-interaction": "announcement",
+                 "interaction-id": "0",
+                 "content": "Hello"
+                 },
+                {"type-interaction": "announcement",
+                 "interaction-id": "1",
+                 "content": "Today will be sunny"
+                 },
+                {"type-interaction": "announcement",
+                 "interaction-id": "2",
+                 "content": "Today is the special day"
+                 }
+            ]
+    }
+
+    dialogue_question = {
+        'activated': 1,
+        'dialogue-id': '01',
+        'interactions': [
+            {
+                'interaction-id': '01-01',
+                'type-interaction': 'question-answer',
+                'content': 'How are you?',
+                'keyword': 'FEEL, FEL',
+                'answers': [
+                    {'choice': 'Fine'},
+                    {'choice': 'Ok',
+                     'feedbacks':
+                     [{'content': 'Thank you'}],
+                     'answer-actions':
+                     [{'type-answer-action': 'enrolling',
+                       'enroll': '2'}],
+                     },
+                    ],
+                'type-schedule': 'immediately'
+            }
+        ]
+    }
+
+    dialogue_open_question = {
+        'activated': 1,
+        'dialogue-id': '04',
+        'interactions': [
+            {
+                'interaction-id': '01-01',
+                'type-interaction': 'question-answer',
+                'content': 'How are you?',
+                'keyword': 'name',
+                'type-question': 'open-question',
+                'answer-label': 'name',
+                'type-schedule': 'immediately'
+            }
+        ]
+    }
+
+    dialogue_announcement_fixedtime = {
+        'activated': 1,
+        'dialogue-id': '1',
+        'interactions': [
+            {
+                'interaction-id':'1',
+                'type-interaction': 'announcement',
+                'content': 'Hello',
+                'type-schedule': 'fixed-time',
+                'date-time': '2012-03-12T12:30:00'
+            }
+        ]
+    }
+
+    request_join = {
+        'keyword': 'www join, www',
+        'responses': [
+            {
+                'content': 'thankyou of joining',
+                },
+            {
+                'content': 'soon more is coming',
+                }],
+        'actions': [
+            {
+                'type-action': 'optin',
+                },
+            {
+                'type-action': 'enrolling',
+                'enroll': '01'
+            }]
+    }
+
+    request_tag = {
+        'keyword': 'www tagme',
+        'actions': [
+            {
+                'type-action': 'tagging',
+                'tag': 'onetag'
+            }]
+    }
+
+    request_leave = {
+        'keyword': 'www quit',
+        'actions': [
+            {
+                'type-action': 'optout',
+            }]
+    }
+
+    def mkobj_unattach_message(self, recipient='all participants',
+                               content='Hello everyone',
+                               type_schedule='fixed-time',
+                               fixed_time='2100-03-12T12:30:00'):
+        return {
+            'to': recipient,
+            'content': content,
+            'type-schedule': type_schedule,
+            'fixed-time': fixed_time
+        }
+
+    template_closed_question = {
+        'name': 'my template',
+        'type-question': 'closed-question',
+        'template': 'QUESTION\r\nANSWERS To reply send: KEYWORD<space><AnswerNb> to SHORTCODE'
+    }
+
+    template_open_question = {
+        'name': 'my other template',
+        'type-question': 'open-question',
+        'template': 'QUESTION\r\n To reply send: KEYWORD<space><ANSWER> to SHORTCODE'
+    }
+    
+    template_unmatching_answer = {
+        'name': 'unmatching answers template',
+        'type-action': 'unmatching-answer',
+        'template': 'ANSWER does not match any answer'
+    }
+    
+    def mkobj_history_unattach(self, unattach_id,
+                               participant_phone='06'):
+        return {
+            'participant-phone': participant_phone,
+            'message-type': 'sent',
+            'message-status': 'delivered',
+            'unattach-id': unattach_id
+        }
+    
+    def mkobj_participant(self, participant_phone='06',
+                          enrolled=None, optout=None):
+        return { 
+            'phone': participant_phone,
+            'enrolled': enrolled,
+            'optout': optout
+            }

@@ -15,186 +15,11 @@ from vusion import TtcGenericWorker
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from vusion.error import MissingData, MissingTemplate
 from transports import YoUgHttpTransport
-from tests.utils import MessageMaker, DataLayerUtils
+from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 
 
-class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
-
-    time_format = '%Y-%m-%dT%H:%M:%S'
-
-    simple_config = {
-        'database_name': 'test',
-        'dispatcher': 'dispatcher',
-        'transport_name': 'app',
-        }
-
-    program_settings = [{
-        'key': 'shortcode',
-        'value': '8181'
-        }, {
-        'key': 'internationalprefix',
-        'value': '256'
-        }, {
-        'key': 'timezone',
-        'value': 'Africa/Kampala'
-        }]
-
-    shortcodes = {
-        'country': 'Uganda',
-        'internationalprefix': '256',
-        'shortcode': '8181'
-    }
-
-    dialogue_annoucement = {
-        'activated': 1,
-        'auto-enrollment': 'all',
-        'dialogue-id': '0',
-        'interactions': [
-            {'type-interaction': 'announcement',
-             'interaction-id': '0',
-             'content': 'Hello',
-             'type-schedule': 'immediately'},
-            {'type-interaction': 'announcement',
-             'interaction-id': '1',
-             'content': 'How are you',
-             'type-schedule': 'wait',
-             'minutes': '60'},
-        ]
-    }
-
-    dialogue_annoucement_2 = {
-            "activated": 1,
-            "dialogue-id": "2",
-            "interactions": [
-                {"type-interaction": "announcement",
-                 "interaction-id": "0",
-                 "content": "Hello"
-                 },
-                {"type-interaction": "announcement",
-                 "interaction-id": "1",
-                 "content": "Today will be sunny"
-                 },
-                {"type-interaction": "announcement",
-                 "interaction-id": "2",
-                 "content": "Today is the special day"
-                 }
-            ]
-    }
-
-    dialogue_question = {
-        'activated': 1,
-        'dialogue-id': '01',
-        'interactions': [
-            {
-                'interaction-id': '01-01',
-                'type-interaction': 'question-answer',
-                'content': 'How are you?',
-                'keyword': 'FEEL, FEL',
-                'answers': [
-                    {'choice': 'Fine'},
-                    {'choice': 'Ok',
-                     'feedbacks':
-                     [{'content': 'Thank you'}],
-                     'answer-actions':
-                     [{'type-answer-action': 'enrolling',
-                       'enroll': '2'}],
-                     },
-                    ],
-                'type-schedule': 'immediately'
-            }
-        ]
-    }
-
-    dialogue_open_question = {
-        'activated': 1,
-        'dialogue-id': '04',
-        'interactions': [
-            {
-                'interaction-id': '01-01',
-                'type-interaction': 'question-answer',
-                'content': 'How are you?',
-                'keyword': 'name',
-                'type-question': 'open-question',
-                'answer-label': 'name',
-                'type-schedule': 'immediately'
-            }
-        ]
-    }
-
-    dialogue_announcement_fixedtime = {
-        'activated': 1,
-        'dialogue-id': '1',
-        'interactions': [
-            {
-                'interaction-id':'1',
-                'type-interaction': 'announcement',
-                'content': 'Hello',
-                'type-schedule': 'fixed-time',
-                'date-time': '2012-03-12T12:30:00'
-            }
-        ]
-    }
-
-    request_join = {
-        'keyword': 'www join, www',
-        'responses': [
-            {
-                'content': 'thankyou of joining',
-                },
-            {
-                'content': 'soon more is coming',
-                }],
-        'actions': [
-            {
-                'type-action': 'optin',
-                },
-            {
-                'type-action': 'enrolling',
-                'enroll': '01'
-            }]
-    }
-
-    request_tag = {
-        'keyword': 'www tagme',
-        'actions': [
-            {
-                'type-action': 'tagging',
-                'tag': 'onetag'
-            }]
-    }
-
-    request_leave = {
-        'keyword': 'www quit',
-        'actions': [
-            {
-                'type-action': 'optout',
-            }]
-    }
-
-    unattach_message = {
-            'to': 'all participants',
-            'content': 'Hello everyone',
-            'type-schedule': 'fixed-time',
-            'schedule': '2100-03-12T12:30:00'
-    }
-
-    template_closed_question = {
-        'name': 'my template',
-        'type-question': 'closed-question',
-        'template': 'QUESTION\r\nANSWERS To reply send: KEYWORD<space><AnswerNb> to SHORTCODE'
-    }
-
-    template_open_question = {
-        'name': 'my other template',
-        'type-question': 'open-question',
-        'template': 'QUESTION\r\n To reply send: KEYWORD<space><ANSWER> to SHORTCODE'
-    }
-    
-    template_unmatching_answer = {
-        'name': 'unmatching answers template',
-        'type-action': 'unmatching-answer',
-        'template': 'ANSWER does not match any answer'
-    }
+class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils, 
+                               ObjectMaker):
 
     @inlineCallbacks
     def setUp(self):
@@ -269,51 +94,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             'interaction-id': interaction_id
         })
 
-    #TODO: reduce the scope of the update-schedule
-    @inlineCallbacks
-    def test01_consume_control_update_schedule(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-
-        self.collections['dialogues'].save(self.dialogue_annoucement)
-        self.collections['dialogues'].save(self.dialogue_question)
-        self.collections['participants'].save({'phone': '08'})
-        self.collections['participants'].save({'phone': '09', 'optout': True})
-        self.collections['participants'].save(
-            {'phone': '10',
-             'enrolled': self.dialogue_question['dialogue-id']})
-        self.collections['participants'].save(
-            {'phone': '11',
-             'enrolled': self.dialogue_question['dialogue-id'],
-             'optout': True})
-
-        event = self.mkmsg_dialogueworker_control('update-schedule')
-        yield self.send(event, 'control')
-        self.assertEqual(5, self.collections['schedules'].count())
-
-        self.collections['unattached_messages'].save(self.unattach_message)
-
-        event = self.mkmsg_dialogueworker_control('update-schedule')
-        yield self.send(event, 'control')
-        self.assertEqual(7, self.collections['schedules'].count())
-
-    @inlineCallbacks
-    def test02_consume_control_test_send_all_messages(self):
-        dialogue_id = self.collections['dialogues'].save(
-            self.dialogue_annoucement)
-        self.collections['participants'].save({'phone': '08'})
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-
-        event = self.mkmsg_dialogueworker_control('test-send-all-messages',
-                                                  dialogue_id.__str__(),
-                                                  phone_number='08')
-        yield self.send(event, 'control')
-
-        messages = self.broker.get_messages('vumi', 'test.outbound')
-        self.assertEqual(len(messages), 2)
 
     def test03_multiple_dialogue_in_collection(self):
         dNow = datetime.now()
@@ -891,17 +671,13 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         dFuture = dNow + timedelta(minutes=30)
         dPast = dNow - timedelta(minutes=30)
 
-        unattach_messages = [
-            {
-                'to': 'all participants',
-                'content': 'Hello everyone',
-                'schedule': 'fixed-time',
-                'fixed-time': time_to_vusion_format(dFuture)},
-            {
-                'to': 'all participants',
-                'content': 'Hello again',
-                'schedule': 'fixed-time',
-                'fixed-time': time_to_vusion_format(dPast)}]
+        unattach_messages = [ 
+            self.mkobj_unattach_message(
+                fixed_time=time_to_vusion_format(dFuture)),
+            self.mkobj_unattach_message(
+                content='Hello again',
+                fixed_time=time_to_vusion_format(dPast))
+        ]
 
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
@@ -911,12 +687,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         unattach_id = self.collections['unattached_messages'].save(unattach_messages[0])
         self.collections['unattached_messages'].save(unattach_messages[1])
 
-        self.collections['history'].save({
-            'participant-phone': '06',
-            'message-type': 'sent',
-            'message-status': 'delivered',
-            'unattach-id': unattach_id
-        })
+        self.collections['history'].save(self.mkobj_history_unattach(unattach_id))
 
         self.worker.load_data()
 
@@ -961,3 +732,54 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertEqual(messages[0]['to_addr'], "06")
         self.assertEqual(messages[1]['content'], "How are you")
         self.assertEqual(messages[1]['to_addr'], "06")
+
+    #TODO: last 2 tests are not isolate, somehow the starting of the worker 
+    # is called later which is breacking the other tests
+    #TODO: reduce the scope of the update-schedule
+    @inlineCallbacks
+    def test24_consume_control_update_schedule(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
+        self.collections['dialogues'].save(self.dialogue_annoucement)
+        self.collections['dialogues'].save(self.dialogue_question)
+        self.collections['participants'].save(
+            self.mkobj_participant(participant_phone='08'))
+        self.collections['participants'].save(
+            self.mkobj_participant(participant_phone='09', optout=True))
+        self.collections['participants'].save(
+            self.mkobj_participant(participant_phone='10',
+                                   enrolled=self.dialogue_question['dialogue-id']))
+        self.collections['participants'].save(
+            self.mkobj_participant(participant_phone='11',
+                                   enrolled=self.dialogue_question['dialogue-id'],
+                                   optout=True))
+
+        event = self.mkmsg_dialogueworker_control('update-schedule')
+        yield self.send(event, 'control')
+        self.assertEqual(5, self.collections['schedules'].count())
+
+        self.collections['unattached_messages'].save(
+            self.mkobj_unattach_message())
+
+        event = self.mkmsg_dialogueworker_control('update-schedule')
+        yield self.send(event, 'control')
+        self.assertEqual(7, self.collections['schedules'].count())
+
+    @inlineCallbacks
+    def test25_consume_control_test_send_all_messages(self):
+        dialogue_id = self.collections['dialogues'].save(
+            self.dialogue_annoucement)
+        self.collections['participants'].save({'phone': '08'})
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
+        event = self.mkmsg_dialogueworker_control('test-send-all-messages',
+                                                  dialogue_id.__str__(),
+                                                  phone_number='08')
+        yield self.send(event, 'control')
+
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 2)
