@@ -1,7 +1,7 @@
 Vusion backend
 =======
 
-Vusion backend is build with Praekelt Foundation's Vumi. It can work on its own but you'd rather use the Vusion Frontend: https://github.com/texttochange/vusion-front 
+Vusion backend is build with Praekelt Foundation's Vumi.
 
 Requirements
 -------------
