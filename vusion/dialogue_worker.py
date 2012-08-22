@@ -417,7 +417,10 @@ class TtcGenericWorker(ApplicationWorker):
                 elif (interaction['type-schedule'] == 'wait'):
                     if (previousSendDateTime is None):
                         previousSendDateTime = self.get_local_time()
-                    sendingDateTime = previousSendDateTime + timedelta(minutes=int(interaction['minutes']))
+                        previousSendDay = datetime.date.today()
+                    #sendingDateTime = previousSendDateTime + timedelta(minutes=int(interaction['minutes']))
+                    sendingDay = previousSendDay + timedelta(days=int(interaction['days']))
+                    sendingDateTime = datetime.combine(sendingDay, datetime.time(22,30))
                 elif (interaction['type-schedule'] == 'fixed-time'):
                     sendingDateTime = time_from_vusion_format(interaction['date-time'])
 
