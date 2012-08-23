@@ -210,7 +210,8 @@ class ObjectMaker:
              'interaction-id': '1',
              'content': 'How are you',
              'type-schedule': 'wait',
-             'minutes': '60'},
+             'days': '2',
+             'at-time': '22:30'},
         ]
     }
 

@@ -167,7 +167,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             dNow + timedelta(minutes=1))
         self.assertTrue(
             time_from_vusion_format(schedules[1]['date-time']) <
-            dNow + timedelta(minutes=61))
+            dNow + timedelta(days=3))
         self.assertTrue(
             time_from_vusion_format(schedules[1]['date-time']) >
             dNow + timedelta(minutes=59))
@@ -305,8 +305,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         participant = {'phone': '06'}
 
         dNow = datetime.now()
-        dPast = datetime.now() - timedelta(minutes=50)
-        dLaterPast = datetime.now() - timedelta(minutes=80)
+        dPast = datetime.now() - timedelta(days=3)
+        dLaterPast = datetime.now() - timedelta(days=5)
 
         dialogue['interactions'][1]['type-schedule'] = 'wait'
 
@@ -323,7 +323,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
              'interaction-id': '1',
              'dialogue-id': '0'})
 
-        #Declare collection for loging messages
+        #Declare collection for logging messages
         self.save_status(timestamp=dLaterPast.strftime(self.time_format),
                          participant_phone='06',
                          interaction_id='0',

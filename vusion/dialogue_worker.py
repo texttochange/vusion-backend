@@ -401,6 +401,7 @@ class TtcGenericWorker(ApplicationWorker):
     def schedule_participant_dialogue(self, participant, dialogue):
         try:
             previousSendDateTime = None
+            previousSendDay = None
             if not 'interactions' in dialogue:
                 return
             for interaction in dialogue['interactions']:
@@ -416,6 +417,7 @@ class TtcGenericWorker(ApplicationWorker):
 
                 if status:
                     previousSendDateTime = time_from_vusion_format(status["timestamp"])
+                    previousSendDay = previousSendDateTime.date()
                     continue
 
                 if (interaction['type-schedule'] == 'immediately'):
@@ -424,12 +426,14 @@ class TtcGenericWorker(ApplicationWorker):
                     else:
                         sendingDateTime = self.get_local_time()
                 elif (interaction['type-schedule'] == 'wait'):
-                    if (previousSendDateTime is None):
-                        previousSendDateTime = self.get_local_time()
-                        previousSendDay = datetime.date.today()
-                    #sendingDateTime = previousSendDateTime + timedelta(minutes=int(interaction['minutes']))
-                    sendingDay = previousSendDay + timedelta(days=int(interaction['days']))
-                    sendingDateTime = datetime.combine(sendingDay, datetime.time(22,30))
+                    if (previousSendDay is None):
+                        previousSendDay = date.today()
+                    if (interaction['days'] is None):
+                        sendingDay = previousSendDay
+                    else:
+                        sendingDay = previousSendDay + timedelta(days=int(interaction['days']))
+                    timeOfSending = interaction['at-time'].split(':',1)
+                    sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]),int(timeOfSending[1])))
                 elif (interaction['type-schedule'] == 'fixed-time'):
                     sendingDateTime = time_from_vusion_format(interaction['date-time'])
 
