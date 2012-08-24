@@ -26,7 +26,7 @@ Installation
 
 ::
 
-	$ virtualenv --no-site-packages ve
+	$ virtualenv ve
 	$ source ve/bin/activate
 	$ pip install -r requirements.pip
 

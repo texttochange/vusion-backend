@@ -52,6 +52,7 @@ then
     echo "supervisord.vusion is stopping... and then restarting..."
     source $DIR/ve/bin/activate
     supervisorctl -c $DIR/etc/supervisord.vusion.conf shutdown
+    sleep 5
     supervisord -c $DIR/etc/supervisord.vusion.conf
 fi
 ;;
