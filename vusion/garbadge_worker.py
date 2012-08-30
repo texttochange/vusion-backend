@@ -20,7 +20,7 @@ class GarbageWorker(ApplicationWorker):
         log.msg("Garbage Worker is starting")
         super(GarbageWorker, self).startWorker()
 
-        connection = pymongo.Connection('localhost', 27017)
+        connection = pymongo.Connection(self.config['mongodb_host'], self.config['mongodb_port'])
         db = connection[self.config['database_name']]
         if not 'unmatchable_reply' in db.collection_names():
             db.create_collection('unmatchable_reply')

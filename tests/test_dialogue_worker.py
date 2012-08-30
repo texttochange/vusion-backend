@@ -31,7 +31,9 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
                        'database_name': self.database_name,
                        'vusion_database_name': self.vusion_database_name,
                        'control_name': self.control_name,
-                       'dispatcher_name': 'dispatcher'}
+                       'dispatcher_name': 'dispatcher',
+                       'mongodb_host':'localhost',
+                       'mongodb_port':27017}
         self.worker = get_stubbed_worker(TtcGenericWorker,
                                          config=self.config)
         self.broker = self.worker._amqp_client.broker

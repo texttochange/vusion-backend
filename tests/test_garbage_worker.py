@@ -19,7 +19,9 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
         self.config = {
             'database_name': 'test',
             'application_name': 'garbage',
-            'transport_name': 'garbage'
+            'transport_name': 'garbage',
+            'mongodb_host': 'localhost',
+            'mongodb_port': 27017, 
         }
 
         connection = pymongo.Connection('localhost', 27017)

@@ -150,7 +150,7 @@ class TtcGenericWorker(ApplicationWorker):
         self.log("Connecting to database: %s" % self.database_name)
 
         #Initilization of the database
-        connection = pymongo.Connection("localhost", 27017)
+        connection = pymongo.Connection(self.config['mongodb_host'], self.config['mongodb_port'])
         self.db = connection[self.database_name]
         self.setup_collections(['dialogues',
                                 'participants',

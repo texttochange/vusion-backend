@@ -28,25 +28,30 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
     base_config = {
         'application_name': 'vusion',
-        'vusion_database_name': 'test2',
+        'vusion_database_name': 'test3',
+        'mongodb_host': 'localhost',
+        'mongodb_port': 27017,
+        'dispatcher_name': 'dispatcher',
         'workers': {
             'worker1': 'vusion.TtcGenericWorker'
             },
         'worker1': {
             'control_name': 'test',
             'transport_name': 'test',
-            'dispatcher_name': 'dispatcher',
             'database_name': 'test',
-            'vusion_database_name': 'test2'
-            }
+            },
+        'defaults': {
+            'mongodb_host': 'localhost',
+            'mongodb_port': 27017,
+            'dispatcher_name': 'dispatcher',
+            'vusion_database_name': 'test3',
         }
+    }
     
     new_worker_config = {
         'control_name': 'test2',
         'transport_name': 'test2',
-        'dispatcher_name': 'dispatcher2',
         'database_name': 'test2',
-        'vusion_database_name': 'test3'
     }
 
     def setUp(self):

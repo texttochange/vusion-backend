@@ -1,5 +1,7 @@
 application_name: vusion
 vusion_database_name: vusion
+mongodb_host: localhost
+mongodb_port: 27017
 workers:
     m4h: vusion.TtcGenericWorker
     mrs: vusion.TtcGenericWorker
@@ -8,17 +10,16 @@ m4h:
     control_name: m4h
     transport_name: m4h
     database_name: m4h
-    vusion_database_name: vusion
-    dispatcher_name: dispatcher
 mrs:
     control_name: mrs
     transport_name: mrs
     database_name: mrs
-    vusion_database_name: vusion
-    dispatcher_name: dispatcher
 wiki:
     control_name: wiki
     transport_name: wiki
     database_name: wiki
+defaults:
+    mongodb_host: localhost
+    mongodb_port: 27017
     vusion_database_name: vusion
     dispatcher_name: dispatcher

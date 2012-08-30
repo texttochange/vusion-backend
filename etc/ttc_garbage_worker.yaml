@@ -1,3 +1,6 @@
 application_name: garbage
 transport_name: garbage
+
+mongodb_host: localhost
+mongodb_port: 27017
 database_name: vusion

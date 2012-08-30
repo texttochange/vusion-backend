@@ -25,7 +25,7 @@ class VusionMultiWorker(Worker, DataLayerUtils):
         self.workers = {}
         self.worker_creator = self.WORKER_CREATOR(self.options)
 
-        connection = pymongo.Connection('localhost', 27017)
+        connection = pymongo.Connection(self.config['mongodb_host'], self.config['mongodb_port'])
         self.db = connection[self.config['vusion_database_name']]
         self.setup_collection('workers')
     
@@ -38,12 +38,12 @@ class VusionMultiWorker(Worker, DataLayerUtils):
             self.add_worker(worker['name'], worker['class'], worker['config'])
         yield self.setup_control()
 
-    def construct_worker_config(self, worker_name):
+    def construct_worker_config(self, worker_config={}):
         """
         Construct an appropriate configuration for the child worker.
         """
         config = deepcopy(self.config.get('defaults', {}))
-        config.update(self.config.get(worker_name, {}))
+        config.update(worker_config)
         return config
 
     def create_worker(self, worker_name, worker_class, worker_config):
@@ -57,7 +57,7 @@ class VusionMultiWorker(Worker, DataLayerUtils):
 
     def reload_workers_from_config_file(self):
         for wname, wclass in self.config.get('workers', {}).items():\
-            self.save_worker(wname, wclass, self.construct_worker_config(wname))
+            self.save_worker(wname, wclass, self.config.get(wname, {}))
     
     def save_worker(self, worker_name, worker_class, worker_config):
         return  self.collections['workers'].update(
@@ -79,11 +79,13 @@ class VusionMultiWorker(Worker, DataLayerUtils):
         #Must make sure to provide utf-8 parameters and not unicode as Mongodb and Rabbitmq are providing
         #TODO: manage this encoding conversion at another level
         for key in worker_config.keys():
-            worker_config[key] = worker_config[key].encode('utf-8')
+            if not isinstance(worker_config[key], int):
+                worker_config[key] = worker_config[key].encode('utf-8')
         worker_name = worker_name.encode('utf-8')
         worker_class = worker_class.encode('utf-8')
 
-        self.save_worker(worker_name, worker_class, worker_config)
+        self.save_worker(worker_name, worker_class, worker_config)        
+        worker_config = self.construct_worker_config(worker_config)
         self.workers[worker_name] = self.create_worker(worker_name,worker_class,worker_config)
 
     @inlineCallbacks
