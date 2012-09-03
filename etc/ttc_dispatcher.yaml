@@ -4,10 +4,12 @@ transport_names:
         - yo8181
         - yo8282
         - nllong
+        - push15014
 transport_mappings:
         '8282': yo8282
         '8181': yo8181
         '+31642500021': nllong
+        '15014': push15014
 exposed_names: 
         - garbage
 fallback_application: garbage

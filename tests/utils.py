@@ -5,6 +5,8 @@ from datetime import datetime
 from vumi.message import (TransportEvent, TransportMessage,
                           TransportUserMessage, Message)
 from vumi.transports.failures import FailureMessage
+from vumi.tests.utils import RegexMatcher, UTCNearNow
+
 from vusion.message import DispatcherControl
 
 
@@ -126,6 +128,26 @@ class MessageMaker:
             message=message,
             reason=reason,
             )
+    
+    def mkmsg_transport_fail(self, user_message_id='1',
+                  failure_level='', failure_code=0,
+                  failure_reason='',
+                  transport_metadata={}):
+        if transport_metadata is None:
+            transport_metadata = {}
+        return TransportEvent(
+            event_id=RegexMatcher(r'^[0-9a-fA-F]{32}$'),
+            event_type='delivery_report',
+            delivery_status='failed',
+            failure_level=failure_level,
+            failure_code=failure_code,
+            failure_reason=failure_reason,
+            user_message_id=user_message_id,
+            timestamp=UTCNearNow(),
+            transport_name=self.transport_name,
+            transport_metadata=transport_metadata,
+            )
+
 
     def mkmsg_dispatcher_control(self, action='add_exposed',
                                  exposed_name='app2', rules=None):
