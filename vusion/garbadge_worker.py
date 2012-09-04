@@ -1,6 +1,7 @@
 # -*- test-case-name: tests.test_ttc -*-
 import re
 import sys
+import traceback
 
 from twisted.internet.defer import Deferred, inlineCallbacks
 
