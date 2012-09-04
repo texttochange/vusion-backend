@@ -1,5 +1,6 @@
 # -*- test-case-name: tests.test_ttc -*-
 import re
+import sys
 
 from twisted.internet.defer import Deferred, inlineCallbacks
 
@@ -72,5 +73,6 @@ class GarbageWorker(ApplicationWorker):
             self.log(
                 "Error during consume user message: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
+
     def dispatch_event(self, msg):
         pass
