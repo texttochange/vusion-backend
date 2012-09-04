@@ -85,7 +85,7 @@ class YoUgHttpTransportTestCase(TransportTestCase):
         return w.startWorker()
 
     @inlineCallbacks
-    def test01_sending_one_sms_ok(self):
+    def test_sending_one_sms_ok(self):
         #mocked_message_id = str(uuid4())
         mocked_message = "ybs_autocreate_status%3DOK"
         #HTTP response
@@ -97,7 +97,7 @@ class YoUgHttpTransportTestCase(TransportTestCase):
                          TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks
-    def test02_sending_one_sms_http_failure(self):
+    def test_sending_one_sms_http_failure(self):
         mocked_message = "timeout"
         mocked_error = http.REQUEST_TIMEOUT
 
@@ -113,7 +113,7 @@ class YoUgHttpTransportTestCase(TransportTestCase):
                          TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks
-    def test03_sending_one_sms_service_failure(self):
+    def test_sending_one_sms_service_failure(self):
         mocked_message = "ybs_autocreate_status%3DERROR%26ybs_autocreate_message%3DYBS%2BAutoCreate%2BSubsystem%3A%2BAccess%2Bdenied%2Bdue%2Bto%2Bwrong%2Bauthorization%2Bcode"
 
         #HTTP response
@@ -127,7 +127,7 @@ class YoUgHttpTransportTestCase(TransportTestCase):
                          TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks
-    def test04_receiving_one_sms(self):
+    def test_receiving_one_sms(self):
         url = "http://localhost:%s%s?sender=41791234567&code=9292&message=Hello+World" % (self.config['receive_port'],
                                          self.config['receive_path'])
         response = yield http_request_full(url, method='GET')

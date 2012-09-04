@@ -1,5 +1,9 @@
 # -*- test-case-name: tests.test_yo_ug_http -*-
 
+import re
+
+from xml.etree import ElementTree
+
 from urllib import urlencode, unquote
 from urlparse import parse_qs
 
@@ -9,15 +13,12 @@ from twisted.internet.error import ConnectionRefusedError
 from twisted.web import http
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
+from twisted.internet import defer
 
 from vumi.transports.base import Transport
 from vumi.utils import http_request_full, normalize_msisdn
-from twisted.internet import defer
 
-from xml.etree import ElementTree
-
-import re
-
+from transports.yo_ug_http import YoReceiveSMSResource
 
 ##This transport is supposed to send and receive sms in 2 different ways.
 ##To send sms we use the CM API
@@ -34,7 +35,7 @@ class CmYoTransport(Transport):
         self._resources = []
         log.msg("Setup yo transport %s" % self.config)
         resources = [
-            self.mkres(ReceiveSMSResource,
+            self.mkres(YoReceiveSMSResource,
                        self.publish_message,
                        self.config['receive_path'])
             ]
@@ -100,43 +101,6 @@ class CmYoTransport(Transport):
         log.msg("stop yo transport")
         if hasattr(self, 'receipt_resource'):
             return self.receipt_resource.stopListening()
-
-
-class ReceiveSMSResource(Resource):
-    isLeaf = True
-
-    def __init__(self, config, publish_func):
-        log.msg("Init ReceiveSMSResource %s" % (config))
-        self.config = config
-        self.publish_func = publish_func
-        self.transport_name = self.config['transport_name']
-
-    def phone_format_from_yo(self, phone):
-        regex = re.compile('^00')
-        return re.sub(regex, '+', phone)
-
-    @inlineCallbacks
-    def do_render(self, request):
-        log.msg('got hit with %s' % request.args)
-        request.setResponseCode(http.OK)
-        request.setHeader('Content-Type', 'text/plain')
-        try:
-            yield self.publish_func(
-                 transport_name=self.transport_name,
-                    transport_type='sms',
-                    to_addr=request.args['code'][0],
-                    from_addr=self.phone_format_from_yo(request.args['sender'][0]),
-                    content=request.args['message'][0],
-                    transport_metadata={}
-            )
-        except Exception, e:
-            request.setResponseCode(http.INTERNAL_SERVER_ERROR)
-            log.msg("Error processing the request: %s" % (request,))
-        request.finish()
-
-    def render(self, request):
-        self.do_render(request)
-        return NOT_DONE_YET
 
 
 class CMXMLParser():

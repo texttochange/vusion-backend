@@ -33,7 +33,7 @@ class YoUgHttpTransport(Transport):
         self._resources = []
         log.msg("Setup yo transport %s" % self.config)
         resources = [
-            self.mkres(ReceiveSMSResource,
+            self.mkres(YoReceiveSMSResource,
                        self.publish_message,
                        self.config['receive_path'])
             ]
@@ -108,7 +108,7 @@ class YoUgHttpTransport(Transport):
             return self.receipt_resource.stopListening()
 
 
-class ReceiveSMSResource(Resource):
+class YoReceiveSMSResource(Resource):
     isLeaf = True
 
     def __init__(self, config, publish_func):
@@ -118,6 +118,8 @@ class ReceiveSMSResource(Resource):
         self.transport_name = self.config['transport_name']
 
     def phone_format_from_yo(self, phone):
+        regex = re.compile('^00')
+        phone = re.sub(regex, '', phone)
         return ('+%s' % phone)
 
     @inlineCallbacks
