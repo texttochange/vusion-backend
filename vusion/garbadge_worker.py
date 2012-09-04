@@ -70,7 +70,7 @@ class GarbageWorker(ApplicationWorker):
                       (error_message['content'], error_message['to_addr']))
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            self.log(
+            log.error(
                 "Error during consume user message: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
 
