@@ -134,6 +134,21 @@ class PushYoTransportTestCase(TransportTestCase, MessageMaker):
         self.assertEqual('+41791234567',
                          TransportMessage.from_json(smsg.body)['from_addr'])
 
+    @inlineCallbacks
+    def test_receiving_one_sms_incomplete_number(self):
+        url = "http://localhost:%s%s?sender=41791234567&code=9292&message=Hello+World" % (self.config['receive_port'],
+                                         self.config['receive_path'])
+        response = yield http_request_full(url, method='GET')
+        [smsg] = self.get_dispatched('push.inbound')
+
+        self.assertEqual(response.code, http.OK)
+        self.assertEqual('Hello World',
+                         TransportMessage.from_json(smsg.body)['content'])
+        self.assertEqual('9292',
+                         TransportMessage.from_json(smsg.body)['to_addr'])
+        self.assertEqual('+41791234567',
+                         TransportMessage.from_json(smsg.body)['from_addr'])
+
     def get_dispatched(self, rkey):
         return self._amqp.get_dispatched('vumi', rkey)
 

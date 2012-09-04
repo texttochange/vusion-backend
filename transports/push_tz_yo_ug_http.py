@@ -102,7 +102,8 @@ class ReceiveSMSResource(Resource):
 
     def phone_format_from_yo(self, phone):
         regex = re.compile('^00')
-        return re.sub(regex, '+', phone)
+        phone = re.sub(regex, '', phone)
+        return ('+%s' % phone)
 
     @inlineCallbacks
     def do_render(self, request):
