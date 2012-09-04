@@ -7,6 +7,8 @@ import iso8601
 def time_to_vusion_format(timestamp):
     return timestamp.strftime('%Y-%m-%dT%H:%M:%S')
 
+def get_now_timestamp():
+    return time_to_vusion_format(datetime.now())
 
 def time_from_vusion_format(date_time_str):
     return iso8601.parse_date(date_time_str).replace(tzinfo=None)
