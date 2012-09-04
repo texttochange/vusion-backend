@@ -32,40 +32,45 @@ class GarbageWorker(ApplicationWorker):
 
     @inlineCallbacks
     def consume_user_message(self, msg):
-        regex_KEYWORD = re.compile('KEYWORD')
-
-        log.debug("Consumer user message %s" % (msg,))
-        if msg['timestamp']:
-            timestamp = time_to_vusion_format(msg['timestamp'])
-        self.unmatchable_reply_collection.save(
-            {'participant-phone': msg['from_addr'],
-             'to': msg['to_addr'],
-             'message-content': msg['content'],
-             'timestamp': timestamp,
-             })
-
-        code = self.shortcodes_collection.find_one({
-            'shortcode': msg['to_addr']})
-        if code is None:
-            return
-        template = self.templates_collection.find_one({
-            '_id': ObjectId(code['error-template'])})
-        if template is None:
-            return
-        error_message = TransportUserMessage(**{
-            'from_addr': msg['to_addr'],
-            'to_addr': msg['from_addr'],
-            'transport_name': msg['transport_name'],
-            'transport_type': msg['transport_type'],
-            'transport_metadata': msg['transport_metadata'],
-            'content': re.sub(
-                regex_KEYWORD, get_first_word(msg['content']),
-                template['template']
-            )
-        })
-        yield self.transport_publisher.publish_message(error_message)
-        log.debug("Reply '%s' sent to %s" %
-                  (error_message['content'], error_message['to_addr']))
-
+        try:
+            regex_KEYWORD = re.compile('KEYWORD')
+    
+            log.debug("Consumer user message %s" % (msg,))
+            if msg['timestamp']:
+                timestamp = time_to_vusion_format(msg['timestamp'])
+            self.unmatchable_reply_collection.save(
+                {'participant-phone': msg['from_addr'],
+                 'to': msg['to_addr'],
+                 'message-content': msg['content'],
+                 'timestamp': timestamp,
+                 })
+    
+            code = self.shortcodes_collection.find_one({
+                'shortcode': msg['to_addr']})
+            if code is None:
+                return
+            template = self.templates_collection.find_one({
+                '_id': ObjectId(code['error-template'])})
+            if template is None:
+                return
+            error_message = TransportUserMessage(**{
+                'from_addr': msg['to_addr'],
+                'to_addr': msg['from_addr'],
+                'transport_name': msg['transport_name'],
+                'transport_type': msg['transport_type'],
+                'transport_metadata': msg['transport_metadata'],
+                'content': re.sub(
+                    regex_KEYWORD, get_first_word(msg['content']),
+                    template['template']
+                )
+            })
+            yield self.transport_publisher.publish_message(error_message)
+            log.debug("Reply '%s' sent to %s" %
+                      (error_message['content'], error_message['to_addr']))
+        except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            self.log(
+                "Error during consume user message: %r" %
+                traceback.format_exception(exc_type, exc_value, exc_traceback))
     def dispatch_event(self, msg):
         pass
