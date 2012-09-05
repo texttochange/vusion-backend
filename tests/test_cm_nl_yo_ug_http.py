@@ -19,6 +19,9 @@ class CmYoTransportTestCase(TransportTestCase):
     transport_type = 'sms'
     transport_class = CmYoTransport
 
+    yo_incomming_template = ('http://localhost:%s%s?sender=0041791234567&'
+                             'code=9292&message=Hello+World')
+
     @inlineCallbacks
     def setUp(self):
         yield super(CmYoTransportTestCase, self).setUp()
@@ -37,9 +40,8 @@ class CmYoTransportTestCase(TransportTestCase):
         self.today = datetime.utcnow().date()
 
     def mkmsg_fail(self, user_message_id='1',
-                  failure_level='', failure_code=0,
-                  failure_reason='',
-                  transport_metadata={}):
+                   failure_level='', failure_code=0,
+                   failure_reason='', transport_metadata={}):
         if transport_metadata is None:
             transport_metadata = {}
         return TransportEvent(
@@ -52,8 +54,7 @@ class CmYoTransportTestCase(TransportTestCase):
             user_message_id=user_message_id,
             timestamp=UTCNearNow(),
             transport_name=self.transport_name,
-            transport_metadata=transport_metadata,
-            )
+            transport_metadata=transport_metadata)
 
     def mkmsg_in(self, content='Hello World',
                  from_addr='41791234567',
@@ -74,8 +75,7 @@ class CmYoTransportTestCase(TransportTestCase):
             transport_metadata=transport_metadata,
             content=content,
             session_event=session_event,
-            timestamp=UTCNearNow(),
-            )
+            timestamp=UTCNearNow())
 
     def make_resource_worker(self, msg, code=http.OK, send_id=None):
         w = get_stubbed_worker(TestResourceWorker, {})
@@ -106,11 +106,11 @@ class CmYoTransportTestCase(TransportTestCase):
         yield self.dispatch(self.mkmsg_out(to_addr='256788601462'))
 
         [smsg] = self.get_dispatched('cm.event')
-        self.assertEqual(self.mkmsg_fail(
-            failure_level='http',
-            failure_code=http.REQUEST_TIMEOUT,
-            failure_reason='timeout'),
-                         TransportMessage.from_json(smsg.body))
+        self.assertEqual(
+            self.mkmsg_fail(failure_level='http',
+                            failure_code=http.REQUEST_TIMEOUT,
+                            failure_reason='timeout'),
+            TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks
     def test_sending_one_sms_service_failure(self):
@@ -120,15 +120,15 @@ class CmYoTransportTestCase(TransportTestCase):
         yield self.make_resource_worker(mocked_message)
         yield self.dispatch(self.mkmsg_out(to_addr='788601462'))
         [smsg] = self.get_dispatched('cm.event')
-        self.assertEqual(self.mkmsg_fail(
-            failure_level='service',
-            failure_reason="Error: ERROR Unknown error"),
-                         TransportMessage.from_json(smsg.body))
+        self.assertEqual(
+            self.mkmsg_fail(failure_level='service',
+                            failure_reason="Error: ERROR Unknown error"),
+            TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks
     def test_receiving_one_sms(self):
-        url = "http://localhost:%s%s?sender=0041791234567&code=9292&message=Hello+World" % (self.config['receive_port'],
-                                         self.config['receive_path'])
+        url = (self.yo_incomming_template % (self.config['receive_port'],
+                                             self.config['receive_path']))
         response = yield http_request_full(url, method='GET')
         [smsg] = self.get_dispatched('cm.inbound')
 
@@ -139,8 +139,6 @@ class CmYoTransportTestCase(TransportTestCase):
                          TransportMessage.from_json(smsg.body)['to_addr'])
         self.assertEqual('+41791234567',
                          TransportMessage.from_json(smsg.body)['from_addr'])
-
-
 
     def get_dispatched(self, rkey):
         return self._amqp.get_dispatched('vumi', rkey)

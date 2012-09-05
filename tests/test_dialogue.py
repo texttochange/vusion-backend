@@ -20,10 +20,8 @@ class VusionScriptTestCase(TestCase):
                          {'content':'thank you'},
                          {'content':'thank you again'}]
                      },
-                    {'choice': 'Ok'}
-                    ],
-                'type-schedule': 'immediately'
-                },
+                    {'choice': 'Ok'}],
+                'type-schedule': 'immediately'},
             {
                 'interaction-id': '01-02',
                 'type-interaction': 'question-answer',
@@ -32,7 +30,7 @@ class VusionScriptTestCase(TestCase):
                 'type-question': 'open-question',
                 'answer-label': 'name',
                 'feedbacks': [
-                         {'content':'thank you for this answer'}],
+                    {'content':'thank you for this answer'}],
                 'type-schedule': 'immediately'
             }
         ]
@@ -41,38 +39,37 @@ class VusionScriptTestCase(TestCase):
     other_question_answer = {
         "name": "something",
         "interactions": [
-              {"type-schedule": "immediately",
-               "type-interaction": "question-answer",
-               "content": "How are you [participant.name]?",
-               "keyword": "Fool",
-               "type-reminder": "no-reminder",
-               "type-question": "close-question",
-               "answers": [
-                   {"choice": "Good",
-                    "feedbacks": [
-                        {"content": "So have a nice day [participant.name]"}
-                    ]},
-                   {"choice": "Bad",
-                    "feedbacks": [
-                        {"content": "Come one [participant.name], you can get over it!"}
-                    ]}
-                   ],
-               "interaction-id": "script.dialogues[0].interactions[0]"
-               },
-              {"type-schedule": "immediately",
-               "type-interaction": "question-answer",
-               "content": "What is your gender?",
-               'label-for-participant-profiling': 'gender',
-               "keyword": "GEN",
-               "answers": [
-                   {"choice": "Male"},
-                   {"choice": "Bad"}
-                   ],
-               "interaction-id": "script.dialogues[0].interactions[2]"
-               },
-              ],
-         "dialogue-id": "script.dialogues[0]"
-         }
+            {"type-schedule": "immediately",
+             "type-interaction": "question-answer",
+             "content": "How are you [participant.name]?",
+             "keyword": "Fool",
+             "type-reminder": "no-reminder",
+             "type-question": "close-question",
+             "answers": [
+                 {"choice": "Good",
+                  "feedbacks": [
+                      {"content": "So have a nice day [participant.name]"}
+                  ]
+                  },
+                 {"choice": "Bad",
+                  "feedbacks": [
+                      {"content": "Come one [participant.name], you can get over it!"}]}
+                 ],
+             "interaction-id": "script.dialogues[0].interactions[0]"
+             },
+            {"type-schedule": "immediately",
+             "type-interaction": "question-answer",
+             "content": "What is your gender?",
+             'label-for-participant-profiling': 'gender',
+             "keyword": "GEN",
+             "answers": [
+                 {"choice": "Male"},
+                 {"choice": "Bad"}],
+             "interaction-id": "script.dialogues[0].interactions[2]"
+             },
+            ],
+        "dialogue-id": "script.dialogues[0]"
+    }
 
     def setUp(self):
         pass
@@ -98,8 +95,8 @@ class VusionScriptTestCase(TestCase):
                                'interaction-id': '01-01',
                                'matching-answer': None})
         self.assertEqual(len(actions), 1)
-        self.assertEqual(actions[0],{'type-action': 'unmatching-answer',
-                                     'answer': '0'})
+        self.assertEqual(actions[0], {'type-action': 'unmatching-answer',
+                                      'answer': '0'})
 
         ref, actions = script.get_matching_reference_and_actions("feel 3", [])
         self.assertEqual(ref, {'dialogue-id': '01',

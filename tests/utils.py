@@ -90,8 +90,7 @@ class MessageMaker:
             transport_metadata=transport_metadata,
             content=content,
             session_event=session_event,
-            timestamp=timestamp,
-            )
+            timestamp=timestamp)
 
     def mkmsg_out(self, content='hello world',
                   session_event=TransportUserMessage.SESSION_NONE,
@@ -116,8 +115,7 @@ class MessageMaker:
             content=content,
             session_event=session_event,
             in_reply_to=in_reply_to,
-            helper_metadata=helper_metadata,
-            )
+            helper_metadata=helper_metadata)
         return TransportUserMessage(**params)
 
     def mkmsg_fail(self, message, reason,
@@ -126,13 +124,12 @@ class MessageMaker:
             timestamp=datetime.now(),
             failure_code=failure_code,
             message=message,
-            reason=reason,
-            )
-    
+            reason=reason)
+
     def mkmsg_transport_fail(self, user_message_id='1',
-                  failure_level='', failure_code=0,
-                  failure_reason='',
-                  transport_metadata={}):
+                             failure_level='', failure_code=0,
+                             failure_reason='',
+                             transport_metadata={}):
         if transport_metadata is None:
             transport_metadata = {}
         return TransportEvent(
@@ -145,13 +142,11 @@ class MessageMaker:
             user_message_id=user_message_id,
             timestamp=UTCNearNow(),
             transport_name=self.transport_name,
-            transport_metadata=transport_metadata,
-            )
-
+            transport_metadata=transport_metadata)
 
     def mkmsg_dispatcher_control(self, action='add_exposed',
                                  exposed_name='app2', rules=None):
-        if rules == None:
+        if rules is None:
             rules = []
         return DispatcherControl(
             action=action,
@@ -161,7 +156,7 @@ class MessageMaker:
     def mkmsg_multiworker_control(self, message_type='add_worker',
                                   worker_name='m4h', worker_class=None,
                                   config=None):
-        if config == None:
+        if config is None:
             config = []
         return Message(
             message_type=message_type,
@@ -175,49 +170,42 @@ class MessageMaker:
             action=action,
             dialogue_obj_id=dialogue_obj_id,
             phone_number=phone_number)
-  
-        
+
+
 class ObjectMaker:
-    
+
     def mkobj_template_unmatching_keyword(self):
         return {
-           'name': 'error template',
-           'type-template': 'unmatching-keyword',
-           'template': 'KEYWORD does not match any keyword.'
-        }
-        
+            'name': 'error template',
+            'type-template': 'unmatching-keyword',
+            'template': 'KEYWORD does not match any keyword.'}
+
     def mkobj_shortcode(self, error_template=None):
         return {
             'country': 'Uganda',
             'internationalprefix': '256',
             'shortcode': '8282',
-            'error-template': error_template
-        }
+            'error-template': error_template}
 
     time_format = '%Y-%m-%dT%H:%M:%S'
 
     simple_config = {
         'database_name': 'test',
         'dispatcher': 'dispatcher',
-        'transport_name': 'app',
-        }
+        'transport_name': 'app'}
 
-    program_settings = [{
-        'key': 'shortcode',
-        'value': '8181'
-        }, {
-        'key': 'internationalprefix',
-        'value': '256'
-        }, {
-        'key': 'timezone',
-        'value': 'Africa/Kampala'
-        }]
+    program_settings = [
+        {'key': 'shortcode',
+         'value': '8181'},
+        {'key': 'internationalprefix',
+         'value': '256'},
+        {'key': 'timezone',
+         'value': 'Africa/Kampala'}]
 
     shortcodes = {
         'country': 'Uganda',
         'internationalprefix': '256',
-        'shortcode': '8181'
-    }
+        'shortcode': '8181'}
 
     dialogue_annoucement = {
         'activated': 1,
@@ -238,22 +226,18 @@ class ObjectMaker:
     }
 
     dialogue_annoucement_2 = {
-            "activated": 1,
-            "dialogue-id": "2",
-            "interactions": [
-                {"type-interaction": "announcement",
-                 "interaction-id": "0",
-                 "content": "Hello"
-                 },
-                {"type-interaction": "announcement",
-                 "interaction-id": "1",
-                 "content": "Today will be sunny"
-                 },
-                {"type-interaction": "announcement",
-                 "interaction-id": "2",
-                 "content": "Today is the special day"
-                 }
-            ]
+        "activated": 1,
+        "dialogue-id": "2",
+        "interactions": [
+            {"type-interaction": "announcement",
+             "interaction-id": "0",
+             "content": "Hello"},
+            {"type-interaction": "announcement",
+             "interaction-id": "1",
+             "content": "Today will be sunny"},
+            {"type-interaction": "announcement",
+             "interaction-id": "2",
+             "content": "Today is the special day"}]
     }
 
     dialogue_question = {
@@ -268,13 +252,9 @@ class ObjectMaker:
                 'answers': [
                     {'choice': 'Fine'},
                     {'choice': 'Ok',
-                     'feedbacks':
-                     [{'content': 'Thank you'}],
-                     'answer-actions':
-                     [{'type-answer-action': 'enrolling',
-                       'enroll': '2'}],
-                     },
-                    ],
+                     'feedbacks': [{'content': 'Thank you'}],
+                     'answer-actions':[{'type-answer-action': 'enrolling',
+                                        'enroll': '2'}]}],
                 'type-schedule': 'immediately'
             }
         ]
@@ -284,16 +264,13 @@ class ObjectMaker:
         'activated': 1,
         'dialogue-id': '04',
         'interactions': [
-            {
-                'interaction-id': '01-01',
-                'type-interaction': 'question-answer',
-                'content': 'How are you?',
-                'keyword': 'name',
-                'type-question': 'open-question',
-                'answer-label': 'name',
-                'type-schedule': 'immediately'
-            }
-        ]
+            {'interaction-id': '01-01',
+             'type-interaction': 'question-answer',
+             'content': 'How are you?',
+             'keyword': 'name',
+             'type-question': 'open-question',
+             'answer-label': 'name',
+             'type-schedule': 'immediately'}]
     }
 
     dialogue_announcement_fixedtime = {
@@ -313,37 +290,25 @@ class ObjectMaker:
     request_join = {
         'keyword': 'www join, www',
         'responses': [
-            {
-                'content': 'thankyou of joining',
-                },
-            {
-                'content': 'soon more is coming',
-                }],
+            {'content': 'thankyou of joining'},
+            {'content': 'soon more is coming'}],
         'actions': [
-            {
-                'type-action': 'optin',
-                },
-            {
-                'type-action': 'enrolling',
-                'enroll': '01'
-            }]
+            {'type-action': 'optin'},
+            {'type-action': 'enrolling',
+             'enroll': '01'}]
     }
 
     request_tag = {
         'keyword': 'www tagme',
         'actions': [
-            {
-                'type-action': 'tagging',
-                'tag': 'onetag'
-            }]
+            {'type-action': 'tagging',
+             'tag': 'onetag'}]
     }
 
     request_leave = {
         'keyword': 'www quit',
         'actions': [
-            {
-                'type-action': 'optout',
-            }]
+            {'type-action': 'optout'}]
     }
 
     def mkobj_unattach_message(self, recipient='all participants',
@@ -368,26 +333,22 @@ class ObjectMaker:
         'type-question': 'open-question',
         'template': 'QUESTION\r\n To reply send: KEYWORD<space><ANSWER> to SHORTCODE'
     }
-    
+
     template_unmatching_answer = {
         'name': 'unmatching answers template',
         'type-action': 'unmatching-answer',
         'template': 'ANSWER does not match any answer'
     }
-    
+
     def mkobj_history_unattach(self, unattach_id,
                                participant_phone='06'):
-        return {
-            'participant-phone': participant_phone,
-            'message-type': 'sent',
-            'message-status': 'delivered',
-            'unattach-id': unattach_id
-        }
-    
+        return {'participant-phone': participant_phone,
+                'message-type': 'sent',
+                'message-status': 'delivered',
+                'unattach-id': unattach_id}
+
     def mkobj_participant(self, participant_phone='06',
                           enrolled=None, optout=None):
-        return { 
-            'phone': participant_phone,
-            'enrolled': enrolled,
-            'optout': optout
-            }
+        return {'phone': participant_phone,
+                'enrolled': enrolled,
+                'optout': optout}

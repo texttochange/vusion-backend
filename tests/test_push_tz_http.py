@@ -15,29 +15,29 @@ from vumi.message import TransportMessage
 from tests.utils import MessageMaker
 from transports.push_tz_http import PushTransport, PushXMLParser
 
+
 class PushRequestMaker:
-    
+
     def mkrequest_bulk(self):
         return (
-        '<?xml version="1.0" encoding="UTF-8"?>'
-        '<bulk-request login="mylogin" password="mypassword" '
-        'delivery-notification-requested="Y" '
-        'ref-id="2012-09-04T12:22:02" version="1.0">'
-        '<message id="1" '
-        'msisdn="+41791234567" '
-        'service-number="9292" '
-        'validity-period="1" '
-        'priority="1">'
-        '<content type="text/plain">Hello World</content>'
-        '</message>'
-        '</bulk-request>')
-    
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<bulk-request login="mylogin" password="mypassword" '
+            'delivery-notification-requested="Y" '
+            'ref-id="2012-09-04T12:22:02" version="1.0">'
+            '<message id="1" '
+            'msisdn="+41791234567" '
+            'service-number="9292" '
+            'validity-period="1" '
+            'priority="1">'
+            '<content type="text/plain">Hello World</content>'
+            '</message>'
+            '</bulk-request>')
+
     def mkresponse_bulk(self):
         return (
             '<?xml version="1.0" encoding="windows-1251"?>'
-            '<bulk-response version="1.0"/>'
-            )
-    
+            '<bulk-response version="1.0"/>')
+
     def mkrequest_incomming(self):
         return (
             '<?xml version="1.0" encoding="UTF-8"?>'
@@ -56,7 +56,7 @@ class PushRequestMaker:
 
 
 class PushParserTestCase(TestCase):
-    
+
     def test_generate_bulk_request(self):
         message_dict = {
             'login': 'mylogin',
@@ -69,27 +69,26 @@ class PushParserTestCase(TestCase):
                 'service-number': '9292',
                 'validity-period': '1',
                 'priority': '1',
-                'content': 'Hello World',
-                }]
+                'content': 'Hello World'}]
         }
         parser = PushXMLParser()
-        
+
         expect = PushRequestMaker().mkrequest_bulk()
-        
+
         self.assertTrue(xml_compare(
             ElementTree.fromstring(parser.build_bulk_request(message_dict)),
             ElementTree.fromstring(expect),
             Reporter()))
-        
+
 
 class PushTransportTestCase(TransportTestCase, MessageMaker):
-    
+
     transport_name = 'push'
     transport_type = 'sms'
     transport_class = PushTransport
     login = "mylogin"
     password = "mypassword"
-        
+
     @inlineCallbacks
     def setUp(self):
         yield super(PushTransportTestCase, self).setUp()
@@ -105,22 +104,21 @@ class PushTransportTestCase(TransportTestCase, MessageMaker):
             'validity_period': '1',
             'priority': '1',
             'receive_path': '/yo',
-            'receive_port': 9998
-        }
+            'receive_port': 9998}
         self.worker = yield self.get_transport(self.config)
         self.today = datetime.utcnow().date()
         self.maker = PushRequestMaker()
-        
+
     def make_resource_worker(self, req, msg, code=http.OK, send_id=None):
         w = get_stubbed_worker(TestResourceWorker, {})
         w.set_resources([
             (self.send_path, PushTestResource, (req, msg, code, send_id))])
         self._workers.append(w)
         return w.startWorker()
-    
+
     def get_dispatched(self, rkey):
         return self._amqp.get_dispatched('vumi', rkey)
-    
+
     @inlineCallbacks
     def test_sending_one_sms_ok(self):
         #HTTP response
@@ -134,14 +132,12 @@ class PushTransportTestCase(TransportTestCase, MessageMaker):
         self.assertEqual(self.mkmsg_delivery(user_message_id='1'),
                          TransportMessage.from_json(smsg.body))
 
-
     @inlineCallbacks
     def test_receiving_one_sms(self):
-        url = ("http://localhost:%s%s" 
+        url = ("http://localhost:%s%s"
                % (self.config['receive_port'], self.config['receive_path']))
         response = yield http_request_full(
-            url, 
-            data=self.maker.mkrequest_incomming())
+            url, data=self.maker.mkrequest_incomming())
         [smsg] = self.get_dispatched('push.inbound')
 
         self.assertEqual(response.code, http.OK)
@@ -150,12 +146,12 @@ class PushTransportTestCase(TransportTestCase, MessageMaker):
         self.assertEqual('9292',
                          TransportMessage.from_json(smsg.body)['to_addr'])
         self.assertEqual('+41791234567',
-                         TransportMessage.from_json(smsg.body)['from_addr'])        
+                         TransportMessage.from_json(smsg.body)['from_addr'])
 
 
 class PushTestResource(Resource):
     isLeaf = True
-    
+
     def __init__(self, request, response, code=http.OK, send_id=None):
         self.request = request
         self.response = response
@@ -164,9 +160,10 @@ class PushTestResource(Resource):
 
     def render_POST(self, request):
         request.setResponseCode(self.code)
-        if self.code!=http.OK :
+        if self.code != http.OK:
             return
         return self.response
+
 
 def xml_compare(x1, x2, reporter=None):
     if x1.tag != x2.tag:
@@ -226,14 +223,12 @@ def text_compare(t1, t2):
 class Reporter:
     def __init__(self):
         self.report = []
-        
+
     def __call__(self, message):
         self.report.insert(0, message)
-        
+
     def tostring(self):
         summary = ""
         for message in self.report:
             summary = summary + message + ".\n"
         return summary
-        
-
