@@ -195,9 +195,6 @@ def xml_compare(x1, x2, reporter=None):
         return False
     cl1 = x1.getchildren()
     cl2 = x2.getchildren()
-    if (len(cl1)>0 and cl1[0] and cl1[0].getchildren()[0].tag=='name'):
-        cl1.sort(key=lambda x: x.getchildren()[0].text)
-        cl2.sort(key=lambda x: x.getchildren()[0].text)
     if len(cl1) != len(cl2):
         if reporter:
             reporter('children length differs, %i != %i'
