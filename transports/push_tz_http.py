@@ -4,8 +4,9 @@ from urllib import urlencode, unquote
 from urlparse import parse_qs
 from xml.etree import ElementTree
 import re
+import sys
+import traceback
 
-from twisted.python import log
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet.error import ConnectionRefusedError
 from twisted.internet import defer
@@ -15,6 +16,7 @@ from twisted.web.server import NOT_DONE_YET
 
 from vumi.transports.base import Transport
 from vumi.utils import http_request_full, normalize_msisdn
+from vumi import log
 
 from vusion.utils import get_now_timestamp
 
@@ -52,42 +54,49 @@ class PushTransport(Transport):
                     'login': self.config['login'],
                     'password': self.config['password'],
                     'ref-id': get_now_timestamp(),
-                    'delivery-notification-requested': self.config['delivery-notification-requested'],
+                    'delivery-notification-requested': self.config['delivery_notification_requested'],
                     'messages': [{
                         'id': message['message_id'],
                         'service-number': message['from_addr'],
                         'msisdn': message['to_addr'],
                         'content': message['content'],
-                        'validity-period': self.config['validity-period'],
-                        'priority': self.config['validity-period'],
+                        'validity-period': self.config['validity_period'],
+                        'priority': self.config['validity_period'],
                         }]
                     }),
                 {'User-Agent': ['Vusion Push Transport'],
                  'Content-Type': ['application/xml;charset=UTF-8'], })
-        except Exception as ex:
-            log.msg("Unexpected error %s" % repr(ex))
-
-        if response.code != 200:
-            log.msg("Http Error %s: %s"
-                    % (response.code, response.delivered_body))
-            yield self.publish_delivery_report(
-                user_message_id=message['message_id'],
-                delivery_status='failed',
-                failure_level='http',
-                failure_code=response.code,
-                failure_reason=response.delivered_body
+       
+            if response.code != 200:
+                log.msg("Http Error %s: %s"
+                        % (response.code, response.delivered_body))
+                yield self.publish_delivery_report(
+                    user_message_id=message['message_id'],
+                    delivery_status='failed',
+                    failure_level='http',
+                    failure_code=response.code,
+                    failure_reason=response.delivered_body
                 )
-            return
+                return
 
-        try:
             yield self.publish_delivery_report(
                 user_message_id=message['message_id'],
                 delivery_status='delivered',
                 to_addr=message['to_addr']
             )
-        except Exception as ex:
-            log.msg("Unexpected error %s" % repr(ex))
-
+        except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            log.error(
+                "Error during consume user message: %r" %
+                traceback.format_exception(exc_type, exc_value, exc_traceback))
+            yield self.publish_delivery_report(
+                user_message_id=message['message_id'],
+                delivery_status='failed',
+                failure_level='internal',
+                failure_code=0,
+                failure_reason= traceback.format_exc()
+            )
+            
     def stopWorker(self):
         log.msg("stop yo transport")
         if hasattr(self, 'receipt_resource'):
@@ -105,8 +114,7 @@ class PushReceiveSMSResource(Resource):
 
     def phone_format_from_push(self, phone):
         regex = re.compile('^00')
-        phone = re.sub(regex, '', phone)
-        return ('+%s' % phone)
+        return re.sub(regex, '+', phone)
 
     @inlineCallbacks
     def do_render(self, request):

@@ -44,7 +44,7 @@ class PushRequestMaker:
             '<sms-request version="1.0">'
             '<message id="54321" '
             'submit-date="2008-10-13 13:30:10" '
-            'msisdn="41791234567" '
+            'msisdn="+41791234567" '
             'service-number="9292" '
             'operator="operator-smpp" '
             'operator_id="100" '
@@ -100,9 +100,9 @@ class PushTransportTestCase(TransportTestCase, MessageMaker):
             'url': 'http://localhost:%s%s' % (self.send_port, self.send_path),
             'login': self.login,
             'password': self.password,
-            'delivery-notification-requested': 'Y',
+            'delivery_notification_requested': 'Y',
             'service_number': '4949',
-            'validity-period': '1',
+            'validity_period': '1',
             'priority': '1',
             'receive_path': '/yo',
             'receive_port': 9998
