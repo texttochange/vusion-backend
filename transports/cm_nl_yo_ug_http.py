@@ -20,6 +20,7 @@ from vumi.utils import http_request_full, normalize_msisdn
 
 from transports.yo_ug_http import YoReceiveSMSResource
 
+
 ##This transport is supposed to send and receive sms in 2 different ways.
 ##To send sms we use the CM API
 ##To receive sms we use the YO Interface to forward the sms
@@ -34,11 +35,9 @@ class CmYoTransport(Transport):
     def setup_transport(self):
         self._resources = []
         log.msg("Setup yo transport %s" % self.config)
-        resources = [
-            self.mkres(YoReceiveSMSResource,
-                       self.publish_message,
-                       self.config['receive_path'])
-            ]
+        resources = [self.mkres(YoReceiveSMSResource,
+                                self.publish_message,
+                                self.config['receive_path'])]
         self.receipt_resource = yield self.start_web_resources(
             resources,
             self.config['receive_port'])
@@ -56,8 +55,7 @@ class CmYoTransport(Transport):
                     'password': self.config['password'],
                     'from_addr': message['from_addr'],
                     'to_addr': message['to_addr'],
-                    'content': message['content']
-                    }),
+                    'content': message['content']}),
                 {'User-Agent': ['Vumi CM YO Transport'],
                  'Content-Type': ['application/json;charset=UTF-8'], },
                 'POST')
@@ -74,8 +72,7 @@ class CmYoTransport(Transport):
                 delivery_status='failed',
                 failure_level='http',
                 failure_code=response.code,
-                failure_reason=response.delivered_body
-                )
+                failure_reason=response.delivered_body)
             return
 
         try:

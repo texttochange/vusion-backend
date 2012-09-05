@@ -20,6 +20,7 @@ from vumi.utils import http_request_full, normalize_msisdn, SimplishReceiver
 
 from transports.yo_ug_http import YoReceiveSMSResource
 
+
 ##This transport is supposed to send and receive sms in 2 different ways.
 ##To send sms we use the PUSH TZ API (xmlrpc)
 ##To receive sms we use the YO Interface to forward the sms
@@ -34,11 +35,9 @@ class PushYoTransport(Transport):
     def setup_transport(self):
         self._resources = []
         log.msg("Setup yo transport %s" % self.config)
-        resources = [
-            self.mkres(YoReceiveSMSResource,
-                       self.publish_message,
-                       self.config['receive_path'])
-            ]
+        resources = [self.mkres(YoReceiveSMSResource,
+                                self.publish_message,
+                                self.config['receive_path'])]
         self.receipt_resource = yield self.start_web_resources(
             resources,
             self.config['receive_port'])
@@ -58,7 +57,7 @@ class PushYoTransport(Transport):
                  'Source': message['from_addr'],
                  'SMSText': message['content'],
                  'MaxSegments': int(self.config['max_segments'])})
-            
+
             if not 'Identifier' in response:
                 log.msg("Push Error: %s" % (response))
                 yield self.publish_delivery_report(
@@ -69,22 +68,20 @@ class PushYoTransport(Transport):
                     failure_reason=response['Error']
                 )
                 return
-            
+
             yield self.publish_delivery_report(
                 user_message_id=message['message_id'],
                 delivery_status='delivered',
                 to_addr=message['to_addr'],
-                transport_metadata=response,
-            )
+                transport_metadata=response)
         except Exception as ex:
             log.msg("Unexpected error %s" % repr(ex))
             yield self.publish_delivery_report(
-                    user_message_id=message['message_id'],
-                    delivery_status='failed',
-                    failure_level='http',
-                    failure_code=0,
-                    failure_reason=repr(ex)
-                )
+                user_message_id=message['message_id'],
+                delivery_status='failed',
+                failure_level='http',
+                failure_code=0,
+                failure_reason=repr(ex))
 
     def stopWorker(self):
         log.msg("stop yo transport")
@@ -102,7 +99,7 @@ def rpc_request_full(url, method, data=None):
     def handle_err(failure):
         failure.trap(ValueError)
         return {'Error': 'Failure during xml parsing'}
-    
+
     d.addCallback(handle_response)
     d.addErrback(handle_err)
 

@@ -52,8 +52,8 @@ class DynamicDispatchWorker(BaseDispatchWorker):
     @inlineCallbacks
     def setup_exposed_publishers(self):
         for exposed_name in self._exposed_names:
-            if (exposed_name in self.exposed_publisher and 
-                exposed_name in self.exposed_event_publisher):
+            if (exposed_name in self.exposed_publisher
+                    and exposed_name in self.exposed_event_publisher):
                 continue
             self.exposed_publisher[exposed_name] = yield self.publish_to(
                 '%s.inbound' % (exposed_name,))
@@ -146,4 +146,3 @@ class DynamicDispatchWorker(BaseDispatchWorker):
             log.error(
                 "Error during consume control message: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
-

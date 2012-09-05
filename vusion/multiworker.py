@@ -12,23 +12,24 @@ from vumi import log
 
 from vusion.utils import DataLayerUtils
 
+
 class VusionMultiWorker(Worker, DataLayerUtils):
 
     WORKER_CREATOR = WorkerCreator
 
     def startService(self):
         log.debug('Starting Multiworker %s' % (self.config,))
-        #Jump the constructor of Multiworker to use a dictionary of workers rather than a list
         super(VusionMultiWorker, self).startService()
         DataLayerUtils.__init__(self)
-        
+
         self.workers = {}
         self.worker_creator = self.WORKER_CREATOR(self.options)
 
-        connection = pymongo.Connection(self.config['mongodb_host'], self.config['mongodb_port'])
+        connection = pymongo.Connection(self.config['mongodb_host'],
+                                        self.config['mongodb_port'])
         self.db = connection[self.config['vusion_database_name']]
         self.setup_collection('workers')
-    
+
     @inlineCallbacks
     def startWorker(self):
         self.reload_workers_from_config_file()
@@ -56,13 +57,13 @@ class VusionMultiWorker(Worker, DataLayerUtils):
         return worker
 
     def reload_workers_from_config_file(self):
-        for wname, wclass in self.config.get('workers', {}).items():\
+        for wname, wclass in self.config.get('workers', {}).items():
             self.save_worker(wname, wclass, self.config.get(wname, {}))
-    
+
     def save_worker(self, worker_name, worker_class, worker_config):
         return  self.collections['workers'].update(
             {'name': worker_name},
-            {'$set': {'class': worker_class,'config': worker_config}},
+            {'$set': {'class': worker_class, 'config': worker_config}},
             True)
 
     @inlineCallbacks
@@ -74,7 +75,8 @@ class VusionMultiWorker(Worker, DataLayerUtils):
 
     def add_worker(self, worker_name, worker_class, worker_config):
         if worker_name in self.workers:
-            log.error('Cannot create worker, name already exist: %s' % (worker_name,))
+            log.error('Cannot create worker, name already exist: %s'
+                      % (worker_name,))
             return
         #Must make sure to provide utf-8 parameters and not unicode as Mongodb and Rabbitmq are providing
         #TODO: manage this encoding conversion at another level
@@ -84,9 +86,11 @@ class VusionMultiWorker(Worker, DataLayerUtils):
         worker_name = worker_name.encode('utf-8')
         worker_class = worker_class.encode('utf-8')
 
-        self.save_worker(worker_name, worker_class, worker_config)        
+        self.save_worker(worker_name, worker_class, worker_config)
         worker_config = self.construct_worker_config(worker_config)
-        self.workers[worker_name] = self.create_worker(worker_name,worker_class,worker_config)
+        self.workers[worker_name] = self.create_worker(worker_name,
+                                                       worker_class,
+                                                       worker_config)
 
     @inlineCallbacks
     def remove_worker(self, worker_name):
@@ -104,7 +108,9 @@ class VusionMultiWorker(Worker, DataLayerUtils):
         log.debug('Received control! %s' % (msg,))
         try:
             if msg['message_type'] == 'add_worker':
-                self.add_worker(msg['worker_name'], msg['worker_class'], msg['config'])
+                self.add_worker(msg['worker_name'],
+                                msg['worker_class'],
+                                msg['config'])
             if msg['message_type'] == 'remove_worker':
                 self.remove_worker(msg['worker_name'])
         except Exception as ex:

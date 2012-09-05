@@ -20,6 +20,7 @@ from vumi import log
 
 from vusion.utils import get_now_timestamp
 
+
 ##This transport is supposed to send and receive sms in 2 different ways.
 ##To send sms we use the CM API
 ##To receive sms we use the YO Interface to forward the sms
@@ -34,11 +35,9 @@ class PushTransport(Transport):
     def setup_transport(self):
         self._resources = []
         log.msg("Setup yo transport %s" % self.config)
-        resources = [
-            self.mkres(PushReceiveSMSResource,
-                       self.publish_message,
-                       self.config['receive_path'])
-            ]
+        resources = [self.mkres(PushReceiveSMSResource,
+                                self.publish_message,
+                                self.config['receive_path'])]
         self.receipt_resource = yield self.start_web_resources(
             resources,
             self.config['receive_port'])
@@ -61,12 +60,10 @@ class PushTransport(Transport):
                         'msisdn': message['to_addr'],
                         'content': message['content'],
                         'validity-period': self.config['validity_period'],
-                        'priority': self.config['validity_period'],
-                        }]
-                    }),
+                        'priority': self.config['validity_period']}]}),
                 {'User-Agent': ['Vusion Push Transport'],
-                 'Content-Type': ['application/xml;charset=UTF-8'], })
-       
+                 'Content-Type': ['application/xml;charset=UTF-8']})
+
             if response.code != 200:
                 log.msg("Http Error %s: %s"
                         % (response.code, response.delivered_body))
@@ -94,9 +91,8 @@ class PushTransport(Transport):
                 delivery_status='failed',
                 failure_level='internal',
                 failure_code=0,
-                failure_reason= traceback.format_exc()
-            )
-            
+                failure_reason=traceback.format_exc())
+
     def stopWorker(self):
         log.msg("stop yo transport")
         if hasattr(self, 'receipt_resource'):
@@ -130,8 +126,7 @@ class PushReceiveSMSResource(Resource):
                 to_addr=message.attrib['service-number'],
                 from_addr=self.phone_format_from_push(message.attrib['msisdn']),
                 content=message.find('content').text,
-                transport_metadata={}
-            )
+                transport_metadata={})
         except Exception, e:
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
             log.msg("Error processing the request: %s" % (request,))
