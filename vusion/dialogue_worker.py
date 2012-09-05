@@ -4,6 +4,8 @@ import sys
 import traceback
 import re
 
+from uuid import uuid4
+
 from twisted.internet.defer import (inlineCallbacks, Deferred)
 from twisted.enterprise import adbapi
 from twisted.internet import task
@@ -235,13 +237,17 @@ class TtcGenericWorker(ApplicationWorker):
         regex_ANSWER = re.compile('ANSWER')
 
         if (action['type-action'] == 'optin'):
-            self.collections['participants'].update(
-                {'phone': participant_phone},
-                {'$unset': {'optout': 1}}, True)
+            if self.collections['participants'].find_one({'phone': participant_phone, 'session-id': {'$ne': None}}) is None:
+                self.collections['participants'].update(
+                    {'phone': participant_phone},
+                    {'$set': {'session-id': uuid4().get_hex(), 
+                              'last-optin-date': time_to_vusion_format(self.get_local_time())}},
+                    True)
         elif (action['type-action'] == 'optout'):
             self.collections['participants'].update(
                 {'phone': participant_phone},
-                {'$set': {'optout': True}})
+                {'$set': {'session-id': None,
+                          'last-optin-date': None}})
         elif (action['type-action'] == 'feedback'):
             self.collections['schedules'].save({
                 'date-time': time_to_vusion_format(self.get_local_time()),

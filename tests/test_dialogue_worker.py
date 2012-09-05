@@ -599,21 +599,39 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         schedules = self.collections['schedules'].find()
         self.assertEqual(schedules[1]['content'],
             "best does not match any answer")
-
+        
+        ## Participant optin
         self.worker.run_action("08", {'type-action': 'optin'})
         self.assertEqual(1, self.collections['participants'].count())
+        participant = self.collections['participants'].find_one()
+        self.assertTrue('session-id' in participant)
+        self.assertEqual(participant['session-id'], RegexMatcher(r'^[0-9a-fA-F]{32}$'))
+        self.assertTrue('last-optin-date' in participant)
+        self.assertEqual(participant['last-optin-date'], RegexMatcher(r'^(\d{4})-0?(\d+)-0?(\d+)[T ]0?(\d+):0?(\d+):0?(\d+)$'))
 
+        ## Participant optout
         self.worker.run_action("08", {'type-action': 'optout'})
         self.assertEqual(1, self.collections['participants'].count())
-        self.assertTrue(self.collections['participants'].find_one(
-            {'phone': '08'})['optout'])
+        participant_optout = self.collections['participants'].find_one()
+        self.assertTrue(participant_optout['session-id'] is None)
+        self.assertTrue(participant_optout['last-optin-date'] is None)
 
-        #Participant can opt-in again
+        ## Participant can optin again
         self.worker.run_action("08", {'type-action': 'optin'})
         self.assertEqual(1, self.collections['participants'].count())
-        self.assertFalse(self.collections['participants'].find_one(
-            {'phone': '08', 'optout': True}))
+        participant = self.collections['participants'].find_one()
+        self.assertEqual(participant['session-id'], RegexMatcher(r'^[0-9a-fA-F]{32}$'))
+        self.assertEqual(participant['last-optin-date'], RegexMatcher(r'^(\d{4})-0?(\d+)-0?(\d+)[T ]0?(\d+):0?(\d+):0?(\d+)$'))
 
+        ## Participant cannot optin while they are aleardy optin
+        self.worker.run_action("08", {'type-action': 'optin'})
+        self.assertEqual(1, self.collections['participants'].count())
+        participant_reoptin = self.collections['participants'].find_one()
+        self.assertEqual(participant['session-id'], participant_reoptin['session-id'])
+        self.assertEqual(participant['last-optin-date'], participant_reoptin['last-optin-date'])
+
+
+        ## Tagging
         self.worker.run_action("08", {'type-action': 'tagging',
                                       'tag': 'my tag'})
         self.worker.run_action("08", {'type-action': 'tagging',
