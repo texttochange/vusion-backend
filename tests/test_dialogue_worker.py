@@ -567,6 +567,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         yield self.send(inbound_msg_matching_request, 'inbound')
 
         participant = self.collections['participants'].find_one({'phone': '06'})
+        self.assertTrue('name' in participant)
         self.assertEqual('john doe', participant['name'])
 
     def test18_run_action(self):
