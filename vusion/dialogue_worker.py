@@ -96,7 +96,7 @@ class TtcGenericWorker(ApplicationWorker):
         if (self.sender and self.sender.running):
             self.sender.stop()
 
-    def save_history(self, message_content, participant_phone, message_type,
+    def save_history(self, message_content, participant_phone, message_direction,
                     message_status=None, message_id=None, failure_reason=None,
                     timestamp=None, reference_metadata=None):
         if timestamp:
@@ -107,7 +107,7 @@ class TtcGenericWorker(ApplicationWorker):
             'message-id': message_id,
             'message-content': message_content,
             'participant-phone': participant_phone,
-            'message-type': message_type,
+            'message-direction': message_direction,
             'message-status': message_status,
             'timestamp': timestamp,
         }
@@ -311,7 +311,7 @@ class TtcGenericWorker(ApplicationWorker):
             self.save_history(
                 message_content=message['content'],
                 participant_phone=message['from_addr'],
-                message_type='received',
+                message_direction='incoming',
                 reference_metadata=ref)
             self.log("actions %s reference %s" % (actions, ref))
             for action in actions:
@@ -442,7 +442,7 @@ class TtcGenericWorker(ApplicationWorker):
                     self.save_history(
                         message_content='Not generated yet',
                         participant_phone=participant['phone'],
-                        message_type='sent',
+                        message_direction='outgoing',
                         message_status='fail: date in the past',
                         reference_metadata={
                             'dialogue-id': dialogue['dialogue-id'],
@@ -533,7 +533,7 @@ class TtcGenericWorker(ApplicationWorker):
                 if (time_from_vusion_format(toSend['date-time']) <
                     (local_time - timedelta(minutes=15))):
                     raise SendingDatePassed(
-                        "Message should have been send at %s" %
+                        "Message should have been sent at %s" %
                         (toSend['date-time'],))
 
                 message = TransportUserMessage(**{
@@ -545,12 +545,12 @@ class TtcGenericWorker(ApplicationWorker):
                     'content': message_content})
                 yield self.transport_publisher.publish_message(message)
                 self.log(
-                    "Message has been send to %s '%s'" % (message['to_addr'],
+                    "Message has been sent to %s '%s'" % (message['to_addr'],
                                                           message['content']))
                 self.save_history(
                     message_content=message['content'],
                     participant_phone=message['to_addr'],
-                    message_type='sent',
+                    message_direction='outgoing',
                     message_status='pending',
                     message_id=message['message_id'],
                     reference_metadata=reference_metadata)
@@ -559,7 +559,7 @@ class TtcGenericWorker(ApplicationWorker):
                 self.save_history(
                     message_content='',
                     participant_phone=toSend['participant-phone'],
-                    message_type=None,
+                    message_direction=None,
                     failure_reason=('%s' % (e,)),
                     reference_metadata=reference_metadata)
             except:
@@ -570,7 +570,7 @@ class TtcGenericWorker(ApplicationWorker):
                 self.save_history(
                     participant_phone=toSend['participant-phone'],
                     message_content='',
-                    message_type='system-failed',
+                    message_direction='system-failed',
                     failure_reason=('%s - %s') % (sys.exc_info()[0],
                                                   sys.exc_info()[1]),
                     reference_metadata=reference_metadata)
