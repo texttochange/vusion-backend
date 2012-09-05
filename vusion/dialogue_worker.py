@@ -409,14 +409,14 @@ class TtcGenericWorker(ApplicationWorker):
                     "participant-phone": participant['phone'],
                     "dialogue-id": dialogue["dialogue-id"],
                     "interaction-id": interaction["interaction-id"]})
-                status = self.collections['history'].find_one(
+                history = self.collections['history'].find_one(
                     {"participant-phone": participant['phone'],
                      "dialogue-id": dialogue["dialogue-id"],
                      "interaction-id": interaction["interaction-id"]},
                     sort=[("datetime", pymongo.ASCENDING)])
 
-                if status:
-                    previousSendDateTime = time_from_vusion_format(status["timestamp"])
+                if history:
+                    previousSendDateTime = time_from_vusion_format(history["timestamp"])
                     previousSendDay = previousSendDateTime.date()
                     continue
 

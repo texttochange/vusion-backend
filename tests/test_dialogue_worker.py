@@ -82,7 +82,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.broker.publish_message('vumi', routing_key, msg)
         yield self.broker.kick_delivery()
 
-    def save_status(self, message_content="hello world",
+    def save_history(self, message_content="hello world",
                     participant_phone="256", message_direction="send",
                     message_status="delivered", timestamp=datetime.now(),
                     dialogue_id=None, interaction_id=None):
@@ -98,7 +98,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
 
     def test03_multiple_dialogue_in_collection(self):
-        dNow = datetime.now()
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+      
+        dNow = self.worker.get_local_time()
         dPast1 = datetime.now() - timedelta(minutes=30)
         dPast2 = datetime.now() - timedelta(minutes=60)
 
@@ -248,7 +252,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)
-        self.save_status(timestamp=dPast.strftime(self.time_format),
+        self.save_history(timestamp=dPast.strftime(self.time_format),
                          participant_phone='06',
                          interaction_id='0',
                          dialogue_id='0')
@@ -266,8 +270,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
     def test07_schedule_interaction_while_interaction_in_schedule(self):
         dialogue = self.dialogue_annoucement
         participant = {'phone': '06'}
-
-        dNow = datetime.now()
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+      
+        dNow = self.worker.get_local_time()
         dPast = dNow - timedelta(minutes=30)
         dFuture = dNow + timedelta(minutes=30)
         dLaterFuture = dNow + timedelta(minutes=60)
@@ -285,13 +292,10 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
                                         'interaction-id': '1',
                                         'dialogue-id': '0'})
         #Declare collection for loging messages
-        self.save_status(timestamp=dPast.strftime(self.time_format),
+        self.save_history(timestamp=dPast.strftime(self.time_format),
                          participant_phone='06',
                          interaction_id='0',
                          dialogue_id='0')
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
 
         #Starting the test
         schedules = self.worker.schedule_participant_dialogue(
@@ -305,8 +309,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
     def test08_schedule_interaction_that_has_expired(self):
         dialogue = self.dialogue_annoucement
         participant = {'phone': '06'}
-
-        dNow = datetime.now()
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+      
+        dNow = self.worker.get_local_time()
         dPast = datetime.now() - timedelta(days=3)
         dLaterPast = datetime.now() - timedelta(days=5)
 
@@ -314,9 +321,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
 
         #Declare collection for scheduling messages
         self.collections['schedules'].save(
@@ -326,7 +330,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
              'dialogue-id': '0'})
 
         #Declare collection for logging messages
-        self.save_status(timestamp=dLaterPast.strftime(self.time_format),
+        self.save_history(timestamp=dLaterPast.strftime(self.time_format),
                          participant_phone='06',
                          interaction_id='0',
                          dialogue_id='0')
@@ -341,17 +345,17 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
     def test09_schedule_at_fixed_time(self):
         dialogue = self.dialogue_announcement_fixedtime
         participant = {'phone': '08'}
-
-        dNow = datetime.now()
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+      
+        dNow = self.worker.get_local_time()
         dFuture = datetime.now() + timedelta(days=2, minutes=30)
         dialogue['interactions'][0]['date-time'] = dFuture.strftime(
             self.time_format)
 
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
 
         #action
         self.worker.schedule_participant_dialogue(
@@ -655,7 +659,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
 
-        self.save_status(participant_phone="06",
+        self.save_history(participant_phone="06",
                          interaction_id=None,
                          dialogue_id=None)
 
