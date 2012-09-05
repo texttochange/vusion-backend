@@ -83,13 +83,13 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         yield self.broker.kick_delivery()
 
     def save_status(self, message_content="hello world",
-                    participant_phone="256", message_type="send",
+                    participant_phone="256", message_direction="send",
                     message_status="delivered", timestamp=datetime.now(),
                     dialogue_id=None, interaction_id=None):
         self.collections['history'].save({
             'message-content': message_content,
             'participant-phone': participant_phone,
-            'message-type': message_type,
+            'message-direction': message_direction,
             'message-status': message_status,
             'timestamp': timestamp,
             'dialogue-id': dialogue_id,
@@ -460,7 +460,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
         self.collections['history'].save({
             'message-id': event['user_message_id'],
-            'message-type': 'sent',
+            'message-direction': 'outgoing',
             'message-status': 'pending'
         })
 
@@ -491,7 +491,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
         self.collections['history'].save({
             'message-id': event['user_message_id'],
-            'message-type': 'sent',
+            'message-direction': 'outgoing',
             'message-status': 'pending'
         })
 
@@ -509,7 +509,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
         self.collections['history'].save({
             'message-id': event['user_message_id'],
-            'message-type': 'sent',
+            'message-direction': 'outgoing',
             'message-status': 'pending'
         })
 
