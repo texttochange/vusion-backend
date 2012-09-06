@@ -385,9 +385,20 @@ class ObjectMaker:
         }
     
     def mkobj_participant(self, participant_phone='06',
-                          enrolled=None, optout=None):
+                          enrolled=[], tags=[], session_id='1'):
         return { 
             'phone': participant_phone,
             'enrolled': enrolled,
-            'optout': optout
+            'tags': tags,
+            'session-id': session_id,
+            'last-optin-date': None
+            }
+    
+    def mkobj_schedule(self, participant_phone='06', 
+                       date_time=None):
+        return {
+            'participant-phone': participant_phone,
+            'dialogue-id': '1',
+            'interaction-id': '2',
+            'date-time': date_time
             }

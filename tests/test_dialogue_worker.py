@@ -579,6 +579,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
         
+        ## Error message
         saved_template_id = self.collections['templates'].save(
             self.template_unmatching_answer)
         self.collections['program_settings'].save(
@@ -599,39 +600,9 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         schedules = self.collections['schedules'].find()
         self.assertEqual(schedules[1]['content'],
             "best does not match any answer")
-        
-        ## Participant optin
-        self.worker.run_action("08", {'type-action': 'optin'})
-        self.assertEqual(1, self.collections['participants'].count())
-        participant = self.collections['participants'].find_one()
-        self.assertTrue('session-id' in participant)
-        self.assertEqual(participant['session-id'], RegexMatcher(r'^[0-9a-fA-F]{32}$'))
-        self.assertTrue('last-optin-date' in participant)
-        self.assertEqual(participant['last-optin-date'], RegexMatcher(r'^(\d{4})-0?(\d+)-0?(\d+)[T ]0?(\d+):0?(\d+):0?(\d+)$'))
-
-        ## Participant optout
-        self.worker.run_action("08", {'type-action': 'optout'})
-        self.assertEqual(1, self.collections['participants'].count())
-        participant_optout = self.collections['participants'].find_one()
-        self.assertTrue(participant_optout['session-id'] is None)
-        self.assertTrue(participant_optout['last-optin-date'] is None)
-
-        ## Participant can optin again
-        self.worker.run_action("08", {'type-action': 'optin'})
-        self.assertEqual(1, self.collections['participants'].count())
-        participant = self.collections['participants'].find_one()
-        self.assertEqual(participant['session-id'], RegexMatcher(r'^[0-9a-fA-F]{32}$'))
-        self.assertEqual(participant['last-optin-date'], RegexMatcher(r'^(\d{4})-0?(\d+)-0?(\d+)[T ]0?(\d+):0?(\d+):0?(\d+)$'))
-
-        ## Participant cannot optin while they are aleardy optin
-        self.worker.run_action("08", {'type-action': 'optin'})
-        self.assertEqual(1, self.collections['participants'].count())
-        participant_reoptin = self.collections['participants'].find_one()
-        self.assertEqual(participant['session-id'], participant_reoptin['session-id'])
-        self.assertEqual(participant['last-optin-date'], participant_reoptin['last-optin-date'])
-
 
         ## Tagging
+        self.collections['participants'].save(self.mkobj_participant('08'))
         self.worker.run_action("08", {'type-action': 'tagging',
                                       'tag': 'my tag'})
         self.worker.run_action("08", {'type-action': 'tagging',
@@ -643,6 +614,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             ['my tag', 'my second tag'],
             self.collections['participants'].find_one({'tags': 'my tag'})['tags'])
 
+        ## Enrolling
         self.collections['dialogues'].save(self.dialogue_question)
         self.worker.run_action("08", {'type-action': 'enrolling',
                                       'enroll': '01'})
@@ -666,6 +638,45 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
                                       'label': 'gender',
                                       'value': 'Female'})
         self.assertTrue(self.collections['participants'].find_one({'gender': 'Female'}))
+
+    def test18_run_action_optin_optout(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        
+         ## Participant optin
+        self.worker.run_action("08", {'type-action': 'optin'})
+        self.assertEqual(1, self.collections['participants'].count())
+        participant = self.collections['participants'].find_one()
+        self.assertTrue('session-id' in participant)
+        self.assertEqual(participant['session-id'], RegexMatcher(r'^[0-9a-fA-F]{32}$'))
+        self.assertTrue('last-optin-date' in participant)
+        self.assertEqual(participant['last-optin-date'], RegexMatcher(r'^(\d{4})-0?(\d+)-0?(\d+)[T ]0?(\d+):0?(\d+):0?(\d+)$'))
+
+        ## Participant optout (All schedule messages should be removed)
+        self.collections['schedules'].save(self.mkobj_schedule("08"))
+        self.collections['schedules'].save(self.mkobj_schedule("06"))        
+        self.worker.run_action("08", {'type-action': 'optout'})
+        self.assertEqual(1, self.collections['participants'].count())
+        participant_optout = self.collections['participants'].find_one()
+        self.assertTrue(participant_optout['session-id'] is None)
+        self.assertTrue(participant_optout['last-optin-date'] is None)
+        self.assertEqual(1, self.collections['schedules'].count())
+        
+        ## Participant can optin again
+        self.worker.run_action("08", {'type-action': 'optin'})
+        self.assertEqual(1, self.collections['participants'].count())
+        participant = self.collections['participants'].find_one()
+        self.assertEqual(participant['session-id'], RegexMatcher(r'^[0-9a-fA-F]{32}$'))
+        self.assertEqual(participant['last-optin-date'], RegexMatcher(r'^(\d{4})-0?(\d+)-0?(\d+)[T ]0?(\d+):0?(\d+):0?(\d+)$'))
+
+        ## Participant cannot optin while they are aleardy optin
+        self.worker.run_action("08", {'type-action': 'optin'})
+        self.assertEqual(1, self.collections['participants'].count())
+        participant_reoptin = self.collections['participants'].find_one()
+        self.assertEqual(participant['session-id'], participant_reoptin['session-id'])
+        self.assertEqual(participant['last-optin-date'], participant_reoptin['last-optin-date'])
+
 
     def test19_schedule_process_handle_crap_in_history(self):
         dialogue = self.dialogue_annoucement
@@ -771,15 +782,17 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.collections['dialogues'].save(self.dialogue_question)
         self.collections['participants'].save(
             self.mkobj_participant(participant_phone='08'))
+        ##optout
         self.collections['participants'].save(
-            self.mkobj_participant(participant_phone='09', optout=True))
+            self.mkobj_participant(participant_phone='09', session_id=None))
         self.collections['participants'].save(
             self.mkobj_participant(participant_phone='10',
-                                   enrolled=self.dialogue_question['dialogue-id']))
+                                   enrolled=[self.dialogue_question['dialogue-id']]))
+        ##optout
         self.collections['participants'].save(
             self.mkobj_participant(participant_phone='11',
-                                   enrolled=self.dialogue_question['dialogue-id'],
-                                   optout=True))
+                                   enrolled=[self.dialogue_question['dialogue-id']],
+                                   session_id=None))
 
         event = self.mkmsg_dialogueworker_control('update-schedule')
         yield self.send(event, 'control')

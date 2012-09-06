@@ -248,6 +248,8 @@ class TtcGenericWorker(ApplicationWorker):
                 {'phone': participant_phone},
                 {'$set': {'session-id': None,
                           'last-optin-date': None}})
+            self.collections['schedules'].remove({
+                'participant-phone': participant_phone})
         elif (action['type-action'] == 'feedback'):
             self.collections['schedules'].save({
                 'date-time': time_to_vusion_format(self.get_local_time()),
@@ -363,16 +365,16 @@ class TtcGenericWorker(ApplicationWorker):
             if ('auto-enrollment' in dialogue['Dialogue']
                     and dialogue['Dialogue']['auto-enrollment'] == 'all'):
                 participants = self.collections['participants'].find(
-                    {'optout': {'$ne': True}})
+                    {'session-id': {'$ne': None}})
             else:
                 participants = self.collections['participants'].find(
-                    {'enrolled': dialogue['dialogue-id'],
-                     'optout': {'$ne': True}})
+                    {'enrolled': {'$ne': dialogue['dialogue-id']},
+                     'session-id': {'$ne': None}})
             self.schedule_participants_dialogue(
                 participants, dialogue['Dialogue'])
         #Schedule the nonattached messages
         self.schedule_participants_unattach_messages(
-            self.collections['participants'].find({'optout': {'$ne': True}}))
+            self.collections['participants'].find({'session-id': {'$ne': None}}))
 
     def get_future_unattach_messages(self):
         return self.collections['unattached_messages'].find({
