@@ -11,7 +11,7 @@ import pytz
 from vumi.tests.utils import get_stubbed_worker, UTCNearNow, RegexMatcher
 from vumi.message import Message, TransportEvent, TransportUserMessage
 
-from vusion import TtcGenericWorker
+from vusion.dialogue_worker import TtcGenericWorker
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from vusion.error import MissingData, MissingTemplate
 from transports import YoUgHttpTransport
@@ -310,7 +310,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         dPast = datetime.now() - timedelta(days=3)
         dLaterPast = datetime.now() - timedelta(days=5)
 
-        dialogue['interactions'][1]['type-schedule'] = 'wait'
+        dialogue['interactions'][1]['type-schedule'] = 'offset-days'
 
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)

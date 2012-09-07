@@ -231,7 +231,7 @@ class ObjectMaker:
             {'type-interaction': 'announcement',
              'interaction-id': '1',
              'content': 'How are you',
-             'type-schedule': 'wait',
+             'type-schedule': 'offset-days',
              'days': '2',
              'at-time': '22:30'},
         ]

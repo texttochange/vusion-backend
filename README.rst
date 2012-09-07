@@ -51,3 +51,9 @@ Tests
 
 	$ source ve/bin/activate
 	$ trial tests
+
+Dev Environment
+----------------
+When using an IDE please ensure you point to these directories in the PYTHONPATH
+   .../vusion-frontend/backend
+   .../vusion-frontend/backend/ve/bin/python.exe
