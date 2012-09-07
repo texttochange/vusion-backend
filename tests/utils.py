@@ -216,7 +216,9 @@ class ObjectMaker:
         {'key': 'internationalprefix',
          'value': '256'},
         {'key': 'timezone',
-         'value': 'Africa/Kampala'}]
+         'value': 'Africa/Kampala'},
+        {'key': 'customized-id',
+         'value': 'myid'}]
 
     shortcodes = {
         'country': 'Uganda',

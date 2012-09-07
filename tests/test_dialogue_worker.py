@@ -239,6 +239,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual(messages[0]['content'], 'Today will be sunny')
         self.assertEqual(messages[1]['content'], 'Hello unattached')
         self.assertEqual(messages[2]['content'], 'Thank you')
+        for message in messages:
+            self.assertTrue('customized_id' in message['transport_metadata'])
 
         self.assertEquals(self.collections['schedules'].count(), 1)
         self.assertEquals(self.collections['history'].count(), 4)
