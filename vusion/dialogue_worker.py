@@ -429,7 +429,7 @@ class TtcGenericWorker(ApplicationWorker):
                         sendingDateTime = time_from_vusion_format(schedule['date-time'])
                     else:
                         sendingDateTime = self.get_local_time()
-                elif (interaction['type-schedule'] == 'wait'):
+                elif (interaction['type-schedule'] == 'offset-days'):
                     if (previousSendDay is None):
                         previousSendDay = date.today()
                     if (interaction['days'] is None):
