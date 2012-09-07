@@ -77,6 +77,7 @@ class PushYoTransportTestCase(TransportTestCase, MessageMaker):
             'url': 'http://localhost:%s%s' % (self.send_port, self.send_path),
             'service_id': self.service_id,
             'password': self.password,
+            'default_origin': '9292',
             'channel': self.channel,
             'receipt': self.receipt,
             'max_segments': self.max_segments,

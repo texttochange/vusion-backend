@@ -53,7 +53,7 @@ class CmTransport(Transport):
                     'customer_id': self.config['customer_id'],
                     'login': self.config['login'],
                     'password': self.config['password'],
-                    'from_addr': message['from_addr'],
+                    'from_addr': self.config['default_origin'],
                     'to_addr': message['to_addr'],
                     'content': message['content']}),
                 {'User-Agent': ['Vumi CM YO Transport'],

@@ -47,11 +47,9 @@ class MessageMaker:
                 transport_metadata=transport_metadata,
             )
 
-    def mkmsg_delivery(self, event_type='delivery_report', user_message_id='1',
+    def mkmsg_delivery_for_send(self, event_type='delivery_report', user_message_id='1',
                        sent_message_id='abc', delivery_status='delivered',
-                       failure_code=None, failure_level=None,
-                       failure_reason=None, transport_name=None,
-                       transport_metadata=None):
+                       transport_name=None, transport_metadata=None, **kwargs):
         if transport_metadata is None:
             transport_metadata = {}
         params = dict(
@@ -59,12 +57,30 @@ class MessageMaker:
             user_message_id=user_message_id,
             sent_message_id=sent_message_id,
             delivery_status=delivery_status,
-            failure_level=failure_level,
-            failure_code=failure_code,
-            failure_reason=failure_reason,
             transport_name=transport_name,
             transport_metadata=transport_metadata,
         )
+        for key in kwargs:
+            params[key] = kwargs[key] 
+        return TransportEvent(**params)
+
+    def mkmsg_delivery(self, event_type='delivery_report', user_message_id='1',
+                       sent_message_id='abc', delivery_status='delivered',
+                       transport_name=None, transport_metadata=None, **kwargs):
+        if transport_metadata is None:
+            transport_metadata = {}
+        params = dict(
+            event_id=RegexMatcher(r'^[0-9a-fA-F]{32}$'),
+            timestamp=UTCNearNow(),
+            event_type=event_type,
+            user_message_id=user_message_id,
+            sent_message_id=sent_message_id,
+            delivery_status=delivery_status,
+            transport_name=transport_name,
+            transport_metadata=transport_metadata,
+        )
+        for key in kwargs:
+            params[key] = kwargs[key] 
         return TransportEvent(**params)
 
     def mkmsg_in(self, content='hello world',

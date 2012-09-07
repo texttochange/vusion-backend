@@ -56,7 +56,7 @@ class PushTransport(Transport):
                     'delivery-notification-requested': self.config['delivery_notification_requested'],
                     'messages': [{
                         'id': message['message_id'],
-                        'service-number': message['from_addr'],
+                        'service-number': self.config['default_origin'],
                         'msisdn': message['to_addr'],
                         'content': message['content'],
                         'validity-period': self.config['validity_period'],

@@ -461,7 +461,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
     @inlineCallbacks
     def test13_received_delivered(self):
-        event = self.mkmsg_delivery()
+        event = self.mkmsg_delivery_for_send()
 
         self.collections['history'].save({
             'message-id': event['user_message_id'],
@@ -478,7 +478,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
     @inlineCallbacks
     def test14_received_delivered_no_reference(self):
-        event = self.mkmsg_delivery()
+        event = self.mkmsg_delivery_for_send()
 
         yield self.send(event, 'event')
 
@@ -489,10 +489,10 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
     @inlineCallbacks
     def test15_received_delivered_failure(self):
-        event = self.mkmsg_delivery(delivery_status='failed',
-                                    failure_code='404',
-                                    failure_level='http',
-                                    failure_reason='some reason')
+        event = self.mkmsg_delivery_for_send(delivery_status='failed',
+                                             failure_code='404',
+                                             failure_level='http',
+                                             failure_reason='some reason')
 
         self.collections['history'].save({
             'message-id': event['user_message_id'],
@@ -511,7 +511,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
     @inlineCallbacks
     def test16_received_ack(self):
-        event = self.mkmsg_delivery(event_type='ack')
+        event = self.mkmsg_delivery_for_send(event_type='ack')
 
         self.collections['history'].save({
             'message-id': event['user_message_id'],

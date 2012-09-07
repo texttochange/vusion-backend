@@ -63,6 +63,7 @@ class PushParserTestCase(TestCase):
             'password': 'mypassword',
             'ref-id': '2012-09-04T12:22:02',
             'delivery-notification-requested': 'Y',
+            'default_origin': '3939',
             'messages': [{
                 'id': '1',
                 'msisdn': '+41791234567',
@@ -101,6 +102,7 @@ class PushTransportTestCase(TransportTestCase, MessageMaker):
             'password': self.password,
             'delivery_notification_requested': 'Y',
             'service_number': '4949',
+            'default_origin': '15001',
             'validity_period': '1',
             'priority': '1',
             'receive_path': '/yo',

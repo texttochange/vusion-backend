@@ -33,6 +33,7 @@ class CmTransportTestCase(TransportTestCase):
             'url': 'http://localhost:%s%s' % (self.send_port, self.send_path),
             'login': 'login',
             'password': 'password',
+            'default_origin': '3939',
             'customer_id': '3454',
             'receive_path': '/cm',
             'receive_port': 9998
