@@ -22,7 +22,8 @@ class GarbageWorker(ApplicationWorker):
         log.msg("Garbage Worker is starting")
         super(GarbageWorker, self).startWorker()
 
-        connection = pymongo.Connection(self.config['mongodb_host'], self.config['mongodb_port'])
+        connection = pymongo.Connection(self.config['mongodb_host'],
+                                        self.config['mongodb_port'])
         db = connection[self.config['database_name']]
         if not 'unmatchable_reply' in db.collection_names():
             db.create_collection('unmatchable_reply')
@@ -36,7 +37,6 @@ class GarbageWorker(ApplicationWorker):
     def consume_user_message(self, msg):
         try:
             regex_KEYWORD = re.compile('KEYWORD')
-    
             log.debug("Consumer user message %s" % (msg,))
             if msg['timestamp']:
                 timestamp = time_to_vusion_format(msg['timestamp'])
@@ -46,7 +46,7 @@ class GarbageWorker(ApplicationWorker):
                  'message-content': msg['content'],
                  'timestamp': timestamp,
                  })
-    
+
             code = self.shortcodes_collection.find_one({
                 'shortcode': msg['to_addr']})
             if code is None:

@@ -7,3 +7,4 @@
 *.pid
 *.err
 pip-log.txt
+etc/*.*

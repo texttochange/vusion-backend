@@ -3,6 +3,7 @@ from twisted.internet.defer import inlineCallbacks
 
 import pymongo
 import json
+
 from bson.objectid import ObjectId
 
 from datetime import datetime, time, date, timedelta
@@ -18,7 +19,7 @@ from transports import YoUgHttpTransport
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 
 
-class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils, 
+class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
                                ObjectMaker):
 
     @inlineCallbacks
@@ -32,8 +33,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
                        'vusion_database_name': self.vusion_database_name,
                        'control_name': self.control_name,
                        'dispatcher_name': 'dispatcher',
-                       'mongodb_host':'localhost',
-                       'mongodb_port':27017}
+                       'mongodb_host': 'localhost',
+                       'mongodb_port': 27017}
         self.worker = get_stubbed_worker(TtcGenericWorker,
                                          config=self.config)
         self.broker = self.worker._amqp_client.broker
@@ -69,7 +70,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
     @inlineCallbacks
     def tearDown(self):
         self.drop_collections()
-        if (self.worker.sender != None):
+        if (self.worker.sender is not None):
             yield self.worker.sender.stop()
         yield self.worker.stopWorker()
 
@@ -82,10 +83,10 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.broker.publish_message('vumi', routing_key, msg)
         yield self.broker.kick_delivery()
 
-    def save_status(self, message_content="hello world",
-                    participant_phone="256", message_direction="send",
-                    message_status="delivered", timestamp=datetime.now(),
-                    dialogue_id=None, interaction_id=None):
+    def save_history(self, message_content="hello world",
+                     participant_phone="256", message_direction="send",
+                     message_status="delivered", timestamp=datetime.now(),
+                     dialogue_id=None, interaction_id=None):
         self.collections['history'].save({
             'message-content': message_content,
             'participant-phone': participant_phone,
@@ -98,7 +99,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
 
     def test03_multiple_dialogue_in_collection(self):
-        dNow = datetime.now()
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+      
+        dNow = self.worker.get_local_time()
         dPast1 = datetime.now() - timedelta(minutes=30)
         dPast2 = datetime.now() - timedelta(minutes=60)
 
@@ -224,8 +229,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             'date-time': time_to_vusion_format(dNow),
             'type-content': 'feedback',
             'content': 'Thank you',
-            'participant-phone': '09'
-            })
+            'participant-phone': '09'})
         self.worker.load_data()
 
         yield self.worker.send_scheduled()
@@ -248,10 +252,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)
-        self.save_status(timestamp=dPast.strftime(self.time_format),
-                         participant_phone='06',
-                         interaction_id='0',
-                         dialogue_id='0')
+        self.save_history(
+            timestamp=dPast.strftime(self.time_format),
+            participant_phone='06',
+            interaction_id='0',
+            dialogue_id='0')
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -266,8 +271,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
     def test07_schedule_interaction_while_interaction_in_schedule(self):
         dialogue = self.dialogue_annoucement
         participant = {'phone': '06'}
-
-        dNow = datetime.now()
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+      
+        dNow = self.worker.get_local_time()
         dPast = dNow - timedelta(minutes=30)
         dFuture = dNow + timedelta(minutes=30)
         dLaterFuture = dNow + timedelta(minutes=60)
@@ -285,13 +293,10 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
                                         'interaction-id': '1',
                                         'dialogue-id': '0'})
         #Declare collection for loging messages
-        self.save_status(timestamp=dPast.strftime(self.time_format),
+        self.save_history(timestamp=dPast.strftime(self.time_format),
                          participant_phone='06',
                          interaction_id='0',
                          dialogue_id='0')
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
 
         #Starting the test
         schedules = self.worker.schedule_participant_dialogue(
@@ -305,8 +310,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
     def test08_schedule_interaction_that_has_expired(self):
         dialogue = self.dialogue_annoucement
         participant = {'phone': '06'}
-
-        dNow = datetime.now()
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+      
+        dNow = self.worker.get_local_time()
         dPast = datetime.now() - timedelta(days=3)
         dLaterPast = datetime.now() - timedelta(days=5)
 
@@ -314,9 +322,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
 
         #Declare collection for scheduling messages
         self.collections['schedules'].save(
@@ -326,7 +331,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
              'dialogue-id': '0'})
 
         #Declare collection for logging messages
-        self.save_status(timestamp=dLaterPast.strftime(self.time_format),
+        self.save_history(timestamp=dLaterPast.strftime(self.time_format),
                          participant_phone='06',
                          interaction_id='0',
                          dialogue_id='0')
@@ -341,17 +346,17 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
     def test09_schedule_at_fixed_time(self):
         dialogue = self.dialogue_announcement_fixedtime
         participant = {'phone': '08'}
-
-        dNow = datetime.now()
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+      
+        dNow = self.worker.get_local_time()
         dFuture = datetime.now() + timedelta(days=2, minutes=30)
         dialogue['interactions'][0]['date-time'] = dFuture.strftime(
             self.time_format)
 
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
 
         #action
         self.worker.schedule_participant_dialogue(
@@ -501,7 +506,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             'message-id': event['user_message_id']})
 
         self.assertEqual('failed', status['message-status'])
-        self.assertEqual('Code:404 Level:http Message:some reason', status['failure-reason'])
+        self.assertEqual('Code:404 Level:http Message:some reason',
+                         status['failure-reason'])
 
     @inlineCallbacks
     def test16_received_ack(self):
@@ -567,33 +573,35 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         yield self.send(inbound_msg_matching_request, 'inbound')
 
         participant = self.collections['participants'].find_one({'phone': '06'})
+        self.assertTrue('name' in participant)
         self.assertEqual('john doe', participant['name'])
 
     def test18_run_action(self):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
-        
+
         saved_template_id = self.collections['templates'].save(
             self.template_unmatching_answer)
         self.collections['program_settings'].save(
             {'key': 'default-template-unmatching-answer',
-             'value': saved_template_id}
-        )
-        
-        self.worker.run_action("08", {'type-action': 'feedback',
-                                      'content': 'message'})
+             'value': saved_template_id})
+
+        self.worker.run_action("08",
+                               {'type-action': 'feedback',
+                                'content': 'message'})
         self.assertEqual(1, self.collections['schedules'].count())
-        
-        self.worker.run_action("08", {'type-action': 'unmatching-answer',
-                                      'answer': 'best'})        
+
+        self.worker.run_action("08",
+                               {'type-action': 'unmatching-answer',
+                                'answer': 'best'})
         unmatching_template = self.collections['program_settings'].find_one({
-            'key': 'default-template-unmatching-answer'})        
+            'key': 'default-template-unmatching-answer'})
         self.assertEqual(saved_template_id, unmatching_template['value'])
         self.assertEqual(2, self.collections['schedules'].count())
         schedules = self.collections['schedules'].find()
         self.assertEqual(schedules[1]['content'],
-            "best does not match any answer")
+                         "best does not match any answer")
 
         self.worker.run_action("08", {'type-action': 'optin'})
         self.assertEqual(1, self.collections['participants'].count())
@@ -654,9 +662,10 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
 
-        self.save_status(participant_phone="06",
-                         interaction_id=None,
-                         dialogue_id=None)
+        self.save_history(
+            participant_phone="06",
+            interaction_id=None,
+            dialogue_id=None)
 
         self.worker.schedule_participant_dialogue(
             participant, dialogue)
@@ -673,13 +682,12 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         dFuture = dNow + timedelta(minutes=30)
         dPast = dNow - timedelta(minutes=30)
 
-        unattach_messages = [ 
+        unattach_messages = [
             self.mkobj_unattach_message(
                 fixed_time=time_to_vusion_format(dFuture)),
             self.mkobj_unattach_message(
                 content='Hello again',
-                fixed_time=time_to_vusion_format(dPast))
-        ]
+                fixed_time=time_to_vusion_format(dPast))]
 
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
@@ -735,7 +743,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual(messages[1]['content'], "How are you")
         self.assertEqual(messages[1]['to_addr'], "06")
 
-    #TODO: last 2 tests are not isolate, somehow the starting of the worker 
+    #TODO: last 2 tests are not isolate, somehow the starting of the worker
     # is called later which is breacking the other tests
     #TODO: reduce the scope of the update-schedule
     @inlineCallbacks

@@ -69,7 +69,8 @@ class TtcGenericWorker(ApplicationWorker):
         self.init_program_db(self.config['database_name'],
                              self.config['vusion_database_name'])
 
-        send_loop_period = self.config['send_loop_period'] if 'send_loop_period' in self.config else "60"
+        send_loop_period = (self.config['send_loop_period']
+                            if 'send_loop_period' in self.config else "60")
         self.sender = task.LoopingCall(self.daemon_process)
         self.sender.start(float(send_loop_period))
 
@@ -96,9 +97,10 @@ class TtcGenericWorker(ApplicationWorker):
         if (self.sender and self.sender.running):
             self.sender.stop()
 
-    def save_history(self, message_content, participant_phone, message_direction,
-                    message_status=None, message_id=None, failure_reason=None,
-                    timestamp=None, reference_metadata=None):
+    def save_history(self, message_content, participant_phone,
+                     message_direction, message_status=None, message_id=None,
+                     failure_reason=None, timestamp=None,
+                     reference_metadata=None):
         if timestamp:
             timestamp = time_to_vusion_format(timestamp)
         else:
@@ -121,9 +123,9 @@ class TtcGenericWorker(ApplicationWorker):
 
     def get_current_dialogue(self, dialogue_id):
         for dialogue in self.collections['dialogues'].find(
-            {'activated': 1, 'dialogue-id': dialogue_id},
-            sort=[('modified', pymongo.DESCENDING)],
-            limit=1):
+                {'activated': 1, 'dialogue-id': dialogue_id},
+                sort=[('modified', pymongo.DESCENDING)],
+                limit=1):
             return dialogue
         return None
 
@@ -136,7 +138,7 @@ class TtcGenericWorker(ApplicationWorker):
             if (obj.activated &&
             (prev.Dialogue==0 || prev.Dialogue.modified <= obj.modified))
             prev.Dialogue = obj;}"""
-            )
+        )
 
     def get_dialogue(self, dialogue_id):
         dialogue = self.collections['dialogues'].find_one(
@@ -150,7 +152,8 @@ class TtcGenericWorker(ApplicationWorker):
         self.log("Connecting to database: %s" % self.database_name)
 
         #Initilization of the database
-        connection = pymongo.Connection(self.config['mongodb_host'], self.config['mongodb_port'])
+        connection = pymongo.Connection(self.config['mongodb_host'],
+                                        self.config['mongodb_port'])
         self.db = connection[self.database_name]
         self.setup_collections(['dialogues',
                                 'participants',
@@ -230,7 +233,7 @@ class TtcGenericWorker(ApplicationWorker):
 
     def run_action(self, participant_phone, action):
         regex_ANSWER = re.compile('ANSWER')
-        
+
         if (action['type-action'] == 'optin'):
             self.collections['participants'].update(
                 {'phone': participant_phone},
@@ -261,7 +264,9 @@ class TtcGenericWorker(ApplicationWorker):
                 'transport_name': None,
                 'transport_type': None,
                 'transport_metadata': None,
-                'content': re.sub(regex_ANSWER, action['answer'], template['template'])
+                'content': re.sub(regex_ANSWER,
+                                  action['answer'],
+                                  template['template'])
             })
             self.collections['schedules'].save({
                 'date-time': time_to_vusion_format(self.get_local_time()),
@@ -270,7 +275,7 @@ class TtcGenericWorker(ApplicationWorker):
                 'participant-phone': participant_phone
             })
             log.debug("Reply '%s' sent to %s" %
-                (error_message['content'], error_message['to_addr']))
+                      (error_message['content'], error_message['to_addr']))
         elif (action['type-action'] == 'tagging'):
             self.collections['participants'].update(
                 {'phone': participant_phone,
@@ -340,7 +345,7 @@ class TtcGenericWorker(ApplicationWorker):
             self.log('Shortcode not defined')
             return False
         if ((not 'timezone' in self.properties)
-            or (not self.properties['timezone'] in pytz.all_timezones)):
+                or (not self.properties['timezone'] in pytz.all_timezones)):
             self.log('Timezone not defined or not supported')
             return False
         return True
@@ -350,7 +355,7 @@ class TtcGenericWorker(ApplicationWorker):
         active_dialogues = self.get_active_dialogues()
         for dialogue in active_dialogues:
             if ('auto-enrollment' in dialogue['Dialogue']
-                and dialogue['Dialogue']['auto-enrollment'] == 'all'):
+                    and dialogue['Dialogue']['auto-enrollment'] == 'all'):
                 participants = self.collections['participants'].find(
                     {'optout': {'$ne': True}})
             else:
@@ -358,8 +363,7 @@ class TtcGenericWorker(ApplicationWorker):
                     {'enrolled': dialogue['dialogue-id'],
                      'optout': {'$ne': True}})
             self.schedule_participants_dialogue(
-                    participants,
-                    dialogue['Dialogue'])
+                participants, dialogue['Dialogue'])
         #Schedule the nonattached messages
         self.schedule_participants_unattach_messages(
             self.collections['participants'].find({'optout': {'$ne': True}}))
@@ -387,8 +391,8 @@ class TtcGenericWorker(ApplicationWorker):
                 continue
             if schedule is None:
                 schedule = {
-                'participant-phone': participant['phone'],
-                'unattach-id': unattach_message['_id'],
+                    'participant-phone': participant['phone'],
+                    'unattach-id': unattach_message['_id'],
                 }
             schedule['date-time'] = unattach_message['fixed-time']
             self.collections['schedules'].save(schedule)
@@ -409,14 +413,14 @@ class TtcGenericWorker(ApplicationWorker):
                     "participant-phone": participant['phone'],
                     "dialogue-id": dialogue["dialogue-id"],
                     "interaction-id": interaction["interaction-id"]})
-                status = self.collections['history'].find_one(
+                history = self.collections['history'].find_one(
                     {"participant-phone": participant['phone'],
                      "dialogue-id": dialogue["dialogue-id"],
                      "interaction-id": interaction["interaction-id"]},
                     sort=[("datetime", pymongo.ASCENDING)])
 
-                if status:
-                    previousSendDateTime = time_from_vusion_format(status["timestamp"])
+                if history:
+                    previousSendDateTime = time_from_vusion_format(history["timestamp"])
                     previousSendDay = previousSendDateTime.date()
                     continue
 
@@ -432,8 +436,8 @@ class TtcGenericWorker(ApplicationWorker):
                         sendingDay = previousSendDay
                     else:
                         sendingDay = previousSendDay + timedelta(days=int(interaction['days']))
-                    timeOfSending = interaction['at-time'].split(':',1)
-                    sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]),int(timeOfSending[1])))
+                    timeOfSending = interaction['at-time'].split(':', 1)
+                    sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
                 elif (interaction['type-schedule'] == 'fixed-time'):
                     sendingDateTime = time_from_vusion_format(interaction['date-time'])
 
@@ -531,7 +535,7 @@ class TtcGenericWorker(ApplicationWorker):
                     message_content)
 
                 if (time_from_vusion_format(toSend['date-time']) <
-                    (local_time - timedelta(minutes=15))):
+                        (local_time - timedelta(minutes=15))):
                     raise SendingDatePassed(
                         "Message should have been sent at %s" %
                         (toSend['date-time'],))
@@ -606,14 +610,14 @@ class TtcGenericWorker(ApplicationWorker):
         timezone = None
         local_time = self.get_local_time()
         if self.r_prefix is None or self.control_name is None:
-           return
+            return
         rkey = "%slogs" % (self.r_prefix,)
         self.r_server.zremrangebyscore(
-               rkey,
-               1,
-               get_local_time_as_timestamp(
-                   local_time - timedelta(hours=2))
-           )
+            rkey,
+            1,
+            get_local_time_as_timestamp(
+                local_time - timedelta(hours=2))
+        )
         self.r_server.zadd(
             rkey,
             "[%s] %s" % (
@@ -641,8 +645,10 @@ class TtcGenericWorker(ApplicationWorker):
             rules.append({'app': self.transport_name,
                           'keyword': keyword,
                           'to_addr': self.properties['shortcode']})
-        msg = DispatcherControl(action='add_exposed',
-            exposed_name=self.transport_name, rules=rules)
+        msg = DispatcherControl(
+            action='add_exposed',
+            exposed_name=self.transport_name,
+            rules=rules)
         yield self.dispatcher_publisher.publish_message(msg)
 
     @inlineCallbacks
@@ -661,16 +667,19 @@ class TtcGenericWorker(ApplicationWorker):
         regex_Breakline = re.compile('\\r\\n')
 
         message = interaction['content']
-        if ('type-interaction' in interaction and interaction['type-interaction'] == 'question-answer'):
+        if ('type-interaction' in interaction
+                and interaction['type-interaction'] == 'question-answer'):
             if 'template' in interaction:
                 #need to get the template
                 pass
             else:
                 default_template = None
                 if (interaction['type-question'] == 'closed-question'):
-                    default_template = self.collections['program_settings'].find_one({"key": "default-template-closed-question"})
+                    default_template = self.collections['program_settings'].find_one(
+                        {"key": "default-template-closed-question"})
                 elif (interaction['type-question'] == 'open-question'):
-                    default_template = self.collections['program_settings'].find_one({"key": "default-template-open-question"})
+                    default_template = self.collections['program_settings'].find_one(
+                        {"key": "default-template-open-question"})
                 else:
                     pass
                 if (default_template is None):
@@ -696,9 +705,13 @@ class TtcGenericWorker(ApplicationWorker):
             keyword = split_keywords(interaction['keyword'])[0]
             message = re.sub(regex_KEYWORD, keyword.upper(), message)
             #replace shortcode
-            message = re.sub(regex_SHORTCODE, self.properties['shortcode'], message)
+            message = re.sub(regex_SHORTCODE,
+                             self.properties['shortcode'],
+                             message)
             if (interaction['type-question'] == 'open-question'):
-                message = re.sub(regex_ANSWER, interaction['answer-label'], message)
+                message = re.sub(regex_ANSWER,
+                                 interaction['answer-label'],
+                                 message)
             message = re.sub(regex_Breakline, '\n', message)
         return message
 

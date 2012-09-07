@@ -31,15 +31,14 @@ class YoUgHttpTransportTestCase(TransportTestCase):
             'ybsacctno': 'ybsacctno',
             'password': 'password',
             'receive_path': '/yo',
-            'receive_port': 9998
-        }
+            'receive_port': 9998}
         self.worker = yield self.get_transport(self.config)
         self.today = datetime.utcnow().date()
 
     def mkmsg_fail(self, user_message_id='1',
-                  failure_level='', failure_code=0,
-                  failure_reason='',
-                  transport_metadata={}):
+                   failure_level='', failure_code=0,
+                   failure_reason='',
+                   transport_metadata={}):
         if transport_metadata is None:
             transport_metadata = {}
         return TransportEvent(
@@ -52,8 +51,7 @@ class YoUgHttpTransportTestCase(TransportTestCase):
             user_message_id=user_message_id,
             timestamp=UTCNearNow(),
             transport_name=self.transport_name,
-            transport_metadata=transport_metadata,
-            )
+            transport_metadata=transport_metadata)
 
     def mkmsg_in(self, content='Hello World',
                  from_addr='+41791234567',
@@ -74,8 +72,7 @@ class YoUgHttpTransportTestCase(TransportTestCase):
             transport_metadata=transport_metadata,
             content=content,
             session_event=session_event,
-            timestamp=UTCNearNow(),
-            )
+            timestamp=UTCNearNow())
 
     def make_resource_worker(self, msg, code=http.OK, send_id=None):
         w = get_stubbed_worker(TestResourceWorker, {})
@@ -106,30 +103,35 @@ class YoUgHttpTransportTestCase(TransportTestCase):
         yield self.dispatch(self.mkmsg_out(to_addr='+256788601462'))
 
         [smsg] = self.get_dispatched('yo.event')
-        self.assertEqual(self.mkmsg_fail(
-            failure_level='http',
-            failure_code=http.REQUEST_TIMEOUT,
-            failure_reason='timeout'),
-                         TransportMessage.from_json(smsg.body))
+        self.assertEqual(
+            self.mkmsg_fail(
+                failure_level='http',
+                failure_code=http.REQUEST_TIMEOUT,
+                failure_reason='timeout'),
+            TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks
     def test_sending_one_sms_service_failure(self):
-        mocked_message = "ybs_autocreate_status%3DERROR%26ybs_autocreate_message%3DYBS%2BAutoCreate%2BSubsystem%3A%2BAccess%2Bdenied%2Bdue%2Bto%2Bwrong%2Bauthorization%2Bcode"
+        mocked_message = ("ybs_autocreate_status%3DERROR%26"
+                          "ybs_autocreate_message%3DYBS%2BAutoCreate%2B"
+                          "Subsystem%3A%2BAccess%2Bdenied%2Bdue%2Bto%2B"
+                          "wrong%2Bauthorization%2Bcode")
 
         #HTTP response
         yield self.make_resource_worker(mocked_message)
         yield self.dispatch(self.mkmsg_out(to_addr='+788601462'))
         [smsg] = self.get_dispatched('yo.event')
-        self.assertEqual(self.mkmsg_fail(
-            failure_level='service',
-            failure_code='ERROR',
-            failure_reason="YBS AutoCreate Subsystem: Access denied due to wrong authorization code"),
-                         TransportMessage.from_json(smsg.body))
+        self.assertEqual(
+            self.mkmsg_fail(
+                failure_level='service',
+                failure_code='ERROR',
+                failure_reason="YBS AutoCreate Subsystem: Access denied due to wrong authorization code"),
+            TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks
     def test_receiving_one_sms(self):
-        url = "http://localhost:%s%s?sender=41791234567&code=9292&message=Hello+World" % (self.config['receive_port'],
-                                         self.config['receive_path'])
+        url = "http://localhost:%s%s?sender=41791234567&code=9292&message=Hello+World" % (
+            self.config['receive_port'], self.config['receive_path'])
         response = yield http_request_full(url, method='GET')
         [smsg] = self.get_dispatched('yo.inbound')
 
@@ -140,7 +142,6 @@ class YoUgHttpTransportTestCase(TransportTestCase):
                          TransportMessage.from_json(smsg.body)['from_addr'])
         self.assertEqual('9292',
                          TransportMessage.from_json(smsg.body)['to_addr'])
-
 
     def get_dispatched(self, rkey):
         return self._amqp.get_dispatched('vumi', rkey)
@@ -158,12 +159,11 @@ class TestResource(Resource):
         regex = re.compile('^(\+|00|0)')
         request.setResponseCode(self.code)
         if (not ('destinations' in request.args) or
-            regex.match(request.args['destinations'][0]) or
-            not ('origin' in request.args) or
-            not ('password' in request.args) or
-            not ('sms_content' in request.args) or
-            not ('ybsacctno' in request.args)
-            ):
+                regex.match(request.args['destinations'][0]) or
+                not ('origin' in request.args) or
+                not ('password' in request.args) or
+                not ('sms_content' in request.args) or
+                not ('ybsacctno' in request.args)):
             return "ybs_autocreate_status=ERROR"
         else:
             return self.message

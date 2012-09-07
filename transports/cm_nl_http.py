@@ -37,7 +37,7 @@ class CmTransport(Transport):
             self.mkres(ReceiveSMSResource,
                        self.publish_message,
                        self.config['receive_path'])
-            ]
+        ]
         self.receipt_resource = yield self.start_web_resources(
             resources,
             self.config['receive_port'])
@@ -55,8 +55,7 @@ class CmTransport(Transport):
                     'password': self.config['password'],
                     'from_addr': message['from_addr'],
                     'to_addr': message['to_addr'],
-                    'content': message['content']
-                    }),
+                    'content': message['content']}),
                 {'User-Agent': ['Vumi CM YO Transport'],
                  'Content-Type': ['application/json;charset=UTF-8'], },
                 'POST')
@@ -73,8 +72,7 @@ class CmTransport(Transport):
                 delivery_status='failed',
                 failure_level='http',
                 failure_code=response.code,
-                failure_reason=response.delivered_body
-                )
+                failure_reason=response.delivered_body)
             return
 
         try:
@@ -122,13 +120,12 @@ class ReceiveSMSResource(Resource):
         request.setHeader('Content-Type', 'text/plain')
         try:
             yield self.publish_func(
-                 transport_name=self.transport_name,
-                    transport_type='sms',
-                    to_addr=request.args['originator'][0],
-                    from_addr=self.phone_format_from_cm(request.args['recipient'][0]),
-                    content=request.args['message'][0],
-                    transport_metadata={}
-            )
+                transport_name=self.transport_name,
+                transport_type='sms',
+                to_addr=request.args['originator'][0],
+                from_addr=self.phone_format_from_cm(request.args['recipient'][0]),
+                content=request.args['message'][0],
+                transport_metadata={})
         except Exception, e:
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
             log.msg("Error processing the request: %s" % (request,))

@@ -32,11 +32,9 @@ class YoUgHttpTransport(Transport):
     def setup_transport(self):
         self._resources = []
         log.msg("Setup yo transport %s" % self.config)
-        resources = [
-            self.mkres(YoReceiveSMSResource,
-                       self.publish_message,
-                       self.config['receive_path'])
-            ]
+        resources = [self.mkres(YoReceiveSMSResource,
+                                self.publish_message,
+                                self.config['receive_path'])]
         self.receipt_resource = yield self.start_web_resources(
             resources, self.config['receive_port'])
 
@@ -72,8 +70,7 @@ class YoUgHttpTransport(Transport):
                 delivery_status='failed',
                 failure_level='http',
                 failure_code=response.code,
-                failure_reason=response.delivered_body
-                )
+                failure_reason=response.delivered_body)
             return
 
         try:
