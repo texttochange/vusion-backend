@@ -99,8 +99,28 @@ class TtcGenericWorker(ApplicationWorker):
         if (self.sender and self.sender.running):
             self.sender.stop()
 
+    def save_schedule(self, participant_phone, date_time, object_type,
+                      **kwargs):
+        schedule = {
+            'participant-phone': participant_phone,
+            'date-time': date_time}        
+        if '_id' in kwargs and kwargs['_id'] is not None: 
+            schedule['_id']= kwargs['_id']
+        if object_type=='dialogue-schedule':
+            schedule['dialogue-id']=kwargs['dialogue_id']
+            schedule['interaction-id']=kwargs['interaction_id']
+        elif object_type=='unattach-schedule':
+            schedule['unattach-id']=kwargs['unattach_id']
+        elif object_type=='feedback-schedule':
+            schedule['content']=kwargs['content']
+            schedule['type-content']='feedback'
+        else:
+            VusionError('object type not supported by schedule %s' % object_type)
+        self.collections['schedules'].save(schedule)
+
     def save_history(self, message_content, participant_phone,
-                     message_direction, message_status=None, message_id=None,
+                     message_direction, participant_session_id=None,
+                     message_status=None, message_id=None,
                      failure_reason=None, timestamp=None,
                      reference_metadata=None):
         if timestamp:
@@ -108,11 +128,12 @@ class TtcGenericWorker(ApplicationWorker):
         else:
             timestamp = time_to_vusion_format(self.get_local_time())
         history = {
-            'message-id': message_id,
             'message-content': message_content,
             'participant-phone': participant_phone,
-            'message-direction': message_direction,
+            'message-direction': message_direction,            
+            'participant-session-id': participant_session_id,
             'message-status': message_status,
+            'message-id': message_id,
             'timestamp': timestamp,
         }
         if failure_reason is not None:
@@ -122,6 +143,13 @@ class TtcGenericWorker(ApplicationWorker):
         for key, value in reference_metadata.iteritems():
             history[key] = value
         self.collections['history'].save(history)
+
+    def get_participant_session_id(self, participant_phone):
+        participant = self.collections['participants'].find_one({'phone':participant_phone})
+        if participant is None:
+            return None
+        else:
+            return participant['session-id']
 
     def get_current_dialogue(self, dialogue_id):
         for dialogue in self.collections['dialogues'].find(
@@ -251,12 +279,10 @@ class TtcGenericWorker(ApplicationWorker):
             self.collections['schedules'].remove({
                 'participant-phone': participant_phone})
         elif (action['type-action'] == 'feedback'):
-            self.collections['schedules'].save({
-                'date-time': time_to_vusion_format(self.get_local_time()),
-                'content': action['content'],
-                'type-content': 'feedback',
-                'participant-phone': participant_phone
-            })
+            self.save_schedule(participant_phone,
+                               time_to_vusion_format(self.get_local_time()),
+                               'feedback-schedule',
+                               content=action['content'])
         elif (action['type-action'] == 'unmatching-answer'):
             setting = self.collections['program_settings'].find_one({
                 'key': 'default-template-unmatching-answer'})
@@ -276,12 +302,10 @@ class TtcGenericWorker(ApplicationWorker):
                                   action['answer'],
                                   template['template'])
             })
-            self.collections['schedules'].save({
-                'date-time': time_to_vusion_format(self.get_local_time()),
-                'content': error_message['content'],
-                'type-content': 'feedback',
-                'participant-phone': participant_phone
-            })
+            self.save_schedule(participant_phone,
+                               time_to_vusion_format(self.get_local_time()),
+                               'feedback-schedule',
+                               content=error_message['content'])
             log.debug("Reply '%s' sent to %s" %
                       (error_message['content'], error_message['to_addr']))
         elif (action['type-action'] == 'tagging'):
@@ -321,14 +345,15 @@ class TtcGenericWorker(ApplicationWorker):
             actions = self.get_matching_request_actions(
                 message['content'],
                 actions)
+            for action in actions:
+                self.run_action(message['from_addr'], action)
             self.save_history(
                 message_content=message['content'],
                 participant_phone=message['from_addr'],
+                participant_session_id=self.get_participant_session_id(message['from_addr']),
                 message_direction='incoming',
                 reference_metadata=ref)
             self.log("actions %s reference %s" % (actions, ref))
-            for action in actions:
-                self.run_action(message['from_addr'], action)
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log(
@@ -399,11 +424,15 @@ class TtcGenericWorker(ApplicationWorker):
                 continue
             if schedule is None:
                 schedule = {
+                    '_id': None,
                     'participant-phone': participant['phone'],
                     'unattach-id': unattach_message['_id'],
                 }
-            schedule['date-time'] = unattach_message['fixed-time']
-            self.collections['schedules'].save(schedule)
+            self.save_schedule(schedule['participant-phone'],
+                               unattach_message['fixed-time'],
+                               'unattach-schedule',
+                               unattach_id=schedule['unattach-id'],
+                               _id=schedule['_id'])
 
     def schedule_participants_dialogue(self, participants, dialogue):
         for participant in participants:
@@ -454,6 +483,7 @@ class TtcGenericWorker(ApplicationWorker):
                     self.save_history(
                         message_content='Not generated yet',
                         participant_phone=participant['phone'],
+                        participant_session_id=participant['session-id'],
                         message_direction='outgoing',
                         message_status='fail: date in the past',
                         reference_metadata={
@@ -465,12 +495,18 @@ class TtcGenericWorker(ApplicationWorker):
 
                 if (not schedule):
                     schedule = {
+                        "_id": None,
                         "participant-phone": participant['phone'],
                         "dialogue-id": dialogue['dialogue-id'],
                         "interaction-id": interaction["interaction-id"]}
-                schedule['date-time'] = self.to_vusion_format(sendingDateTime)
                 previousSendDateTime = sendingDateTime
-                self.collections['schedules'].save(schedule)
+                self.save_schedule(schedule['participant-phone'],
+                                   self.to_vusion_format(sendingDateTime),
+                                   'dialogue-schedule',
+                                   _id=schedule['_id'],
+                                   dialogue_id=schedule['dialogue-id'],
+                                   interaction_id=schedule['interaction-id']
+                                   )
                 self.log("Schedule has been saved: %s" % schedule)
         except:
             self.log("Scheduling exception: %s" % interaction)
@@ -562,6 +598,7 @@ class TtcGenericWorker(ApplicationWorker):
                 self.save_history(
                     message_content=message['content'],
                     participant_phone=message['to_addr'],
+                    participant_session_id=self.get_participant_session_id(message['to_addr']),
                     message_direction='outgoing',
                     message_status='pending',
                     message_id=message['message_id'],
@@ -571,6 +608,7 @@ class TtcGenericWorker(ApplicationWorker):
                 self.save_history(
                     message_content='',
                     participant_phone=toSend['participant-phone'],
+                    participant_session_id=self.get_participant_session_id(toSend['participant-phone']),
                     message_direction=None,
                     failure_reason=('%s' % (e,)),
                     reference_metadata=reference_metadata)
@@ -579,13 +617,6 @@ class TtcGenericWorker(ApplicationWorker):
                 self.log(
                     "Error during consume user message: %r" %
                     traceback.format_exception(exc_type, exc_value, exc_traceback))
-                self.save_history(
-                    participant_phone=toSend['participant-phone'],
-                    message_content='',
-                    message_direction='system-failed',
-                    failure_reason=('%s - %s') % (sys.exc_info()[0],
-                                                  sys.exc_info()[1]),
-                    reference_metadata=reference_metadata)
 
     @inlineCallbacks
     def send_all_messages(self, dialogue, phone_number):

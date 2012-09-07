@@ -149,7 +149,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
     def test04_schedule_participant_dialogue(self):
         config = self.simple_config
         dialogue = self.dialogue_annoucement
-        participant = {'phone': '06'}
+        participant = self.mkobj_participant()
         mytimezone = self.program_settings[2]['value']
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
         dNow = dNow.replace(tzinfo=None)
@@ -187,7 +187,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
     @inlineCallbacks
     def test05_send_scheduled_messages(self):
         dialogue = self.dialogue_annoucement_2
-        participant = {'phone': '06'}
+        participant = self.mkobj_participant('09')
         mytimezone = self.program_settings[2]['value']
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
         dNow = dNow - timedelta(minutes=1)
@@ -242,6 +242,9 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
         self.assertEquals(self.collections['schedules'].count(), 1)
         self.assertEquals(self.collections['history'].count(), 4)
+        histories = self.collections['history'].find()
+        for history in histories:
+            self.assertTrue(history['participant-session-id'] is not None)
 
     def test06_schedule_interaction_while_interaction_in_status(self):
         dialogue = self.dialogue_annoucement
@@ -269,7 +272,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
     def test07_schedule_interaction_while_interaction_in_schedule(self):
         dialogue = self.dialogue_annoucement
-        participant = {'phone': '06'}
+        participant = self.mkobj_participant()
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -308,7 +311,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
     def test08_schedule_interaction_that_has_expired(self):
         dialogue = self.dialogue_annoucement
-        participant = {'phone': '06'}
+        participant = self.mkobj_participant()
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -528,7 +531,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
     def test17_receive_inbound_message(self):
         self.collections['dialogues'].save(self.dialogue_question)
         self.collections['dialogues'].save(self.dialogue_annoucement_2)
-        self.collections['participants'].save({'phone': '06'})
+        self.collections['participants'].save(self.mkobj_participant())
         self.collections['requests'].save(self.request_join)
 
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
@@ -545,11 +548,13 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         yield self.send(inbound_msg_non_matching_answer, 'inbound')
 
         self.assertEqual(3, self.collections['history'].count())
-        history = self.collections['history'].find()
-        self.assertEqual('01-01', history[0]['interaction-id'])
-        self.assertEqual('01', history[0]['dialogue-id'])
-        self.assertEqual('Ok', history[0]['matching-answer'])
-        self.assertEqual(None, history[2]['matching-answer'])
+        histories = self.collections['history'].find()
+        self.assertEqual('01-01', histories[0]['interaction-id'])
+        self.assertEqual('01', histories[0]['dialogue-id'])
+        self.assertEqual('Ok', histories[0]['matching-answer'])
+        self.assertEqual(None, histories[2]['matching-answer'])
+        for history in histories:
+            self.assertEqual('1', history['participant-session-id'])
 
         self.assertEqual(1, self.collections['schedules'].count())
 
@@ -699,8 +704,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual(schedules_count, 2)
 
     def test21_schedule_unattach_message(self):
-        participants = [{'phone': '06'},
-                        {'phone': '07'}]
+        participants = [self.mkobj_participant(),
+                        self.mkobj_participant('07')]
 
         mytimezone = self.program_settings[2]['value']
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
