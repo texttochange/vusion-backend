@@ -59,23 +59,18 @@ class CmYoTransport(Transport):
                 {'User-Agent': ['Vumi CM YO Transport'],
                  'Content-Type': ['application/json;charset=UTF-8'], },
                 'POST')
-        except ConnectionRefusedError:
-            log.msg("Connection failed sending message: %s" % message)
-        except Exception as ex:
-            log.msg("Unexpected error %s" % repr(ex))
-
-        if response.code != 200:
-            log.msg("Http Error %s: %s"
-                    % (response.code, response.delivered_body))
-            yield self.publish_delivery_report(
-                user_message_id=message['message_id'],
-                delivery_status='failed',
-                failure_level='http',
-                failure_code=response.code,
-                failure_reason=response.delivered_body)
-            return
-
-        try:
+   
+            if response.code != 200:
+                log.msg("Http Error %s: %s"
+                        % (response.code, response.delivered_body))
+                yield self.publish_delivery_report(
+                    user_message_id=message['message_id'],
+                    delivery_status='failed',
+                    failure_level='http',
+                    failure_code=response.code,
+                    failure_reason=response.delivered_body)
+                return
+    
             if response.delivered_body:
                 log.msg("Cm Error: %s" % (response.delivered_body))
                 yield self.publish_delivery_report(
@@ -86,6 +81,7 @@ class CmYoTransport(Transport):
                     failure_reason=response.delivered_body
                 )
                 return
+    
             yield self.publish_delivery_report(
                 user_message_id=message['message_id'],
                 delivery_status='delivered',
