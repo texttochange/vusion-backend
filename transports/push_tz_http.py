@@ -56,7 +56,7 @@ class PushTransport(Transport):
                     'delivery-notification-requested': self.config['delivery_notification_requested'],
                     'messages': [{
                         'id': message['message_id'],
-                        'service-number': message['from_addr'],
+                        'service-number': self.config['default_origin'],
                         'msisdn': message['to_addr'],
                         'content': message['content'],
                         'validity-period': self.config['validity_period'],
@@ -114,11 +114,12 @@ class PushReceiveSMSResource(Resource):
 
     @inlineCallbacks
     def do_render(self, request):
-        log.msg('got hit with %s' % request.args)
         try:
+            raw_content = request.content.read()
+            log.msg('got hit with %s' % raw_content)
             request.setResponseCode(http.OK)
             request.setHeader('Content-Type', 'text/plain')
-            content = ElementTree.fromstring(request.content.read())
+            content = ElementTree.fromstring(raw_content)
             message = content.find('message')
             yield self.publish_func(
                 transport_name=self.transport_name,
@@ -127,9 +128,12 @@ class PushReceiveSMSResource(Resource):
                 from_addr=self.phone_format_from_push(message.attrib['msisdn']),
                 content=message.find('content').text,
                 transport_metadata={})
-        except Exception, e:
+        except:
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
-            log.msg("Error processing the request: %s" % (request,))
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            log.error(
+                "Error during consume user message: %r" %
+                traceback.format_exception(exc_type, exc_value, exc_traceback))
         request.finish()
 
     def render(self, request):

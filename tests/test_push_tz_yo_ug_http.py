@@ -17,6 +17,7 @@ from vumi.message import TransportMessage, TransportEvent, TransportUserMessage
 
 from tests.utils import MessageMaker
 
+
 class PushYoTransportTestCase(TransportTestCase, MessageMaker):
 
     transport_name = 'push'
@@ -28,6 +29,9 @@ class PushYoTransportTestCase(TransportTestCase, MessageMaker):
     channel = 0
     receipt = 'Y'
     max_segments = 0
+
+    yo_incomming = ('http://localhost:%s%s?sender=0041791234567&code=9292&'
+                    'message=Hello+World')
 
     push_request = ('<?xml version="1.0"?>'
                     '<methodCall>'
@@ -73,19 +77,21 @@ class PushYoTransportTestCase(TransportTestCase, MessageMaker):
             'url': 'http://localhost:%s%s' % (self.send_port, self.send_path),
             'service_id': self.service_id,
             'password': self.password,
+            'default_origin': '9292',
             'channel': self.channel,
             'receipt': self.receipt,
             'max_segments': self.max_segments,
             'receive_path': '/yo',
-            'receive_port': 9998
-        }
+            'receive_port': 9998}
         self.worker = yield self.get_transport(self.config)
         self.today = datetime.utcnow().date()
 
-    def make_resource_worker(self, request, message, code=http.OK, send_id=None):
+    def make_resource_worker(self, request, message, code=http.OK,
+                             send_id=None):
         w = get_stubbed_worker(TestResourceWorker, {})
-        w.set_resources([
-            (self.send_path, TestResource, (request, message, code, send_id))])
+        w.set_resources([(self.send_path,
+                          TestResource,
+                          (request, message, code, send_id))])
         self._workers.append(w)
         return w.startWorker()
 
@@ -98,31 +104,32 @@ class PushYoTransportTestCase(TransportTestCase, MessageMaker):
         #Message to transport
         yield self.dispatch(self.mkmsg_out())
         [smsg] = self.get_dispatched('push.event')
-        self.assertEqual(self.mkmsg_delivery(user_message_id='1',
-                                             transport_metadata={'Identifier':'00815B71'}),
-                         TransportMessage.from_json(smsg.body))
+        self.assertEqual(
+            self.mkmsg_delivery(user_message_id='1',
+                                transport_metadata={'Identifier': '00815B71'}),
+            TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks
     def test_sending_one_sms_http_failure(self):
         mocked_message = "gztzzz"
-        mocked_error = http.INTERNAL_SERVER_ERROR     
+        mocked_error = http.INTERNAL_SERVER_ERROR
 
         #HTTP response
-        yield self.make_resource_worker(self.push_request, 
+        yield self.make_resource_worker(self.push_request,
                                         mocked_message, mocked_error)
         yield self.dispatch(self.mkmsg_out(to_addr='256788601462'))
 
         [smsg] = self.get_dispatched('push.event')
-        self.assertEqual(self.mkmsg_transport_fail(
-            failure_level='service',
-            failure_code=0,
-            failure_reason='Failure during xml parsing'),
-                         TransportMessage.from_json(smsg.body))
+        self.assertEqual(
+            self.mkmsg_transport_fail(failure_level='service',
+                                      failure_code=0,
+                                      failure_reason='Failure during xml parsing'),
+            TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks
     def test_receiving_one_sms(self):
-        url = "http://localhost:%s%s?sender=0041791234567&code=9292&message=Hello+World" % (self.config['receive_port'],
-                                         self.config['receive_path'])
+        url = (self.yo_incomming % (self.config['receive_port'],
+                                    self.config['receive_path']))
         response = yield http_request_full(url, method='GET')
         [smsg] = self.get_dispatched('push.inbound')
 
@@ -136,8 +143,8 @@ class PushYoTransportTestCase(TransportTestCase, MessageMaker):
 
     @inlineCallbacks
     def test_receiving_one_sms_incomplete_number(self):
-        url = "http://localhost:%s%s?sender=41791234567&code=9292&message=Hello+World" % (self.config['receive_port'],
-                                         self.config['receive_path'])
+        url = "http://localhost:%s%s?sender=41791234567&code=9292&message=Hello+World" % (
+            self.config['receive_port'], self.config['receive_path'])
         response = yield http_request_full(url, method='GET')
         [smsg] = self.get_dispatched('push.inbound')
 
@@ -155,16 +162,16 @@ class PushYoTransportTestCase(TransportTestCase, MessageMaker):
 
 class TestResource(Resource):
     isLeaf = True
-    
+
     push_response_err = ('<?xml version="1.0" encoding="windows-1251"?>'
-                     '<methodResponse><params><param>'
-                     '<value><struct>'
-                     '<member>'
-                     '<name>Error</name>'
-                     '<value><string>%s</string></value>'
-                     '</member>'
-                     '</struct></value>'
-                     '</param></params></methodResponse>')
+                         '<methodResponse><params><param>'
+                         '<value><struct>'
+                         '<member>'
+                         '<name>Error</name>'
+                         '<value><string>%s</string></value>'
+                         '</member>'
+                         '</struct></value>'
+                         '</param></params></methodResponse>')
 
     def __init__(self, request, response, code=http.OK, send_id=None):
         self.request = request
@@ -174,16 +181,16 @@ class TestResource(Resource):
 
     def render_POST(self, request):
         request.setResponseCode(self.code)
-        if self.code!=http.OK :
+        if self.code != http.OK:
             return
         expect = ET.fromstring(self.request)
-        request_content = request.content.read().replace("\n","")
+        request_content = request.content.read().replace("\n", "")
         content = ET.fromstring(request_content)
         report = Reporter()
         if xml_compare(expect, content, report):
             return self.response
         else:
-            msg = (self.push_response_err % report.tostring()) 
+            msg = (self.push_response_err % report.tostring())
             return msg
 
 
@@ -214,7 +221,7 @@ def xml_compare(x1, x2, reporter=None):
         return False
     cl1 = x1.getchildren()
     cl2 = x2.getchildren()
-    if (len(cl1)>0 and cl1[0] and cl1[0].getchildren()[0].tag=='name'):
+    if (len(cl1) > 0 and cl1[0] and cl1[0].getchildren()[0].tag == 'name'):
         cl1.sort(key=lambda x: x.getchildren()[0].text)
         cl2.sort(key=lambda x: x.getchildren()[0].text)
     if len(cl1) != len(cl2):
@@ -248,13 +255,12 @@ def text_compare(t1, t2):
 class Reporter:
     def __init__(self):
         self.report = []
-        
+
     def __call__(self, message):
         self.report.insert(0, message)
-        
+
     def tostring(self):
         summary = ""
         for message in self.report:
             summary = summary + message + ".\n"
         return summary
-        

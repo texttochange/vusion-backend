@@ -41,39 +41,36 @@ class YoUgHttpTransport(Transport):
     @inlineCallbacks
     def handle_outbound_message(self, message):
         log.msg("Outbound message to be processed %s" % repr(message))
-        params = {
-            'ybsacctno': self.config['ybsacctno'],
-            'password': self.config['password'],
-            'origin': message['from_addr'],
-            'sms_content': message['content'],
-            'destinations': self.phone_format_to_yo(message['to_addr']),
-        }
-        log.msg('Hitting %s with %s' % (self.config['url'], urlencode(params)))
         try:
+            origin = (self.config['default_origin'] if not "customized_id" in message['transport_metadata'] else message['transport_metadata']['customized_id'])
+            params = {
+                'ybsacctno': self.config['ybsacctno'],
+                'password': self.config['password'],
+                'origin': origin, 
+                'sms_content': message['content'],
+                'destinations': self.phone_format_to_yo(message['to_addr']),
+            }
+            log.msg('Hitting %s with %s' % (self.config['url'], urlencode(params)))
+            
             response = yield http_request_full(
                 "%s?%s" % (self.config['url'], urlencode(params)),
                 "",
                 {'User-Agent': ['Vumi Yo Transport'],
                  'Content-Type': ['application/json;charset=UTF-8'], },
                 'GET')
-        except ConnectionRefusedError:
-            log.msg("Connection failed sending message: %s" % message)
-            #raise TemporaryFailure('connection refused')
-        except Exception as ex:
-            log.msg("Unexpected error %s" % repr(ex))
-
-        if response.code != 200:
-            log.msg("Http Error %s: %s"
+            
+            if response.code != 200:
+                log.msg("Http Error %s: %s"
                     % (response.code, response.delivered_body))
-            yield self.publish_delivery_report(
-                user_message_id=message['message_id'],
-                delivery_status='failed',
-                failure_level='http',
-                failure_code=response.code,
-                failure_reason=response.delivered_body)
-            return
+                yield self.publish_delivery_report(
+                    user_message_id=message['message_id'],
+                    sent_message_id=message['message_id'],
+                    delivery_status='failed',
+                    failure_level='http',
+                    failure_code=response.code,
+                    failure_reason=response.delivered_body)
+                return
 
-        try:
             response_attr = parse_qs(unquote(response.delivered_body))
             [ybs_status] = response_attr['ybs_autocreate_status']
             ybs_msg = response_attr['ybs_autocreate_message'][0] if 'ybs_autocreate_message' in response_attr else None
@@ -82,6 +79,7 @@ class YoUgHttpTransport(Transport):
                                              response.delivered_body))
                 yield self.publish_delivery_report(
                     user_message_id=message['message_id'],
+                    sent_message_id=message['message_id'],
                     delivery_status='failed',
                     failure_level='service',
                     failure_code=ybs_status,
@@ -89,12 +87,10 @@ class YoUgHttpTransport(Transport):
                 )
                 return
 
-            log.msg("Sms received and accepted by Yo %s" %
-                    response.delivered_body)
             yield self.publish_delivery_report(
                 user_message_id=message['message_id'],
-                delivery_status='delivered',
-                to_addr=message['to_addr']
+                sent_message_id=message['message_id'],
+                delivery_status='delivered'
             )
         except Exception as ex:
             log.msg("Unexpected error %s" % repr(ex))

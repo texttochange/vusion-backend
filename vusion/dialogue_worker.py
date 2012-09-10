@@ -466,7 +466,7 @@ class TtcGenericWorker(ApplicationWorker):
                         sendingDateTime = time_from_vusion_format(schedule['date-time'])
                     else:
                         sendingDateTime = self.get_local_time()
-                elif (interaction['type-schedule'] == 'wait'):
+                elif (interaction['type-schedule'] == 'offset-days'):
                     if (previousSendDay is None):
                         previousSendDay = date.today()
                     if (interaction['days'] is None):
@@ -583,14 +583,18 @@ class TtcGenericWorker(ApplicationWorker):
                     raise SendingDatePassed(
                         "Message should have been sent at %s" %
                         (toSend['date-time'],))
-
+                
                 message = TransportUserMessage(**{
                     'from_addr': self.properties['shortcode'],
                     'to_addr': toSend['participant-phone'],
                     'transport_name': self.transport_name,
                     'transport_type': self.transport_type,
-                    'transport_metadata': '',
                     'content': message_content})
+                
+                if ('customized-id' in self.properties 
+                        and self.properties['customized-id'] is not None):
+                    message['transport_metadata']['customized_id'] = self.properties['customized-id']
+                
                 yield self.transport_publisher.publish_message(message)
                 self.log(
                     "Message has been sent to %s '%s'" % (message['to_addr'],

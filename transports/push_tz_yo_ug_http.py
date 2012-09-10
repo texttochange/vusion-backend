@@ -54,7 +54,7 @@ class PushYoTransport(Transport):
                  'Channel': int(self.config['channel']),
                  'Receipt': self.config['receipt'],
                  'Numbers': message['to_addr'],
-                 'Source': message['from_addr'],
+                 'Source':  self.config['default_origin'],
                  'SMSText': message['content'],
                  'MaxSegments': int(self.config['max_segments'])})
 

@@ -27,18 +27,14 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
             'dispatcher_name': 'vusion',
             'router_class': 'vumi.dispatchers.ContentKeywordRouter',
             'exposed_names': ['app1', 'fallback_app'],
-            'keyword_mappings': {
-                'app1': 'keyword1'
-                },
+            'keyword_mappings': {'app1': 'keyword1'},
             'rules': [{
                 'app': 'app1',
                 'keyword': 'keyword2',
-                'to_addr': '8181'
-                }],
+                'to_addr': '8181'}],
             'transport_names': ['transport1'],
             'transport_mappings': {
-                '8181': 'transport1'
-                },
+                '8181': 'transport1'},
             'fallback_application': 'fallback_app',
             'expire_routing_memory': '1'
         }
