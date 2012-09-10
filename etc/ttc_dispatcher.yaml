@@ -3,15 +3,19 @@ router_class: vumi.dispatchers.ContentKeywordRouter
 transport_names: 
         - yo-256-8181
         - yo-256-8282
+        - cm-31-3669
         - cm-31-642500021
-        - push-255-15014
         - push-255-15001
+        - push-255-15012
+        - push-255-15014
 transport_mappings:
         '256-8282': yo-256-8282
         '256-8181': yo-256-8181
+        '31-3669': cm-31-3669
         '31-642500021': cm-31-642500021
-        '255-15014': push-255-15014
         '255-15001': push-255-15001
+        '255-15012': push-255-15012
+        '255-15014': push-255-15014
 exposed_names: 
         - garbage
 fallback_application: garbage
