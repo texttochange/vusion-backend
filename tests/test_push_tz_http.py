@@ -44,7 +44,7 @@ class PushRequestMaker:
             '<sms-request version="1.0">'
             '<message id="54321" '
             'submit-date="2008-10-13 13:30:10" '
-            'msisdn="+41791234567" '
+            'msisdn="41791234567" '
             'service-number="9292" '
             'operator="operator-smpp" '
             'operator_id="100" '
