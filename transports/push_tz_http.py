@@ -118,8 +118,6 @@ class PushReceiveSMSResource(Resource):
         try:
             raw_content = request.content.read()
             log.msg('got hit with %s' % raw_content)
-            request.setResponseCode(http.OK)
-            request.setHeader('Content-Type', 'text/plain')
             content = ElementTree.fromstring(raw_content)
             message = content.find('message')
             yield self.publish_func(
@@ -129,6 +127,9 @@ class PushReceiveSMSResource(Resource):
                 from_addr=self.phone_format_from_push(message.attrib['msisdn']),
                 content=message.find('content').text,
                 transport_metadata={})
+            request.setResponseCode(http.OK)
+            request.setHeader('Content-Type', 'application/xml')
+            request.write('<?xml version="1.0" encoding="UTF-8"?><sms-response version="1.0"/>')
         except:
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
             exc_type, exc_value, exc_traceback = sys.exc_info()

@@ -6,6 +6,8 @@ from twisted.internet.defer import inlineCallbacks
 from twisted.web import http
 from twisted.web.resource import Resource
 from twisted.trial.unittest import TestCase
+from twisted.internet.defer import Deferred
+from twisted.internet.protocol import Protocol
 
 from vumi.transports.tests.test_base import TransportTestCase
 from vumi.utils import http_request_full
@@ -142,6 +144,8 @@ class PushTransportTestCase(TransportTestCase, MessageMaker):
             url, data=self.maker.mkrequest_incomming())
         [smsg] = self.get_dispatched('push.inbound')
 
+        self.assertEqual(response.delivered_body, 
+                         '<?xml version="1.0" encoding="UTF-8"?><sms-response version="1.0"/>')
         self.assertEqual(response.code, http.OK)
         self.assertEqual('Hello World',
                          TransportMessage.from_json(smsg.body)['content'])
