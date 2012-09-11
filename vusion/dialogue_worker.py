@@ -259,18 +259,32 @@ class TtcGenericWorker(ApplicationWorker):
                     actions.append(
                         {'type-action': 'feedback',
                          'content': response['content']})
-        return actions
+        return actions     
+
+    def create_participant(self, participant_phone):
+        return {
+            'model-version': 1,
+            'phone': participant_phone,
+            'session-id': uuid4().get_hex(), 
+            'last-optin-date': time_to_vusion_format(self.get_local_time()),
+            'tags': [],
+            'enrolled':[],
+            'profile':{}
+        }
 
     def run_action(self, participant_phone, action):
         regex_ANSWER = re.compile('ANSWER')
 
         if (action['type-action'] == 'optin'):
-            if self.collections['participants'].find_one({'phone': participant_phone, 'session-id': {'$ne': None}}) is None:
-                self.collections['participants'].update(
-                    {'phone': participant_phone},
-                    {'$set': {'session-id': uuid4().get_hex(), 
-                              'last-optin-date': time_to_vusion_format(self.get_local_time())}},
-                    True)
+            participant = self.collections['participants'].find_one({'phone': participant_phone})
+            if participant:
+                if (participant['session-id'] == None):
+                    self.collections['participants'].update(
+                        {'phone': participant_phone},
+                        {'$set': {'session-id': uuid4().get_hex(), 
+                                  'last-optin-date': time_to_vusion_format(self.get_local_time())}})
+            else:
+                self.collections['participants'].save(self.create_participant(participant_phone))
         elif (action['type-action'] == 'optout'):
             self.collections['participants'].update(
                 {'phone': participant_phone},
@@ -314,10 +328,12 @@ class TtcGenericWorker(ApplicationWorker):
                  'tags': {'$ne': action['tag']}},
                 {'$push': {'tags': action['tag']}})
         elif (action['type-action'] == 'enrolling'):
+            if not self.collections['participants'].find_one({'phone': participant_phone}):
+                self.collections['participants'].save(self.create_participant(participant_phone))
             self.collections['participants'].update(
                 {'phone': participant_phone,
                  'enrolled': {'$ne': action['enroll']}},
-                {'$push': {'enrolled': action['enroll']}}, True)
+                {'$push': {'enrolled': action['enroll']}})
             dialogue = self.get_current_dialogue(action['enroll'])
             participant = self.collections['participants'].find_one(
                 {'phone': participant_phone})
@@ -325,7 +341,7 @@ class TtcGenericWorker(ApplicationWorker):
         elif (action['type-action'] == 'profiling'):
             self.collections['participants'].update(
                 {'phone': participant_phone},
-                {'$set': {action['label']: action['value']}})
+                {'$set': {'profile':{action['label']: action['value']}}})
         else:
             self.log("The action is not supported %s" % action['type-action'])
 
@@ -765,10 +781,10 @@ class TtcGenericWorker(ApplicationWorker):
             participant = self.collections['participants'].find_one(
                 {'phone': participant_phone})
             attribute = attribute.lower()
-            if not attribute in participant:
+            if not attribute in participant['profile']:
                 raise MissingData("%s has no attribute %s" %
                                   (participant_phone, attribute))
             message = message.replace('[%s.%s]' %
                                       (table, attribute),
-                                      participant[attribute])
+                                      participant['profile'][attribute])
         return message

@@ -396,8 +396,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
              'gender': 'Female'}
         ]
 
-        self.collections['participants'].save(participants[0])
-        self.collections['participants'].save(participants[1])
+        self.collections['participants'].save(self.mkobj_participant('06', profile={'name':'oliv'}))
+        self.collections['participants'].save(self.mkobj_participant('07', profile={'gender':'Femal'}))
 
         message_one = self.worker.generate_message(interaction_using_tag)
         message_one = self.worker.customize_message('06', message_one)
@@ -535,7 +535,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
     def test17_receive_inbound_message(self):
         self.collections['dialogues'].save(self.dialogue_question)
         self.collections['dialogues'].save(self.dialogue_annoucement_2)
-        self.collections['participants'].save(self.mkobj_participant())
+        self.collections['participants'].save(self.mkobj_participant('06'))
         self.collections['requests'].save(self.request_join)
 
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
@@ -562,15 +562,17 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
         self.assertEqual(1, self.collections['schedules'].count())
 
-        inbound_msg_matching_request = self.mkmsg_in(content='wWw')
+        inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
+                                                     content='wWw')
         yield self.send(inbound_msg_matching_request, 'inbound')
 
-        inbound_msg_matching_request = self.mkmsg_in(content='www join')
+        inbound_msg_matching_request = self.mkmsg_in(from_addr='08',
+                                                     content='www join')
         yield self.send(inbound_msg_matching_request, 'inbound')
 
         self.assertEqual(5, self.collections['history'].count())
         self.assertEqual(3, self.collections['participants'].count())
-        self.assertEqual(6, self.collections['schedules'].count())
+        self.assertEqual(7, self.collections['schedules'].count())
 
         self.collections['dialogues'].save(self.dialogue_open_question)
 
@@ -580,13 +582,15 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         yield self.send(inbound_msg_matching_request, 'inbound')
 
         participant = self.collections['participants'].find_one({'phone': '06'})
-        self.assertTrue('name' in participant)
-        self.assertEqual('john doe', participant['name'])
+        self.assertTrue('name' in participant['profile'])
+        self.assertEqual('john doe', participant['profile']['name'])
 
     def test18_run_action(self):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
+        
+        self.collections['participants'].save(self.mkobj_participant('08'))
         
         ## Error message
         saved_template_id = self.collections['templates'].save(
@@ -612,7 +616,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
                          "best does not match any answer")
 
         ## Tagging
-        self.collections['participants'].save(self.mkobj_participant('08'))
         self.worker.run_action("08", {'type-action': 'tagging',
                                       'tag': 'my tag'})
         self.worker.run_action("08", {'type-action': 'tagging',
@@ -623,13 +626,24 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual(
             ['my tag', 'my second tag'],
             self.collections['participants'].find_one({'tags': 'my tag'})['tags'])
+        
+        ## Profiling
+        self.worker.run_action("08", {'type-action': 'profiling',
+                                      'label': 'gender',
+                                      'value': 'Female'})
+        self.assertTrue(self.collections['participants'].find_one({'profile':{'gender': 'Female'}}))
 
-        ## Enrolling
+    def test18_run_action_enroll(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        self.collections['participants'].save(self.mkobj_participant("08"))        
         self.collections['dialogues'].save(self.dialogue_question)
+     
         self.worker.run_action("08", {'type-action': 'enrolling',
                                       'enroll': '01'})
         self.assertTrue(self.collections['participants'].find_one({'enrolled': '01'}))
-        self.assertEqual(3, self.collections['schedules'].count())
+        self.assertEqual(1, self.collections['schedules'].count())
 
         self.worker.run_action("08", {'type-action': 'enrolling',
                                       'enroll': '01'})
@@ -640,14 +654,10 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         #Enrolling a new number will opt it in
         self.worker.run_action("09", {'type-action': 'enrolling',
                                       'enroll': '01'})
-        self.assertTrue(
-            self.collections['participants'].find_one({'phone': '09',
-                                                       'enrolled': '01'}))
-
-        self.worker.run_action("08", {'type-action': 'profiling',
-                                      'label': 'gender',
-                                      'value': 'Female'})
-        self.assertTrue(self.collections['participants'].find_one({'gender': 'Female'}))
+        participant = self.collections['participants'].find_one({'phone': '09'})
+        self.assertEqual(['01'], participant['enrolled'])
+        self.assertEqual(participant['session-id'], RegexMatcher(r'^[0-9a-fA-F]{32}$'))
+        
 
     def test18_run_action_optin_optout(self):
         for program_setting in self.program_settings:
@@ -662,6 +672,9 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual(participant['session-id'], RegexMatcher(r'^[0-9a-fA-F]{32}$'))
         self.assertTrue('last-optin-date' in participant)
         self.assertEqual(participant['last-optin-date'], RegexMatcher(r'^(\d{4})-0?(\d+)-0?(\d+)[T ]0?(\d+):0?(\d+):0?(\d+)$'))
+        self.assertTrue('tags' in participant)
+        self.assertTrue('profile' in participant)
+        self.assertTrue('enrolled' in participant)
 
         ## Participant optout (All schedule messages should be removed)
         self.collections['schedules'].save(self.mkobj_schedule("08"))

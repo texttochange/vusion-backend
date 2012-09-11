@@ -366,13 +366,15 @@ class ObjectMaker:
                 'unattach-id': unattach_id}
 
     def mkobj_participant(self, participant_phone='06',
-                          enrolled=[], tags=[], session_id='1'):
+                          last_optin_date='2012-02-01T18:30:20', session_id='1',
+                          enrolled=[], tags=[], profile={}):
         return { 
             'phone': participant_phone,
+            'session-id': session_id,
+            'last-optin-date': last_optin_date,            
             'enrolled': enrolled,
             'tags': tags,
-            'session-id': session_id,
-            'last-optin-date': None
+            'profile': profile
             }
     
     def mkobj_schedule(self, participant_phone='06', 
