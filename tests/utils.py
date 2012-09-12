@@ -212,8 +212,8 @@ class ObjectMaker:
 
     program_settings = [
         {'key': 'shortcode',
-         'value': '8181'},
-        {'key': 'internationalprefix',
+         'value': '256-8181'},
+        {'key': 'international-prefix',
          'value': '256'},
         {'key': 'timezone',
          'value': 'Africa/Kampala'},
@@ -320,7 +320,9 @@ class ObjectMaker:
         'keyword': 'www tagme',
         'actions': [
             {'type-action': 'tagging',
-             'tag': 'onetag'}]
+             'tag': 'onetag'}],
+        'responses': [ 
+            {'content': 'you are tagged'}]
     }
 
     request_leave = {
@@ -366,7 +368,22 @@ class ObjectMaker:
                 'unattach-id': unattach_id}
 
     def mkobj_participant(self, participant_phone='06',
-                          enrolled=None, optout=None):
-        return {'phone': participant_phone,
-                'enrolled': enrolled,
-                'optout': optout}
+                          last_optin_date='2012-02-01T18:30:20', session_id='1',
+                          enrolled=[], tags=[], profile={}):
+        return { 
+            'phone': participant_phone,
+            'session-id': session_id,
+            'last-optin-date': last_optin_date,            
+            'enrolled': enrolled,
+            'tags': tags,
+            'profile': profile
+            }
+    
+    def mkobj_schedule(self, participant_phone='06', 
+                       date_time=None):
+        return {
+            'participant-phone': participant_phone,
+            'dialogue-id': '1',
+            'interaction-id': '2',
+            'date-time': date_time
+            }

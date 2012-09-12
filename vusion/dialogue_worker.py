@@ -4,6 +4,8 @@ import sys
 import traceback
 import re
 
+from uuid import uuid4
+
 from twisted.internet.defer import (inlineCallbacks, Deferred)
 from twisted.enterprise import adbapi
 from twisted.internet import task
@@ -27,7 +29,7 @@ from vusion.utils import (time_to_vusion_format, get_local_time,
 from vusion.error import (MissingData, SendingDatePassed, VusionError,
                           MissingTemplate)
 from vusion.message import DispatcherControl
-
+from vusion.action import Actions, action_generator, FeedbackAction
 
 class TtcGenericWorker(ApplicationWorker):
 
@@ -97,8 +99,28 @@ class TtcGenericWorker(ApplicationWorker):
         if (self.sender and self.sender.running):
             self.sender.stop()
 
+    def save_schedule(self, participant_phone, date_time, object_type,
+                      **kwargs):
+        schedule = {
+            'participant-phone': participant_phone,
+            'date-time': date_time}        
+        if '_id' in kwargs and kwargs['_id'] is not None: 
+            schedule['_id']= kwargs['_id']
+        if object_type=='dialogue-schedule':
+            schedule['dialogue-id']=kwargs['dialogue_id']
+            schedule['interaction-id']=kwargs['interaction_id']
+        elif object_type=='unattach-schedule':
+            schedule['unattach-id']=kwargs['unattach_id']
+        elif object_type=='feedback-schedule':
+            schedule['content']=kwargs['content']
+            schedule['type-content']='feedback'
+        else:
+            VusionError('object type not supported by schedule %s' % object_type)
+        self.collections['schedules'].save(schedule)
+
     def save_history(self, message_content, participant_phone,
-                     message_direction, message_status=None, message_id=None,
+                     message_direction, participant_session_id=None,
+                     message_status=None, message_id=None,
                      failure_reason=None, timestamp=None,
                      reference_metadata=None):
         if timestamp:
@@ -106,11 +128,12 @@ class TtcGenericWorker(ApplicationWorker):
         else:
             timestamp = time_to_vusion_format(self.get_local_time())
         history = {
-            'message-id': message_id,
             'message-content': message_content,
             'participant-phone': participant_phone,
-            'message-direction': message_direction,
+            'message-direction': message_direction,            
+            'participant-session-id': participant_session_id,
             'message-status': message_status,
+            'message-id': message_id,
             'timestamp': timestamp,
         }
         if failure_reason is not None:
@@ -120,6 +143,13 @@ class TtcGenericWorker(ApplicationWorker):
         for key, value in reference_metadata.iteritems():
             history[key] = value
         self.collections['history'].save(history)
+
+    def get_participant_session_id(self, participant_phone):
+        participant = self.collections['participants'].find_one({'phone':participant_phone})
+        if participant is None:
+            return None
+        else:
+            return participant['session-id']
 
     def get_current_dialogue(self, dialogue_id):
         for dialogue in self.collections['dialogues'].find(
@@ -223,33 +253,49 @@ class TtcGenericWorker(ApplicationWorker):
         if matching_request:
             if 'actions' in matching_request:
                 for action in matching_request['actions']:
-                    actions.append(action)
+                    actions.append(action_generator(**action))
             if 'responses' in matching_request:
                 for response in matching_request['responses']:
-                    actions.append(
-                        {'type-action': 'feedback',
-                         'content': response['content']})
-        return actions
+                    actions.append(FeedbackAction(**{'content': response['content']}))
+        return actions     
+
+    def create_participant(self, participant_phone):
+        return {
+            'model-version': 1,
+            'phone': participant_phone,
+            'session-id': uuid4().get_hex(), 
+            'last-optin-date': time_to_vusion_format(self.get_local_time()),
+            'tags': [],
+            'enrolled':[],
+            'profile':{}
+        }
 
     def run_action(self, participant_phone, action):
         regex_ANSWER = re.compile('ANSWER')
-
-        if (action['type-action'] == 'optin'):
+        
+        if (action.get_type() == 'optin'):
+            participant = self.collections['participants'].find_one({'phone': participant_phone})
+            if participant:
+                if (participant['session-id'] == None):
+                    self.collections['participants'].update(
+                        {'phone': participant_phone},
+                        {'$set': {'session-id': uuid4().get_hex(), 
+                                  'last-optin-date': time_to_vusion_format(self.get_local_time())}})
+            else:
+                self.collections['participants'].save(self.create_participant(participant_phone))
+        elif (action.get_type() == 'optout'):
             self.collections['participants'].update(
                 {'phone': participant_phone},
-                {'$unset': {'optout': 1}}, True)
-        elif (action['type-action'] == 'optout'):
-            self.collections['participants'].update(
-                {'phone': participant_phone},
-                {'$set': {'optout': True}})
-        elif (action['type-action'] == 'feedback'):
-            self.collections['schedules'].save({
-                'date-time': time_to_vusion_format(self.get_local_time()),
-                'content': action['content'],
-                'type-content': 'feedback',
-                'participant-phone': participant_phone
-            })
-        elif (action['type-action'] == 'unmatching-answer'):
+                {'$set': {'session-id': None,
+                          'last-optin-date': None}})
+            self.collections['schedules'].remove({
+                'participant-phone': participant_phone})
+        elif (action.get_type() == 'feedback'):
+            self.save_schedule(participant_phone,
+                               time_to_vusion_format(self.get_local_time()),
+                               'feedback-schedule',
+                               content=action['content'])
+        elif (action.get_type() == 'unmatching-answer'):
             setting = self.collections['program_settings'].find_one({
                 'key': 'default-template-unmatching-answer'})
             if setting is None:
@@ -268,32 +314,35 @@ class TtcGenericWorker(ApplicationWorker):
                                   action['answer'],
                                   template['template'])
             })
-            self.collections['schedules'].save({
-                'date-time': time_to_vusion_format(self.get_local_time()),
-                'content': error_message['content'],
-                'type-content': 'feedback',
-                'participant-phone': participant_phone
-            })
+            self.save_schedule(participant_phone,
+                               time_to_vusion_format(self.get_local_time()),
+                               'feedback-schedule',
+                               content=error_message['content'])
             log.debug("Reply '%s' sent to %s" %
                       (error_message['content'], error_message['to_addr']))
-        elif (action['type-action'] == 'tagging'):
+        elif (action.get_type() == 'tagging'):
             self.collections['participants'].update(
                 {'phone': participant_phone,
                  'tags': {'$ne': action['tag']}},
                 {'$push': {'tags': action['tag']}})
-        elif (action['type-action'] == 'enrolling'):
+        elif (action.get_type() == 'enrolling'):
+            if not self.collections['participants'].find_one({'phone': participant_phone}):
+                self.collections['participants'].save(self.create_participant(participant_phone))
             self.collections['participants'].update(
                 {'phone': participant_phone,
                  'enrolled': {'$ne': action['enroll']}},
-                {'$push': {'enrolled': action['enroll']}}, True)
+                {'$push': {'enrolled': action['enroll']}})
             dialogue = self.get_current_dialogue(action['enroll'])
+            if dialogue is None:
+                self.log(("Enrolling error: Missing Dialogue %s" % action['enroll']))
+                return
             participant = self.collections['participants'].find_one(
                 {'phone': participant_phone})
             self.schedule_participant_dialogue(participant, dialogue)
-        elif (action['type-action'] == 'profiling'):
+        elif (action.get_type() == 'profiling'):
             self.collections['participants'].update(
                 {'phone': participant_phone},
-                {'$set': {action['label']: action['value']}})
+                {'$set': {('profile.%s' % action['label']): action['value']}})
         else:
             self.log("The action is not supported %s" % action['type-action'])
 
@@ -302,7 +351,7 @@ class TtcGenericWorker(ApplicationWorker):
                                                          message['content']))
         try:
             ref = None
-            actions = []
+            actions = Actions()
             active_dialogues = self.get_active_dialogues()
             for dialogue in active_dialogues:
                 scriptHelper = Dialogue(dialogue['Dialogue'])
@@ -313,14 +362,18 @@ class TtcGenericWorker(ApplicationWorker):
             actions = self.get_matching_request_actions(
                 message['content'],
                 actions)
+            
+            participant = self.collections['participants'].find_one({'phone': message['from_addr'], 
+                                                                    'session-id': {'$ne': None}})
+            if participant or actions.contains('optin') or actions.contains('enrolled'):
+                for action in actions.items():
+                    self.run_action(message['from_addr'], action)
             self.save_history(
                 message_content=message['content'],
                 participant_phone=message['from_addr'],
+                participant_session_id=self.get_participant_session_id(message['from_addr']),
                 message_direction='incoming',
                 reference_metadata=ref)
-            self.log("actions %s reference %s" % (actions, ref))
-            for action in actions:
-                self.run_action(message['from_addr'], action)
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log(
@@ -357,16 +410,16 @@ class TtcGenericWorker(ApplicationWorker):
             if ('auto-enrollment' in dialogue['Dialogue']
                     and dialogue['Dialogue']['auto-enrollment'] == 'all'):
                 participants = self.collections['participants'].find(
-                    {'optout': {'$ne': True}})
+                    {'session-id': {'$ne': None}})
             else:
                 participants = self.collections['participants'].find(
-                    {'enrolled': dialogue['dialogue-id'],
-                     'optout': {'$ne': True}})
+                    {'enrolled': {'$ne': dialogue['dialogue-id']},
+                     'session-id': {'$ne': None}})
             self.schedule_participants_dialogue(
                 participants, dialogue['Dialogue'])
         #Schedule the nonattached messages
         self.schedule_participants_unattach_messages(
-            self.collections['participants'].find({'optout': {'$ne': True}}))
+            self.collections['participants'].find({'session-id': {'$ne': None}}))
 
     def get_future_unattach_messages(self):
         return self.collections['unattached_messages'].find({
@@ -391,11 +444,15 @@ class TtcGenericWorker(ApplicationWorker):
                 continue
             if schedule is None:
                 schedule = {
+                    '_id': None,
                     'participant-phone': participant['phone'],
                     'unattach-id': unattach_message['_id'],
                 }
-            schedule['date-time'] = unattach_message['fixed-time']
-            self.collections['schedules'].save(schedule)
+            self.save_schedule(schedule['participant-phone'],
+                               unattach_message['fixed-time'],
+                               'unattach-schedule',
+                               unattach_id=schedule['unattach-id'],
+                               _id=schedule['_id'])
 
     def schedule_participants_dialogue(self, participants, dialogue):
         for participant in participants:
@@ -446,6 +503,7 @@ class TtcGenericWorker(ApplicationWorker):
                     self.save_history(
                         message_content='Not generated yet',
                         participant_phone=participant['phone'],
+                        participant_session_id=participant['session-id'],
                         message_direction='outgoing',
                         message_status='fail: date in the past',
                         reference_metadata={
@@ -457,12 +515,18 @@ class TtcGenericWorker(ApplicationWorker):
 
                 if (not schedule):
                     schedule = {
+                        "_id": None,
                         "participant-phone": participant['phone'],
                         "dialogue-id": dialogue['dialogue-id'],
                         "interaction-id": interaction["interaction-id"]}
-                schedule['date-time'] = self.to_vusion_format(sendingDateTime)
                 previousSendDateTime = sendingDateTime
-                self.collections['schedules'].save(schedule)
+                self.save_schedule(schedule['participant-phone'],
+                                   self.to_vusion_format(sendingDateTime),
+                                   'dialogue-schedule',
+                                   _id=schedule['_id'],
+                                   dialogue_id=schedule['dialogue-id'],
+                                   interaction_id=schedule['interaction-id']
+                                   )
                 self.log("Schedule has been saved: %s" % schedule)
         except:
             self.log("Scheduling exception: %s" % interaction)
@@ -558,6 +622,7 @@ class TtcGenericWorker(ApplicationWorker):
                 self.save_history(
                     message_content=message['content'],
                     participant_phone=message['to_addr'],
+                    participant_session_id=self.get_participant_session_id(message['to_addr']),
                     message_direction='outgoing',
                     message_status='pending',
                     message_id=message['message_id'],
@@ -567,6 +632,7 @@ class TtcGenericWorker(ApplicationWorker):
                 self.save_history(
                     message_content='',
                     participant_phone=toSend['participant-phone'],
+                    participant_session_id=self.get_participant_session_id(toSend['participant-phone']),
                     message_direction=None,
                     failure_reason=('%s' % (e,)),
                     reference_metadata=reference_metadata)
@@ -575,13 +641,6 @@ class TtcGenericWorker(ApplicationWorker):
                 self.log(
                     "Error during consume user message: %r" %
                     traceback.format_exception(exc_type, exc_value, exc_traceback))
-                self.save_history(
-                    participant_phone=toSend['participant-phone'],
-                    message_content='',
-                    message_direction='system-failed',
-                    failure_reason=('%s - %s') % (sys.exc_info()[0],
-                                                  sys.exc_info()[1]),
-                    reference_metadata=reference_metadata)
 
     @inlineCallbacks
     def send_all_messages(self, dialogue, phone_number):
@@ -648,7 +707,8 @@ class TtcGenericWorker(ApplicationWorker):
         for keyword in keywords:
             rules.append({'app': self.transport_name,
                           'keyword': keyword,
-                          'to_addr': self.properties['shortcode']})
+                          'to_addr': ("%s" % self.properties['shortcode'].split('-')[1]),
+                          'from_addr': ("+%s" % self.properties['international-prefix'])})
         msg = DispatcherControl(
             action='add_exposed',
             exposed_name=self.transport_name,
@@ -710,7 +770,7 @@ class TtcGenericWorker(ApplicationWorker):
             message = re.sub(regex_KEYWORD, keyword.upper(), message)
             #replace shortcode
             message = re.sub(regex_SHORTCODE,
-                             self.properties['shortcode'],
+                             self.properties['shortcode'].split('-')[1],
                              message)
             if (interaction['type-question'] == 'open-question'):
                 message = re.sub(regex_ANSWER,
@@ -726,10 +786,10 @@ class TtcGenericWorker(ApplicationWorker):
             participant = self.collections['participants'].find_one(
                 {'phone': participant_phone})
             attribute = attribute.lower()
-            if not attribute in participant:
+            if not attribute in participant['profile']:
                 raise MissingData("%s has no attribute %s" %
                                   (participant_phone, attribute))
             message = message.replace('[%s.%s]' %
                                       (table, attribute),
-                                      participant[attribute])
+                                      participant['profile'][attribute])
         return message

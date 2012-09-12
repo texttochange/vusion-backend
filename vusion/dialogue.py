@@ -1,5 +1,6 @@
 from vumi.utils import get_first_word
-
+from vusion.action import (UnMatchingAnswerAction, FeedbackAction,
+                           action_generator, ProfilingAction)
 
 def split_keywords(keywords):
     return [k.lower() for k in (keywords or '').split(', ')]
@@ -55,29 +56,24 @@ class Dialogue:
             answer = self.get_matching_answer(interaction['answers'], reply)
             if not answer or answer is None:
                 reference_metadata['matching-answer'] = None
-                actions.append({
-                    'type-action': 'unmatching-answer',
-                    'answer': reply})
+                actions.append(UnMatchingAnswerAction(**{'answer': reply}))
             else:
                 reference_metadata['matching-answer'] = answer['choice']
                 actions = self.add_feedback_action(actions, answer)
                 if 'label-for-participant-profiling' in interaction:
-                    actions.append(
-                        {'type-action': 'profiling',
-                         'label': interaction['label-for-participant-profiling'],
-                         'value': answer['choice']})
+                    action = ProfilingAction(**{
+                        'label': interaction['label-for-participant-profiling'],
+                        'value': answer['choice']})
+                    actions.append(action)
                 if 'answer-actions' in answer:
                     for answer_action in answer['answer-actions']:
-                        action = answer_action
-                        action['type-action'] = answer_action['type-answer-action']
-                        actions.append(action)
+                        actions.append(action_generator(**answer_action))
         else:
             actions = self.add_feedback_action(actions, interaction)
             if 'answer-label' in interaction:
-                actions.append(
-                    {'type-action': 'profiling',
-                     'label': interaction['answer-label'],
-                     'value': self.get_open_answer(message)})
+                actions.append(ProfilingAction(**{
+                    'label': interaction['answer-label'],
+                    'value': self.get_open_answer(message)}))
         return reference_metadata, actions
 
     def get_open_answer(self, message):
@@ -87,9 +83,8 @@ class Dialogue:
     def add_feedback_action(self, actions, obj):
         if 'feedbacks' in obj:
             for feedback in obj['feedbacks']:
-                actions.append(
-                    {'type-action': 'feedback',
-                     'content': feedback['content']})
+                action = FeedbackAction(**{'content': feedback['content']})
+                actions.append(action)
         return actions
 
     def get_all_keywords(self):

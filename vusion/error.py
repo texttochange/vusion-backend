@@ -12,3 +12,7 @@ class SendingDatePassed(VusionError):
 
 class MissingTemplate(VusionError):
     pass
+
+
+class MissingField(VusionError):
+    pass
