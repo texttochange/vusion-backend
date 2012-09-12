@@ -153,11 +153,12 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
     def test04_schedule_participant_dialogue(self):
         config = self.simple_config
         dialogue = self.dialogue_annoucement
-        participant = self.mkobj_participant()
         mytimezone = self.program_settings[2]['value']
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
         dNow = dNow.replace(tzinfo=None)
+        dPast = dNow - timedelta(minutes=30)
 
+        participant = self.mkobj_participant('06', last_optin_date=time_to_vusion_format(dPast))
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)
         for program_setting in self.program_settings:
@@ -172,15 +173,12 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
         schedules = self.collections['schedules'].find()
         #assert time calculation
-        self.assertTrue(
-            time_from_vusion_format(schedules[0]['date-time']) <
-            dNow + timedelta(minutes=1))
-        self.assertTrue(
-            time_from_vusion_format(schedules[1]['date-time']) <
-            dNow + timedelta(days=3))
-        self.assertTrue(
-            time_from_vusion_format(schedules[1]['date-time']) >
-            dNow + timedelta(minutes=59))
+        self.assertEqual(
+            time_from_vusion_format(schedules[0]['date-time']),
+            datetime.combine(dPast.date() + timedelta(days=1), time(22,30)))
+        self.assertEqual(
+            time_from_vusion_format(schedules[1]['date-time']),
+            datetime.combine(dPast.date() + timedelta(days=2), time(22,30)))
 
         #assert schedule links
         self.assertEqual(schedules[0]['participant-phone'], '06')
@@ -252,12 +250,12 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             self.assertTrue(history['participant-session-id'] is not None)
 
     def test06_schedule_interaction_while_interaction_in_status(self):
-        dialogue = self.dialogue_annoucement
-        participant = {'phone': '06'}
         mytimezone = self.program_settings[2]['value']
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
         dPast = dNow - timedelta(minutes=30)
 
+        dialogue = self.dialogue_annoucement
+        participant = self.mkobj_participant('06', last_optin_date=time_to_vusion_format(dPast))
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)
         self.save_history(
@@ -734,7 +732,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
     def test19_schedule_process_handle_crap_in_history(self):
         dialogue = self.dialogue_annoucement
-        participant = {'phone': '06'}
+        participant = self.mkobj_participant('06')
 
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)

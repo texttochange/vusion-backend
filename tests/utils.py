@@ -233,7 +233,9 @@ class ObjectMaker:
             {'type-interaction': 'announcement',
              'interaction-id': '0',
              'content': 'Hello',
-             'type-schedule': 'immediately'},
+             'type-schedule': 'offset-days',
+             'days': '1',
+             'at-time': '22:30'},
             {'type-interaction': 'announcement',
              'interaction-id': '1',
              'content': 'How are you',
@@ -273,8 +275,9 @@ class ObjectMaker:
                      'feedbacks': [{'content': 'Thank you'}],
                      'answer-actions':[{'type-answer-action': 'enrolling',
                                         'enroll': '2'}]}],
-                'type-schedule': 'immediately'
-            }
+                'type-schedule': 'offset-days',
+                'days': '1',
+                'at-time': '22:30'}
         ]
     }
 

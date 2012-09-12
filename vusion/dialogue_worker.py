@@ -461,8 +461,6 @@ class TtcGenericWorker(ApplicationWorker):
     #TODO: decide which id should be in an schedule object
     def schedule_participant_dialogue(self, participant, dialogue):
         try:
-            previousSendDateTime = None
-            previousSendDay = None
             if not 'interactions' in dialogue:
                 return
             for interaction in dialogue['interactions']:
@@ -481,18 +479,8 @@ class TtcGenericWorker(ApplicationWorker):
                     previousSendDay = previousSendDateTime.date()
                     continue
 
-                if (interaction['type-schedule'] == 'immediately'):
-                    if (schedule):
-                        sendingDateTime = time_from_vusion_format(schedule['date-time'])
-                    else:
-                        sendingDateTime = self.get_local_time()
-                elif (interaction['type-schedule'] == 'offset-days'):
-                    if (previousSendDay is None):
-                        previousSendDay = date.today()
-                    if (interaction['days'] is None):
-                        sendingDay = previousSendDay
-                    else:
-                        sendingDay = previousSendDay + timedelta(days=int(interaction['days']))
+                if (interaction['type-schedule'] == 'offset-days'):
+                    sendingDay = time_from_vusion_format(participant['last-optin-date']) + timedelta(days=int(interaction['days']))
                     timeOfSending = interaction['at-time'].split(':', 1)
                     sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
                 elif (interaction['type-schedule'] == 'fixed-time'):
@@ -519,14 +507,12 @@ class TtcGenericWorker(ApplicationWorker):
                         "participant-phone": participant['phone'],
                         "dialogue-id": dialogue['dialogue-id'],
                         "interaction-id": interaction["interaction-id"]}
-                previousSendDateTime = sendingDateTime
                 self.save_schedule(schedule['participant-phone'],
                                    self.to_vusion_format(sendingDateTime),
                                    'dialogue-schedule',
                                    _id=schedule['_id'],
                                    dialogue_id=schedule['dialogue-id'],
-                                   interaction_id=schedule['interaction-id']
-                                   )
+                                   interaction_id=schedule['interaction-id'])
                 self.log("Schedule has been saved: %s" % schedule)
         except:
             self.log("Scheduling exception: %s" % interaction)
