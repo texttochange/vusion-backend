@@ -772,9 +772,9 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         messages = self.broker.get_messages('vumi', 'dispatcher.control')
         self.assertEqual(1, len(messages))
         self.assertEqual([
-            {'app': 'test', 'keyword': 'feel', 'to_addr': '8181'},
-            {'app': 'test', 'keyword': 'fel', 'to_addr': '8181'},
-            {'app': 'test', 'keyword': 'www', 'to_addr': '8181'}],
+            {'app': 'test', 'keyword': 'feel', 'to_addr': '8181', 'from_addr': '+256'},
+            {'app': 'test', 'keyword': 'fel', 'to_addr': '8181', 'from_addr': '+256'},
+            {'app': 'test', 'keyword': 'www', 'to_addr': '8181', 'from_addr': '+256'}],
             messages[0]['rules'])
 
     @inlineCallbacks

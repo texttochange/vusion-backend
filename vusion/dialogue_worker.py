@@ -703,7 +703,8 @@ class TtcGenericWorker(ApplicationWorker):
         for keyword in keywords:
             rules.append({'app': self.transport_name,
                           'keyword': keyword,
-                          'to_addr': self.properties['shortcode']})
+                          'to_addr': ("%s" % self.properties['shortcode'].split('-')[1]),
+                          'from_addr': ("+%s" % self.properties['international-prefix'])})
         msg = DispatcherControl(
             action='add_exposed',
             exposed_name=self.transport_name,
@@ -765,7 +766,7 @@ class TtcGenericWorker(ApplicationWorker):
             message = re.sub(regex_KEYWORD, keyword.upper(), message)
             #replace shortcode
             message = re.sub(regex_SHORTCODE,
-                             self.properties['shortcode'],
+                             self.properties['shortcode'].split('-')[1],
                              message)
             if (interaction['type-question'] == 'open-question'):
                 message = re.sub(regex_ANSWER,

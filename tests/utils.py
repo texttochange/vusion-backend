@@ -212,8 +212,8 @@ class ObjectMaker:
 
     program_settings = [
         {'key': 'shortcode',
-         'value': '8181'},
-        {'key': 'internationalprefix',
+         'value': '256-8181'},
+        {'key': 'international-prefix',
          'value': '256'},
         {'key': 'timezone',
          'value': 'Africa/Kampala'},
