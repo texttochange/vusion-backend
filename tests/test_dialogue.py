@@ -1,9 +1,10 @@
 from twisted.trial.unittest import TestCase
 
 from vusion.dialogue import Dialogue
+from vusion.action import (FeedbackAction, UnMatchingAnswerAction,
+                           ProfilingAction)
 
-
-class VusionScriptTestCase(TestCase):
+class DialogueTestCase(TestCase):
 
     question_answer = {
         'dialogue-id': '01',
@@ -85,18 +86,21 @@ class VusionScriptTestCase(TestCase):
                                'interaction-id': '01-01',
                                'matching-answer': 'Fine'})
         self.assertEqual(len(actions), 2)
-        self.assertEqual(actions[0], {'type-action': 'feedback',
-                                      'content': 'thank you'})
-        self.assertEqual(actions[1], {'type-action': 'feedback',
-                                      'content': 'thank you again'})
+        self.assertEqual(
+            actions[0], 
+            FeedbackAction(**{'content': 'thank you'}))
+        self.assertEqual(
+            actions[1], 
+            FeedbackAction(**{'content': 'thank you again'}))
 
         ref, actions = script.get_matching_reference_and_actions("feel 0", [])
         self.assertEqual(ref, {'dialogue-id': '01',
                                'interaction-id': '01-01',
                                'matching-answer': None})
         self.assertEqual(len(actions), 1)
-        self.assertEqual(actions[0], {'type-action': 'unmatching-answer',
-                                      'answer': '0'})
+        self.assertEqual(
+            actions[0],
+            UnMatchingAnswerAction(**{'answer': '0'}))
 
         ref, actions = script.get_matching_reference_and_actions("feel 3", [])
         self.assertEqual(ref, {'dialogue-id': '01',
@@ -120,21 +124,23 @@ class VusionScriptTestCase(TestCase):
         self.assertEqual(ref, {'dialogue-id': '01',
                                'interaction-id': '01-02'})
         self.assertEqual(len(actions), 2)
-        self.assertEqual(actions[0], {'type-action': 'feedback',
-                                      'content': 'thank you for this answer'})
-        self.assertEqual(actions[1], {'type-action': 'profiling',
-                                      'label': 'name',
-                                      'value': 'john doe'})
+        self.assertEqual(
+            actions[0], 
+            FeedbackAction(**{'content': 'thank you for this answer'}))
+        self.assertEqual(
+            actions[1], 
+            ProfilingAction(**{'label': 'name','value': 'john doe'}))
 
         ref, actions = script.get_matching_reference_and_actions("name", [])
         self.assertEqual(ref, {'dialogue-id': '01',
                                'interaction-id': '01-02'})
         self.assertEqual(len(actions), 2)
-        self.assertEqual(actions[0], {'type-action': 'feedback',
-                                      'content': 'thank you for this answer'})
-        self.assertEqual(actions[1], {'type-action': 'profiling',
-                                      'label': 'name',
-                                      'value': ''})
+        self.assertEqual(
+            actions[0],
+            FeedbackAction(**{'content': 'thank you for this answer'}))
+        self.assertEqual(
+            actions[1], 
+            ProfilingAction(**{'label': 'name','value': ''}))
 
         script = Dialogue(self.other_question_answer)
         ref, actions = script.get_matching_reference_and_actions("something good", [])
@@ -147,9 +153,9 @@ class VusionScriptTestCase(TestCase):
                                'interaction-id': 'script.dialogues[0].interactions[2]',
                                'matching-answer': 'Male'})
         self.assertEqual(len(actions), 1)
-        self.assertEqual(actions[0], {'type-action': 'profiling',
-                                      'label': 'gender',
-                                      'value': 'Male'})
+        self.assertEqual(
+            actions[0],
+            ProfilingAction(**{'label': 'gender', 'value': 'Male'}))
 
     def test_get_all_keywords(self):
         script = Dialogue(self.question_answer)

@@ -29,7 +29,7 @@ from vusion.utils import (time_to_vusion_format, get_local_time,
 from vusion.error import (MissingData, SendingDatePassed, VusionError,
                           MissingTemplate)
 from vusion.message import DispatcherControl
-
+from vusion.action import Actions, action_generator, FeedbackAction
 
 class TtcGenericWorker(ApplicationWorker):
 
@@ -253,12 +253,10 @@ class TtcGenericWorker(ApplicationWorker):
         if matching_request:
             if 'actions' in matching_request:
                 for action in matching_request['actions']:
-                    actions.append(action)
+                    actions.append(action_generator(**action))
             if 'responses' in matching_request:
                 for response in matching_request['responses']:
-                    actions.append(
-                        {'type-action': 'feedback',
-                         'content': response['content']})
+                    actions.append(FeedbackAction(**{'content': response['content']}))
         return actions     
 
     def create_participant(self, participant_phone):
@@ -274,8 +272,8 @@ class TtcGenericWorker(ApplicationWorker):
 
     def run_action(self, participant_phone, action):
         regex_ANSWER = re.compile('ANSWER')
-
-        if (action['type-action'] == 'optin'):
+        
+        if (action.get_type() == 'optin'):
             participant = self.collections['participants'].find_one({'phone': participant_phone})
             if participant:
                 if (participant['session-id'] == None):
@@ -285,19 +283,19 @@ class TtcGenericWorker(ApplicationWorker):
                                   'last-optin-date': time_to_vusion_format(self.get_local_time())}})
             else:
                 self.collections['participants'].save(self.create_participant(participant_phone))
-        elif (action['type-action'] == 'optout'):
+        elif (action.get_type() == 'optout'):
             self.collections['participants'].update(
                 {'phone': participant_phone},
                 {'$set': {'session-id': None,
                           'last-optin-date': None}})
             self.collections['schedules'].remove({
                 'participant-phone': participant_phone})
-        elif (action['type-action'] == 'feedback'):
+        elif (action.get_type() == 'feedback'):
             self.save_schedule(participant_phone,
                                time_to_vusion_format(self.get_local_time()),
                                'feedback-schedule',
                                content=action['content'])
-        elif (action['type-action'] == 'unmatching-answer'):
+        elif (action.get_type() == 'unmatching-answer'):
             setting = self.collections['program_settings'].find_one({
                 'key': 'default-template-unmatching-answer'})
             if setting is None:
@@ -322,12 +320,12 @@ class TtcGenericWorker(ApplicationWorker):
                                content=error_message['content'])
             log.debug("Reply '%s' sent to %s" %
                       (error_message['content'], error_message['to_addr']))
-        elif (action['type-action'] == 'tagging'):
+        elif (action.get_type() == 'tagging'):
             self.collections['participants'].update(
                 {'phone': participant_phone,
                  'tags': {'$ne': action['tag']}},
                 {'$push': {'tags': action['tag']}})
-        elif (action['type-action'] == 'enrolling'):
+        elif (action.get_type() == 'enrolling'):
             if not self.collections['participants'].find_one({'phone': participant_phone}):
                 self.collections['participants'].save(self.create_participant(participant_phone))
             self.collections['participants'].update(
@@ -335,13 +333,16 @@ class TtcGenericWorker(ApplicationWorker):
                  'enrolled': {'$ne': action['enroll']}},
                 {'$push': {'enrolled': action['enroll']}})
             dialogue = self.get_current_dialogue(action['enroll'])
+            if dialogue is None:
+                self.log(("Enrolling error: Missing Dialogue %s" % action['enroll']))
+                return
             participant = self.collections['participants'].find_one(
                 {'phone': participant_phone})
             self.schedule_participant_dialogue(participant, dialogue)
-        elif (action['type-action'] == 'profiling'):
+        elif (action.get_type() == 'profiling'):
             self.collections['participants'].update(
                 {'phone': participant_phone},
-                {'$set': {'profile':{action['label']: action['value']}}})
+                {'$set': {('profile.%s' % action['label']): action['value']}})
         else:
             self.log("The action is not supported %s" % action['type-action'])
 
@@ -350,7 +351,7 @@ class TtcGenericWorker(ApplicationWorker):
                                                          message['content']))
         try:
             ref = None
-            actions = []
+            actions = Actions()
             active_dialogues = self.get_active_dialogues()
             for dialogue in active_dialogues:
                 scriptHelper = Dialogue(dialogue['Dialogue'])
@@ -361,15 +362,18 @@ class TtcGenericWorker(ApplicationWorker):
             actions = self.get_matching_request_actions(
                 message['content'],
                 actions)
-            for action in actions:
-                self.run_action(message['from_addr'], action)
+            
+            participant = self.collections['participants'].find_one({'phone': message['from_addr'], 
+                                                                    'session-id': {'$ne': None}})
+            if participant or actions.contains('optin') or actions.contains('enrolled'):
+                for action in actions.items():
+                    self.run_action(message['from_addr'], action)
             self.save_history(
                 message_content=message['content'],
                 participant_phone=message['from_addr'],
                 participant_session_id=self.get_participant_session_id(message['from_addr']),
                 message_direction='incoming',
                 reference_metadata=ref)
-            self.log("actions %s reference %s" % (actions, ref))
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log(

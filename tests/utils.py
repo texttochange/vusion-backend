@@ -320,7 +320,9 @@ class ObjectMaker:
         'keyword': 'www tagme',
         'actions': [
             {'type-action': 'tagging',
-             'tag': 'onetag'}]
+             'tag': 'onetag'}],
+        'responses': [ 
+            {'content': 'you are tagged'}]
     }
 
     request_leave = {
