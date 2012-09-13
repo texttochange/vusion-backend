@@ -57,8 +57,7 @@ class FeedbackAction(Action):
     ACTION_TYPE = 'feedback'
     
     def validate_fields(self):
-        self.assert_field_present(
-        'content')
+        self.assert_field_present('content')
 
 
 class UnMatchingAnswerAction(Action):
@@ -66,8 +65,7 @@ class UnMatchingAnswerAction(Action):
     ACTION_TYPE = 'unmatching-answer'
     
     def validate_fields(self):
-        self.assert_field_present(
-        'answer')
+        self.assert_field_present('answer')
 
 
 class TaggingAction(Action):
@@ -75,8 +73,7 @@ class TaggingAction(Action):
     ACTION_TYPE = 'tagging'
     
     def validate_fields(self):
-        self.assert_field_present(
-        'tag')
+        self.assert_field_present('tag')
 
 
 class EnrollingAction(Action):
@@ -84,8 +81,7 @@ class EnrollingAction(Action):
     ACTION_TYPE = 'enrolling'
     
     def validate_fields(self):
-        self.assert_field_present(
-        'enroll')
+        self.assert_field_present('enroll')
 
 
 class ProfilingAction(Action):
@@ -93,9 +89,15 @@ class ProfilingAction(Action):
     ACTION_TYPE = 'profiling'
     
     def validate_fields(self):
-        self.assert_field_present(
-        'label',
-        'value')
+        self.assert_field_present('label', 'value')
+
+
+class OffsetConditionAction(Action):
+    
+    ACTION_TYPE = 'offset-conditioning'
+    
+    def validate_fields(self):
+        self.assert_field_present('interaction-id', 'dialogue-id')
 
 
 def action_generator(**kwargs):
@@ -116,6 +118,8 @@ def action_generator(**kwargs):
         return FeedbackAction(**kwargs)
     elif kwargs['type-action'] == 'unmatching-answer':
         return UnMatchingAnswerAction(**kwargs)
+    elif kwargs['type-action'] == 'offset-conditioning':
+        return OffsetConditionAction(**kwargs)
     raise VusionError("%s not supported" % kwargs['type-answer-action'])
 
 
@@ -138,3 +142,6 @@ class Actions():
     
     def items(self):
         return self.actions.__iter__()
+
+    def __getitem__(self, key):
+        return self.actions[key]

@@ -343,6 +343,12 @@ class TtcGenericWorker(ApplicationWorker):
             self.collections['participants'].update(
                 {'phone': participant_phone},
                 {'$set': {('profile.%s' % action['label']): action['value']}})
+        elif (action.get_type() == 'offset-conditioning'):
+            self.save_schedule(participant_phone,
+                               time_to_vusion_format(self.get_local_time()),
+                               'dialogue-schedule',
+                               dialogue_id=action['dialogue-id'],
+                               interaction_id=action['interaction-id'])
         else:
             self.log("The action is not supported %s" % action['type-action'])
 
@@ -485,6 +491,8 @@ class TtcGenericWorker(ApplicationWorker):
                     sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
                 elif (interaction['type-schedule'] == 'fixed-time'):
                     sendingDateTime = time_from_vusion_format(interaction['date-time'])
+                elif (interaction['type-schedule'] == 'offset-condition'):
+                    return
 
                 #Scheduling a date already in the past is forbidden.
                 if (sendingDateTime + timedelta(minutes=10) < self.get_local_time()):

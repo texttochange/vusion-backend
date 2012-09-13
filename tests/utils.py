@@ -264,22 +264,36 @@ class ObjectMaker:
         'activated': 1,
         'dialogue-id': '01',
         'interactions': [
-            {
-                'interaction-id': '01-01',
-                'type-interaction': 'question-answer',
-                'content': 'How are you?',
-                'keyword': 'FEEL, FEL',
-                'answers': [
-                    {'choice': 'Fine'},
-                    {'choice': 'Ok',
-                     'feedbacks': [{'content': 'Thank you'}],
-                     'answer-actions':[{'type-answer-action': 'enrolling',
-                                        'enroll': '2'}]}],
-                'type-schedule': 'offset-days',
-                'days': '1',
-                'at-time': '22:30'}
-        ]
+            {'interaction-id': '01-01',
+            'type-interaction': 'question-answer',
+            'content': 'How are you?',
+            'keyword': 'FEEL, FEL',
+            'type-schedule': 'offset-days',
+            'days': '1',
+            'at-time': '22:30',            
+            'answers': [
+                {'choice': 'Fine'},
+                {'choice': 'Ok',
+                 'feedbacks': [{'content': 'Thank you'}],
+                 'answer-actions':[{'type-answer-action': 'enrolling',
+                                    'enroll': '2'}]}]}]
     }
+
+    def mkobj_dialogue_question_offset_conditional(self):
+        dialogue = self.dialogue_question
+        dialogue['interactions'].append(
+            {'interaction-id': '01-02',
+             'type-interaction': 'annoucement',
+             'content': 'Message received',
+             'type-schedule': 'offset-condition',
+             'offset-condition-interaction-id': '01-01'})
+        dialogue['interactions'].append(
+            {'interaction-id': '01-03',
+             'type-interaction': 'annoucement',
+             'content': 'Another message',
+             'type-schedule': 'offset-condition',
+             'offset-condition-interaction-id': '01-01'})
+        return dialogue
 
     dialogue_open_question = {
         'activated': 1,
@@ -306,6 +320,72 @@ class ObjectMaker:
                 'date-time': '2012-03-12T12:30:00'
             }
         ]
+    }
+    
+    dialogue_question_answer = {
+        'dialogue-id': '01',
+        'interactions': [
+            {
+                'interaction-id': '01-01',
+                'type-interaction': 'question-answer',
+                "content": 'How are you?',
+                'keyword': 'FEEL, Fel',
+                'type-question': 'closed-question',
+                'answers': [
+                    {'choice': 'Fine',
+                     'feedbacks': [
+                         {'content':'thank you'},
+                         {'content':'thank you again'}]
+                     },
+                    {'choice': 'Ok'}],
+                'type-schedule': 'immediately'},
+            {
+                'interaction-id': '01-02',
+                'type-interaction': 'question-answer',
+                "content": 'What is your name?',
+                'keyword': 'name',
+                'type-question': 'open-question',
+                'answer-label': 'name',
+                'feedbacks': [
+                    {'content':'thank you for this answer'}],
+                'type-schedule': 'immediately'
+            }
+        ]
+    }
+
+    dialogue_other_question_answer = {
+        "name": "something",
+        "interactions": [
+            {"type-schedule": "immediately",
+             "type-interaction": "question-answer",
+             "content": "How are you [participant.name]?",
+             "keyword": "Fool",
+             "type-reminder": "no-reminder",
+             "type-question": "close-question",
+             "answers": [
+                 {"choice": "Good",
+                  "feedbacks": [
+                      {"content": "So have a nice day [participant.name]"}
+                  ]
+                  },
+                 {"choice": "Bad",
+                  "feedbacks": [
+                      {"content": "Come one [participant.name], you can get over it!"}]}
+                 ],
+             "interaction-id": "script.dialogues[0].interactions[0]"
+             },
+            {"type-schedule": "immediately",
+             "type-interaction": "question-answer",
+             "content": "What is your gender?",
+             'label-for-participant-profiling': 'gender',
+             "keyword": "GEN",
+             "answers": [
+                 {"choice": "Male"},
+                 {"choice": "Bad"}],
+             "interaction-id": "script.dialogues[0].interactions[2]"
+             },
+            ],
+        "dialogue-id": "script.dialogues[0]"
     }
 
     request_join = {

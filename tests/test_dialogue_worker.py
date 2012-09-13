@@ -17,7 +17,8 @@ from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from vusion.error import MissingData, MissingTemplate
 from vusion.action import (UnMatchingAnswerAction, EnrollingAction,
                            FeedbackAction, OptinAction, OptoutAction,
-                           TaggingAction, ProfilingAction)
+                           TaggingAction, ProfilingAction,
+                           OffsetConditionAction)
 from transports import YoUgHttpTransport
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 
@@ -150,7 +151,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual(dialogues[1]['Dialogue']['_id'],
                          id_active_dialogue_two)
 
-    def test04_schedule_participant_dialogue(self):
+    def test04_schedule_participant_dialogue_offset_days(self):
         config = self.simple_config
         dialogue = self.dialogue_annoucement
         mytimezone = self.program_settings[2]['value']
@@ -168,8 +169,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.worker.schedule_participant_dialogue(
             participant, dialogue)
 
-        schedules_count = self.collections['schedules'].count()
-        self.assertEqual(schedules_count, 2)
+        self.assertEqual(self.collections['schedules'].count(),2)
 
         schedules = self.collections['schedules'].find()
         #assert time calculation
@@ -729,6 +729,20 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual(participant['session-id'], participant_reoptin['session-id'])
         self.assertEqual(participant['last-optin-date'], participant_reoptin['last-optin-date'])
 
+    def test18_run_action_offset_condition(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        self.collections['dialogues'].save(self.mkobj_dialogue_question_offset_conditional())
+        self.collections['participants'].save(self.mkobj_participant('06'))
+     
+        self.worker.run_action("06", OffsetConditionAction(**{
+            'dialogue-id': '01',
+            'interaction-id':'01-02'}))
+        
+        self.assertEqual(self.collections['schedules'].count(),
+                         1)
+        
 
     def test19_schedule_process_handle_crap_in_history(self):
         dialogue = self.dialogue_annoucement
