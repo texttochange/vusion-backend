@@ -520,7 +520,47 @@ class TtcGenericWorker(ApplicationWorker):
             self.log(
                 "Error during schedule message: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
-
+######### you are here #############
+    def schedule_participant_reminders(self,participant,dialogue,interaction):
+        try:
+            if not 'type-schedule-reminder' in interaction:
+                return
+            
+            if (interaction['type-schedule-reminder'] == 'offset-days'):
+                sendingDay = time_from_vusion_format(participant['last-optin-date'])
+                timeOfSending = interaction['at-time'].split(':', 1)
+                sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
+            elif (interaction['type-schedule-reminder'] == 'offset-time'):
+                sendingDateTime = time_from_vusion_format(participant['last-optin-date'])
+            for number in range(int(interaction['number'])):                
+                if (interaction['type-schedule-reminder'] == 'offset-time'):
+                    sendingDateTime += timedelta(minutes=int(interaction['minutes']))
+                elif (interaction['type-schedule-reminder'] == 'offset-days'):
+                    sendingDay += timedelta(days=int(interaction['days']))
+                    sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
+                                                                              
+                schedule = {
+                    "_id": None,
+                    "participant-phone": participant['phone'],
+                    "dialogue-id": dialogue['dialogue-id'],
+                    "interaction-id": interaction["interaction-id"]}                                                                               
+                self.save_schedule(schedule['participant-phone'],
+                                   self.to_vusion_format(sendingDateTime),
+                                   'dialogue-schedule',
+                                   _id=schedule['_id'],
+                                   dialogue_id=schedule['dialogue-id'],
+                                   interaction_id=schedule['interaction-id'])
+                self.log("Schedule has been saved: %s" % schedule)
+                #if (number == interaction['number']):
+                #    self.send_scheduled('reminder-schedule')
+                
+        except:
+            self.log("Scheduling exception: %s" % interaction)
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            self.log(
+                "Error during schedule message: %r" %
+                traceback.format_exception(exc_type, exc_value, exc_traceback))
+######### you are here #############
     def get_local_time(self):
         try:
             return datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(

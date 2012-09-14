@@ -376,6 +376,41 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEquals(schedule_datetime.year, dFuture.year)
         self.assertEquals(schedule_datetime.hour, dFuture.hour)
         self.assertEquals(schedule_datetime.minute, dFuture.minute)
+        
+    def test10_schedule_participant_reminders(self):
+        config = self.simple_config
+        dialogue = self.dialogue_open_question_with_reminder
+        mytimezone = self.program_settings[2]['value']
+        dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
+        dNow = dNow.replace(tzinfo=None)
+        dPast = dNow - timedelta(minutes=30)
+
+        participant = self.mkobj_participant('06', last_optin_date=time_to_vusion_format(dPast))
+        self.collections['dialogues'].save(dialogue)
+        self.collections['participants'].save(participant)
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
+        interaction = dialogue['interactions'][0]
+        self.worker.schedule_participant_reminders(
+            participant, dialogue, interaction)
+
+        schedules_count = self.collections['schedules'].count()
+        self.assertEqual(schedules_count, 2)
+
+        schedules = self.collections['schedules'].find()
+        #assert time calculation
+        self.assertEqual(
+            time_to_vusion_format(time_from_vusion_format(schedules[0]['date-time'])),
+            time_to_vusion_format(dPast + timedelta(minutes=30)))
+        self.assertEqual(
+            time_to_vusion_format(time_from_vusion_format(schedules[1]['date-time'])),
+            time_to_vusion_format(dPast + timedelta(minutes=30) + timedelta(minutes=30)))
+
+        #assert scheduled reminders are the same
+        self.assertEqual(schedules[0]['dialogue-id'], schedules[1]['dialogue-id'])
+        self.assertEqual(schedules[0]['interaction-id'], schedules[1]['interaction-id'])
 
     def test11_customize_message(self):
         for program_setting in self.program_settings:

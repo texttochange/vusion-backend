@@ -293,6 +293,24 @@ class ObjectMaker:
              'answer-label': 'name',
              'type-schedule': 'immediately'}]
     }
+    
+    dialogue_open_question_with_reminder = {
+        'activated': 1,
+        'dialogue-id': '04',
+        'interactions': [
+            {'interaction-id': '01-01',
+             'type-interaction': 'question-answer',
+             'content': 'How are you?',
+             'keyword': 'name',
+             'type-question': 'open-question',
+             'answer-label': 'name',
+             'type-schedule': 'fixed-time',
+             'date-time': '2012-03-12T12:30:00',
+             'set-reminder': 'reminder',
+             'number': '2',
+             'type-schedule-reminder': 'offset-time',
+             'minutes': '30'}]
+    }
 
     dialogue_announcement_fixedtime = {
         'activated': 1,
