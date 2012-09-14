@@ -309,7 +309,10 @@ class ObjectMaker:
              'set-reminder': 'reminder',
              'number': '2',
              'type-schedule-reminder': 'offset-time',
-             'minutes': '30'}]
+             'minutes': '30',
+             'reminder-actions': [
+                 {'type-action': 'optout'}]
+             }]
     }
 
     dialogue_announcement_fixedtime = {
@@ -401,10 +404,32 @@ class ObjectMaker:
             }
     
     def mkobj_schedule(self, participant_phone='06', 
-                       date_time=None):
+                       date_time=None, object_type='dialogue-schedule',
+                       dialogue_id='1',interaction_id='2'):
         return {
             'participant-phone': participant_phone,
-            'dialogue-id': '1',
-            'interaction-id': '2',
+            'dialogue-id': dialogue_id,
+            'interaction-id': interaction_id,
+            'object-type': object_type,
             'date-time': date_time
+            }
+    
+    def mkobj_schedule_unattach(self, participant_phone='06', 
+                       date_time=None,
+                       unattach_id='1'):
+        return {
+            'participant-phone': participant_phone,
+            'unattach-id': unattach_id,
+            'object-type': 'unattach-schedule',
+            'date-time': date_time
+            }
+        
+    def mkobj_schedule_feedback(self, participant_phone='06', 
+                       date_time=None,
+                       content='Thank You'):
+        return {
+            'participant-phone': participant_phone,
+            'object-type': 'feedback-schedule',
+            'date-time': date_time,
+            'content': content
             }

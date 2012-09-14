@@ -102,11 +102,12 @@ class TtcGenericWorker(ApplicationWorker):
     def save_schedule(self, participant_phone, date_time, object_type,
                       **kwargs):
         schedule = {
+            'object-type': object_type,
             'participant-phone': participant_phone,
             'date-time': date_time}        
         if '_id' in kwargs and kwargs['_id'] is not None: 
             schedule['_id']= kwargs['_id']
-        if object_type=='dialogue-schedule':
+        if object_type=='dialogue-schedule' or object_type=='deadline-schedule':
             schedule['dialogue-id']=kwargs['dialogue_id']
             schedule['interaction-id']=kwargs['interaction_id']
         elif object_type=='unattach-schedule':
@@ -115,7 +116,7 @@ class TtcGenericWorker(ApplicationWorker):
             schedule['content']=kwargs['content']
             schedule['type-content']='feedback'
         else:
-            VusionError('object type not supported by schedule %s' % object_type)
+            raise VusionError('object type not supported by schedule %s' % object_type)
         self.collections['schedules'].save(schedule)
 
     def save_history(self, message_content, participant_phone,
@@ -513,6 +514,8 @@ class TtcGenericWorker(ApplicationWorker):
                                    _id=schedule['_id'],
                                    dialogue_id=schedule['dialogue-id'],
                                    interaction_id=schedule['interaction-id'])
+                if 'set-reminder' in interaction:
+                    self.schedule_participant_reminders(participant, dialogue, interaction)
                 self.log("Schedule has been saved: %s" % schedule)
         except:
             self.log("Scheduling exception: %s" % interaction)
@@ -520,47 +523,37 @@ class TtcGenericWorker(ApplicationWorker):
             self.log(
                 "Error during schedule message: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
-######### you are here #############
+
     def schedule_participant_reminders(self,participant,dialogue,interaction):
-        try:
-            if not 'type-schedule-reminder' in interaction:
-                return
-            
-            if (interaction['type-schedule-reminder'] == 'offset-days'):
-                sendingDay = time_from_vusion_format(participant['last-optin-date'])
-                timeOfSending = interaction['at-time'].split(':', 1)
+        if not 'type-schedule-reminder' in interaction:
+            return
+        
+        if (interaction['type-schedule-reminder'] == 'offset-days'):
+            sendingDay = time_from_vusion_format(participant['last-optin-date'])
+            timeOfSending = interaction['at-time'].split(':', 1)
+            sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
+        elif (interaction['type-schedule-reminder'] == 'offset-time'):
+            sendingDateTime = time_from_vusion_format(participant['last-optin-date'])
+        for number in range(int(interaction['number'])+1):                
+            if (interaction['type-schedule-reminder'] == 'offset-time'):
+                sendingDateTime += timedelta(minutes=int(interaction['minutes']))
+            elif (interaction['type-schedule-reminder'] == 'offset-days'):
+                sendingDay += timedelta(days=int(interaction['days']))
                 sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
-            elif (interaction['type-schedule-reminder'] == 'offset-time'):
-                sendingDateTime = time_from_vusion_format(participant['last-optin-date'])
-            for number in range(int(interaction['number'])):                
-                if (interaction['type-schedule-reminder'] == 'offset-time'):
-                    sendingDateTime += timedelta(minutes=int(interaction['minutes']))
-                elif (interaction['type-schedule-reminder'] == 'offset-days'):
-                    sendingDay += timedelta(days=int(interaction['days']))
-                    sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
-                                                                              
-                schedule = {
-                    "_id": None,
-                    "participant-phone": participant['phone'],
-                    "dialogue-id": dialogue['dialogue-id'],
-                    "interaction-id": interaction["interaction-id"]}                                                                               
-                self.save_schedule(schedule['participant-phone'],
-                                   self.to_vusion_format(sendingDateTime),
-                                   'dialogue-schedule',
-                                   _id=schedule['_id'],
-                                   dialogue_id=schedule['dialogue-id'],
-                                   interaction_id=schedule['interaction-id'])
-                self.log("Schedule has been saved: %s" % schedule)
-                #if (number == interaction['number']):
-                #    self.send_scheduled('reminder-schedule')
-                
-        except:
-            self.log("Scheduling exception: %s" % interaction)
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            self.log(
-                "Error during schedule message: %r" %
-                traceback.format_exception(exc_type, exc_value, exc_traceback))
-######### you are here #############
+                                                                          
+            schedule = {
+                "_id": None,
+                "participant-phone": participant['phone'],
+                "dialogue-id": dialogue['dialogue-id'],
+                "interaction-id": interaction["interaction-id"]}                                                                               
+            self.save_schedule(schedule['participant-phone'],
+                               self.to_vusion_format(sendingDateTime),
+                               'dialogue-schedule' if number < int(interaction['number']) else 'deadline-schedule',
+                               _id=schedule['_id'],
+                               dialogue_id=schedule['dialogue-id'],
+                               interaction_id=schedule['interaction-id'])
+            
+
     def get_local_time(self):
         try:
             return datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(
@@ -573,7 +566,7 @@ class TtcGenericWorker(ApplicationWorker):
         return timestamp.strftime('%Y-%m-%dT%H:%M:%S')
 
     def from_schedule_to_message(self, schedule):
-        if 'dialogue-id' in schedule:
+        if schedule['object-type'] == 'dialogue-schedule' or schedule['object-type'] == 'deadline-schedule':
             interaction = self.get_interaction(
                 self.get_active_dialogues(),
                 schedule['dialogue-id'],
@@ -582,13 +575,13 @@ class TtcGenericWorker(ApplicationWorker):
                 'dialogue-id': schedule['dialogue-id'],
                 'interaction-id': schedule['interaction-id']
             }
-        elif 'unattach-id' in schedule:
+        elif schedule['object-type'] == 'unattach-schedule':
             interaction = self.collections['unattached_messages'].find_one(
                 {'_id': ObjectId(schedule['unattach-id'])})
             reference_metadata = {
                 'unattach-id': schedule['unattach-id']
             }
-        elif 'type-content' in schedule:
+        elif schedule['object-type'] == 'feedback-schedule':
             interaction = {
                 'content': schedule['content'],
                 'type-interaction': 'feedback'}
@@ -602,6 +595,7 @@ class TtcGenericWorker(ApplicationWorker):
     #TODO: fire error feedback if the ddialogue do not exit anymore
     #TODO: if dialogue is deleted, need to remove the scheduled message
     #(or they are also canceled if cannot find the dialogue)
+    #TODO fire action scheduled by reminder if no reply is sent for any reminder
     @inlineCallbacks
     def send_scheduled(self):
         self.log('Checking the schedule list...')
@@ -617,6 +611,15 @@ class TtcGenericWorker(ApplicationWorker):
                 interaction, reference_metadata = self.from_schedule_to_message(toSend)
 
                 if not interaction:
+                    continue
+                
+                if toSend['object-type'] == 'deadline-schedule':
+                    actions = Actions()
+                    if 'reminder-actions' in interaction:
+                        for action in interaction['reminder-actions']:
+                            actions.append(action_generator(**action))
+                    for action in actions.items():
+                        self.run_action(toSend['participant-phone'], action)
                     continue
 
                 message_content = self.generate_message(interaction)
