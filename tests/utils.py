@@ -296,6 +296,26 @@ class ObjectMaker:
                  'answer-actions':[{'type-answer-action': 'enrolling',
                                     'enroll': '2'}]}]}]
     }
+    
+    def mkobj_dialogue_question_offset_days(self):
+        return {
+            'activated': 1,
+            'dialogue-id': '01',
+            'interactions': [
+                {'interaction-id': '01-01',
+                 'type-interaction': 'question-answer',
+                 'content': 'How are you?',
+                 'keyword': 'FEEL, FEL',
+                 'type-schedule': 'offset-days',
+                 'days': '1',
+                 'at-time': '22:30',            
+                 'answers': [
+                     {'choice': 'Fine'},
+                     {'choice': 'Ok',
+                      'feedbacks': [{'content': 'Thank you'}],
+                      'answer-actions':[{'type-answer-action': 'enrolling',
+                                         'enroll': '2'}]}]}]
+        }
 
     def mkobj_dialogue_question_offset_conditional(self):
         dialogue = self.dialogue_question

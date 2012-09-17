@@ -551,19 +551,16 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
     @inlineCallbacks
     def test17_receive_inbound_message(self):
-        self.collections['dialogues'].save(self.dialogue_question)
-        self.collections['dialogues'].save(self.dialogue_annoucement_2)
+        self.collections['dialogues'].save(self.mkobj_dialogue_question_offset_days())
         self.collections['requests'].save(self.request_join)
          
         self.collections['participants'].save(self.mkobj_participant('06'))
 
-        self.assertEqual(0, self.collections['history'].count())
         inbound_msg_matching = self.mkmsg_in(
             from_addr='06',
             content='Feel ok')
         yield self.send(inbound_msg_matching, 'inbound')
-
-        self.assertEqual(1, self.collections['history'].count())
+        
         #Only message matching keyword should be forwarded to the worker
         inbound_msg_non_matching_keyword = self.mkmsg_in(
             from_addr='06',
