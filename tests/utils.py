@@ -1,5 +1,8 @@
 
 from datetime import datetime
+import time
+
+from bson.timestamp import Timestamp
 
 #from vumi.tests.utils import UTCNearNow
 from vumi.message import (TransportEvent, TransportMessage,
@@ -226,24 +229,39 @@ class ObjectMaker:
         'shortcode': '8181'}
 
     dialogue_annoucement = {
-        'activated': 1,
-        'auto-enrollment': 'all',
-        'dialogue-id': '0',
-        'interactions': [
-            {'type-interaction': 'announcement',
-             'interaction-id': '0',
-             'content': 'Hello',
-             'type-schedule': 'offset-days',
-             'days': '1',
-             'at-time': '22:30'},
-            {'type-interaction': 'announcement',
-             'interaction-id': '1',
-             'content': 'How are you',
-             'type-schedule': 'offset-days',
-             'days': '2',
-             'at-time': '22:30'},
-        ]
-    }
+            'activated': 1,
+            'auto-enrollment': 'all',
+            'dialogue-id': '0',
+            'interactions': [
+                {'type-interaction': 'announcement',
+                 'interaction-id': '0',
+                 'content': 'Hello',
+                 'type-schedule': 'offset-days',
+                 'days': '1',
+                 'at-time': '22:30'},
+                {'type-interaction': 'announcement',
+                 'interaction-id': '1',
+                 'content': 'How are you',
+                 'type-schedule': 'offset-days',
+                 'days': '2',
+                 'at-time': '22:30'},]
+        }
+
+    def mkobj_dialogue_annoucement(self):
+        return {
+            'created': Timestamp(datetime.now(),0),
+            'modified': Timestamp(datetime.now(),0),
+            'activated': 1,
+            'auto-enrollment': 'all',
+            'dialogue-id': '0',
+            'interactions': [
+                {'type-interaction': 'announcement',
+                 'interaction-id': '0',
+                 'content': 'Hello',
+                 'type-schedule': 'offset-days',
+                 'days': '1',
+                 'at-time': '22:30'}]
+        }
 
     dialogue_annoucement_2 = {
         "activated": 1,
@@ -281,6 +299,8 @@ class ObjectMaker:
 
     def mkobj_dialogue_question_offset_conditional(self):
         dialogue = self.dialogue_question
+        dialogue['created'] = Timestamp(datetime.now(),0)
+        dialogue['modified'] = Timestamp(datetime.now(),0)
         dialogue['interactions'].append(
             {'interaction-id': '01-02',
              'type-interaction': 'annoucement',
@@ -301,12 +321,26 @@ class ObjectMaker:
         'interactions': [
             {'interaction-id': '01-01',
              'type-interaction': 'question-answer',
-             'content': 'How are you?',
+             'content': 'What is your name?',
              'keyword': 'name',
              'type-question': 'open-question',
              'answer-label': 'name',
-             'type-schedule': 'immediately'}]
+             'type-schedule': 'offset-days',
+             'days': '1',
+            'at-time': '22:30'}]
     }
+    
+    def mkobj_dialogue_open_question_offset_conditional(self):
+        dialogue = self.dialogue_open_question
+        dialogue['created'] = Timestamp(datetime.now(),0)
+        dialogue['modified'] = Timestamp(datetime.now(),0)
+        dialogue['interactions'].append(
+            {'interaction-id': '01-02',
+             'type-interaction': 'annoucement',
+             'content': 'Message received',
+             'type-schedule': 'offset-condition',
+             'offset-condition-interaction-id': '01-01'})
+        return dialogue
 
     dialogue_announcement_fixedtime = {
         'activated': 1,
@@ -443,12 +477,32 @@ class ObjectMaker:
         'template': 'ANSWER does not match any answer'
     }
 
-    def mkobj_history_unattach(self, unattach_id,
-                               participant_phone='06'):
-        return {'participant-phone': participant_phone,
-                'message-type': 'sent',
-                'message-status': 'delivered',
-                'unattach-id': unattach_id}
+    def mkobj_history_unattach(self, unattach_id, timestamp,
+                               participant_phone='06',
+                               participant_session_id="1"):
+        return {
+            'timestamp': timestamp,
+            'participant-phone': participant_phone,
+            'participant-session-id': participant_session_id,
+            'message-direction': 'outgoing',
+            'message-status': 'delivered',
+            'unattach-id': unattach_id}
+    
+    def mkobj_history_dialogue(self, dialogue_id, interaction_id,
+                               timestamp, participant_phone='06',
+                               participant_session_id="1", direction='outgoing',
+                               matching_answer=None):
+        return {
+            'timestamp': timestamp,
+            'participant-phone': participant_phone,
+            'participant-session-id': participant_session_id,
+            'message-direction': 'outgoing',
+            'message-status': 'delivered',
+            'dialogue-id': dialogue_id,
+            'interaction-id': interaction_id,
+            'matching-answer': matching_answer,
+            }
+
 
     def mkobj_participant(self, participant_phone='06',
                           last_optin_date='2012-02-01T18:30:20', session_id='1',

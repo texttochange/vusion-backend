@@ -1,3 +1,4 @@
+from vumi import log
 from vumi.utils import get_first_word
 from vusion.action import (UnMatchingAnswerAction, FeedbackAction,
                            action_generator, ProfilingAction,
@@ -77,17 +78,17 @@ class Dialogue:
                 if 'answer-actions' in answer:
                     for answer_action in answer['answer-actions']:
                         actions.append(action_generator(**answer_action))
-                # Check if offset condition on this answer
-                for interaction_to_schedule in self.get_offset_condition_interactions(interaction['interaction-id']):
-                    actions.append(OffsetConditionAction(**{
-                        'dialogue-id': dialogue_id,
-                        'interaction-id': interaction_to_schedule}))
         else:
             actions = self.add_feedback_action(actions, interaction)
             if 'answer-label' in interaction:
                 actions.append(ProfilingAction(**{
                     'label': interaction['answer-label'],
-                    'value': self.get_open_answer(message)}))
+                    'value': self.get_open_answer(message)}))        
+        # Check if offset condition on this answer
+        for interaction_to_schedule in self.get_offset_condition_interactions(interaction['interaction-id']):
+            actions.append(OffsetConditionAction(**{
+                'dialogue-id': dialogue_id,
+                'interaction-id': interaction_to_schedule}))
         return reference_metadata, actions
 
     def get_open_answer(self, message):

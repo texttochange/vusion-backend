@@ -14,6 +14,12 @@ class Action(object):
         if isinstance(other, Action):
             return self.payload == other.payload
         return False
+    
+    def __str__(self):
+        return "Do:%s payload=%s" % (self.get_type(), repr(self.payload))
+
+    def __repr__(self):
+        return str(self)
 
     def __getitem__(self, key):
         return self.payload[key]
