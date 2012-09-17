@@ -368,9 +368,9 @@ class TtcGenericWorker(ApplicationWorker):
             actions = self.get_matching_request_actions(
                 message['content'],
                 actions)
-            
-            participant = self.collections['participants'].find_one({'phone': message['from_addr'], 
-                                                                    'session-id': {'$ne': None}})
+            participant = self.collections['participants'].find_one(
+                {'phone': message['from_addr'], 
+                 'session-id': {'$ne': None}})
             self.save_history(
                 message_content=message['content'],
                 participant_phone=message['from_addr'],

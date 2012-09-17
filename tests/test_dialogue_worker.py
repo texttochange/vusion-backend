@@ -49,7 +49,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.broker.queue_bind("%s.outbound" % self.transport_name,
                                "vumi",
                                "%s.outbound" % self.transport_name)
-
         #Database#
         connection = pymongo.Connection("localhost", 27017)
         self.db = connection[self.config['database_name']]
@@ -74,6 +73,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
     @inlineCallbacks
     def tearDown(self):
+        self.broker.dispatched = {}
         self.drop_collections()
         if (self.worker.sender is not None):
             yield self.worker.sender.stop()
@@ -554,14 +554,16 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.collections['dialogues'].save(self.dialogue_question)
         self.collections['dialogues'].save(self.dialogue_annoucement_2)
         self.collections['requests'].save(self.request_join)
-        
+         
         self.collections['participants'].save(self.mkobj_participant('06'))
 
+        self.assertEqual(0, self.collections['history'].count())
         inbound_msg_matching = self.mkmsg_in(
             from_addr='06',
             content='Feel ok')
         yield self.send(inbound_msg_matching, 'inbound')
 
+        self.assertEqual(1, self.collections['history'].count())
         #Only message matching keyword should be forwarded to the worker
         inbound_msg_non_matching_keyword = self.mkmsg_in(
             from_addr='06',
