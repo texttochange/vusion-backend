@@ -419,8 +419,10 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.worker.load_data()
 
         interaction = dialogue['interactions'][0]
+        # change the date-tiem of the interaction to match dPast
+        interaction['date-time'] = time_to_vusion_format(dPast)
         self.worker.schedule_participant_reminders(
-            participant, dialogue, interaction)
+            participant, dialogue, interaction, time_from_vusion_format(interaction['date-time']))
 
         schedules_count = self.collections['schedules'].count()
         self.assertEqual(schedules_count, 3)

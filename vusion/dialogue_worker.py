@@ -515,7 +515,7 @@ class TtcGenericWorker(ApplicationWorker):
                                    dialogue_id=schedule['dialogue-id'],
                                    interaction_id=schedule['interaction-id'])
                 if 'set-reminder' in interaction:
-                    self.schedule_participant_reminders(participant, dialogue, interaction)
+                    self.schedule_participant_reminders(participant, dialogue, interaction, sendingDateTime)
                 self.log("Schedule has been saved: %s" % schedule)
         except:
             self.log("Scheduling exception: %s" % interaction)
@@ -524,16 +524,18 @@ class TtcGenericWorker(ApplicationWorker):
                 "Error during schedule message: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
 
-    def schedule_participant_reminders(self,participant,dialogue,interaction):
+    def schedule_participant_reminders(self,participant,dialogue,interaction,initialSendDateTime):
         if not 'type-schedule-reminder' in interaction:
             return
         
         if (interaction['type-schedule-reminder'] == 'offset-days'):
-            sendingDay = time_from_vusion_format(participant['last-optin-date'])
+            #sendingDay = time_from_vusion_format(participant['last-optin-date'])
+            sendingDay = initialSendDateTime
             timeOfSending = interaction['at-time'].split(':', 1)
             sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
         elif (interaction['type-schedule-reminder'] == 'offset-time'):
-            sendingDateTime = time_from_vusion_format(participant['last-optin-date'])
+            #sendingDateTime = time_from_vusion_format(participant['last-optin-date'])
+            sendingDateTime = initialSendDateTime
         for number in range(int(interaction['number'])+1):                
             if (interaction['type-schedule-reminder'] == 'offset-time'):
                 sendingDateTime += timedelta(minutes=int(interaction['minutes']))
