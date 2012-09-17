@@ -2,75 +2,10 @@ from twisted.trial.unittest import TestCase
 
 from vusion.dialogue import Dialogue
 from vusion.action import (FeedbackAction, UnMatchingAnswerAction,
-                           ProfilingAction)
+                           ProfilingAction, OffsetConditionAction, Actions)
+from tests.utils import ObjectMaker
 
-class DialogueTestCase(TestCase):
-
-    question_answer = {
-        'dialogue-id': '01',
-        'interactions': [
-            {
-                'interaction-id': '01-01',
-                'type-interaction': 'question-answer',
-                "content": 'How are you?',
-                'keyword': 'FEEL, Fel',
-                'type-question': 'closed-question',
-                'answers': [
-                    {'choice': 'Fine',
-                     'feedbacks': [
-                         {'content':'thank you'},
-                         {'content':'thank you again'}]
-                     },
-                    {'choice': 'Ok'}],
-                'type-schedule': 'immediately'},
-            {
-                'interaction-id': '01-02',
-                'type-interaction': 'question-answer',
-                "content": 'What is your name?',
-                'keyword': 'name',
-                'type-question': 'open-question',
-                'answer-label': 'name',
-                'feedbacks': [
-                    {'content':'thank you for this answer'}],
-                'type-schedule': 'immediately'
-            }
-        ]
-    }
-
-    other_question_answer = {
-        "name": "something",
-        "interactions": [
-            {"type-schedule": "immediately",
-             "type-interaction": "question-answer",
-             "content": "How are you [participant.name]?",
-             "keyword": "Fool",
-             "type-reminder": "no-reminder",
-             "type-question": "close-question",
-             "answers": [
-                 {"choice": "Good",
-                  "feedbacks": [
-                      {"content": "So have a nice day [participant.name]"}
-                  ]
-                  },
-                 {"choice": "Bad",
-                  "feedbacks": [
-                      {"content": "Come one [participant.name], you can get over it!"}]}
-                 ],
-             "interaction-id": "script.dialogues[0].interactions[0]"
-             },
-            {"type-schedule": "immediately",
-             "type-interaction": "question-answer",
-             "content": "What is your gender?",
-             'label-for-participant-profiling': 'gender',
-             "keyword": "GEN",
-             "answers": [
-                 {"choice": "Male"},
-                 {"choice": "Bad"}],
-             "interaction-id": "script.dialogues[0].interactions[2]"
-             },
-            ],
-        "dialogue-id": "script.dialogues[0]"
-    }
+class DialogueTestCase(TestCase, ObjectMaker):
 
     def setUp(self):
         pass
@@ -79,7 +14,7 @@ class DialogueTestCase(TestCase):
         pass
 
     def test_get_matchin_question_answer(self):
-        script = Dialogue(self.question_answer)
+        script = Dialogue(self.dialogue_question_answer)
 
         ref, actions = script.get_matching_reference_and_actions("feel 1", [])
         self.assertEqual(ref, {'dialogue-id': '01',
@@ -142,7 +77,7 @@ class DialogueTestCase(TestCase):
             actions[1], 
             ProfilingAction(**{'label': 'name','value': ''}))
 
-        script = Dialogue(self.other_question_answer)
+        script = Dialogue(self.dialogue_other_question_answer)
         ref, actions = script.get_matching_reference_and_actions("something good", [])
 
         self.assertEqual(ref, {})
@@ -158,7 +93,23 @@ class DialogueTestCase(TestCase):
             ProfilingAction(**{'label': 'gender', 'value': 'Male'}))
 
     def test_get_all_keywords(self):
-        script = Dialogue(self.question_answer)
+        script = Dialogue(self.dialogue_question_answer)
 
         self.assertTrue(script.get_all_keywords(),
                         ['feel', 'fel'])
+
+    def test_get_offset_condition_action(self):
+        script = Dialogue(self.mkobj_dialogue_question_offset_conditional())
+        actions = Actions()
+        
+        ref, actions = script.get_matching_reference_and_actions("feel 1", actions)
+        
+        self.assertEqual(
+            actions[0],
+            OffsetConditionAction(**{'interaction-id': '01-02',
+                                     'dialogue-id': '01'}))
+
+        self.assertEqual(
+            actions[1],
+            OffsetConditionAction(**{'interaction-id': '01-03',
+                                     'dialogue-id': '01'}))

@@ -1,6 +1,8 @@
+from vumi import log
 from vumi.utils import get_first_word
 from vusion.action import (UnMatchingAnswerAction, FeedbackAction,
-                           action_generator, ProfilingAction)
+                           action_generator, ProfilingAction,
+                           OffsetConditionAction)
 
 def split_keywords(keywords):
     return [k.lower() for k in (keywords or '').split(', ')]
@@ -26,6 +28,14 @@ class Dialogue:
             if keyword in self.split_keywords(interaction['keyword']):
                 return self.dialogue['dialogue-id'], interaction
         return None, None
+
+    def get_offset_condition_interactions(self, interaction_id):
+        offset_condition_interactions = []
+        for interaction in self.dialogue['interactions']:
+            if (interaction['type-schedule'] == 'offset-condition' and
+                    interaction['offset-condition-interaction-id'] == interaction_id):
+                offset_condition_interactions.append(interaction['interaction-id'])
+        return offset_condition_interactions
 
     def get_matching_answer(self, answers, reply):
         try:
@@ -73,7 +83,12 @@ class Dialogue:
             if 'answer-label' in interaction:
                 actions.append(ProfilingAction(**{
                     'label': interaction['answer-label'],
-                    'value': self.get_open_answer(message)}))
+                    'value': self.get_open_answer(message)}))        
+        # Check if offset condition on this answer
+        for interaction_to_schedule in self.get_offset_condition_interactions(interaction['interaction-id']):
+            actions.append(OffsetConditionAction(**{
+                'dialogue-id': dialogue_id,
+                'interaction-id': interaction_to_schedule}))
         return reference_metadata, actions
 
     def get_open_answer(self, message):
