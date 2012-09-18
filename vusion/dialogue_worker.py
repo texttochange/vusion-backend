@@ -32,7 +32,10 @@ from vusion.message import DispatcherControl
 from vusion.action import Actions, action_generator, FeedbackAction
 
 class TtcGenericWorker(ApplicationWorker):
-
+    
+    INCOMING = "incoming"
+    OUTGOING = "outgoing"
+    
     def __init__(self, *args, **kwargs):
         super(TtcGenericWorker, self).__init__(*args, **kwargs)
 
@@ -153,12 +156,10 @@ class TtcGenericWorker(ApplicationWorker):
             return participant['session-id']
 
     def get_current_dialogue(self, dialogue_id):
-        for dialogue in self.collections['dialogues'].find(
-                {'activated': 1, 'dialogue-id': dialogue_id},
-                sort=[('modified', pymongo.DESCENDING)],
-                limit=1):
-            return dialogue
-        return None
+        return self.collections['dialogues'].find_one(
+            {'activated': 1, 'dialogue-id': dialogue_id},
+            sort=[('modified', pymongo.DESCENDING)],
+            limit=1)
 
     def get_active_dialogues(self):
         return self.collections['dialogues'].group(
@@ -171,11 +172,11 @@ class TtcGenericWorker(ApplicationWorker):
             prev.Dialogue = obj;}"""
         )
 
-    def get_dialogue(self, dialogue_id):
+    def get_dialogue_obj(self, dialogue_obj_id):
         dialogue = self.collections['dialogues'].find_one(
-            {'_id': ObjectId(dialogue_id)})
+            {'_id': ObjectId(dialogue_obj_id)})
         return dialogue
-
+    
     def init_program_db(self, database_name, vusion_database_name):
         self.log("Initialization of the program")
         self.database_name = database_name
@@ -220,7 +221,7 @@ class TtcGenericWorker(ApplicationWorker):
                 yield self.register_keywords_in_dispatcher()
                 self.schedule()
             elif message['action'] == 'test-send-all-messages':
-                dialogue = self.get_dialogue(message['dialogue_obj_id'])
+                dialogue = self.get_dialogue_obj(message['dialogue_obj_id'])
                 yield self.send_all_messages(dialogue, message['phone_number'])
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -230,22 +231,22 @@ class TtcGenericWorker(ApplicationWorker):
 
     def dispatch_event(self, message):
         self.log("Event message received %s" % (message,))
-        status = self.collections['history'].find_one({
+        history = self.collections['history'].find_one({
             'message-id': message['user_message_id']
         })
-        if (not status):
+        if (not history):
             self.log('No reference of this event in history, nothing stored.')
             return
         if (message['event_type'] == 'ack'):
-            status['message-status'] = 'ack'
+            history['message-status'] = 'ack'
         if (message['event_type'] == 'delivery_report'):
-            status['message-status'] = message['delivery_status']
+            history['message-status'] = message['delivery_status']
             if (message['delivery_status'] == 'failed'):
-                status['failure-reason'] = ("Code:%s Level:%s Message:%s" % (
+                history['failure-reason'] = ("Code:%s Level:%s Message:%s" % (
                     message['failure_code'],
                     message['failure_level'],
                     message['failure_reason']))
-        self.collections['history'].save(status)
+        self.collections['history'].save(history)
 
     def get_matching_request_actions(self, content, actions):
         regx = re.compile(('(,\s|^)%s($|,)' % content), re.IGNORECASE)
@@ -273,7 +274,7 @@ class TtcGenericWorker(ApplicationWorker):
 
     def run_action(self, participant_phone, action):
         regex_ANSWER = re.compile('ANSWER')
-        
+        self.log(("Run action for %s %s" % (participant_phone, action,)))
         if (action.get_type() == 'optin'):
             participant = self.collections['participants'].find_one({'phone': participant_phone})
             if participant:
@@ -344,6 +345,11 @@ class TtcGenericWorker(ApplicationWorker):
             self.collections['participants'].update(
                 {'phone': participant_phone},
                 {'$set': {('profile.%s' % action['label']): action['value']}})
+        elif (action.get_type() == 'offset-conditioning'):
+            self.schedule_participant_dialogue(
+                self.collections['participants'].find_one({'phone':participant_phone,
+                                                          'session-id':{'$ne':None}}),
+                self.get_current_dialogue(action['dialogue-id']))
         else:
             self.log("The action is not supported %s" % action['type-action'])
 
@@ -363,18 +369,18 @@ class TtcGenericWorker(ApplicationWorker):
             actions = self.get_matching_request_actions(
                 message['content'],
                 actions)
-            
-            participant = self.collections['participants'].find_one({'phone': message['from_addr'], 
-                                                                    'session-id': {'$ne': None}})
-            if participant or actions.contains('optin') or actions.contains('enrolled'):
-                for action in actions.items():
-                    self.run_action(message['from_addr'], action)
+            participant = self.collections['participants'].find_one(
+                {'phone': message['from_addr'], 
+                 'session-id': {'$ne': None}})
             self.save_history(
                 message_content=message['content'],
                 participant_phone=message['from_addr'],
                 participant_session_id=self.get_participant_session_id(message['from_addr']),
                 message_direction='incoming',
                 reference_metadata=ref)
+            if participant or actions.contains('optin') or actions.contains('enrolled'):
+                for action in actions.items():
+                    self.run_action(message['from_addr'], action)
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log(
@@ -438,10 +444,10 @@ class TtcGenericWorker(ApplicationWorker):
             schedule = self.collections['schedules'].find_one({
                 'participant-phone': participant['phone'],
                 'unattach-id': unattach_message['_id']})
-            status = self.collections['history'].find_one({
+            history = self.collections['history'].find_one({
                 'participant-phone': participant['phone'],
                 'unattach-id': unattach_message['_id']})
-            if status is not None:
+            if history is not None:
                 continue
             if schedule is None:
                 schedule = {
@@ -471,9 +477,11 @@ class TtcGenericWorker(ApplicationWorker):
                     "interaction-id": interaction["interaction-id"]})
                 history = self.collections['history'].find_one(
                     {"participant-phone": participant['phone'],
+                     "participant-session-id": participant['session-id'],
+                     "message-direction": self.OUTGOING,
                      "dialogue-id": dialogue["dialogue-id"],
                      "interaction-id": interaction["interaction-id"]},
-                    sort=[("datetime", pymongo.ASCENDING)])
+                    sort=[("timestamp", pymongo.ASCENDING)])
 
                 if history:
                     previousSendDateTime = time_from_vusion_format(history["timestamp"])
@@ -486,6 +494,19 @@ class TtcGenericWorker(ApplicationWorker):
                     sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
                 elif (interaction['type-schedule'] == 'fixed-time'):
                     sendingDateTime = time_from_vusion_format(interaction['date-time'])
+                elif (interaction['type-schedule'] == 'offset-condition'):
+                    previous = self.collections['history'].find_one(
+                        {"participant-phone": participant['phone'],
+                         "participant-session-id": participant['session-id'],
+                         "message-direction": self.INCOMING,
+                         "dialogue-id": dialogue["dialogue-id"],
+                         "interaction-id": interaction["offset-condition-interaction-id"],
+                         "$or": [{'matching-answer': {'$exists': False}},
+                                 {'matching-answer': {'$ne': None}}]})
+                    # if the answer 
+                    if  previous is None:
+                        continue
+                    sendingDateTime = self.get_local_time()
 
                 #Scheduling a date already in the past is forbidden.
                 if (sendingDateTime + timedelta(minutes=10) < self.get_local_time()):

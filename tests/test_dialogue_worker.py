@@ -16,9 +16,26 @@ import pymongo
 import pytz
 
 
+<<<<<<< HEAD
+=======
+from bson.objectid import ObjectId
+from bson.timestamp import Timestamp
+>>>>>>> develop
 
 
 
+<<<<<<< HEAD
+=======
+from vusion.dialogue_worker import TtcGenericWorker
+from vusion.utils import time_to_vusion_format, time_from_vusion_format
+from vusion.error import MissingData, MissingTemplate
+from vusion.action import (UnMatchingAnswerAction, EnrollingAction,
+                           FeedbackAction, OptinAction, OptoutAction,
+                           TaggingAction, ProfilingAction,
+                           OffsetConditionAction)
+from transports import YoUgHttpTransport
+from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
+>>>>>>> develop
 
 
 class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
@@ -46,7 +63,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.broker.queue_bind("%s.outbound" % self.transport_name,
                                "vumi",
                                "%s.outbound" % self.transport_name)
-
         #Database#
         connection = pymongo.Connection("localhost", 27017)
         self.db = connection[self.config['database_name']]
@@ -71,6 +87,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
     @inlineCallbacks
     def tearDown(self):
+        self.broker.dispatched = {}
         self.drop_collections()
         if (self.worker.sender is not None):
             yield self.worker.sender.stop()
@@ -86,18 +103,19 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         yield self.broker.kick_delivery()
 
     def save_history(self, message_content="hello world",
-                     participant_phone="256", message_direction="send",
-                     message_status="delivered", timestamp=datetime.now(),
-                     dialogue_id=None, interaction_id=None):
-        self.collections['history'].save({
+                     participant_phone="256", participant_session_id="1",
+                     message_direction="outgoing", message_status="delivered",
+                     timestamp=datetime.now(), metadata={}):
+        history = {
             'message-content': message_content,
+            'participant-session-id': participant_session_id,
             'participant-phone': participant_phone,
             'message-direction': message_direction,
             'message-status': message_status,
-            'timestamp': timestamp,
-            'dialogue-id': dialogue_id,
-            'interaction-id': interaction_id
-        })
+            'timestamp': time_to_vusion_format(timestamp)}
+        for key in metadata:
+            history[key] = metadata[key] 
+        self.collections['history'].save(history)
 
 
     def test03_multiple_dialogue_in_collection(self):
@@ -149,7 +167,18 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual(dialogues[1]['Dialogue']['_id'],
                          id_active_dialogue_two)
 
-    def test04_schedule_participant_dialogue(self):
+    def test03_get_current_dialogue(self):
+        dialogue = self.mkobj_dialogue_annoucement()
+        dialogue['modified'] = Timestamp(datetime.now()-timedelta(minutes=1),0)
+        self.collections['dialogues'].save(dialogue)
+        other_dialogue = self.mkobj_dialogue_annoucement()
+        other_dialogue['interactions'] = []
+        self.collections['dialogues'].save(other_dialogue)
+        active_dialogue = self.worker.get_current_dialogue("0")
+        self.assertTrue(active_dialogue)
+        self.assertEqual([], active_dialogue['interactions'])
+
+    def test04_schedule_participant_dialogue_offset_days(self):
         config = self.simple_config
         dialogue = self.dialogue_annoucement
         mytimezone = self.program_settings[2]['value']
@@ -167,8 +196,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.worker.schedule_participant_dialogue(
             participant, dialogue)
 
-        schedules_count = self.collections['schedules'].count()
-        self.assertEqual(schedules_count, 2)
+        self.assertEqual(self.collections['schedules'].count(),2)
 
         schedules = self.collections['schedules'].find()
         #assert time calculation
@@ -277,7 +305,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         saved_participant = self.collections['participants'].find_one()
         self.assertEqual(saved_participant['session-id'], None)
     
-    def test06_schedule_interaction_while_interaction_in_status(self):
+    def test06_schedule_interaction_while_interaction_in_history(self):
         mytimezone = self.program_settings[2]['value']
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
         dPast = dNow - timedelta(minutes=30)
@@ -287,10 +315,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)
         self.save_history(
-            timestamp=dPast.strftime(self.time_format),
+            timestamp=dPast,
             participant_phone='06',
-            interaction_id='0',
-            dialogue_id='0')
+            participant_session_id=participant['session-id'],
+            metadata = {'interaction-id':'0',
+                        'dialogue-id':'0'})
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -322,15 +351,17 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)
         #Declare collection for scheduling messages
-        self.collections['schedules'].save({'date-time': dFuture.strftime(self.time_format),
-                                        'participant-phone': '06',
-                                        'interaction-id': '1',
-                                        'dialogue-id': '0'})
-        #Declare collection for loging messages
-        self.save_history(timestamp=dPast.strftime(self.time_format),
-                         participant_phone='06',
-                         interaction_id='0',
-                         dialogue_id='0')
+        self.collections['schedules'].save({
+            'date-time': dFuture.strftime(self.time_format),
+            'participant-phone': '06',
+            'interaction-id': '1',
+            'dialogue-id': '0'})
+        self.save_history(
+            timestamp=dPast,
+            participant_phone='06',
+            participant_session_id='1',
+            metadata = {'interaction-id':'0',
+                        'dialogue-id':'0'})
 
         #Starting the test
         schedules = self.worker.schedule_participant_dialogue(
@@ -365,10 +396,10 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
              'dialogue-id': '0'})
 
         #Declare collection for logging messages
-        self.save_history(timestamp=dLaterPast.strftime(self.time_format),
+        self.save_history(timestamp=dLaterPast,
                          participant_phone='06',
-                         interaction_id='0',
-                         dialogue_id='0')
+                         metadata = {'interaction-id':'0',
+                                     'dialogue-id':'0'})
 
         #Starting the test
         self.worker.schedule_participant_dialogue(
@@ -379,7 +410,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
     def test09_schedule_at_fixed_time(self):
         dialogue = self.dialogue_announcement_fixedtime
-        participant = {'phone': '08'}
+        participant = self.mkobj_participant('06')
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -588,7 +619,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
     @inlineCallbacks
     def test16_received_ack(self):
-        event = self.mkmsg_delivery_for_send(event_type='ack')
+        event = self.mkmsg_delivery_for_send(event_type='ack',
+                                             user_message_id='2')
 
         self.collections['history'].save({
             'message-id': event['user_message_id'],
@@ -605,23 +637,25 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
     @inlineCallbacks
     def test17_receive_inbound_message(self):
-        self.collections['dialogues'].save(self.dialogue_question)
-        self.collections['dialogues'].save(self.dialogue_annoucement_2)
+        self.collections['dialogues'].save(self.mkobj_dialogue_question_offset_days())
         self.collections['requests'].save(self.request_join)
-        
+         
         self.collections['participants'].save(self.mkobj_participant('06'))
 
-        inbound_msg_matching = self.mkmsg_in(from_addr='06',
-                                             content='Feel ok')
+        inbound_msg_matching = self.mkmsg_in(
+            from_addr='06',
+            content='Feel ok')
         yield self.send(inbound_msg_matching, 'inbound')
-
+        
         #Only message matching keyword should be forwarded to the worker
-        inbound_msg_non_matching_keyword = self.mkmsg_in(from_addr='06',
-                                                         content='ok')
+        inbound_msg_non_matching_keyword = self.mkmsg_in(
+            from_addr='06',
+            content='ok')
         yield self.send(inbound_msg_non_matching_keyword, 'inbound')
 
-        inbound_msg_non_matching_answer = self.mkmsg_in(from_addr='06',
-                                                        content='Feel good')
+        inbound_msg_non_matching_answer = self.mkmsg_in(
+            from_addr='06',
+            content='Feel good')
         yield self.send(inbound_msg_non_matching_answer, 'inbound')
 
         self.assertEqual(3, self.collections['history'].count())
@@ -800,6 +834,84 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual(participant['session-id'], participant_reoptin['session-id'])
         self.assertEqual(participant['last-optin-date'], participant_reoptin['last-optin-date'])
 
+    def test18_run_action_offset_condition(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        dNow = self.worker.get_local_time()
+       
+        self.collections['dialogues'].save(self.mkobj_dialogue_question_offset_conditional())
+        self.collections['dialogues'].save(self.mkobj_dialogue_open_question_offset_conditional())
+        self.collections['participants'].save(self.mkobj_participant('06'))
+
+        self.save_history(
+            timestamp=dNow - timedelta(minutes=30),
+            participant_phone='06',
+            participant_session_id='1',
+            metadata={'dialogue-id':'01',
+                      'interaction-id':'01-01'})
+
+        self.save_history(
+            timestamp=dNow - timedelta(minutes=30),
+            participant_phone='06',
+            participant_session_id='1',
+            metadata={'dialogue-id':'04',
+                      'interaction-id':'01-01'})
+        
+        # a non matching answer do not trigger the offsetcondition
+        self.save_history(
+            timestamp=dNow,
+            participant_phone='06',
+            participant_session_id='1',
+            message_direction='incoming',
+            metadata={'dialogue-id':'01',
+                      'interaction-id':'01-01',
+                      'matching-answer':None})
+
+        # Need to store the message into the history
+        self.worker.run_action("06", OffsetConditionAction(**{
+            'dialogue-id': '01',
+            'interaction-id':'01-02'}))
+        self.assertEqual(self.collections['schedules'].count(),
+                         0)
+        
+        self.save_history(
+            timestamp=dNow,
+            participant_phone='06',
+            participant_session_id='1',
+            message_direction="incoming",
+            metadata={'dialogue-id':'01',
+                      'interaction-id':'01-01',
+                      'matching-answer':'Fine'})
+
+        # Need to store the message into the history
+        self.worker.run_action("06", OffsetConditionAction(**{
+            'dialogue-id': '01',
+            'interaction-id':'01-02'}))
+        self.assertEqual(self.collections['schedules'].count(),
+                         2)
+        
+        # Do not reschedule
+        self.worker.run_action("06", OffsetConditionAction(**{
+            'dialogue-id': '01',
+            'interaction-id':'01-02'}))        
+        self.assertEqual(self.collections['schedules'].count(),
+                         2)
+        
+        # Do send if open question
+        self.save_history(
+            timestamp=dNow,
+            participant_phone='06',
+            participant_session_id='1',
+            message_direction='incoming',
+            metadata={'dialogue-id':'04',
+                      'interaction-id':'01-01'})
+
+        self.worker.run_action("06", OffsetConditionAction(**{
+            'dialogue-id': '04',
+            'interaction-id':'01-01'}))        
+        self.assertEqual(self.collections['schedules'].count(),
+                         3)
 
     def test19_schedule_process_handle_crap_in_history(self):
         dialogue = self.dialogue_annoucement
@@ -813,8 +925,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
         self.save_history(
             participant_phone="06",
-            interaction_id=None,
-            dialogue_id=None)
+            metadata={'dialogue-id':None,
+                      'interaction-id':None})
 
         self.worker.schedule_participant_dialogue(
             participant, dialogue)
@@ -846,7 +958,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         unattach_id = self.collections['unattached_messages'].save(unattach_messages[0])
         self.collections['unattached_messages'].save(unattach_messages[1])
 
-        self.collections['history'].save(self.mkobj_history_unattach(unattach_id))
+        self.collections['history'].save(self.mkobj_history_unattach(
+            unattach_id, dPast))
 
         self.worker.load_data()
 
@@ -931,8 +1044,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
     @inlineCallbacks
     def test25_consume_control_test_send_all_messages(self):
         dialogue_id = self.collections['dialogues'].save(
-            self.dialogue_annoucement)
-        self.collections['participants'].save({'phone': '08'})
+            self.mkobj_dialogue_annoucement())
+        self.collections['participants'].save(self.mkobj_participant('08'))
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -943,4 +1056,4 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         yield self.send(event, 'control')
 
         messages = self.broker.get_messages('vumi', 'test.outbound')
-        self.assertEqual(len(messages), 2)
+        self.assertEqual(len(messages), 1)
