@@ -110,7 +110,7 @@ class TtcGenericWorker(ApplicationWorker):
             'date-time': date_time}        
         if '_id' in kwargs and kwargs['_id'] is not None: 
             schedule['_id']= kwargs['_id']
-        if object_type=='dialogue-schedule' or object_type=='deadline-schedule':
+        if object_type=='dialogue-schedule' or object_type=='deadline-schedule' or object_type=='reminder-schedule':
             schedule['dialogue-id']=kwargs['dialogue_id']
             schedule['interaction-id']=kwargs['interaction_id']
         elif object_type=='unattach-schedule':
@@ -350,6 +350,11 @@ class TtcGenericWorker(ApplicationWorker):
                 self.collections['participants'].find_one({'phone':participant_phone,
                                                           'session-id':{'$ne':None}}),
                 self.get_current_dialogue(action['dialogue-id']))
+        elif (action.get_type() == 'remove-reminders'):
+            self.collections['schedules'].remove({
+                'participant-phone': participant_phone,
+                'dialogue-id': action['dialogue-id'],
+                'interaction-id': action['interaction-id']})
         else:
             self.log("The action is not supported %s" % action['type-action'])
 
@@ -473,6 +478,7 @@ class TtcGenericWorker(ApplicationWorker):
             for interaction in dialogue['interactions']:
                 schedule = self.collections['schedules'].find_one({
                     "participant-phone": participant['phone'],
+                    "object-type": 'dialogue-schedule',
                     "dialogue-id": dialogue["dialogue-id"],
                     "interaction-id": interaction["interaction-id"]})
                 history = self.collections['history'].find_one(
@@ -549,6 +555,14 @@ class TtcGenericWorker(ApplicationWorker):
         if not 'type-schedule-reminder' in interaction:
             return
         
+        schedules = self.collections['schedules'].find({
+            "participant-phone": participant['phone'],
+            "object-type": 'reminder-schedule',
+            "dialogue-id": dialogue["dialogue-id"],
+            "interaction-id": interaction["interaction-id"]})
+        for reminder_schedule_to_be_deleted in schedules:
+            self.collections['schedules'].remove(reminder_schedule_to_be_deleted['_id'])
+        
         if (interaction['type-schedule-reminder'] == 'offset-days'):
             #sendingDay = time_from_vusion_format(participant['last-optin-date'])
             sendingDay = initialSendDateTime
@@ -570,11 +584,11 @@ class TtcGenericWorker(ApplicationWorker):
                 "dialogue-id": dialogue['dialogue-id'],
                 "interaction-id": interaction["interaction-id"]}                                                                               
             self.save_schedule(schedule['participant-phone'],
-                               self.to_vusion_format(sendingDateTime),
-                               'dialogue-schedule' if number < int(interaction['number']) else 'deadline-schedule',
-                               _id=schedule['_id'],
-                               dialogue_id=schedule['dialogue-id'],
-                               interaction_id=schedule['interaction-id'])
+                self.to_vusion_format(sendingDateTime),
+                'reminder-schedule' if number < int(interaction['number']) else 'deadline-schedule',
+                _id=schedule['_id'],
+                dialogue_id=schedule['dialogue-id'],
+                interaction_id=schedule['interaction-id'])
             
 
     def get_local_time(self):

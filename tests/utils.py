@@ -1,4 +1,4 @@
-
+from copy import deepcopy
 from datetime import datetime
 import time
 
@@ -318,7 +318,7 @@ class ObjectMaker:
         }
 
     def mkobj_dialogue_question_offset_conditional(self):
-        dialogue = self.dialogue_question
+        dialogue = deepcopy(self.dialogue_question)
         dialogue['created'] = Timestamp(datetime.now(),0)
         dialogue['modified'] = Timestamp(datetime.now(),0)
         dialogue['interactions'].append(
@@ -371,6 +371,10 @@ class ObjectMaker:
                  {'type-action': 'optout'}]
              }]
     }
+    
+    def mkobj_dialogue_open_question_reminder(self):
+        dialogue = deepcopy(self.dialogue_open_question_with_reminder)
+        return dialogue
 
     def mkobj_dialogue_open_question_offset_conditional(self):
         dialogue = self.dialogue_open_question

@@ -2,7 +2,7 @@ from vumi import log
 from vumi.utils import get_first_word
 from vusion.action import (UnMatchingAnswerAction, FeedbackAction,
                            action_generator, ProfilingAction,
-                           OffsetConditionAction)
+                           OffsetConditionAction, RemoveRemindersAction)
 
 def split_keywords(keywords):
     return [k.lower() for k in (keywords or '').split(', ')]
@@ -36,6 +36,11 @@ class Dialogue:
                     interaction['offset-condition-interaction-id'] == interaction_id):
                 offset_condition_interactions.append(interaction['interaction-id'])
         return offset_condition_interactions
+    
+    def get_remove_reminders_action(self, interaction):
+        if 'set-reminder' in interaction:
+            return interaction
+        return None        
 
     def get_matching_answer(self, answers, reply):
         try:
@@ -62,6 +67,11 @@ class Dialogue:
         reference_metadata = {
             'dialogue-id': dialogue_id,
             'interaction-id': interaction['interaction-id']}
+        interaction_to_remove_reminders = self.get_remove_reminders_action(interaction)
+        if interaction_to_remove_reminders is not None:
+            actions.append(RemoveRemindersAction(**{
+                'dialogue-id': dialogue_id,
+                'interaction-id':interaction['interaction-id']}))
         if 'answers' in interaction:
             answer = self.get_matching_answer(interaction['answers'], reply)
             if not answer or answer is None:

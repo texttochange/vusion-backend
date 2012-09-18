@@ -26,7 +26,7 @@ from vusion.error import MissingData, MissingTemplate
 from vusion.action import (UnMatchingAnswerAction, EnrollingAction,
                            FeedbackAction, OptinAction, OptoutAction,
                            TaggingAction, ProfilingAction,
-                           OffsetConditionAction)
+                           OffsetConditionAction, RemoveRemindersAction)
 from transports import YoUgHttpTransport
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 
@@ -284,7 +284,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         
         self.worker.load_data()
 
-        dialogue = self.dialogue_open_question_with_reminder
+        dialogue = self.mkobj_dialogue_open_question_reminder()
         participant = self.mkobj_participant('06')
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)
@@ -348,6 +348,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.collections['schedules'].save({
             'date-time': dFuture.strftime(self.time_format),
             'participant-phone': '06',
+             'object-type': 'dialogue-schedule',
             'interaction-id': '1',
             'dialogue-id': '0'})
         self.save_history(
@@ -386,6 +387,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.collections['schedules'].save(
             {'date-time': dPast.strftime(self.time_format),
              'participant-phone': '06',
+             'object-type': 'dialogue-schedule',
              'interaction-id': '1',
              'dialogue-id': '0'})
 
@@ -444,7 +446,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.worker.load_data()
 
         interaction = dialogue['interactions'][0]
-        # change the date-tiem of the interaction to match dPast
+        # change the date-time of the interaction to match dPast
         interaction['date-time'] = time_to_vusion_format(dPast)
         self.worker.schedule_participant_reminders(
             participant, dialogue, interaction, time_from_vusion_format(interaction['date-time']))
@@ -469,6 +471,10 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual(schedules[0]['dialogue-id'], schedules[2]['dialogue-id'])
         self.assertEqual(schedules[0]['interaction-id'], schedules[1]['interaction-id'])
         self.assertEqual(schedules[0]['interaction-id'], schedules[2]['interaction-id'])
+        
+        #assert that first schedules are reminder-schedules
+        self.assertEqual(schedules[0]['object-type'], 'reminder-schedule')
+        self.assertEqual(schedules[1]['object-type'], 'reminder-schedule')
         
         #assert last reminder is deadline-schedule
         self.assertEqual(schedules[2]['object-type'], 'deadline-schedule')
@@ -906,6 +912,29 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             'interaction-id':'01-01'}))        
         self.assertEqual(self.collections['schedules'].count(),
                          3)
+        
+    def test18_run_action_remove_reminders(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        dNow = self.worker.get_local_time()
+        dPast = dNow - timedelta(minutes=30)
+       
+        dialogue = self.mkobj_dialogue_open_question_reminder()
+        participant = self.mkobj_participant('06')
+        
+        interaction = dialogue['interactions'][0]
+        interaction['date-time'] = time_to_vusion_format(dPast)
+        self.worker.schedule_participant_reminders(
+            participant, dialogue, interaction, time_from_vusion_format(interaction['date-time']))
+
+        schedules_count = self.collections['schedules'].count()
+        self.assertEqual(schedules_count, 3)
+        
+        self.worker.run_action("06", RemoveRemindersAction(**{
+            'dialogue-id': dialogue['dialogue-id'],
+            'interaction-id': interaction['interaction-id']}))        
+        self.assertEqual(self.collections['schedules'].count(), 0)
 
     def test19_schedule_process_handle_crap_in_history(self):
         dialogue = self.dialogue_annoucement
