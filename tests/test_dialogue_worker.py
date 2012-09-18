@@ -16,16 +16,10 @@ import pymongo
 import pytz
 
 
-<<<<<<< HEAD
-=======
 from bson.objectid import ObjectId
 from bson.timestamp import Timestamp
->>>>>>> develop
 
 
-
-<<<<<<< HEAD
-=======
 from vusion.dialogue_worker import TtcGenericWorker
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from vusion.error import MissingData, MissingTemplate
@@ -35,7 +29,7 @@ from vusion.action import (UnMatchingAnswerAction, EnrollingAction,
                            OffsetConditionAction)
 from transports import YoUgHttpTransport
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
->>>>>>> develop
+
 
 
 class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
