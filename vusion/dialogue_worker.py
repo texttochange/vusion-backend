@@ -120,7 +120,8 @@ class TtcGenericWorker(ApplicationWorker):
             schedule['type-content']='feedback'
         else:
             raise VusionError('object type not supported by schedule %s' % object_type)
-        self.collections['schedules'].save(schedule)
+        self.log("schedule is %r" % schedule)
+        self.collections['schedules'].save(schedule)        
 
     def save_history(self, message_content, participant_phone,
                      message_direction, participant_session_id=None,
@@ -557,7 +558,8 @@ class TtcGenericWorker(ApplicationWorker):
         
         schedules = self.collections['schedules'].find({
             "participant-phone": participant['phone'],
-            "object-type": 'reminder-schedule',
+            "$or":[{"object-type":'reminder-schedule'},
+                   {"object-type": 'deadline-schedule'}],
             "dialogue-id": dialogue["dialogue-id"],
             "interaction-id": interaction["interaction-id"]})
         for reminder_schedule_to_be_deleted in schedules:

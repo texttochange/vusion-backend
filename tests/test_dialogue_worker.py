@@ -342,8 +342,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             self.time_format)
 
         #program = json.loads(self.simpleProgram)['program']
-        self.collections['dialogues'].save(dialogue)
-        self.collections['participants'].save(participant)
+
         #Declare collection for scheduling messages
         self.collections['schedules'].save({
             'date-time': dFuture.strftime(self.time_format),
@@ -935,6 +934,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             'dialogue-id': dialogue['dialogue-id'],
             'interaction-id': interaction['interaction-id']}))        
         self.assertEqual(self.collections['schedules'].count(), 0)
+        self.assertEqual(self.collections['schedules'].find_one({'object-type':'reminder-schedule'}), None)
+        self.assertEqual(self.collections['schedules'].find_one({'object-type':'deadline-schedule'}), None)
 
     def test19_schedule_process_handle_crap_in_history(self):
         dialogue = self.dialogue_annoucement
