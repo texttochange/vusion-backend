@@ -550,11 +550,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual('ack', status['message-status'])
 
     @inlineCallbacks
-    def test17_receive_inbound_message(self):
+    def test17_receive_inbound_message_matching(self):
         self.collections['dialogues'].save(self.mkobj_dialogue_question_offset_days())
-        request_id = self.collections['requests'].save(self.mkobj_request_join())
-         
-        self.collections['participants'].save(self.mkobj_participant('06'))
+        #request_id = self.collections['requests'].save(self.mkobj_request_join())
+        self.collections['participants'].save(self.mkobj_participant('06',
+                                                                     enrolled=['01']))
 
         inbound_msg_matching = self.mkmsg_in(
             from_addr='06',
@@ -580,26 +580,13 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual(None, histories[2]['matching-answer'])
         for history in histories:
             self.assertEqual('1', history['participant-session-id'])
-
         self.assertEqual(1, self.collections['schedules'].count())
 
-        inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
-                                                     content='wWw')
-        yield self.send(inbound_msg_matching_request, 'inbound')
-
-        inbound_msg_matching_request = self.mkmsg_in(from_addr='08',
-                                                     content='www join')
-        yield self.send(inbound_msg_matching_request, 'inbound')
-
-        self.assertEqual(5, self.collections['history'].count())
-        self.assertEqual(3, self.collections['participants'].count())
-        self.assertEqual(7, self.collections['schedules'].count())
-        histories = self.collections['history'].find({'request-id':{'$exists':True}})
-        self.assertEqual(histories.count(), 2)
-        self.assertEqual(histories[0]['request-id'], request_id)
-        self.assertEqual(histories[1]['request-id'], request_id)
-
-        self.collections['dialogues'].save(self.dialogue_open_question)
+    @inlineCallbacks
+    def test17_receiving_inbound_message_no_repeat_dialogue_action(self):
+        self.collections['dialogues'].save(self.mkobj_dialogue_open_question())
+        self.collections['participants'].save(self.mkobj_participant('06',
+                                                                     enrolled=['04']))
 
         inbound_msg_matching_request = self.mkmsg_in(
             from_addr='06',
@@ -609,13 +596,65 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         participant = self.collections['participants'].find_one({'phone': '06'})
         self.assertTrue('name' in participant['profile'])
         self.assertEqual('john doe', participant['profile']['name'])
+        
+        ## One Way road, and action is not replayed
+        inbound_msg_matching_request = self.mkmsg_in(
+            from_addr='06',
+            content='name olivier')
+        yield self.send(inbound_msg_matching_request, 'inbound')
+        participant = self.collections['participants'].find_one({'phone': '06'})
+        self.assertEqual('john doe', participant['profile']['name']) 
 
-    # non participant = optout or never optin
+    @inlineCallbacks
+    def test17_receiving_inbound_message_only_enrolled(self):
+        self.collections['dialogues'].save(self.mkobj_dialogue_open_question())
+        self.collections['participants'].save(self.mkobj_participant('06'))
+
+        inbound_msg_matching_request = self.mkmsg_in(
+            from_addr='06',
+            content='name john doe')
+        yield self.send(inbound_msg_matching_request, 'inbound')
+
+        participant = self.collections['participants'].find_one({'phone': '06'})
+        self.assertTrue(not 'name' in participant['profile'])
+
+    @inlineCallbacks
+    def test17_receiving_inbound_request(self):
+        request_id = self.collections['requests'].save(self.mkobj_request_response())
+      
+        inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
+                                                     content='wWw info')
+        yield self.send(inbound_msg_matching_request, 'inbound')
+        
+        self.assertEqual(1, self.collections['schedules'].count())
+
+    @inlineCallbacks
+    def test17_receiving_inbound_message_request_optin(self):
+        request_id = self.collections['requests'].save(self.mkobj_request_join())
+      
+        inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
+                                                     content='wWw')
+        yield self.send(inbound_msg_matching_request, 'inbound')
+
+        inbound_msg_matching_request = self.mkmsg_in(from_addr='08',
+                                                     content='www join')
+        yield self.send(inbound_msg_matching_request, 'inbound')
+
+        self.assertEqual(2, self.collections['history'].count())
+        self.assertEqual(2, self.collections['participants'].count())
+        self.assertEqual(4, self.collections['schedules'].count())
+        histories = self.collections['history'].find({'request-id':{'$exists':True}})
+        participant = self.collections['participants'].find_one({'phone': '07'})
+        self.assertEqual(histories.count(), 2)
+        self.assertEqual(histories[0]['request-id'], request_id)
+        self.assertEqual(histories[1]['request-id'], request_id)
+        self.assertEqual(participant['session-id'], histories[0]['participant-session-id'])
+
     @inlineCallbacks
     def test17_receiving_inbound_message_from_non_participant(self):
         self.collections['requests'].save(self.mkobj_request_join())
-        self.collections['requests'].save(self.request_tag)
-        self.collections['requests'].save(self.request_leave)
+        self.collections['requests'].save(self.mkobj_request_tag())
+        self.collections['requests'].save(self.mkobj_request_leave())
         
         # No action in case never optin
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
@@ -623,7 +662,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         yield self.send(inbound_msg_matching, 'inbound')
         
         self.assertEqual(0, self.collections['participants'].count())
-        self.assertEqual(0, self.collections['schedules'].count())
+        self.assertEqual(1, self.collections['schedules'].count())
         self.assertEqual(1, self.collections['history'].count())
 
         # Still participant can optin

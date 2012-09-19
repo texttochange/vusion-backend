@@ -351,6 +351,9 @@ class ObjectMaker:
             'at-time': '22:30'}]
     }
     
+    def mkobj_dialogue_open_question(self):
+        return deepcopy(self.dialogue_open_question)
+    
     def mkobj_dialogue_open_question_offset_conditional(self):
         dialogue = self.dialogue_open_question
         dialogue['created'] = Timestamp(datetime.now(),0)
@@ -462,12 +465,25 @@ class ObjectMaker:
         'responses': [ 
             {'content': 'you are tagged'}]
     }
+    
+    def mkobj_request_tag(self):
+        return deepcopy(self.request_tag)
+
+    def mkobj_request_response(self):
+        return {
+            'keyword': 'www info',
+            'responses': [ 
+                {'content': 'a response'}]
+        }
 
     request_leave = {
         'keyword': 'www quit',
         'actions': [
             {'type-action': 'optout'}]
     }
+
+    def mkobj_request_leave(self):
+        return deepcopy(self.request_leave)
 
     def mkobj_unattach_message(self, recipient='all participants',
                                content='Hello everyone',

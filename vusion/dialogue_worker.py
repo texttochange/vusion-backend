@@ -328,6 +328,7 @@ class TtcGenericWorker(ApplicationWorker):
         elif (action.get_type() == 'tagging'):
             self.collections['participants'].update(
                 {'phone': participant_phone,
+                 'session-id': {'$ne': None},
                  'tags': {'$ne': action['tag']}},
                 {'$push': {'tags': action['tag']}})
         elif (action.get_type() == 'enrolling'):
@@ -346,7 +347,8 @@ class TtcGenericWorker(ApplicationWorker):
             self.schedule_participant_dialogue(participant, dialogue)
         elif (action.get_type() == 'profiling'):
             self.collections['participants'].update(
-                {'phone': participant_phone},
+                {'phone': participant_phone,
+                 'session-id': {'$ne': None}},
                 {'$set': {('profile.%s' % action['label']): action['value']}})
         elif (action.get_type() == 'offset-conditioning'):
             self.schedule_participant_dialogue(
@@ -376,20 +378,36 @@ class TtcGenericWorker(ApplicationWorker):
             participant = self.collections['participants'].find_one(
                 {'phone': message['from_addr'], 
                  'session-id': {'$ne': None}})
+            if ((not ref is None and 'request-id' in ref) 
+                    or (participant and not ref is None and self.is_enrolled(participant, ref['dialogue-id']) and not self.has_already_happend(participant, **ref)) 
+                    or actions.contains('optin') or actions.contains('enrolled')):
+                for action in actions.items():
+                    self.run_action(message['from_addr'], action)
             self.save_history(
                 message_content=message['content'],
                 participant_phone=message['from_addr'],
                 participant_session_id=self.get_participant_session_id(message['from_addr']),
                 message_direction='incoming',
                 reference_metadata=ref)
-            if participant or actions.contains('optin') or actions.contains('enrolled'):
-                for action in actions.items():
-                    self.run_action(message['from_addr'], action)
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log(
                 "Error during consume user message: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
+
+    def is_enrolled(self, participant, dialogue_id):
+        return (dialogue_id in participant['enrolled'])
+
+    def has_already_happend(self, participant, **kwargs):
+        if kwargs is None:
+            return
+        query = {'participant-phone': participant['phone'],
+                 'participant-session-id':participant['session-id']}
+        for key in kwargs:
+            query[key] = kwargs[key]
+        if self.collections['history'].find_one(query) is None:
+            return False
+        return True
 
     @inlineCallbacks
     def daemon_process(self):
