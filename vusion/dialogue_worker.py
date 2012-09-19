@@ -281,7 +281,10 @@ class TtcGenericWorker(ApplicationWorker):
                     self.collections['participants'].update(
                         {'phone': participant_phone},
                         {'$set': {'session-id': uuid4().get_hex(), 
-                                  'last-optin-date': time_to_vusion_format(self.get_local_time())}})
+                                  'last-optin-date': time_to_vusion_format(self.get_local_time()),
+                                  'tags': [],
+                                  'enrolled': [],
+                                  'profile': {} }})
             else:
                 self.collections['participants'].save(self.create_participant(participant_phone))
         elif (action.get_type() == 'optout'):
