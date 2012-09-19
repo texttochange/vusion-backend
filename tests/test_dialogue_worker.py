@@ -1,17 +1,24 @@
-from twisted.trial.unittest import TestCase
+from bson.objectid import ObjectId
+from datetime import datetime, time, date, timedelta
+from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
+from transports import YoUgHttpTransport
 from twisted.internet.defer import inlineCallbacks
-
-import pymongo
+from twisted.trial.unittest import TestCase
+from vumi.message import Message, TransportEvent, TransportUserMessage
+from vumi.tests.utils import get_stubbed_worker, UTCNearNow, RegexMatcher
+from vusion.action import UnMatchingAnswerAction, EnrollingAction, \
+    FeedbackAction, OptinAction, OptoutAction, TaggingAction, ProfilingAction
+from vusion.dialogue_worker import TtcGenericWorker
+from vusion.error import MissingData, MissingTemplate
+from vusion.utils import time_to_vusion_format, time_from_vusion_format
 import json
+import pymongo
+import pytz
+
 
 from bson.objectid import ObjectId
 from bson.timestamp import Timestamp
 
-from datetime import datetime, time, date, timedelta
-import pytz
-
-from vumi.tests.utils import get_stubbed_worker, UTCNearNow, RegexMatcher
-from vumi.message import Message, TransportEvent, TransportUserMessage
 
 from vusion.dialogue_worker import TtcGenericWorker
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
@@ -19,9 +26,10 @@ from vusion.error import MissingData, MissingTemplate
 from vusion.action import (UnMatchingAnswerAction, EnrollingAction,
                            FeedbackAction, OptinAction, OptoutAction,
                            TaggingAction, ProfilingAction,
-                           OffsetConditionAction)
+                           OffsetConditionAction, RemoveRemindersAction)
 from transports import YoUgHttpTransport
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
+
 
 
 class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
@@ -205,7 +213,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         participant = self.mkobj_participant('09')
         mytimezone = self.program_settings[2]['value']
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
-        dNow = dNow - timedelta(minutes=1)
+        dNow = dNow - timedelta(minutes=2)
         dPast = dNow - timedelta(minutes=30)
         dFuture = dNow + timedelta(minutes=30)
 
@@ -219,31 +227,34 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             'to': 'all participants',
             'type-interaction': 'annoucement'
         })
-        self.collections['schedules'].save({
-            'date-time': dPast.strftime(self.time_format),
-            'dialogue-id': '2',
-            'interaction-id': '0',
-            'participant-phone': '09'})
-        self.collections['schedules'].save({
-            'date-time': dNow.strftime(self.time_format),
-            'dialogue-id': '2',
-            'interaction-id': '1',
-            'participant-phone': '09'})
-        self.collections['schedules'].save({
-            'date-time': dFuture.strftime(self.time_format),
-            'dialogue-id': '2',
-            'interaction-id': '2',
-            'participant-phone': '09'})
-        self.collections['schedules'].save({
-            'date-time': time_to_vusion_format(dNow),
-            'unattach-id': unattached_message,
-            'participant-phone': '09'
-        })
-        self.collections['schedules'].save({
-            'date-time': time_to_vusion_format(dNow),
-            'type-content': 'feedback',
-            'content': 'Thank you',
-            'participant-phone': '09'})
+        self.collections['schedules'].save(
+            self.mkobj_schedule(
+                date_time=dPast.strftime(self.time_format),
+                dialogue_id='2',
+                interaction_id='0',
+                participant_phone='09'))
+        self.collections['schedules'].save(
+            self.mkobj_schedule(
+                date_time=dNow.strftime(self.time_format),
+                dialogue_id='2',
+                interaction_id='1',
+                participant_phone='09'))
+        self.collections['schedules'].save(
+            self.mkobj_schedule(
+                date_time=dFuture.strftime(self.time_format),
+                dialogue_id='2',
+                interaction_id='2',
+                participant_phone='09'))
+        self.collections['schedules'].save(
+            self.mkobj_schedule_unattach(
+                date_time=time_to_vusion_format(dNow),
+                unattach_id=unattached_message,
+                participant_phone='09'))
+        self.collections['schedules'].save(
+            self.mkobj_schedule_feedback(
+                date_time=time_to_vusion_format(dNow),
+                content='Thank you',
+                participant_phone='09'))
         self.worker.load_data()
 
         yield self.worker.send_scheduled()
@@ -262,6 +273,32 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         for history in histories:
             self.assertTrue(history['participant-session-id'] is not None)
 
+    @inlineCallbacks
+    def test05_send_scheduled_deadline(self):
+        mytimezone = self.program_settings[2]['value']
+        dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
+        dPast = dNow - timedelta(minutes=2)        
+        
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        
+        self.worker.load_data()
+
+        dialogue = self.mkobj_dialogue_open_question_reminder()
+        participant = self.mkobj_participant('06')
+        self.collections['dialogues'].save(dialogue)
+        self.collections['participants'].save(participant)
+        self.collections['schedules'].save({
+            'date-time': dPast.strftime(self.time_format),
+            'object-type': 'deadline-schedule',
+            'dialogue-id': '04',
+            'interaction-id': '01-01',
+            'participant-phone': '06'})
+        yield self.worker.send_scheduled()
+        
+        saved_participant = self.collections['participants'].find_one()
+        self.assertEqual(saved_participant['session-id'], None)
+    
     def test06_schedule_interaction_while_interaction_in_history(self):
         mytimezone = self.program_settings[2]['value']
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
@@ -305,12 +342,12 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             self.time_format)
 
         #program = json.loads(self.simpleProgram)['program']
-        self.collections['dialogues'].save(dialogue)
-        self.collections['participants'].save(participant)
+
         #Declare collection for scheduling messages
         self.collections['schedules'].save({
             'date-time': dFuture.strftime(self.time_format),
             'participant-phone': '06',
+             'object-type': 'dialogue-schedule',
             'interaction-id': '1',
             'dialogue-id': '0'})
         self.save_history(
@@ -349,6 +386,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.collections['schedules'].save(
             {'date-time': dPast.strftime(self.time_format),
              'participant-phone': '06',
+             'object-type': 'dialogue-schedule',
              'interaction-id': '1',
              'dialogue-id': '0'})
 
@@ -402,18 +440,18 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         dPast = dNow - timedelta(minutes=30)
 
         participant = self.mkobj_participant('06', last_optin_date=time_to_vusion_format(dPast))
-        self.collections['dialogues'].save(dialogue)
-        self.collections['participants'].save(participant)
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
 
         interaction = dialogue['interactions'][0]
+        # change the date-time of the interaction to match dPast
+        interaction['date-time'] = time_to_vusion_format(dPast)
         self.worker.schedule_participant_reminders(
-            participant, dialogue, interaction)
+            participant, dialogue, interaction, time_from_vusion_format(interaction['date-time']))
 
         schedules_count = self.collections['schedules'].count()
-        self.assertEqual(schedules_count, 2)
+        self.assertEqual(schedules_count, 3)
 
         schedules = self.collections['schedules'].find()
         #assert time calculation
@@ -423,10 +461,22 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual(
             time_to_vusion_format(time_from_vusion_format(schedules[1]['date-time'])),
             time_to_vusion_format(dPast + timedelta(minutes=30) + timedelta(minutes=30)))
+        self.assertEqual(
+            time_to_vusion_format(time_from_vusion_format(schedules[2]['date-time'])),
+            time_to_vusion_format(dPast + timedelta(minutes=30) + timedelta(minutes=30) + timedelta(minutes=30)))
 
         #assert scheduled reminders are the same
         self.assertEqual(schedules[0]['dialogue-id'], schedules[1]['dialogue-id'])
+        self.assertEqual(schedules[0]['dialogue-id'], schedules[2]['dialogue-id'])
         self.assertEqual(schedules[0]['interaction-id'], schedules[1]['interaction-id'])
+        self.assertEqual(schedules[0]['interaction-id'], schedules[2]['interaction-id'])
+        
+        #assert that first schedules are reminder-schedules
+        self.assertEqual(schedules[0]['object-type'], 'reminder-schedule')
+        self.assertEqual(schedules[1]['object-type'], 'reminder-schedule')
+        
+        #assert last reminder is deadline-schedule
+        self.assertEqual(schedules[2]['object-type'], 'deadline-schedule')
 
     def test11_customize_message(self):
         for program_setting in self.program_settings:
@@ -861,6 +911,31 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             'interaction-id':'01-01'}))        
         self.assertEqual(self.collections['schedules'].count(),
                          3)
+        
+    def test18_run_action_remove_reminders(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        dNow = self.worker.get_local_time()
+        dPast = dNow - timedelta(minutes=30)
+       
+        dialogue = self.mkobj_dialogue_open_question_reminder()
+        participant = self.mkobj_participant('06')
+        
+        interaction = dialogue['interactions'][0]
+        interaction['date-time'] = time_to_vusion_format(dPast)
+        self.worker.schedule_participant_reminders(
+            participant, dialogue, interaction, time_from_vusion_format(interaction['date-time']))
+
+        schedules_count = self.collections['schedules'].count()
+        self.assertEqual(schedules_count, 3)
+        
+        self.worker.run_action("06", RemoveRemindersAction(**{
+            'dialogue-id': dialogue['dialogue-id'],
+            'interaction-id': interaction['interaction-id']}))        
+        self.assertEqual(self.collections['schedules'].count(), 0)
+        self.assertEqual(self.collections['schedules'].find_one({'object-type':'reminder-schedule'}), None)
+        self.assertEqual(self.collections['schedules'].find_one({'object-type':'deadline-schedule'}), None)
 
     def test19_schedule_process_handle_crap_in_history(self):
         dialogue = self.dialogue_annoucement

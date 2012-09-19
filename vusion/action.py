@@ -96,6 +96,13 @@ class ProfilingAction(Action):
     
     def validate_fields(self):
         self.assert_field_present('label', 'value')
+        
+class RemoveRemindersAction(Action):
+    
+    ACTION_TYPE = 'remove-reminders'
+    
+    def validate_fields(self):
+        self.assert_field_present('dialogue-id', 'interaction-id')
 
 
 class OffsetConditionAction(Action):
@@ -124,6 +131,8 @@ def action_generator(**kwargs):
         return FeedbackAction(**kwargs)
     elif kwargs['type-action'] == 'unmatching-answer':
         return UnMatchingAnswerAction(**kwargs)
+    elif kwargs['type-action'] == 'remove-reminders':
+        return RemoveRemindersAction(**kwargs)
     elif kwargs['type-action'] == 'offset-conditioning':
         return OffsetConditionAction(**kwargs)
     raise VusionError("%s not supported" % kwargs['type-answer-action'])
