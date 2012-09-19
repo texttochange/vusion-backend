@@ -797,7 +797,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
         
-         ## Participant optin
+        ## Participant optin
         self.worker.run_action("08", OptinAction())
         self.assertEqual(1, self.collections['participants'].count())
         participant = self.collections['participants'].find_one()
@@ -832,6 +832,35 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         participant_reoptin = self.collections['participants'].find_one()
         self.assertEqual(participant['session-id'], participant_reoptin['session-id'])
         self.assertEqual(participant['last-optin-date'], participant_reoptin['last-optin-date'])
+        
+        ## Participant profile is cleared by optin
+        self.collections['participants'].save(self.mkobj_participant(
+            participant_phone='06',
+            last_optin_date=None,
+            session_id=None,
+            tags=['geeks'],
+            profile={'name':'Oliv'},
+            enrolled=['1']
+        ))
+        self.worker.run_action("06", OptinAction())
+        participant = self.collections['participants'].find_one({'phone':'06'})
+        self.assertEqual(participant['tags'], [])
+        self.assertEqual(participant['profile'], {})
+        self.assertEqual(participant['enrolled'], [])
+        
+        ## Participant profile is not cleard by optout
+        self.collections['participants'].save(self.mkobj_participant(
+            participant_phone='07',
+            tags=['geeks'],
+            profile={'name': 'Oliv'},
+            enrolled=['1']
+        ))
+        self.worker.run_action("06", OptoutAction())
+        participant = self.collections['participants'].find_one({'phone':'07'})
+        self.assertEqual(participant['tags'], ['geeks'])
+        self.assertEqual(participant['profile'], {'name': 'Oliv'})
+        self.assertEqual(participant['enrolled'], ['1'])
+        
 
     def test18_run_action_offset_condition(self):
         for program_setting in self.program_settings:
