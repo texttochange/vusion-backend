@@ -2,7 +2,9 @@ from twisted.trial.unittest import TestCase
 
 from vusion.dialogue import Dialogue
 from vusion.action import (FeedbackAction, UnMatchingAnswerAction,
-                           ProfilingAction, OffsetConditionAction, Actions)
+                           ProfilingAction, OffsetConditionAction,
+                           RemoveRemindersAction, Actions)
+
 from tests.utils import ObjectMaker
 
 class DialogueTestCase(TestCase, ObjectMaker):
@@ -113,3 +115,14 @@ class DialogueTestCase(TestCase, ObjectMaker):
             actions[1],
             OffsetConditionAction(**{'interaction-id': '01-03',
                                      'dialogue-id': '01'}))
+        
+    def test_get_remove_reminders_action(self):
+        script = Dialogue(self.mkobj_dialogue_open_question_reminder())
+        actions = Actions()
+        
+        ref, actions = script.get_matching_reference_and_actions("name John", actions)
+        
+        self.assertEqual(
+            actions[0],
+            RemoveRemindersAction(**{'dialogue-id': '04',
+                                     'interaction-id': '01-01'}))

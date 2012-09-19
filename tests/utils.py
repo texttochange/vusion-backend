@@ -1,4 +1,4 @@
-
+from copy import deepcopy
 from datetime import datetime
 import time
 from copy import deepcopy
@@ -319,7 +319,7 @@ class ObjectMaker:
         }
 
     def mkobj_dialogue_question_offset_conditional(self):
-        dialogue = self.dialogue_question
+        dialogue = deepcopy(self.dialogue_question)
         dialogue['created'] = Timestamp(datetime.now(),0)
         dialogue['modified'] = Timestamp(datetime.now(),0)
         dialogue['interactions'].append(
@@ -354,6 +354,31 @@ class ObjectMaker:
     def mkobj_dialogue_open_question(self):
         return deepcopy(self.dialogue_open_question)
     
+    dialogue_open_question_with_reminder = {
+        'activated': 1,
+        'dialogue-id': '04',
+        'interactions': [
+            {'interaction-id': '01-01',
+             'type-interaction': 'question-answer',
+             'content': 'How are you?',
+             'keyword': 'name',
+             'type-question': 'open-question',
+             'answer-label': 'name',
+             'type-schedule': 'fixed-time',
+             'date-time': '2012-03-12T12:30:00',
+             'set-reminder': 'reminder',
+             'number': '2',
+             'type-schedule-reminder': 'offset-time',
+             'minutes': '30',
+             'reminder-actions': [
+                 {'type-action': 'optout'}]
+             }]
+    }
+    
+    def mkobj_dialogue_open_question_reminder(self):
+        dialogue = deepcopy(self.dialogue_open_question_with_reminder)
+        return dialogue
+
     def mkobj_dialogue_open_question_offset_conditional(self):
         dialogue = self.dialogue_open_question
         dialogue['created'] = Timestamp(datetime.now(),0)
@@ -554,10 +579,32 @@ class ObjectMaker:
             }
     
     def mkobj_schedule(self, participant_phone='06', 
-                       date_time=None):
+                       date_time=None, object_type='dialogue-schedule',
+                       dialogue_id='1',interaction_id='2'):
         return {
             'participant-phone': participant_phone,
-            'dialogue-id': '1',
-            'interaction-id': '2',
+            'dialogue-id': dialogue_id,
+            'interaction-id': interaction_id,
+            'object-type': object_type,
             'date-time': date_time
+            }
+    
+    def mkobj_schedule_unattach(self, participant_phone='06', 
+                       date_time=None,
+                       unattach_id='1'):
+        return {
+            'participant-phone': participant_phone,
+            'unattach-id': unattach_id,
+            'object-type': 'unattach-schedule',
+            'date-time': date_time
+            }
+        
+    def mkobj_schedule_feedback(self, participant_phone='06', 
+                       date_time=None,
+                       content='Thank You'):
+        return {
+            'participant-phone': participant_phone,
+            'object-type': 'feedback-schedule',
+            'date-time': date_time,
+            'content': content
             }
