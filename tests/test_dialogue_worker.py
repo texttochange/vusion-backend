@@ -552,7 +552,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
     @inlineCallbacks
     def test17_receive_inbound_message(self):
         self.collections['dialogues'].save(self.mkobj_dialogue_question_offset_days())
-        self.collections['requests'].save(self.request_join)
+        request_id = self.collections['requests'].save(self.mkobj_request_join())
          
         self.collections['participants'].save(self.mkobj_participant('06'))
 
@@ -594,6 +594,10 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual(5, self.collections['history'].count())
         self.assertEqual(3, self.collections['participants'].count())
         self.assertEqual(7, self.collections['schedules'].count())
+        histories = self.collections['history'].find({'request-id':{'$exists':True}})
+        self.assertEqual(histories.count(), 2)
+        self.assertEqual(histories[0]['request-id'], request_id)
+        self.assertEqual(histories[1]['request-id'], request_id)
 
         self.collections['dialogues'].save(self.dialogue_open_question)
 
@@ -609,7 +613,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
     # non participant = optout or never optin
     @inlineCallbacks
     def test17_receiving_inbound_message_from_non_participant(self):
-        self.collections['requests'].save(self.request_join)
+        self.collections['requests'].save(self.mkobj_request_join())
         self.collections['requests'].save(self.request_tag)
         self.collections['requests'].save(self.request_leave)
         
@@ -917,7 +921,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
     @inlineCallbacks
     def test22_register_keywords_in_dispatcher(self):
         self.collections['dialogues'].save(self.dialogue_question)
-        self.collections['requests'].save(self.request_join)
+        self.collections['requests'].save(self.mkobj_request_join())
         self.collections['requests'].save(self.request_leave)
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)

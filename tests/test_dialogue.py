@@ -80,7 +80,7 @@ class DialogueTestCase(TestCase, ObjectMaker):
         script = Dialogue(self.dialogue_other_question_answer)
         ref, actions = script.get_matching_reference_and_actions("something good", [])
 
-        self.assertEqual(ref, {})
+        self.assertEqual(ref, None)
         self.assertEqual(actions, [])
 
         ref, actions = script.get_matching_reference_and_actions('Gen Male', [])

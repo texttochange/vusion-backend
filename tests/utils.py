@@ -1,6 +1,7 @@
 
 from datetime import datetime
 import time
+from copy import deepcopy
 
 from bson.timestamp import Timestamp
 
@@ -442,16 +443,16 @@ class ObjectMaker:
         "dialogue-id": "script.dialogues[0]"
     }
 
-    request_join = {
-        'keyword': 'www join, www',
-        'responses': [
-            {'content': 'thankyou of joining'},
-            {'content': 'soon more is coming'}],
-        'actions': [
-            {'type-action': 'optin'},
-            {'type-action': 'enrolling',
-             'enroll': '01'}]
-    }
+    def mkobj_request_join(self):
+        return {
+            'keyword': 'www join, www',
+            'responses': [
+                {'content': 'thankyou of joining'},
+                {'content': 'soon more is coming'}],
+            'actions': [
+                {'type-action': 'optin'},
+                {'type-action': 'enrolling',
+                 'enroll': '01'}]}
 
     request_tag = {
         'keyword': 'www tagme',

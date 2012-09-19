@@ -258,7 +258,8 @@ class TtcGenericWorker(ApplicationWorker):
             if 'responses' in matching_request:
                 for response in matching_request['responses']:
                     actions.append(FeedbackAction(**{'content': response['content']}))
-        return actions     
+            return {'request-id': matching_request['_id']}, actions
+        return None, actions 
 
     def create_participant(self, participant_phone):
         return {
@@ -368,9 +369,10 @@ class TtcGenericWorker(ApplicationWorker):
                     message['content'], actions)
                 if ref:
                     break
-            actions = self.get_matching_request_actions(
-                message['content'],
-                actions)
+            if ref is None:
+                ref, actions = self.get_matching_request_actions(
+                    message['content'],
+                    actions)
             participant = self.collections['participants'].find_one(
                 {'phone': message['from_addr'], 
                  'session-id': {'$ne': None}})

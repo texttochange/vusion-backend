@@ -51,7 +51,7 @@ class Dialogue:
         return None
 
     def get_matching_reference_and_actions(self, message, actions):
-        reference_metadata = {}
+        reference_metadata = None
         keyword = get_first_word(message).lower()
         reply = self.get_reply(message).lower()
         dialogue_id, interaction = self.get_matching_interaction(keyword)
