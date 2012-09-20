@@ -26,7 +26,8 @@ from vusion.error import MissingData, MissingTemplate
 from vusion.action import (UnMatchingAnswerAction, EnrollingAction,
                            FeedbackAction, OptinAction, OptoutAction,
                            TaggingAction, ProfilingAction,
-                           OffsetConditionAction, RemoveRemindersAction)
+                           OffsetConditionAction, RemoveRemindersAction,
+                           Actions)
 from transports import YoUgHttpTransport
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 
@@ -702,6 +703,34 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         for history in histories:
             self.assertEqual('1', history['participant-session-id'])
         self.assertEqual(1, self.collections['schedules'].count())
+        
+    #@inlineCallbacks
+    def test17_receive_inbound_message_matching_with_reminder(self):
+        dialogue = self.mkobj_dialogue_open_question_reminder()
+        self.collections['dialogues'].save(dialogue)
+        participant = self.mkobj_participant('06', enrolled=['04'])
+        self.collections['participants'].save(participant)
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        
+        dNow = self.worker.get_local_time()
+        dPast = dNow - timedelta(minutes=4)
+        
+        dialogue['interactions'][0]['date-time'] = time_to_vusion_format(dPast)
+        
+        self.worker.schedule_participant_dialogue(
+            participant, dialogue)
+        
+        self.assertEqual(4, self.collections['schedules'].count())
+        
+        inbound_msg_matching = self.mkmsg_in(
+            from_addr='06',
+            content='name ok')
+        
+        self.worker.consume_user_message(inbound_msg_matching)
+        self.assertEqual(0, self.collections['schedules'].count())
+        
 
     @inlineCallbacks
     def test17_receiving_inbound_message_no_repeat_dialogue_action(self):
