@@ -539,19 +539,19 @@ class TtcGenericWorker(ApplicationWorker):
                     sendingDateTime = self.get_local_time()
 
                 #Scheduling a date already in the past is forbidden.
-                if (sendingDateTime + timedelta(minutes=10) < self.get_local_time()):
+                if (sendingDateTime + timedelta(minutes=5) < self.get_local_time()):
                     self.save_history(
-                        message_content='Not generated yet',
+                        message_content=interaction['content'],
                         participant_phone=participant['phone'],
                         participant_session_id=participant['session-id'],
                         message_direction='outgoing',
-                        message_status='fail: date in the past',
+                        message_status='Expired Interaction',
                         reference_metadata={
                             'dialogue-id': dialogue['dialogue-id'],
                             'interaction-id': interaction["interaction-id"]})
                     if (schedule):
                         self.collections['schedules'].remove(schedule['_id'])
-                        continue
+                    continue
 
                 if (not schedule):
                     schedule = {

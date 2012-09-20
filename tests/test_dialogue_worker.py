@@ -366,7 +366,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         schedule = self.collections['schedules'].find_one()
         self.assertEqual(schedule['date-time'], dLaterFuture.strftime(self.time_format))
 
-    def test08_schedule_interaction_that_has_expired(self):
+    def test08_schedule_interaction_schedule_has_expired(self):
         dialogue = self.dialogue_annoucement
         participant = self.mkobj_participant()
         for program_setting in self.program_settings:
@@ -402,6 +402,42 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
         self.assertEqual(self.collections['history'].count(), 2)
         self.assertEqual(self.collections['schedules'].count(), 0)
+
+    def test08_schedule_interaction_fixed_time_expired(self):
+        dialogue = self.mkobj_dialogue_annoucement()
+        participant = self.mkobj_participant()
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+      
+        dNow = self.worker.get_local_time()
+        dPast = dNow - timedelta(minutes=5)
+
+        dialogue['interactions'][0]['type-schedule'] = 'fixed-time'
+        dialogue['interactions'][0]['date-time'] = time_to_vusion_format(dPast)
+
+        self.worker.schedule_participant_dialogue(
+            participant, dialogue)
+        
+        self.assertEqual(self.collections['schedules'].count(), 0)
+        self.assertEqual(self.collections['history'].count(), 1)
+
+    def test08_schedule_interaction_offset_time_expired(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+      
+        dNow = self.worker.get_local_time()
+        dLaterPast = dNow - timedelta(days=5)
+
+        dialogue = self.mkobj_dialogue_annoucement()
+        participant = self.mkobj_participant(last_optin_date=time_to_vusion_format(dLaterPast))
+        
+        self.worker.schedule_participant_dialogue(
+            participant, dialogue)
+        
+        self.assertEqual(self.collections['schedules'].count(), 0)
+        self.assertEqual(self.collections['history'].count(), 1)
 
     def test09_schedule_at_fixed_time(self):
         dialogue = self.dialogue_announcement_fixedtime
@@ -816,8 +852,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
-        self.collections['participants'].save(self.mkobj_participant("08"))        
-        self.collections['dialogues'].save(self.dialogue_question)
+        dNow = self.worker.get_local_time();
+        self.collections['participants'].save(self.mkobj_participant(
+            "08", last_optin_date=time_to_vusion_format(dNow)))        
+        self.collections['dialogues'].save(
+            self.mkobj_dialogue_question_offset_days())
      
         self.worker.run_action("08", EnrollingAction(**{'enroll': '01'}))
         self.assertTrue(self.collections['participants'].find_one({'enrolled': '01'}))
@@ -1010,15 +1049,14 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual(self.collections['schedules'].find_one({'object-type':'deadline-schedule'}), None)
 
     def test19_schedule_process_handle_crap_in_history(self):
-        dialogue = self.dialogue_annoucement
-        participant = self.mkobj_participant('06')
-
-        self.collections['dialogues'].save(dialogue)
-        self.collections['participants'].save(participant)
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-
+        self.worker.load_data()      
+        dialogue = self.dialogue_annoucement
+        dNow = self.worker.get_local_time()
+        participant = self.mkobj_participant(
+            '06', last_optin_date=time_to_vusion_format(dNow))
+      
         self.save_history(
             participant_phone="06",
             metadata={'dialogue-id':None,
@@ -1109,16 +1147,19 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
+        dNow = self.worker.get_local_time()
 
         self.collections['dialogues'].save(self.dialogue_annoucement)
         self.collections['dialogues'].save(self.dialogue_question)
         self.collections['participants'].save(
-            self.mkobj_participant(participant_phone='08'))
+            self.mkobj_participant(participant_phone=
+                                   '08', last_optin_date=time_to_vusion_format(dNow)))
         ##optout
         self.collections['participants'].save(
             self.mkobj_participant(participant_phone='09', session_id=None))
         self.collections['participants'].save(
             self.mkobj_participant(participant_phone='10',
+                                   last_optin_date=time_to_vusion_format(dNow),
                                    enrolled=[self.dialogue_question['dialogue-id']]))
         ##optout
         self.collections['participants'].save(
