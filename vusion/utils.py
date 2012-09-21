@@ -27,6 +27,12 @@ def get_local_time_as_timestamp(local_time):
     return long(time.mktime(local_time.timetuple()))
 
 
+def get_shortcode_value(stored_shortcode):
+    regex_NATIONAL_SHORTCODE = re.compile('[0-9]+-[0-9]+')
+    if re.match(regex_NATIONAL_SHORTCODE, stored_shortcode):
+        return stored_shortcode.split('-')[1]
+    return stored_shortcode
+
 #TODO remove DataLayerUtils in tests package
 class DataLayerUtils:
 
