@@ -200,12 +200,30 @@ class ObjectMaker:
             'type-template': 'unmatching-keyword',
             'template': 'KEYWORD does not match any keyword.'}
 
+    shortcodes = {
+        'country': 'Uganda',
+        'international-prefix': '256',
+        'shortcode': '256-8181',
+        'error-template': None,
+        'support-customized-id': 0,
+        'supported-internationally': 0,
+    }
+
     def mkobj_shortcode(self, error_template=None):
-        return {
-            'country': 'Uganda',
-            'internationalprefix': '256',
-            'shortcode': '8282',
-            'error-template': error_template}
+        shortcode = deepcopy(self.shortcodes)
+        shortcode['error-template'] = error_template
+        return shortcode
+
+    def mkobj_shortcode_international(self):
+        shortcode = deepcopy(self.shortcodes)
+        shortcode['country'] = 'Netherlands'
+        shortcode['international-prefix'] = '31'
+        shortcode['shortcode'] = '+318181'
+        shortcode['supported-internationally'] = 1
+        return shortcode
+    
+    def mkobj_shortcode_local(self):
+        return deepcopy(self.shortcodes)
 
     time_format = '%Y-%m-%dT%H:%M:%S'
 
@@ -223,11 +241,19 @@ class ObjectMaker:
          'value': 'Africa/Kampala'},
         {'key': 'customized-id',
          'value': 'myid'}]
+    
+    def mkobj_program_settings(self):
+        program_settings = deepcopy(self.program_settings)
+        return program_settings
+        
+    def mkobj_program_settings_international_shortcode(self):
+        program_settings = deepcopy(self.program_settings)
+        program_settings[2] = {'key': 'shortcode',
+                               'value': '+318181'}
+        program_settings[1] = {'key': 'international-prefix',
+                               'value': 'all'}
+        return program_settings
 
-    shortcodes = {
-        'country': 'Uganda',
-        'internationalprefix': '256',
-        'shortcode': '8181'}
 
     dialogue_annoucement = {
             'activated': 1,

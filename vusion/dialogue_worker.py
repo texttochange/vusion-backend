@@ -794,12 +794,19 @@ class TtcGenericWorker(ApplicationWorker):
             for keyphrase in keyphrases:
                 if not (keyphrase.split(' ')[0]) in keywords:
                     keywords.append(keyphrase.split(' ')[0])
+        to_addr = self.properties['shortcode']
+        regex_NATIONAL_SHORTCODE = re.compile('[0-9]+-[0-9]+')
+        if re.match(regex_NATIONAL_SHORTCODE, self.properties['shortcode']):
+            to_addr = to_addr.split('-')[1]
         rules = []
         for keyword in keywords:
             rules.append({'app': self.transport_name,
                           'keyword': keyword,
-                          'to_addr': ("%s" % self.properties['shortcode'].split('-')[1]),
-                          'from_addr': ("+%s" % self.properties['international-prefix'])})
+                          'to_addr': ("%s" % to_addr)})
+        if (not self.properties['international-prefix'] == 'all'):
+            for rule in rules:
+                rule['prefix'] = ("+%s" % self.properties['international-prefix'])
+       
         msg = DispatcherControl(
             action='add_exposed',
             exposed_name=self.transport_name,

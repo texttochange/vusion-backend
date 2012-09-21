@@ -1110,7 +1110,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.collections['dialogues'].save(self.dialogue_question)
         self.collections['requests'].save(self.mkobj_request_join())
         self.collections['requests'].save(self.request_leave)
-        for program_setting in self.program_settings:
+        for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
 
@@ -1119,10 +1119,26 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         messages = self.broker.get_messages('vumi', 'dispatcher.control')
         self.assertEqual(1, len(messages))
         self.assertEqual([
-            {'app': 'test', 'keyword': 'feel', 'to_addr': '8181', 'from_addr': '+256'},
-            {'app': 'test', 'keyword': 'fel', 'to_addr': '8181', 'from_addr': '+256'},
-            {'app': 'test', 'keyword': 'www', 'to_addr': '8181', 'from_addr': '+256'}],
+            {'app': 'test', 'keyword': 'feel', 'to_addr': '8181', 'prefix': '+256'},
+            {'app': 'test', 'keyword': 'fel', 'to_addr': '8181', 'prefix': '+256'},
+            {'app': 'test', 'keyword': 'www', 'to_addr': '8181', 'prefix': '+256'}],
             messages[0]['rules'])
+
+    @inlineCallbacks
+    def test22_register_keywords_in_dispatcher_international(self):
+        self.collections['requests'].save(self.mkobj_request_join())
+        for program_setting in self.mkobj_program_settings_international_shortcode():
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
+        yield self.worker.register_keywords_in_dispatcher()
+
+        messages = self.broker.get_messages('vumi', 'dispatcher.control')
+        self.assertEqual(1, len(messages))
+        self.assertEqual([
+            {'app': 'test', 'keyword': 'www', 'to_addr': '+318181'}],
+            messages[0]['rules'])
+
 
     @inlineCallbacks
     def test23_test_send_all_messages(self):
