@@ -229,7 +229,7 @@ class ObjectMaker:
         'internationalprefix': '256',
         'shortcode': '8181'}
 
-    dialogue_annoucement = {
+    dialogue_announcement = {
             'activated': 1,
             'auto-enrollment': 'all',
             'dialogue-id': '0',
@@ -247,6 +247,24 @@ class ObjectMaker:
                  'days': '2',
                  'at-time': '22:30'},]
         }
+    
+    def mkobj_dialogue_announcement_offset_time(self):
+        dialogue = deepcopy(self.dialogue_announcement)
+        dialogue['created'] = Timestamp(datetime.now(),0)
+        dialogue['modified'] = Timestamp(datetime.now(),0)
+        dialogue['interactions'].append(
+            {'interaction-id': '2',
+             'type-interaction': 'annoucement',
+             'content': 'How is your day?',
+             'type-schedule': 'offset-time',
+             'minutes': '10'})
+        dialogue['interactions'].append(
+            {'interaction-id': '3',
+             'type-interaction': 'annoucement',
+             'content': 'Bye bye',
+             'type-schedule': 'offset-time',
+             'minutes': '50'})
+        return dialogue
 
     def mkobj_dialogue_annoucement(self):
         return {
