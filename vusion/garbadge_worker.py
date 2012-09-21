@@ -47,23 +47,10 @@ class GarbageWorker(ApplicationWorker):
                  'timestamp': timestamp,
                  })
 
-            matching_code = None
-            codes = self.shortcodes_collection.find({
-                'shortcode': {'$regex': ("^[0-9]+-%s" % msg['to_addr'])}})
-            if codes is None:
-                log.err("Could not find shortcode for %s" % msg['to_addr'])
+            matching_code = self.get_shortcode(msg)
+            if matching_code is None:
                 return
-            elif codes.count() > 1:
-                for code in codes:
-                    regex = re.compile(('^\+%s' % code['international-prefix']))
-                    if re.match(regex, msg['from_addr']):
-                        matching_code = code
-                        break
-                log.err("Could not find shortcode for %s with %s " %
-                        (msg['to_addr'], code['international-prefix']))
-                return
-            else:
-                matching_code = codes[0]
+            
             template = self.templates_collection.find_one({
                 '_id': ObjectId(matching_code['error-template'])})
             if template is None:
@@ -87,6 +74,25 @@ class GarbageWorker(ApplicationWorker):
             log.error(
                 "Error during consume user message: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
+
+    def get_shortcode(self, msg):
+        matching_code = None
+        codes = self.shortcodes_collection.find({
+            'shortcode': {'$regex': ("^[0-9]+-%s" % msg['to_addr'])}})
+        if codes is None:
+            log.err("Could not find shortcode for %s" % msg['to_addr'])
+            return None
+        elif codes.count() > 1:
+            for code in codes:
+                regex = re.compile(('^\+%s' % code['international-prefix']))
+                if re.match(regex, msg['from_addr']):
+                    matching_code = code
+                    break
+                log.err("Could not find shortcode for %s with %s " %
+                        (msg['to_addr'], code['international-prefix']))
+            return None
+        else:
+            return codes[0]
 
     def dispatch_event(self, msg):
         pass

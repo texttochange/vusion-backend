@@ -255,12 +255,10 @@ class TtcGenericWorker(ApplicationWorker):
         matching_request = self.collections['requests'].find_one(
             {'keyword': {'$regex': regx}})
         if matching_request:
-            if 'actions' in matching_request:
-                for action in matching_request['actions']:
-                    actions.append(action_generator(**action))
-            if 'responses' in matching_request:
-                for response in matching_request['responses']:
-                    actions.append(FeedbackAction(**{'content': response['content']}))
+            for action in matching_request['actions']:
+                actions.append(action_generator(**action))
+            for response in matching_request['responses']:
+                actions.append(FeedbackAction(**{'content': response['content']}))
             return {'request-id': matching_request['_id']}, actions
         return None, actions 
 
@@ -339,8 +337,9 @@ class TtcGenericWorker(ApplicationWorker):
                 self.collections['participants'].save(self.create_participant(participant_phone))
             self.collections['participants'].update(
                 {'phone': participant_phone,
-                 'enrolled': {'$ne': action['enroll']}},
-                {'$push': {'enrolled': action['enroll']}})
+                 'enrolled.dialogue-id': {'$ne': action['enroll']}},
+                {'$push': {'enrolled': {'dialogue-id': action['enroll'],
+                                        'date-time': time_to_vusion_format(self.get_local_time())}}})
             dialogue = self.get_current_dialogue(action['enroll'])
             if dialogue is None:
                 self.log(("Enrolling error: Missing Dialogue %s" % action['enroll']))
@@ -495,6 +494,10 @@ class TtcGenericWorker(ApplicationWorker):
         for participant in participants:
             self.schedule_participant_dialogue(participant, dialogue)
 
+    def get_enrollment_time(self, participant, dialogue):
+        return ((enroll for enroll in participant['enrolled'] 
+                 if enroll['dialogue-id'] == dialogue['dialogue-id']).next())
+
     #TODO: decide which id should be in an schedule object
     def schedule_participant_dialogue(self, participant, dialogue):
         try:
@@ -520,9 +523,13 @@ class TtcGenericWorker(ApplicationWorker):
                     continue
 
                 if (interaction['type-schedule'] == 'offset-days'):
-                    sendingDay = time_from_vusion_format(participant['last-optin-date']) + timedelta(days=int(interaction['days']))
+                    enrolled = self.get_enrollment_time(participant, dialogue)
+                    sendingDay = time_from_vusion_format(enrolled['date-time']) + timedelta(days=int(interaction['days']))
                     timeOfSending = interaction['at-time'].split(':', 1)
                     sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
+                elif (interaction['type-schedule'] == 'offset-time'):
+                    enrolled = self.get_enrollment_time(participant, dialogue)
+                    sendingDateTime = time_from_vusion_format(enrolled['date-time']) + timedelta(minutes=int(interaction['minutes']))
                 elif (interaction['type-schedule'] == 'fixed-time'):
                     sendingDateTime = time_from_vusion_format(interaction['date-time'])
                 elif (interaction['type-schedule'] == 'offset-condition'):
@@ -590,12 +597,10 @@ class TtcGenericWorker(ApplicationWorker):
             self.collections['schedules'].remove(reminder_schedule_to_be_deleted['_id'])
         
         if (interaction['type-schedule-reminder'] == 'offset-days'):
-            #sendingDay = time_from_vusion_format(participant['last-optin-date'])
             sendingDay = initialSendDateTime
             timeOfSending = interaction['at-time'].split(':', 1)
             sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
         elif (interaction['type-schedule-reminder'] == 'offset-time'):
-            #sendingDateTime = time_from_vusion_format(participant['last-optin-date'])
             sendingDateTime = initialSendDateTime
         for number in range(int(interaction['number'])+1):                
             if (interaction['type-schedule-reminder'] == 'offset-time'):

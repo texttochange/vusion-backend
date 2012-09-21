@@ -2,6 +2,7 @@ from datetime import datetime
 import pytz
 import time
 import iso8601
+import re
 
 
 def time_to_vusion_format(timestamp):
@@ -32,6 +33,7 @@ def get_shortcode_value(stored_shortcode):
     if re.match(regex_NATIONAL_SHORTCODE, stored_shortcode):
         return stored_shortcode.split('-')[1]
     return stored_shortcode
+
 
 #TODO remove DataLayerUtils in tests package
 class DataLayerUtils:
