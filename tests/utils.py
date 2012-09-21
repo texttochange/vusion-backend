@@ -278,18 +278,18 @@ class ObjectMaker:
         dialogue = deepcopy(self.dialogue_announcement)
         dialogue['created'] = Timestamp(datetime.now(),0)
         dialogue['modified'] = Timestamp(datetime.now(),0)
-        dialogue['interactions'].append(
-            {'interaction-id': '2',
-             'type-interaction': 'annoucement',
-             'content': 'How is your day?',
-             'type-schedule': 'offset-time',
-             'minutes': '10'})
-        dialogue['interactions'].append(
-            {'interaction-id': '3',
-             'type-interaction': 'annoucement',
-             'content': 'Bye bye',
-             'type-schedule': 'offset-time',
-             'minutes': '50'})
+        dialogue['interactions'][0] = {
+            'interaction-id': '2',
+            'type-interaction': 'annoucement',
+            'content': 'How is your day?',
+            'type-schedule': 'offset-time',
+            'minutes': '10'}
+        dialogue['interactions'][1] = {
+            'interaction-id': '3',
+            'type-interaction': 'annoucement',
+            'content': 'Bye bye',
+            'type-schedule': 'offset-time',
+            'minutes': '50'}
         return dialogue
 
     def mkobj_dialogue_annoucement(self):

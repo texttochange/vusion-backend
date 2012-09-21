@@ -338,8 +338,9 @@ class TtcGenericWorker(ApplicationWorker):
                 self.collections['participants'].save(self.create_participant(participant_phone))
             self.collections['participants'].update(
                 {'phone': participant_phone,
-                 'enrolled': {'$ne': action['enroll']}},
-                {'$push': {'enrolled': action['enroll']}})
+                 'enrolled.dialogue-id': {'$ne': action['enroll']}},
+                {'$push': {'enrolled': {'dialogue-id': action['enroll'],
+                                        'date-time': time_to_vusion_format(self.get_local_time())}}})
             dialogue = self.get_current_dialogue(action['enroll'])
             if dialogue is None:
                 self.log(("Enrolling error: Missing Dialogue %s" % action['enroll']))
@@ -494,6 +495,10 @@ class TtcGenericWorker(ApplicationWorker):
         for participant in participants:
             self.schedule_participant_dialogue(participant, dialogue)
 
+    def get_enrollment_time(self, participant, dialogue):
+        return ((enroll for enroll in participant['enrolled'] 
+                 if enroll['dialogue-id'] == dialogue['dialogue-id']).next())
+
     #TODO: decide which id should be in an schedule object
     def schedule_participant_dialogue(self, participant, dialogue):
         try:
@@ -519,11 +524,13 @@ class TtcGenericWorker(ApplicationWorker):
                     continue
 
                 if (interaction['type-schedule'] == 'offset-days'):
-                    sendingDay = time_from_vusion_format(participant['last-optin-date']) + timedelta(days=int(interaction['days']))
+                    enrolled = self.get_enrollment_time(participant, dialogue)
+                    sendingDay = time_from_vusion_format(enrolled['date-time']) + timedelta(days=int(interaction['days']))
                     timeOfSending = interaction['at-time'].split(':', 1)
                     sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
                 elif (interaction['type-schedule'] == 'offset-time'):
-                    sendingDateTime = time_from_vusion_format(participant['last-optin-date']) + timedelta(minutes=int(interaction['minutes']))
+                    enrolled = self.get_enrollment_time(participant, dialogue)
+                    sendingDateTime = time_from_vusion_format(enrolled['date-time']) + timedelta(minutes=int(interaction['minutes']))
                 elif (interaction['type-schedule'] == 'fixed-time'):
                     sendingDateTime = time_from_vusion_format(interaction['date-time'])
                 elif (interaction['type-schedule'] == 'offset-condition'):

@@ -26,7 +26,6 @@ def get_local_time(timezone):
 def get_local_time_as_timestamp(local_time):
     return long(time.mktime(local_time.timetuple()))
 
-
 #TODO remove DataLayerUtils in tests package
 class DataLayerUtils:
 
