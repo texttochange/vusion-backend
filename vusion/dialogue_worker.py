@@ -522,6 +522,8 @@ class TtcGenericWorker(ApplicationWorker):
                     sendingDay = time_from_vusion_format(participant['last-optin-date']) + timedelta(days=int(interaction['days']))
                     timeOfSending = interaction['at-time'].split(':', 1)
                     sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
+                elif (interaction['type-schedule'] == 'offset-time'):
+                    sendingDateTime = time_from_vusion_format(participant['last-optin-date']) + timedelta(minutes=int(interaction['minutes']))
                 elif (interaction['type-schedule'] == 'fixed-time'):
                     sendingDateTime = time_from_vusion_format(interaction['date-time'])
                 elif (interaction['type-schedule'] == 'offset-condition'):
@@ -589,12 +591,10 @@ class TtcGenericWorker(ApplicationWorker):
             self.collections['schedules'].remove(reminder_schedule_to_be_deleted['_id'])
         
         if (interaction['type-schedule-reminder'] == 'offset-days'):
-            #sendingDay = time_from_vusion_format(participant['last-optin-date'])
             sendingDay = initialSendDateTime
             timeOfSending = interaction['at-time'].split(':', 1)
             sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
         elif (interaction['type-schedule-reminder'] == 'offset-time'):
-            #sendingDateTime = time_from_vusion_format(participant['last-optin-date'])
             sendingDateTime = initialSendDateTime
         for number in range(int(interaction['number'])+1):                
             if (interaction['type-schedule-reminder'] == 'offset-time'):

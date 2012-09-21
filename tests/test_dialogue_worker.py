@@ -26,7 +26,8 @@ from vusion.error import MissingData, MissingTemplate
 from vusion.action import (UnMatchingAnswerAction, EnrollingAction,
                            FeedbackAction, OptinAction, OptoutAction,
                            TaggingAction, ProfilingAction,
-                           OffsetConditionAction, RemoveRemindersAction)
+                           OffsetConditionAction, RemoveRemindersAction,
+                           Actions)
 from transports import YoUgHttpTransport
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 
@@ -174,7 +175,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
     def test04_schedule_participant_dialogue_offset_days(self):
         config = self.simple_config
-        dialogue = self.dialogue_annoucement
+        dialogue = self.dialogue_announcement
         mytimezone = self.program_settings[2]['value']
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
         dNow = dNow.replace(tzinfo=None)
@@ -206,6 +207,35 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual(schedules[0]['dialogue-id'], '0')
         self.assertEqual(schedules[0]['interaction-id'], '0')
         self.assertEqual(schedules[1]['interaction-id'], '1')
+        
+    def test04_schedule_participant_dialogue_offset_time(self):        
+        config = self.simple_config
+        dialogue = self.mkobj_dialogue_announcement_offset_time()
+        mytimezone = self.program_settings[2]['value']
+        dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
+        dNow = dNow.replace(tzinfo=None)
+        dPast = dNow - timedelta(minutes=3)
+
+        participant = self.mkobj_participant('06', last_optin_date=time_to_vusion_format(dPast))
+        self.collections['dialogues'].save(dialogue)
+        self.collections['participants'].save(participant)
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
+        self.worker.schedule_participant_dialogue(
+            participant, dialogue)
+
+        self.assertEqual(self.collections['schedules'].count(),4)
+        
+        schedules = self.collections['schedules'].find()
+        #assert time calculation
+        self.assertEqual(
+            time_to_vusion_format(time_from_vusion_format(schedules[2]['date-time'])),
+            time_to_vusion_format(dPast + timedelta(minutes=10)))
+        self.assertEqual(
+            time_to_vusion_format(time_from_vusion_format(schedules[3]['date-time'])),
+            time_to_vusion_format(dPast + timedelta(minutes=50)))
 
     @inlineCallbacks
     def test05_send_scheduled_messages(self):
@@ -304,7 +334,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
         dPast = dNow - timedelta(minutes=30)
 
-        dialogue = self.dialogue_annoucement
+        dialogue = self.dialogue_announcement
         participant = self.mkobj_participant('06', last_optin_date=time_to_vusion_format(dPast))
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)
@@ -326,7 +356,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual(self.collections['schedules'].count(), 1)
 
     def test07_schedule_interaction_while_interaction_in_schedule(self):
-        dialogue = self.dialogue_annoucement
+        dialogue = self.dialogue_announcement
         participant = self.mkobj_participant()
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
@@ -367,7 +397,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual(schedule['date-time'], dLaterFuture.strftime(self.time_format))
 
     def test08_schedule_interaction_schedule_has_expired(self):
-        dialogue = self.dialogue_annoucement
+        dialogue = self.dialogue_announcement
         participant = self.mkobj_participant()
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
@@ -702,6 +732,34 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         for history in histories:
             self.assertEqual('1', history['participant-session-id'])
         self.assertEqual(1, self.collections['schedules'].count())
+        
+    #@inlineCallbacks
+    def test17_receive_inbound_message_matching_with_reminder(self):
+        dialogue = self.mkobj_dialogue_open_question_reminder()
+        self.collections['dialogues'].save(dialogue)
+        participant = self.mkobj_participant('06', enrolled=['04'])
+        self.collections['participants'].save(participant)
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        
+        dNow = self.worker.get_local_time()
+        dPast = dNow - timedelta(minutes=4)
+        
+        dialogue['interactions'][0]['date-time'] = time_to_vusion_format(dPast)
+        
+        self.worker.schedule_participant_dialogue(
+            participant, dialogue)
+        
+        self.assertEqual(4, self.collections['schedules'].count())
+        
+        inbound_msg_matching = self.mkmsg_in(
+            from_addr='06',
+            content='name ok')
+        
+        self.worker.consume_user_message(inbound_msg_matching)
+        self.assertEqual(0, self.collections['schedules'].count())
+        
 
     @inlineCallbacks
     def test17_receiving_inbound_message_no_repeat_dialogue_action(self):
@@ -1052,7 +1110,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()      
-        dialogue = self.dialogue_annoucement
+        dialogue = self.dialogue_announcement
         dNow = self.worker.get_local_time()
         participant = self.mkobj_participant(
             '06', last_optin_date=time_to_vusion_format(dNow))
@@ -1146,7 +1204,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
 
-        yield self.worker.send_all_messages(self.dialogue_annoucement, '06')
+        yield self.worker.send_all_messages(self.dialogue_announcement, '06')
 
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 2)
@@ -1165,7 +1223,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.worker.load_data()
         dNow = self.worker.get_local_time()
 
-        self.collections['dialogues'].save(self.dialogue_annoucement)
+        self.collections['dialogues'].save(self.dialogue_announcement)
         self.collections['dialogues'].save(self.dialogue_question)
         self.collections['participants'].save(
             self.mkobj_participant(participant_phone=
