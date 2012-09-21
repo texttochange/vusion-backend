@@ -599,8 +599,11 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         saved_template_id = self.collections['templates'].save(self.template_open_question)
         self.collections['program_settings'].save(
             {'key': 'default-template-open-question',
-             'value': saved_template_id}
-        )
+             'value': saved_template_id})
+        self.collections['program_settings'].save(
+            {'key': 'shortcode',
+             'value': '+3123456'})
+        self.worker.load_data()
 
         interaction_open_question = {
             'type-interaction': 'question-answer',
@@ -614,7 +617,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
         self.assertEqual(
             open_question,
-            "Which dealer did you buy the system from?\n To reply send: DEALER<space><Name dealer> to 8181")
+            "Which dealer did you buy the system from?\n To reply send: DEALER<space><Name dealer> to +3123456")
 
         self.collections['program_settings'].drop()
         self.collections['program_settings'].save(

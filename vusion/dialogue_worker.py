@@ -871,7 +871,7 @@ class TtcGenericWorker(ApplicationWorker):
             message = re.sub(regex_KEYWORD, keyword.upper(), message)
             #replace shortcode
             message = re.sub(regex_SHORTCODE,
-                             self.properties['shortcode'].split('-')[1],
+                             get_shortcode_value(self.properties['shortcode']),
                              message)
             if (interaction['type-question'] == 'open-question'):
                 message = re.sub(regex_ANSWER,
