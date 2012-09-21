@@ -542,11 +542,13 @@ class ObjectMaker:
         return {
             'keyword': 'www info',
             'responses': [ 
-                {'content': 'a response'}]
+                {'content': 'a response'}],
+            'actions': []
         }
 
     request_leave = {
         'keyword': 'www quit',
+        'responses': [],
         'actions': [
             {'type-action': 'optout'}]
     }

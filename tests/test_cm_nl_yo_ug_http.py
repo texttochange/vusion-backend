@@ -20,7 +20,7 @@ class CmYoTransportTestCase(TransportTestCase):
     transport_class = CmYoTransport
 
     yo_incomming_template = ('http://localhost:%s%s?sender=0041791234567&'
-                             'code=9292&message=Hello+World')
+                             'code=%s&message=Hello+World')
 
     @inlineCallbacks
     def setUp(self):
@@ -129,14 +129,15 @@ class CmYoTransportTestCase(TransportTestCase):
     @inlineCallbacks
     def test_receiving_one_sms(self):
         url = (self.yo_incomming_template % (self.config['receive_port'],
-                                             self.config['receive_path']))
+                                             self.config['receive_path'],
+                                             ''))
         response = yield http_request_full(url, method='GET')
         [smsg] = self.get_dispatched('cm.inbound')
 
         self.assertEqual(response.code, http.OK)
         self.assertEqual('Hello World',
                          TransportMessage.from_json(smsg.body)['content'])
-        self.assertEqual('9292',
+        self.assertEqual('+313455',
                          TransportMessage.from_json(smsg.body)['to_addr'])
         self.assertEqual('+41791234567',
                          TransportMessage.from_json(smsg.body)['from_addr'])

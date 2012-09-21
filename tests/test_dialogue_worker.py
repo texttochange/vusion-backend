@@ -847,6 +847,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
                                              content='www quit')
         yield self.send(inbound_msg_matching, 'inbound')
+        self.assertEqual(3, self.collections['history'].count())
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
                                              content='www tagme')
         yield self.send(inbound_msg_matching, 'inbound')

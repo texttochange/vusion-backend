@@ -124,7 +124,7 @@ class YoReceiveSMSResource(Resource):
             yield self.publish_func(
                 transport_name=self.transport_name,
                 transport_type='sms',
-                to_addr=request.args['code'][0],
+                to_addr=(request.args['code'][0] if request.args['code'][0]!='' else self.config['default_origin']),
                 from_addr=self.phone_format_from_yo(request.args['sender'][0]),
                 content=request.args['message'][0],
                 transport_metadata={}

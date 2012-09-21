@@ -60,7 +60,7 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
 
     @inlineCallbacks
     def test_receive_user_message_with_error_template(self):
-        msg = self.mkmsg_in(content='Gen 2', to_addr='8282')
+        msg = self.mkmsg_in(content='Gen 2', to_addr='8181')
         template_id = self.templates_collection.save(
             self.mkobj_template_unmatching_keyword()
         )

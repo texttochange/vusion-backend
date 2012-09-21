@@ -25,7 +25,8 @@ from vumi import log
 
 from vusion.dialogue import Dialogue, split_keywords
 from vusion.utils import (time_to_vusion_format, get_local_time,
-                          get_local_time_as_timestamp, time_from_vusion_format)
+                          get_local_time_as_timestamp, time_from_vusion_format,
+                          get_shortcode_value)
 from vusion.error import (MissingData, SendingDatePassed, VusionError,
                           MissingTemplate)
 from vusion.message import DispatcherControl
@@ -254,12 +255,10 @@ class TtcGenericWorker(ApplicationWorker):
         matching_request = self.collections['requests'].find_one(
             {'keyword': {'$regex': regx}})
         if matching_request:
-            if 'actions' in matching_request:
-                for action in matching_request['actions']:
-                    actions.append(action_generator(**action))
-            if 'responses' in matching_request:
-                for response in matching_request['responses']:
-                    actions.append(FeedbackAction(**{'content': response['content']}))
+            for action in matching_request['actions']:
+                actions.append(action_generator(**action))
+            for response in matching_request['responses']:
+                actions.append(FeedbackAction(**{'content': response['content']}))
             return {'request-id': matching_request['_id']}, actions
         return None, actions 
 
@@ -801,10 +800,7 @@ class TtcGenericWorker(ApplicationWorker):
             for keyphrase in keyphrases:
                 if not (keyphrase.split(' ')[0]) in keywords:
                     keywords.append(keyphrase.split(' ')[0])
-        to_addr = self.properties['shortcode']
-        regex_NATIONAL_SHORTCODE = re.compile('[0-9]+-[0-9]+')
-        if re.match(regex_NATIONAL_SHORTCODE, self.properties['shortcode']):
-            to_addr = to_addr.split('-')[1]
+        to_addr = get_shortcode_value(self.properties['shortcode'])
         rules = []
         for keyword in keywords:
             rules.append({'app': self.transport_name,
