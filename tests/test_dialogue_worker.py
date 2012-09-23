@@ -112,7 +112,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             history[key] = metadata[key] 
         self.collections['history'].save(history)
 
-
     def test03_multiple_dialogue_in_collection(self):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
@@ -1178,6 +1177,19 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             {'app': 'test', 'keyword': 'www', 'to_addr': '+318181'}],
             messages[0]['rules'])
 
+    @inlineCallbacks
+    def test22_daemon_shortcode_updated(self):
+        for program_setting in self.mkobj_program_settings():
+            self.collections['program_settings'].save(program_setting)
+        ## load a first time the properties
+        self.worker.load_data() 
+        for program_setting in self.mkobj_program_settings_international_shortcode():
+            self.collections['program_settings'].save(program_setting)
+    
+        yield self.worker.daemon_process()
+        
+        messages = self.broker.get_messages('vumi', 'dispatcher.control')
+        self.assertEqual(1, len(messages))
 
     @inlineCallbacks
     def test23_test_send_all_messages(self):

@@ -43,7 +43,13 @@ class TtcGenericWorker(ApplicationWorker):
     def startService(self):
         self._d = Deferred()
         self._consumers = []
-        self.properties = {}
+        self.properties = {
+            'shortcode':None,
+            'timezone': None,
+            'default-template-closed-question': None,
+            'default-template-open-question': None,
+            'default-template-unmatching-answer': None,
+            'customized-id': None}
         self.sender = None
         self.r_prefix = None
         self.r_config = {}
@@ -67,7 +73,6 @@ class TtcGenericWorker(ApplicationWorker):
         #Initializing
         self.program_name = None
         self.last_script_used = None
-        self.properties = {}
         self.r_server = redis.Redis(**self.r_config)
         self._d.callback(None)
 
@@ -419,7 +424,10 @@ class TtcGenericWorker(ApplicationWorker):
     @inlineCallbacks
     def daemon_process(self):
         #self.log('Starting daemon_process()')
+        previous_shortcode = self.properties['shortcode']
         self.load_data()
+        if previous_shortcode != self.properties['shortcode']:
+            yield self.register_keywords_in_dispatcher()
         if not self.is_ready():
             return
         yield self.send_scheduled()
