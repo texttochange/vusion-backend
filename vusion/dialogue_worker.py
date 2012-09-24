@@ -427,7 +427,7 @@ class TtcGenericWorker(ApplicationWorker):
         previous_shortcode = self.properties['shortcode']
         self.load_data()
         if previous_shortcode != self.properties['shortcode']:
-            yield self.register_keywords_in_dispatcher()
+            self.register_keywords_in_dispatcher()
         if not self.is_ready():
             return
         yield self.send_scheduled()
