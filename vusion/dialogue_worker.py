@@ -31,7 +31,7 @@ from vusion.error import (MissingData, SendingDatePassed, VusionError,
                           MissingTemplate)
 from vusion.message import DispatcherControl
 from vusion.action import (Actions, action_generator,
-                           FeedbackAction, EnrollingAction)
+                           FeedbackAction, EnrollingAction, OptinAction)
 
 class TtcGenericWorker(ApplicationWorker):
     
@@ -343,8 +343,7 @@ class TtcGenericWorker(ApplicationWorker):
                  'tags': {'$ne': action['tag']}},
                 {'$push': {'tags': action['tag']}})
         elif (action.get_type() == 'enrolling'):
-            if not self.collections['participants'].find_one({'phone': participant_phone}):
-                self.collections['participants'].save(self.create_participant(participant_phone))
+            self.run_action(participant_phone, OptinAction())
             self.collections['participants'].update(
                 {'phone': participant_phone,
                  'enrolled.dialogue-id': {'$ne': action['enroll']}},

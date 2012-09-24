@@ -920,16 +920,40 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         dEnrolled = time_from_vusion_format(participant['enrolled'][0]['date-time'])
         self.assertTrue(dEnrolled - dBegin < timedelta(seconds=1))
        
+        #Enrolling again should keep the old date
         self.worker.run_action("08", EnrollingAction(**{'enroll': '01'}))
+        participant = self.collections['participants'].find_one({'phone': '08'})
+        self.assertEqual(1, len(participant['enrolled']))
         self.assertEqual(
-            1,
-            len(self.collections['participants'].find_one({'phone': '08'})['enrolled']))
+            dEnrolled,
+            time_from_vusion_format(participant['enrolled'][0]['date-time']))
 
         #Enrolling a new number will opt it in
         self.worker.run_action("09", EnrollingAction(**{'enroll': '01'}))
         participant = self.collections['participants'].find_one({'phone': '09', 'enrolled.dialogue-id':'01'})
         self.assertTrue(participant)
         self.assertEqual(participant['session-id'], RegexMatcher(r'^[0-9a-fA-F]{32}$'))
+    
+    def test18_run_action_enroll_again(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        dNow = self.worker.get_local_time()
+        dPast = dNow - timedelta(days=1)
+        dialogue = self.mkobj_dialogue_question_offset_days()
+        self.collections['dialogues'].save(dialogue)
+        self.collections['participants'].save(self.mkobj_participant(
+            "08", 
+            last_optin_date=time_to_vusion_format(dPast),
+            enrolled=[{'dialogue-id': dialogue['dialogue-id'],
+                       'date-time': time_to_vusion_format(dPast)}]))
+        
+        self.worker.run_action("08", EnrollingAction(**{'enroll': '01'}))
+        
+        participant = self.collections['participants'].find_one({'phone': '08'})
+        self.assertEqual(
+            time_to_vusion_format(dPast),
+            participant['enrolled'][0]['date-time'])
         
     def test18_run_action_enroll_auto_enroll(self):
         for program_setting in self.mkobj_program_settings():
@@ -943,7 +967,32 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         
         self.assertTrue(self.collections['participants'].find_one({'enrolled.dialogue-id':'0'}) is not None)
         self.assertEqual(1, self.collections['schedules'].count())
+
+    def test18_run_action_enroll_clear_profile_if_not_optin(self):
+        for program_setting in self.mkobj_program_settings():
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
+        dialogue = self.mkobj_dialogue_question_offset_days()
+        self.collections['dialogues'].save(dialogue)        
+        self.collections['participants'].save(self.mkobj_participant(
+            participant_phone='06',
+            last_optin_date=None,
+            session_id=None,
+            tags=['geeks'],
+            profile={'name':'Oliv'},
+            enrolled=[{'dialogue-id': '01',
+                       'date-time': '2012-08-08T12:36:20'}]))
+        dNow = self.worker.get_local_time()
         
+        self.worker.run_action("06", EnrollingAction(**{'enroll': '01'}))
+        
+        participant = self.collections['participants'].find_one({'phone':'06'})
+        self.assertEqual(participant['tags'], [])
+        self.assertEqual(participant['profile'], {})
+        self.assertEqual(participant['enrolled'][0]['dialogue-id'], '01')
+        self.assertTrue(
+            dNow - time_from_vusion_format(participant['enrolled'][0]['date-time']) < timedelta(seconds=1))
 
     def test18_run_action_optin_optout(self):
         for program_setting in self.program_settings:
