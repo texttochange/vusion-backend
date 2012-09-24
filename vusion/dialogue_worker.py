@@ -30,7 +30,8 @@ from vusion.utils import (time_to_vusion_format, get_local_time,
 from vusion.error import (MissingData, SendingDatePassed, VusionError,
                           MissingTemplate)
 from vusion.message import DispatcherControl
-from vusion.action import Actions, action_generator, FeedbackAction
+from vusion.action import (Actions, action_generator,
+                           FeedbackAction, EnrollingAction)
 
 class TtcGenericWorker(ApplicationWorker):
     
@@ -168,10 +169,10 @@ class TtcGenericWorker(ApplicationWorker):
             sort=[('modified', pymongo.DESCENDING)],
             limit=1)
 
-    def get_active_dialogues(self):
+    def get_active_dialogues(self, conditions=None):
         return self.collections['dialogues'].group(
             ['dialogue-id'],
-            None,
+            conditions,
             {'Dialogue': 0},
             """function(obj, prev){
             if (obj.activated &&
@@ -292,8 +293,12 @@ class TtcGenericWorker(ApplicationWorker):
                                   'tags': [],
                                   'enrolled': [],
                                   'profile': {} }})
+                else:
+                    return
             else:
                 self.collections['participants'].save(self.create_participant(participant_phone))
+            for dialogue in self.get_active_dialogues({'auto-enrollment':'all'}):
+                self.run_action(participant_phone, EnrollingAction(**{'enroll': dialogue['dialogue-id']}))            
         elif (action.get_type() == 'optout'):
             self.collections['participants'].update(
                 {'phone': participant_phone},
@@ -451,14 +456,9 @@ class TtcGenericWorker(ApplicationWorker):
         #Schedule the dialogues
         active_dialogues = self.get_active_dialogues()
         for dialogue in active_dialogues:
-            if ('auto-enrollment' in dialogue['Dialogue']
-                    and dialogue['Dialogue']['auto-enrollment'] == 'all'):
-                participants = self.collections['participants'].find(
-                    {'session-id': {'$ne': None}})
-            else:
-                participants = self.collections['participants'].find(
-                    {'enrolled': {'$ne': dialogue['dialogue-id']},
-                     'session-id': {'$ne': None}})
+            participants = self.collections['participants'].find(
+                {'enrolled': {'$ne': dialogue['dialogue-id']},
+                 'session-id': {'$ne': None}})
             self.schedule_participants_dialogue(
                 participants, dialogue['Dialogue'])
         #Schedule the nonattached messages

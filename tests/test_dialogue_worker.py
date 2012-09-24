@@ -931,6 +931,19 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertTrue(participant)
         self.assertEqual(participant['session-id'], RegexMatcher(r'^[0-9a-fA-F]{32}$'))
         
+    def test18_run_action_enroll_auto_enroll(self):
+        for program_setting in self.mkobj_program_settings():
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        
+        dialogue = self.mkobj_dialogue_annoucement()        
+        self.collections['dialogues'].save(dialogue)
+        
+        self.worker.run_action("04", OptinAction())
+        
+        self.assertTrue(self.collections['participants'].find_one({'enrolled.dialogue-id':'0'}) is not None)
+        self.assertEqual(1, self.collections['schedules'].count())
+        
 
     def test18_run_action_optin_optout(self):
         for program_setting in self.program_settings:
