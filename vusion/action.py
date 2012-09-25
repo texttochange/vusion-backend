@@ -160,3 +160,6 @@ class Actions():
 
     def __getitem__(self, key):
         return self.actions[key]
+    
+    def get_priority_action(self):
+        return self.actions.pop(0)

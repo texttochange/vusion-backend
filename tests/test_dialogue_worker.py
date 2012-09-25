@@ -112,6 +112,15 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             history[key] = metadata[key] 
         self.collections['history'].save(history)
 
+    def test02_is_enrolled(self):
+        participant = self.mkobj_participant(enrolled = [{'dialogue-id':'01',
+                                                          'date-time': 'someting'},
+                                                         {'dialogue-id':'3',
+                                                          'date-time': 'something'}])
+        self.assertTrue(self.worker.is_enrolled(participant, '01'))
+        self.assertTrue(self.worker.is_enrolled(participant, '3'))
+        self.assertFalse(self.worker.is_enrolled(participant, '2'))
+
     def test03_multiple_dialogue_in_collection(self):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
@@ -696,10 +705,15 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
     @inlineCallbacks
     def test17_receive_inbound_message_matching(self):
+        for program_setting in self.mkobj_program_settings():
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        dNow = self.worker.get_local_time()
         self.collections['dialogues'].save(self.mkobj_dialogue_question_offset_days())
-        #request_id = self.collections['requests'].save(self.mkobj_request_join())
-        self.collections['participants'].save(self.mkobj_participant('06',
-                                                                     enrolled=['01']))
+        self.collections['participants'].save(self.mkobj_participant(
+            '06',
+            enrolled=[{'dialogue-id': '01', 
+                       'date-time': time_to_vusion_format(dNow)}]))
 
         inbound_msg_matching = self.mkmsg_in(
             from_addr='06',
@@ -726,40 +740,98 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         for history in histories:
             self.assertEqual('1', history['participant-session-id'])
         self.assertEqual(1, self.collections['schedules'].count())
-        
-    #@inlineCallbacks
-    def test17_receive_inbound_message_matching_with_reminder(self):
-        dialogue = self.mkobj_dialogue_open_question_reminder()
-        self.collections['dialogues'].save(dialogue)
-        participant = self.mkobj_participant('06', enrolled=['04'])
-        self.collections['participants'].save(participant)
-        for program_setting in self.program_settings:
+
+    @inlineCallbacks
+    def test17_receive_inbound_message_matching_offset_condition(self):
+        for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
+        dNow = self.worker.get_local_time()
+        self.collections['dialogues'].save(self.mkobj_dialogue_open_question_offset_conditional())
+        self.collections['participants'].save(self.mkobj_participant(
+            '06',
+            enrolled=[{'dialogue-id': '04', 
+                       'date-time': time_to_vusion_format(dNow)}]))
+        self.collections['history'].save(self.mkobj_history_dialogue(
+            participant_phone='06',
+            participant_session_id='1',
+            dialogue_id='04',
+            interaction_id='01-01',
+            direction='outgoing',
+            timestamp=time_to_vusion_format(dNow)
+        ))
         
+        inbound_msg_matching = self.mkmsg_in(
+            from_addr='06',
+            content='name olivier')
+        yield self.send(inbound_msg_matching, 'inbound')
+        
+        self.assertEqual(1, self.collections['schedules'].count())
+
+    @inlineCallbacks
+    def test17_receive_inbound_message_matching_with_reminder(self):
+        for program_setting in self.mkobj_program_settings():
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
         dNow = self.worker.get_local_time()
         dPast = dNow - timedelta(minutes=4)
-        
+        dFuture = dNow + timedelta(minutes=10)
+
+        dialogue = self.mkobj_dialogue_open_question_reminder()
+        self.collections['dialogues'].save(dialogue)
+        participant = self.mkobj_participant(
+            '06',
+            session_id='1',
+            enrolled=[{'dialogue-id':'04',
+                       'date-time': time_to_vusion_format(dNow)}])
+        self.collections['participants'].save(participant)
+                
         dialogue['interactions'][0]['date-time'] = time_to_vusion_format(dPast)
         
-        self.worker.schedule_participant_dialogue(
-            participant, dialogue)
+        self.collections['history'].save(self.mkobj_history_dialogue(
+            participant_phone='06',
+            participant_session_id='1',
+            direction='outgoing',
+            dialogue_id='04',
+            interaction_id='01-01',
+            timestamp= time_to_vusion_format(dPast)))
         
-        self.assertEqual(4, self.collections['schedules'].count())
+        self.collections['schedules'].save(self.mkobj_schedule(
+            dialogue_id='04',
+            interaction_id='01-01',
+            object_type='reminder-schedule',
+            participant_phone='06',
+            date_time=time_to_vusion_format(dFuture)))
         
+        self.collections['schedules'].save(self.mkobj_schedule(
+            dialogue_id='04',
+            interaction_id='01-01',
+            object_type = 'deadline-schedule',
+            participant_phone='06',
+            date_time=time_to_vusion_format(dFuture)))
+          
         inbound_msg_matching = self.mkmsg_in(
             from_addr='06',
             content='name ok')
         
-        self.worker.consume_user_message(inbound_msg_matching)
-        self.assertEqual(0, self.collections['schedules'].count())
-        
+        yield self.send(inbound_msg_matching, 'inbound')
+
+        self.assertEqual(0, self.collections['schedules'].count())   
 
     @inlineCallbacks
     def test17_receiving_inbound_message_no_repeat_dialogue_action(self):
+        for program_setting in self.mkobj_program_settings():
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
+        dNow = self.worker.get_local_time()
+        
         self.collections['dialogues'].save(self.mkobj_dialogue_open_question())
-        self.collections['participants'].save(self.mkobj_participant('06',
-                                                                     enrolled=['04']))
+        self.collections['participants'].save(self.mkobj_participant(
+            '06',
+            enrolled=[{'dialogue-id':'04',
+                       'date-time': time_to_vusion_format(dNow)}]))
 
         inbound_msg_matching_request = self.mkmsg_in(
             from_addr='06',
@@ -799,7 +871,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
                                                      content='wWw info')
         yield self.send(inbound_msg_matching_request, 'inbound')
         
-        self.assertEqual(1, self.collections['schedules'].count())
+        self.assertEqual(0, self.collections['schedules'].count())
 
     @inlineCallbacks
     def test17_receiving_inbound_message_request_optin(self):
@@ -835,7 +907,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         yield self.send(inbound_msg_matching, 'inbound')
         
         self.assertEqual(0, self.collections['participants'].count())
-        self.assertEqual(1, self.collections['schedules'].count())
+        self.assertEqual(0, self.collections['schedules'].count())
         self.assertEqual(1, self.collections['history'].count())
 
         # Still participant can optin
