@@ -31,7 +31,8 @@ from vusion.error import (MissingData, SendingDatePassed, VusionError,
                           MissingTemplate)
 from vusion.message import DispatcherControl
 from vusion.action import (Actions, action_generator,
-                           FeedbackAction, EnrollingAction, OptinAction)
+                           FeedbackAction, EnrollingAction,
+                           OptinAction, OptoutAction)
 
 class TtcGenericWorker(ApplicationWorker):
     
@@ -371,6 +372,9 @@ class TtcGenericWorker(ApplicationWorker):
                 'participant-phone': participant_phone,
                 'dialogue-id': action['dialogue-id'],
                 'interaction-id': action['interaction-id']})
+        elif (action.get_type() == 'reset'):
+            self.run_action(participant_phone, OptoutAction())
+            self.run_action(participant_phone, OptinAction())
         else:
             self.log("The action is not supported %s" % action['type-action'])
 
