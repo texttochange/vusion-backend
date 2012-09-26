@@ -536,9 +536,14 @@ class TtcGenericWorker(ApplicationWorker):
                 history = self.collections['history'].find_one(
                     {"participant-phone": participant['phone'],
                      "participant-session-id": participant['session-id'],
-                     "message-direction": self.OUTGOING,
+#                     "message-direction": self.OUTGOING,
                      "dialogue-id": dialogue["dialogue-id"],
-                     "interaction-id": interaction["interaction-id"]},
+                     "interaction-id": interaction["interaction-id"],
+                     "$or": [{"message-direction": self.OUTGOING},
+                             {"message-direction": self.INCOMING,
+                              "matching-answer": {"$ne":None}},
+                              {"message-direction": self.INCOMING,
+                               "matching-answer": {"$exists": False}}]},
                     sort=[("timestamp", pymongo.ASCENDING)])
 
                 if history:
