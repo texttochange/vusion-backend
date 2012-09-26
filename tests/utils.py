@@ -608,9 +608,8 @@ class ObjectMaker:
             'message-status': 'delivered',
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id,
-            'matching-answer': matching_answer,
+            'matching-answer' : matching_answer
             }
-
 
     def mkobj_participant(self, participant_phone='06',
                           last_optin_date='2012-02-01T18:30:20', session_id='1',

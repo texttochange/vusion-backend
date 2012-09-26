@@ -128,7 +128,7 @@ class TtcGenericWorker(ApplicationWorker):
             schedule['type-content']='feedback'
         else:
             raise VusionError('object type not supported by schedule %s' % object_type)
-        self.log("schedule is %r" % schedule)
+        self.log("Save schedule %r" % schedule)
         self.collections['schedules'].save(schedule)        
 
     def save_history(self, message_content, participant_phone,
@@ -395,37 +395,49 @@ class TtcGenericWorker(ApplicationWorker):
                 ref, actions = self.get_matching_request_actions(
                     message['content'],
                     actions)
+            if actions.contains('optin') or actions.contains('enrolled'):
+                self.run_action(message['from_addr'], actions.get_priority_action())
             participant = self.collections['participants'].find_one(
-                {'phone': message['from_addr'], 
-                 'session-id': {'$ne': None}})
-            if ((not ref is None and 'request-id' in ref) 
-                    or (participant and not ref is None and self.is_enrolled(participant, ref['dialogue-id']) and not self.has_already_happend(participant, **ref)) 
-                    or actions.contains('optin') or actions.contains('enrolled')):
-                for action in actions.items():
-                    self.run_action(message['from_addr'], action)
+                {'phone': message['from_addr']})
             self.save_history(
                 message_content=message['content'],
                 participant_phone=message['from_addr'],
-                participant_session_id=self.get_participant_session_id(message['from_addr']),
+                participant_session_id=(participant['session-id'] if participant else None),
                 message_direction='incoming',
                 reference_metadata=ref)
+            if (not ref is None):
+                self.run_actions(participant, ref, actions)
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log(
                 "Error during consume user message: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
 
+    def run_actions(self, participant, ref, actions):
+        if ((not 'request-id' in ref)
+            and (participant['session-id'] is None
+                 or not self.is_enrolled(participant, ref['dialogue-id']) 
+                 or self.has_already_happend(participant, **ref))):
+            return
+        for action in actions.items():
+            self.run_action(participant['phone'], action)
+
     def is_enrolled(self, participant, dialogue_id):
-        return (dialogue_id in participant['enrolled'])
+        for enrolled in participant['enrolled']:
+            if enrolled['dialogue-id']==dialogue_id:
+                return True
+        return False
 
     def has_already_happend(self, participant, **kwargs):
         if kwargs is None:
             return
         query = {'participant-phone': participant['phone'],
-                 'participant-session-id':participant['session-id']}
+                 'participant-session-id':participant['session-id'],
+                 'message-direction': 'incoming'}
         for key in kwargs:
             query[key] = kwargs[key]
-        if self.collections['history'].find_one(query) is None:
+        history = self.collections['history'].find(query)
+        if history is None or history.count() == 1:
             return False
         return True
 
@@ -515,6 +527,7 @@ class TtcGenericWorker(ApplicationWorker):
             if not 'interactions' in dialogue:
                 return
             for interaction in dialogue['interactions']:
+                self.log("Scheduling %r" % interaction)
                 schedule = self.collections['schedules'].find_one({
                     "participant-phone": participant['phone'],
                     "object-type": 'dialogue-schedule',
@@ -586,7 +599,6 @@ class TtcGenericWorker(ApplicationWorker):
                                    interaction_id=schedule['interaction-id'])
                 if 'set-reminder' in interaction:
                     self.schedule_participant_reminders(participant, dialogue, interaction, sendingDateTime)
-                self.log("Schedule has been saved: %s" % schedule)
         except:
             self.log("Scheduling exception: %s" % interaction)
             exc_type, exc_value, exc_traceback = sys.exc_info()

@@ -3,21 +3,16 @@ vusion_database_name: vusion
 mongodb_host: localhost
 mongodb_port: 27017
 workers:
-    m4h: vusion.TtcGenericWorker
+    m4rh: vusion.TtcGenericWorker
     mrs: vusion.TtcGenericWorker
-    wiki: vusion.TtcGenericWorker
-m4h:
-    control_name: m4h
-    transport_name: m4h
-    database_name: m4h
+m4rh:
+    control_name: m4rh
+    transport_name: m4rh
+    database_name: m4rh
 mrs:
     control_name: mrs
     transport_name: mrs
     database_name: mrs
-wiki:
-    control_name: wiki
-    transport_name: wiki
-    database_name: wiki
 defaults:
     mongodb_host: localhost
     mongodb_port: 27017
