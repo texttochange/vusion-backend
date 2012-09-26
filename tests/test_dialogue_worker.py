@@ -1178,6 +1178,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             '06',
             last_optin_date=time_to_vusion_format(dNow),
             profile={'name':'Oliv'})
+        self.collections['participants'].save(participant)
         
         self.worker.run_action("06", ResetAction())
         
