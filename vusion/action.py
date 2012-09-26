@@ -58,6 +58,14 @@ class OptoutAction(Action):
         pass
 
 
+class ResetAction(Action):
+    
+    ACTION_TYPE = 'reset'
+
+    def validate_fields(self):
+        pass
+
+
 class FeedbackAction(Action):
     
     ACTION_TYPE = 'feedback'
@@ -121,6 +129,8 @@ def action_generator(**kwargs):
         return OptinAction(**kwargs)
     elif kwargs['type-action'] == 'optout':
         return OptoutAction(**kwargs)
+    elif kwargs['type-action'] == 'reset':
+        return ResetAction(**kwargs)
     elif kwargs['type-action'] == 'enrolling':
         return EnrollingAction(**kwargs)
     elif kwargs['type-action'] == 'tagging':
