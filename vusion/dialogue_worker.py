@@ -657,7 +657,9 @@ class TtcGenericWorker(ApplicationWorker):
         return timestamp.strftime('%Y-%m-%dT%H:%M:%S')
 
     def from_schedule_to_message(self, schedule):
-        if schedule['object-type'] == 'dialogue-schedule' or schedule['object-type'] == 'deadline-schedule':
+        if (schedule['object-type'] == 'dialogue-schedule' 
+                or schedule['object-type'] == 'reminder-schedule'
+                or schedule['object-type'] == 'deadline-schedule'):
             interaction = self.get_interaction(
                 self.get_active_dialogues(),
                 schedule['dialogue-id'],
