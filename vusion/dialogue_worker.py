@@ -436,7 +436,10 @@ class TtcGenericWorker(ApplicationWorker):
                  'participant-session-id':participant['session-id'],
                  'message-direction': 'incoming'}
         for key in kwargs:
-            query[key] = kwargs[key]
+            if key == 'matching-answer':
+                query[key] = {'$ne': None}
+            else:
+                query[key] = kwargs[key]
         history = self.collections['history'].find(query)
         if history is None or history.count() == 1:
             return False
