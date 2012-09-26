@@ -27,7 +27,7 @@ from vusion.action import (UnMatchingAnswerAction, EnrollingAction,
                            FeedbackAction, OptinAction, OptoutAction,
                            TaggingAction, ProfilingAction,
                            OffsetConditionAction, RemoveRemindersAction,
-                           Actions)
+                           ResetAction, Actions)
 from transports import YoUgHttpTransport
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 
@@ -1167,6 +1167,24 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual(self.collections['schedules'].count(), 0)
         self.assertEqual(self.collections['schedules'].find_one({'object-type':'reminder-schedule'}), None)
         self.assertEqual(self.collections['schedules'].find_one({'object-type':'deadline-schedule'}), None)
+        
+    def test18_run_action_reset(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        dNow = self.worker.get_local_time()
+        
+        participant = self.mkobj_participant(
+            '06',
+            last_optin_date=time_to_vusion_format(dNow),
+            profile={'name':'Oliv'})
+        self.collections['participants'].save(participant)
+        
+        self.worker.run_action("06", ResetAction())
+        
+        reset_participant = self.collections['participants'].find_one({'phone':'06'})
+        
+        self.assertEqual(reset_participant['profile'], {})
 
     def test21_schedule_unattach_message(self):
         participants = [self.mkobj_participant(),
