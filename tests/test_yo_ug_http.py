@@ -1,6 +1,7 @@
 from uuid import uuid4
 from datetime import datetime
 import re
+from string import Template
 
 from twisted.internet.defer import inlineCallbacks
 from twisted.web import http
@@ -123,6 +124,22 @@ class YoUgHttpTransportTestCase(MessageMaker, TransportTestCase):
     def test_receiving_one_sms(self):
         url = "http://localhost:%s%s?sender=41791234567&code=9292&message=Hello+World" % (
             self.config['receive_port'], self.config['receive_path'])
+        response = yield http_request_full(url, method='GET')
+        [smsg] = self.get_dispatched('yo.inbound')
+
+        self.assertEqual(response.code, http.OK)
+        self.assertEqual('Hello World',
+                         TransportMessage.from_json(smsg.body)['content'])
+        self.assertEqual('+41791234567',
+                         TransportMessage.from_json(smsg.body)['from_addr'])
+        self.assertEqual('9292',
+                         TransportMessage.from_json(smsg.body)['to_addr'])
+
+    @inlineCallbacks
+    def test_receiving_one_sms_phone_with_plus(self):
+        t = Template("http://localhost:$port$path?sender=%2B41791234567&code=9292&message=Hello+World")
+        url = t.substitute(port=self.config['receive_port'],
+                           path=self.config['receive_path'])
         response = yield http_request_full(url, method='GET')
         [smsg] = self.get_dispatched('yo.inbound')
 

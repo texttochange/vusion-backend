@@ -111,8 +111,10 @@ class YoReceiveSMSResource(Resource):
         self.transport_name = self.config['transport_name']
 
     def phone_format_from_yo(self, phone):
-        regex = re.compile('^00')
+        regex = re.compile('^[(00)(\+)]')
+        regex_single = re.compile('^0')
         phone = re.sub(regex, '', phone)
+        phone = re.sub(regex_single, '', phone)        
         return ('+%s' % phone)
 
     @inlineCallbacks
