@@ -851,6 +851,37 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual('john doe', participant['profile']['name']) 
 
     @inlineCallbacks
+    def test17_receiving_inbound_message_no_repeat_dialogue_enroll(self):
+        for program_setting in self.mkobj_program_settings():
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
+        dNow = self.worker.get_local_time()
+        
+        self.collections['dialogues'].save(self.mkobj_dialogue_open_question_enroll_action('0'))
+        self.collections['participants'].save(self.mkobj_participant(
+            '06',
+            enrolled=[{'dialogue-id':'04',
+                       'date-time': time_to_vusion_format(dNow)}]))
+
+        self.collections['history'].save(self.mkobj_history_dialogue_open_question(
+            participant_phone='06',
+            participant_session_id='1',
+            direction = 'incoming',
+            dialogue_id='04',
+            interaction_id='01-01',
+            timestamp=time_to_vusion_format(dNow)))
+
+        inbound_msg_matching_request = self.mkmsg_in(
+            from_addr='06',
+            content='name john doe')
+
+        yield self.send(inbound_msg_matching_request, 'inbound')
+
+        participant = self.collections['participants'].find_one({'phone': '06'})
+        self.assertEqual(1, len(participant['enrolled'])) 
+
+    @inlineCallbacks
     def test17_receiving_inbound_message_only_enrolled(self):
         self.collections['dialogues'].save(self.mkobj_dialogue_open_question())
         self.collections['participants'].save(self.mkobj_participant('06'))

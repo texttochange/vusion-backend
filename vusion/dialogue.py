@@ -73,6 +73,7 @@ class Dialogue:
                 'dialogue-id': dialogue_id,
                 'interaction-id':interaction['interaction-id']}))
         if 'answers' in interaction:
+            # Closed questions
             answer = self.get_matching_answer(interaction['answers'], reply)
             if not answer or answer is None:
                 reference_metadata['matching-answer'] = None
@@ -89,11 +90,15 @@ class Dialogue:
                     for answer_action in answer['answer-actions']:
                         actions.append(action_generator(**answer_action))
         else:
+            # Open questions
             actions = self.add_feedback_action(actions, interaction)
             if 'answer-label' in interaction:
                 actions.append(ProfilingAction(**{
                     'label': interaction['answer-label'],
-                    'value': self.get_open_answer(message)}))        
+                    'value': self.get_open_answer(message)}))
+            if 'answer-actions' in interaction:
+                for answer_action in interaction['answer-actions']:
+                    actions.append(action_generator(**answer_action))
         # Check if offset condition on this answer
         for interaction_to_schedule in self.get_offset_condition_interactions(interaction['interaction-id']):
             actions.append(OffsetConditionAction(**{

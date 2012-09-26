@@ -395,7 +395,8 @@ class TtcGenericWorker(ApplicationWorker):
                 ref, actions = self.get_matching_request_actions(
                     message['content'],
                     actions)
-            if actions.contains('optin') or actions.contains('enrolled'):
+            if (self.get_participant_session_id(message['from_addr']) is None 
+                    and (actions.contains('optin') or actions.contains('enrolled'))):
                 self.run_action(message['from_addr'], actions.get_priority_action())
             participant = self.collections['participants'].find_one(
                 {'phone': message['from_addr']})
