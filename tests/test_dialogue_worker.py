@@ -1,24 +1,16 @@
-from bson.objectid import ObjectId
 from datetime import datetime, time, date, timedelta
-from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
-from transports import YoUgHttpTransport
-from twisted.internet.defer import inlineCallbacks
-from twisted.trial.unittest import TestCase
-from vumi.message import Message, TransportEvent, TransportUserMessage
-from vumi.tests.utils import get_stubbed_worker, UTCNearNow, RegexMatcher
-from vusion.action import UnMatchingAnswerAction, EnrollingAction, \
-    FeedbackAction, OptinAction, OptoutAction, TaggingAction, ProfilingAction
-from vusion.dialogue_worker import TtcGenericWorker
-from vusion.error import MissingData, MissingTemplate
-from vusion.utils import time_to_vusion_format, time_from_vusion_format
-import json
-import pymongo
 import pytz
 
-
+import json
+import pymongo
 from bson.objectid import ObjectId
 from bson.timestamp import Timestamp
 
+from twisted.internet.defer import inlineCallbacks
+from twisted.trial.unittest import TestCase
+
+from vumi.message import Message, TransportEvent, TransportUserMessage
+from vumi.tests.utils import get_stubbed_worker, UTCNearNow, RegexMatcher
 
 from vusion.dialogue_worker import TtcGenericWorker
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
@@ -27,10 +19,11 @@ from vusion.action import (UnMatchingAnswerAction, EnrollingAction,
                            FeedbackAction, OptinAction, OptoutAction,
                            TaggingAction, ProfilingAction,
                            OffsetConditionAction, RemoveRemindersAction,
-                           ResetAction, Actions)
-from transports import YoUgHttpTransport
-from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
+                           ResetAction, RemoveDeadlineAction, Actions)
 
+from transports import YoUgHttpTransport
+
+from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 
 
 class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
@@ -111,6 +104,57 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         for key in metadata:
             history[key] = metadata[key] 
         self.collections['history'].save(history)
+
+    def test01_has_already_been_answered(self):
+        dNow = datetime.now()
+
+        participant = self.mkobj_participant()
+       
+        self.assertFalse(self.worker.has_already_valid_answer(
+            participant, **{'dialogue-id':'1', 'interaction-id':'1', 'matching-answer': None}))
+       
+        self.collections['history'].save(self.mkobj_history_dialogue(
+            direction='incoming',
+            participant_phone='06',
+            participant_session_id='1',
+            timestamp=time_to_vusion_format(dNow),
+            dialogue_id='1',
+            interaction_id='1',
+            matching_answer=None
+        ))
+        
+        self.assertFalse(self.worker.has_already_valid_answer(
+            participant, **{'dialogue-id':'1', 'interaction-id':'1', 'matching-answer': None}))
+        
+        self.assertFalse(self.worker.has_already_valid_answer(
+            participant, **{'dialogue-id':'1', 'interaction-id':'1', 'matching-answer': 'something'}))
+      
+        self.collections['history'].save(self.mkobj_history_dialogue(
+            direction='incoming',
+            participant_phone='06',
+            participant_session_id='1',
+            timestamp=time_to_vusion_format(dNow),
+            dialogue_id='1',
+            interaction_id='1',
+            matching_answer='something'
+        ))
+       
+        self.assertFalse(self.worker.has_already_valid_answer(
+            participant, **{'dialogue-id':'1', 'interaction-id':'1', 'matching-answer': 'something'}))
+
+        self.collections['history'].save(self.mkobj_history_dialogue(
+            direction='incoming',
+            participant_phone='06',
+            participant_session_id='1',
+            timestamp=time_to_vusion_format(dNow),
+            dialogue_id='1',
+            interaction_id='1',
+            matching_answer='something else'
+        ))
+        
+        self.assertTrue(self.worker.has_already_valid_answer(
+            participant, **{'dialogue-id':'1', 'interaction-id':'1', 'matching-answer': 'something else'}))
+
 
     def test02_is_enrolled(self):
         participant = self.mkobj_participant(enrolled = [{'dialogue-id':'01',
@@ -250,7 +294,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             time_to_vusion_format(time_from_vusion_format(schedules[1]['date-time'])),
             time_to_vusion_format(dPast + timedelta(minutes=50)))
 
-    @inlineCallbacks
+    #@inlineCallbacks
     def test05_send_scheduled_messages(self):
         dialogue = self.dialogue_annoucement_2
         participant = self.mkobj_participant('09')
@@ -300,7 +344,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
                 participant_phone='09'))
         self.worker.load_data()
 
-        yield self.worker.send_scheduled()
+        self.worker.send_scheduled()
 
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 3)
@@ -316,16 +360,15 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         for history in histories:
             self.assertTrue(history['participant-session-id'] is not None)
 
-    @inlineCallbacks
-    def test05_send_scheduled_deadline(self):
-        mytimezone = self.program_settings[2]['value']
-        dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
-        dPast = dNow - timedelta(minutes=2)        
-        
+    #@inlineCallbacks
+    def test05_send_scheduled_deadline(self):  
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
 
+        dNow = self.worker.get_local_time()
+        dPast = dNow - timedelta(minutes=2)   
+        
         dialogue = self.mkobj_dialogue_open_question_reminder()
         participant = self.mkobj_participant('06')
         self.collections['dialogues'].save(dialogue)
@@ -336,7 +379,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             'dialogue-id': '04',
             'interaction-id': '01-01',
             'participant-phone': '06'})
-        yield self.worker.send_scheduled()
+        self.worker.send_scheduled()
         
         saved_participant = self.collections['participants'].find_one()
         self.assertEqual(saved_participant['session-id'], None)
@@ -864,12 +907,13 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             enrolled=[{'dialogue-id':'04',
                        'date-time': time_to_vusion_format(dNow)}]))
 
-        self.collections['history'].save(self.mkobj_history_dialogue_open_question(
+        self.collections['history'].save(self.mkobj_history_dialogue(
             participant_phone='06',
             participant_session_id='1',
             direction = 'incoming',
             dialogue_id='04',
             interaction_id='01-01',
+            matching_answer='1',
             timestamp=time_to_vusion_format(dNow)))
 
         inbound_msg_matching_request = self.mkmsg_in(
@@ -895,7 +939,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertTrue(not 'name' in participant['profile'])
 
     @inlineCallbacks
-    def test17_receiving_inbound_request(self):
+    def test17_receiving_inbound_request_not_optin(self):
         request_id = self.collections['requests'].save(self.mkobj_request_response())
       
         inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
@@ -903,6 +947,17 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         yield self.send(inbound_msg_matching_request, 'inbound')
         
         self.assertEqual(0, self.collections['schedules'].count())
+        
+    @inlineCallbacks
+    def test17_receiving_inbound_request_optin(self):
+        request_id = self.collections['requests'].save(self.mkobj_request_join())
+      
+        inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
+                                                     content='www')
+        yield self.send(inbound_msg_matching_request, 'inbound')
+        
+        self.assertEqual(2, self.collections['schedules'].count())
+        self.assertFalse(self.collections['participants'].find_one({'phone': '07'}) is None)
 
     @inlineCallbacks
     def test17_receiving_inbound_message_request_optin(self):
@@ -1243,8 +1298,9 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.worker.run_action("06", OffsetConditionAction(**{
             'dialogue-id': '04',
             'interaction-id':'01-01'}))        
-        self.assertEqual(self.collections['schedules'].count(),
-                         3)
+        self.assertEqual(
+            self.collections['schedules'].count(),
+            3)
         
     def test18_run_action_remove_reminders(self):
         for program_setting in self.program_settings:
@@ -1267,10 +1323,14 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.worker.run_action("06", RemoveRemindersAction(**{
             'dialogue-id': dialogue['dialogue-id'],
             'interaction-id': interaction['interaction-id']}))        
-        self.assertEqual(self.collections['schedules'].count(), 0)
+        self.assertEqual(self.collections['schedules'].count(), 1)
         self.assertEqual(self.collections['schedules'].find_one({'object-type':'reminder-schedule'}), None)
-        self.assertEqual(self.collections['schedules'].find_one({'object-type':'deadline-schedule'}), None)
+        self.assertTrue(self.collections['schedules'].find_one({'object-type':'deadline-schedule'}) is not None)
         
+        self.worker.run_action('06', RemoveDeadlineAction(**{'dialogue-id': dialogue['dialogue-id'],
+                                                           'interaction-id': interaction['interaction-id']}))        
+        self.assertEqual(self.collections['schedules'].count(), 0) 
+
     def test18_run_action_reset(self):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)

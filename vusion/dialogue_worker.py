@@ -263,6 +263,7 @@ class TtcGenericWorker(ApplicationWorker):
             {'keyword': {'$regex': regx}})
         if matching_request:
             for action in matching_request['actions']:
+                self.log("Add action: %r" % action)
                 actions.append(action_generator(**action))
             for response in matching_request['responses']:
                 actions.append(FeedbackAction(**{'content': response['content']}))
@@ -367,11 +368,24 @@ class TtcGenericWorker(ApplicationWorker):
                 self.collections['participants'].find_one({'phone':participant_phone,
                                                           'session-id':{'$ne':None}}),
                 self.get_current_dialogue(action['dialogue-id']))
+        elif (action.get_type() == 'remove-question'):
+            self.collections['schedules'].remove({
+                'participant-phone': participant_phone,
+                'dialogue-id': action['dialogue-id'],
+                'interaction-id': action['interaction-id'],
+                'object-type': 'dialogue-schedule'})
         elif (action.get_type() == 'remove-reminders'):
             self.collections['schedules'].remove({
                 'participant-phone': participant_phone,
                 'dialogue-id': action['dialogue-id'],
-                'interaction-id': action['interaction-id']})
+                'interaction-id': action['interaction-id'],
+                'object-type': 'reminder-schedule'})
+        elif (action.get_type() == 'remove-deadline'):
+            self.collections['schedules'].remove({
+                'participant-phone': participant_phone,
+                'dialogue-id': action['dialogue-id'],
+                'interaction-id': action['interaction-id'],
+                'object-type': 'deadline-schedule'})
         elif (action.get_type() == 'reset'):
             self.run_action(participant_phone, OptoutAction())
             self.run_action(participant_phone, OptinAction())
@@ -396,7 +410,7 @@ class TtcGenericWorker(ApplicationWorker):
                     message['content'],
                     actions)
             if (self.get_participant_session_id(message['from_addr']) is None 
-                    and (actions.contains('optin') or actions.contains('enrolled'))):
+                    and (actions.contains('optin') or actions.contains('enrolling'))):
                 self.run_action(message['from_addr'], actions.get_priority_action())
             participant = self.collections['participants'].find_one(
                 {'phone': message['from_addr']})
@@ -418,9 +432,10 @@ class TtcGenericWorker(ApplicationWorker):
         if ((not 'request-id' in ref)
             and (participant['session-id'] is None
                  or not self.is_enrolled(participant, ref['dialogue-id']) 
-                 or self.has_already_happend(participant, **ref))):
+                 or self.has_already_valid_answer(participant, **ref))):
             return
         for action in actions.items():
+            self.log("Run action %r" % action)
             self.run_action(participant['phone'], action)
 
     def is_enrolled(self, participant, dialogue_id):
@@ -429,7 +444,7 @@ class TtcGenericWorker(ApplicationWorker):
                 return True
         return False
 
-    def has_already_happend(self, participant, **kwargs):
+    def has_already_valid_answer(self, participant, **kwargs):
         if kwargs is None:
             return
         query = {'participant-phone': participant['phone'],
@@ -441,7 +456,7 @@ class TtcGenericWorker(ApplicationWorker):
             else:
                 query[key] = kwargs[key]
         history = self.collections['history'].find(query)
-        if history is None or history.count() == 1:
+        if history is None or history.count() <= 1:
             return False
         return True
 
@@ -540,14 +555,11 @@ class TtcGenericWorker(ApplicationWorker):
                 history = self.collections['history'].find_one(
                     {"participant-phone": participant['phone'],
                      "participant-session-id": participant['session-id'],
-#                     "message-direction": self.OUTGOING,
                      "dialogue-id": dialogue["dialogue-id"],
                      "interaction-id": interaction["interaction-id"],
                      "$or": [{"message-direction": self.OUTGOING},
                              {"message-direction": self.INCOMING,
-                              "matching-answer": {"$ne":None}},
-                              {"message-direction": self.INCOMING,
-                               "matching-answer": {"$exists": False}}]},
+                              "matching-answer": {"$ne":None}}]},
                     sort=[("timestamp", pymongo.ASCENDING)])
 
                 if history:

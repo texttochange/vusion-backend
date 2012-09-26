@@ -611,7 +611,7 @@ class ObjectMaker:
             'timestamp': timestamp,
             'participant-phone': participant_phone,
             'participant-session-id': participant_session_id,
-            'message-direction': 'outgoing',
+            'message-direction': direction,
             'message-status': 'delivered',
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id,
