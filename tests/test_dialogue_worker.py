@@ -340,6 +340,33 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         
         saved_participant = self.collections['participants'].find_one()
         self.assertEqual(saved_participant['session-id'], None)
+        
+    @inlineCallbacks
+    def test05_send_scheduled_question_multi_keyword(self):
+        mytimezone = self.program_settings[2]['value']
+        dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
+        dPast = dNow - timedelta(minutes=2)        
+        
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
+        dialogue = self.mkobj_dialogue_question_multi_keyword()
+        participant = self.mkobj_participant('06')
+        self.collections['dialogues'].save(dialogue)
+        self.collections['participants'].save(participant)
+        self.collections['schedules'].save(
+            self.mkobj_schedule(
+                date_time=dPast.strftime(self.time_format),
+                dialogue_id='05',
+                interaction_id='05',
+                participant_phone='06'))
+        
+        yield self.worker.send_scheduled()
+        
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0]['content'], 'What is your gender?\n male or female')
     
     def test06_schedule_interaction_while_interaction_in_history(self):
         mytimezone = self.program_settings[2]['value']
