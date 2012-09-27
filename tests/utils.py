@@ -418,9 +418,9 @@ class ObjectMaker:
              'type-schedule': 'fixed-time',
              'date-time': '2012-03-12T12:30:00',
              'set-reminder': 'reminder',
-             'number': '2',
+             'reminder-number': '2',
              'type-schedule-reminder': 'offset-time',
-             'minutes': '30',
+             'reminder-minutes': '30',
              'reminder-actions': [
                  {'type-action': 'optout'}]
              }]
