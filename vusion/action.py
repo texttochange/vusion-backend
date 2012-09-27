@@ -105,9 +105,26 @@ class ProfilingAction(Action):
     def validate_fields(self):
         self.assert_field_present('label', 'value')
         
+
+class RemoveQuestionAction(Action):
+    
+    ACTION_TYPE = 'remove-question'
+
+    def validate_fields(self):
+        self.assert_field_present('dialogue-id', 'interaction-id')
+
+
 class RemoveRemindersAction(Action):
     
     ACTION_TYPE = 'remove-reminders'
+    
+    def validate_fields(self):
+        self.assert_field_present('dialogue-id', 'interaction-id')
+
+
+class RemoveDeadlineAction(Action):
+
+    ACTION_TYPE = 'remove-deadline'
     
     def validate_fields(self):
         self.assert_field_present('dialogue-id', 'interaction-id')
@@ -143,6 +160,8 @@ def action_generator(**kwargs):
         return UnMatchingAnswerAction(**kwargs)
     elif kwargs['type-action'] == 'remove-reminders':
         return RemoveRemindersAction(**kwargs)
+    elif kwargs['type-action'] == 'remove-deadline':
+        return RemoveDeadlineAction(**kwargs)
     elif kwargs['type-action'] == 'offset-conditioning':
         return OffsetConditionAction(**kwargs)
     raise VusionError("%s not supported" % kwargs['type-answer-action'])

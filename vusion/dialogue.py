@@ -2,7 +2,8 @@ from vumi import log
 from vumi.utils import get_first_word
 from vusion.action import (UnMatchingAnswerAction, FeedbackAction,
                            action_generator, ProfilingAction,
-                           OffsetConditionAction, RemoveRemindersAction)
+                           OffsetConditionAction, RemoveRemindersAction,
+                           RemoveDeadlineAction, RemoveQuestionAction)
 
 def split_keywords(keywords):
     return [k.lower() for k in (keywords or '').split(', ')]
@@ -37,10 +38,10 @@ class Dialogue:
                 offset_condition_interactions.append(interaction['interaction-id'])
         return offset_condition_interactions
     
-    def get_remove_reminders_action(self, interaction):
+    def has_reminders(self, interaction):
         if 'set-reminder' in interaction:
-            return interaction
-        return None        
+            return True
+        return False
 
     def get_matching_answer(self, answers, reply):
         try:
@@ -56,29 +57,35 @@ class Dialogue:
         return None
 
     def get_matching_reference_and_actions(self, message, actions):
-        reference_metadata = None
         keyword = get_first_word(message).lower()
         reply = self.get_reply(message).lower()
         dialogue_id, interaction = self.get_matching_interaction(keyword)
 
         if not interaction:
-            return reference_metadata, actions
+            return None, actions
 
         reference_metadata = {
             'dialogue-id': dialogue_id,
-            'interaction-id': interaction['interaction-id']}
-        interaction_to_remove_reminders = self.get_remove_reminders_action(interaction)
-        if interaction_to_remove_reminders is not None:
+            'interaction-id': interaction['interaction-id'],
+            'matching-answer': None}
+        actions.append(RemoveQuestionAction(**{
+                'dialogue-id': dialogue_id,
+                'interaction-id':interaction['interaction-id']}))
+        if self.has_reminders(interaction):
             actions.append(RemoveRemindersAction(**{
                 'dialogue-id': dialogue_id,
                 'interaction-id':interaction['interaction-id']}))
         if 'answers' in interaction:
+            # Closed questions
             answer = self.get_matching_answer(interaction['answers'], reply)
             if not answer or answer is None:
-                reference_metadata['matching-answer'] = None
                 actions.append(UnMatchingAnswerAction(**{'answer': reply}))
             else:
                 reference_metadata['matching-answer'] = answer['choice']
+                if self.has_reminders(interaction):
+                    actions.append(RemoveDeadlineAction(**{
+                        'dialogue-id': dialogue_id,
+                        'interaction-id':interaction['interaction-id']}))
                 actions = self.add_feedback_action(actions, answer)
                 if 'label-for-participant-profiling' in interaction:
                     action = ProfilingAction(**{
@@ -89,16 +96,30 @@ class Dialogue:
                     for answer_action in answer['answer-actions']:
                         actions.append(action_generator(**answer_action))
         else:
-            actions = self.add_feedback_action(actions, interaction)
-            if 'answer-label' in interaction:
-                actions.append(ProfilingAction(**{
-                    'label': interaction['answer-label'],
-                    'value': self.get_open_answer(message)}))        
+            # Open questions
+            answer = self.get_open_answer(message)
+            if answer == '':
+                actions.append(UnMatchingAnswerAction(**{'answer': reply}))
+            else:
+                reference_metadata['matching-answer'] = answer
+                if self.has_reminders(interaction):
+                    actions.append(RemoveDeadlineAction(**{
+                        'dialogue-id': dialogue_id,
+                        'interaction-id':interaction['interaction-id']}))
+                actions = self.add_feedback_action(actions, interaction)
+                if 'answer-label' in interaction:
+                    actions.append(ProfilingAction(**{
+                        'label': interaction['answer-label'],
+                        'value': self.get_open_answer(message)}))
+                if 'answer-actions' in interaction:
+                    for answer_action in interaction['answer-actions']:
+                        actions.append(action_generator(**answer_action))
         # Check if offset condition on this answer
-        for interaction_to_schedule in self.get_offset_condition_interactions(interaction['interaction-id']):
-            actions.append(OffsetConditionAction(**{
-                'dialogue-id': dialogue_id,
-                'interaction-id': interaction_to_schedule}))
+        if not reference_metadata['matching-answer'] is None:
+            for interaction_to_schedule in self.get_offset_condition_interactions(interaction['interaction-id']):
+                actions.append(OffsetConditionAction(**{
+                    'dialogue-id': dialogue_id,
+                    'interaction-id': interaction_to_schedule}))
         return reference_metadata, actions
 
     def get_open_answer(self, message):

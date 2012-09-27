@@ -417,6 +417,13 @@ class ObjectMaker:
     def mkobj_dialogue_open_question(self):
         return deepcopy(self.dialogue_open_question)
     
+    def mkobj_dialogue_open_question_enroll_action(self, dialogue_id):
+        dialogue = deepcopy(self.dialogue_open_question)
+        dialogue['interactions'][0]['answer-actions'] = [
+            {'type-answer-action': 'enrolling',
+             'enroll': dialogue_id}]
+        return dialogue
+    
     dialogue_open_question_with_reminder = {
         'activated': 1,
         'dialogue-id': '04',
@@ -623,11 +630,24 @@ class ObjectMaker:
             'timestamp': timestamp,
             'participant-phone': participant_phone,
             'participant-session-id': participant_session_id,
-            'message-direction': 'outgoing',
+            'message-direction': direction,
             'message-status': 'delivered',
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id,
             'matching-answer' : matching_answer
+            }
+    
+    def mkobj_history_dialogue_open_question(self, dialogue_id, interaction_id,
+                               timestamp, participant_phone='06',
+                               participant_session_id="1", direction='outgoing'):
+        return {
+            'timestamp': timestamp,
+            'participant-phone': participant_phone,
+            'participant-session-id': participant_session_id,
+            'message-direction': direction,
+            'message-status': 'delivered',
+            'dialogue-id': dialogue_id,
+            'interaction-id': interaction_id
             }
 
     def mkobj_participant(self, participant_phone='06',
