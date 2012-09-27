@@ -402,7 +402,10 @@ class ObjectMaker:
             'interactions': [
                 {'interaction-id': '05',
                  'type-interaction': 'question-answer-keyword',
+                 'type-schedule': 'offset-time',
+                 'minutes': '15',
                  'content': 'What is your gender?\n male or female',
+                 'label-for-participant-profiling': 'gender',
                  "answer-keywords": [
                     {
                         "keyword": "male"

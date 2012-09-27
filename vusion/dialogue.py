@@ -24,10 +24,15 @@ class Dialogue:
         if not 'interactions' in self.dialogue:
             return None, None
         for interaction in self.dialogue['interactions']:
-            if not interaction['type-interaction'] == 'question-answer':
+            if interaction['type-interaction'] == 'question-answer-keyword':
+                for answer_keyword in interaction['answer-keywords']:
+                    if keyword in self.split_keywords(answer_keyword['keyword']):
+                        return self.dialogue['dialogue-id'], interaction
+            elif interaction['type-interaction'] == 'question-answer':
+                if keyword in self.split_keywords(interaction['keyword']):
+                    return self.dialogue['dialogue-id'], interaction
+            else:
                 continue
-            if keyword in self.split_keywords(interaction['keyword']):
-                return self.dialogue['dialogue-id'], interaction
         return None, None
 
     def get_offset_condition_interactions(self, interaction_id):
@@ -56,6 +61,19 @@ class Dialogue:
                 return answer
         return None
 
+    def get_matching_answer_keyword(self, answer_keywords, message):
+        try:
+            index = int(message) - 1
+            if index < 0 or index > len(answer_keywords):
+                return None
+            return answer_keywords[index]
+        except:
+            pass
+        for answer_keyword in answer_keywords:
+            if answer_keyword['keyword'].lower() == message:
+                return answer_keyword
+        return None
+
     def get_matching_reference_and_actions(self, message, actions):
         keyword = get_first_word(message).lower()
         reply = self.get_reply(message).lower()
@@ -75,7 +93,28 @@ class Dialogue:
             actions.append(RemoveRemindersAction(**{
                 'dialogue-id': dialogue_id,
                 'interaction-id':interaction['interaction-id']}))
-        if 'answers' in interaction:
+            
+        if 'answer-keywords' in interaction:
+            answer_keyword = self.get_matching_answer_keyword(interaction['answer-keywords'], message)
+            if not answer_keyword or answer_keyword is None:
+                actions.append(UnMatchingAnswerAction(**{'answer': message}))
+            else:
+                reference_metadata['matching-answer'] = answer_keyword['keyword']
+                if self.has_reminders(interaction):
+                    actions.append(RemoveDeadlineAction(**{
+                        'dialogue-id': dialogue_id,
+                        'interaction-id':interaction['interaction-id']}))
+                actions = self.add_feedback_action(actions, answer_keyword)
+                if 'label-for-participant-profiling' in interaction:
+                    action = ProfilingAction(**{
+                        'label': interaction['label-for-participant-profiling'],
+                        'value': answer_keyword['keyword']})
+                    actions.append(action)
+                if 'answer-actions' in answer_keyword:
+                    for answer_keyword_action in answer_keyword['answer-actions']:
+                        actions.append(action_generator(**answer_keyword_action))
+        
+        elif 'answers' in interaction:
             # Closed questions
             answer = self.get_matching_answer(interaction['answers'], reply)
             if not answer or answer is None:
