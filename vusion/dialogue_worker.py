@@ -48,6 +48,7 @@ class TtcGenericWorker(ApplicationWorker):
         self.properties = {
             'shortcode':None,
             'timezone': None,
+            'international-prefix': None,
             'default-template-closed-question': None,
             'default-template-open-question': None,
             'default-template-unmatching-answer': None,
@@ -82,11 +83,6 @@ class TtcGenericWorker(ApplicationWorker):
         self.init_program_db(self.config['database_name'],
                              self.config['vusion_database_name'])
 
-        send_loop_period = (self.config['send_loop_period']
-                            if 'send_loop_period' in self.config else "60")
-        self.sender = task.LoopingCall(self.daemon_process)
-        self.sender.start(float(send_loop_period))
-
         #Set up dispatcher publisher
         self.dispatcher_publisher = yield self.publish_to(
             '%(dispatcher_name)s.control' % self.config)
@@ -97,6 +93,11 @@ class TtcGenericWorker(ApplicationWorker):
             self.consume_control,
             message_class=Message)
         self._consumers.append(self.control_consumer)
+
+        send_loop_period = (self.config['send_loop_period']
+                            if 'send_loop_period' in self.config else "60")
+        self.sender = task.LoopingCall(self.daemon_process)
+        self.sender.start(float(send_loop_period))
 
         self.load_data()
         if self.is_ready():
@@ -171,7 +172,7 @@ class TtcGenericWorker(ApplicationWorker):
             limit=1)
 
     def get_active_dialogues(self, conditions=None):
-        return self.collections['dialogues'].group(
+        dialogues = self.collections['dialogues'].group(
             ['dialogue-id'],
             conditions,
             {'Dialogue': 0},
@@ -180,6 +181,12 @@ class TtcGenericWorker(ApplicationWorker):
             (prev.Dialogue==0 || prev.Dialogue.modified <= obj.modified))
             prev.Dialogue = obj;}"""
         )
+        active_dialogues = []
+        for dialogue in dialogues:
+            if dialogue['Dialogue'] == 0.0:
+                continue
+            active_dialogues.append(dialogue)
+        return active_dialogues
 
     def get_dialogue_obj(self, dialogue_obj_id):
         dialogue = self.collections['dialogues'].find_one(
@@ -847,6 +854,7 @@ class TtcGenericWorker(ApplicationWorker):
                     keywords.append(keyphrase.split(' ')[0])
         to_addr = get_shortcode_value(self.properties['shortcode'])
         rules = []
+        self.log("Registering the keywords: %r" % keywords)
         for keyword in keywords:
             rules.append({'app': self.transport_name,
                           'keyword': keyword,

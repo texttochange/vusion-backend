@@ -521,7 +521,12 @@ class ObjectMaker:
             ],
         "dialogue-id": "script.dialogues[0]"
     }
-
+    
+    def mkobj_dialogue_answer_not_space_supported(self):
+        dialogue = deepcopy(self.dialogue_other_question_answer)
+        dialogue['interactions'][1]['set-answer-accept-no-space'] = 'answer-accept-no-space'
+        return dialogue
+    
     def mkobj_request_join(self):
         return {
             'keyword': 'www join, www',
