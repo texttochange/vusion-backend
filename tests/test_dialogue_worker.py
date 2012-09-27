@@ -715,6 +715,27 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.worker.load_data()
 
         self.assertRaises(MissingTemplate, self.worker.generate_message, interaction_open_question)
+        
+    def test12_generate_message_without_template(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
+        interaction_question_multi_keyword = {
+            'type-interaction': 'question-answer-keyword',
+             'content': 'What is your gender?\n male or female',
+             "answer-keywords": [
+                {
+                    "keyword": "male"
+                },
+                {
+                    "keyword": "female"
+                }]
+        }
+        
+        question_multi_keyword = self.worker.generate_message(interaction_question_multi_keyword)
+        
+        self.assertEqual(question_multi_keyword, "What is your gender?\n male or female")
 
     @inlineCallbacks
     def test13_received_delivered(self):
