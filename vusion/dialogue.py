@@ -200,4 +200,7 @@ class Dialogue:
                 interaction_keywords = self.get_interaction_keywords(interaction)
                 for interaction_keyword in interaction_keywords:
                     keywords.append(interaction_keyword)
+            elif 'answer-keywords' in interaction:
+                for answer_keyword in interaction['answer-keywords']:
+                    keywords += self.split_keywords(answer_keyword['keyword'])
         return keywords

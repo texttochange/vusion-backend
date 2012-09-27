@@ -165,6 +165,10 @@ class DialogueTestCase(TestCase, ObjectMaker):
         self.assertEqual(
             dialogue_helper.get_all_keywords(),
             ['fool', 'gen', 'genmale', 'genbad'])
+        
+    def test_get_all_keywords_question_multi_keyword(self):
+        dialogue_helper = Dialogue(self.mkobj_dialogue_question_multi_keyword())
+        self.assertEqual(dialogue_helper.get_all_keywords(),['male', 'female'])
 
     def test_get_offset_condition_action(self):
         script = Dialogue(self.mkobj_dialogue_question_offset_conditional())
