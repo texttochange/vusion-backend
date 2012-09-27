@@ -646,16 +646,16 @@ class TtcGenericWorker(ApplicationWorker):
         for reminder_schedule_to_be_deleted in schedules:
             self.collections['schedules'].remove(reminder_schedule_to_be_deleted['_id'])
         
-        if (interaction['type-schedule-reminder'] == 'offset-days'):
+        if (interaction['type-schedule-reminder'] == 'reminder-offset-days'):
             sendingDay = initialSendDateTime
             timeOfSending = interaction['reminder-at-time'].split(':', 1)
             sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
-        elif (interaction['type-schedule-reminder'] == 'offset-time'):
+        elif (interaction['type-schedule-reminder'] == 'reminder-offset-time'):
             sendingDateTime = initialSendDateTime
         for number in range(int(interaction['reminder-number'])+1):                
-            if (interaction['type-schedule-reminder'] == 'offset-time'):
+            if (interaction['type-schedule-reminder'] == 'reminder-offset-time'):
                 sendingDateTime += timedelta(minutes=int(interaction['reminder-minutes']))
-            elif (interaction['type-schedule-reminder'] == 'offset-days'):
+            elif (interaction['type-schedule-reminder'] == 'reminder-offset-days'):
                 sendingDay += timedelta(days=int(interaction['reminder-days']))
                 sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
                                                                           
