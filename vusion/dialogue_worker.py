@@ -263,7 +263,6 @@ class TtcGenericWorker(ApplicationWorker):
             {'keyword': {'$regex': regx}})
         if matching_request:
             for action in matching_request['actions']:
-                self.log("Add action: %r" % action)
                 actions.append(action_generator(**action))
             for response in matching_request['responses']:
                 actions.append(FeedbackAction(**{'content': response['content']}))
@@ -435,7 +434,6 @@ class TtcGenericWorker(ApplicationWorker):
                  or self.has_already_valid_answer(participant, **ref))):
             return
         for action in actions.items():
-            self.log("Run action %r" % action)
             self.run_action(participant['phone'], action)
 
     def is_enrolled(self, participant, dialogue_id):
@@ -886,22 +884,20 @@ class TtcGenericWorker(ApplicationWorker):
             else:
                 default_template = None
                 if (interaction['type-question'] == 'closed-question'):
-                    default_template = self.collections['program_settings'].find_one(
-                        {"key": "default-template-closed-question"})
+                    default_template = self.properties['default-template-closed-question']
                 elif (interaction['type-question'] == 'open-question'):
-                    default_template = self.collections['program_settings'].find_one(
-                        {"key": "default-template-open-question"})
+                    default_template = self.properties['default-template-open-question']
                 else:
                     pass
                 if (default_template is None):
                     raise MissingTemplate(
                         "Cannot find default template for %s" %
                         (interaction['type-question'],))
-                template = self.collections['templates'].find_one({"_id": ObjectId(default_template['value'])})
+                template = self.collections['templates'].find_one({"_id": ObjectId(default_template)})
                 if (template is None):
                     raise MissingTemplate(
                         "Cannot find specified template id %s" %
-                        (default_template['value'],))
+                        (default_template,))
             #replace question
             message = re.sub(regex_QUESTION, interaction['content'], template['template'])
             #replace answers

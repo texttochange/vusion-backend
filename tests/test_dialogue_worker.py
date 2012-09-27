@@ -640,6 +640,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             {'key': 'default-template-closed-question',
              'value': saved_template_id}
         )
+        self.worker.load_data()
 
         close_question = self.worker.generate_message(interaction_closed_question)
 
@@ -675,6 +676,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             {'key': 'default-template-open-question',
              'value': ObjectId("4fc343509fa4da5e11000000")}
         )
+        self.worker.load_data()
 
         self.assertRaises(MissingTemplate, self.worker.generate_message, interaction_open_question)
 
