@@ -472,7 +472,8 @@ class TtcGenericWorker(ApplicationWorker):
     def load_data(self):
         program_settings = self.collections['program_settings'].find()
         for program_setting in program_settings:
-            self.properties[program_setting['key']] = program_setting['value']
+            self.properties[program_setting['key']] = (program_setting['value'] 
+                                                       if program_setting['value']!='' else None)
 
     def is_ready(self):
         if not 'shortcode' in self.properties:

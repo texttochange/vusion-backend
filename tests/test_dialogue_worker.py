@@ -362,7 +362,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
     #@inlineCallbacks
     def test05_send_scheduled_deadline(self):  
-        for program_setting in self.program_settings:
+        for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
 
@@ -675,6 +675,15 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.collections['program_settings'].save(
             {'key': 'default-template-open-question',
              'value': ObjectId("4fc343509fa4da5e11000000")}
+        )
+        self.worker.load_data()
+
+        self.assertRaises(MissingTemplate, self.worker.generate_message, interaction_open_question)
+        
+        self.collections['program_settings'].drop()
+        self.collections['program_settings'].save(
+            {'key': 'default-template-open-question',
+             'value': ''}
         )
         self.worker.load_data()
 
