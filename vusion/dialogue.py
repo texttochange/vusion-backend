@@ -1,3 +1,5 @@
+from copy import copy
+
 from vumi import log
 from vumi.utils import get_first_word
 from vusion.action import (UnMatchingAnswerAction, FeedbackAction,
@@ -29,11 +31,22 @@ class Dialogue:
                     if keyword in self.split_keywords(answer_keyword['keyword']):
                         return self.dialogue['dialogue-id'], interaction
             elif interaction['type-interaction'] == 'question-answer':
-                if keyword in self.split_keywords(interaction['keyword']):
+                if keyword in self.get_interaction_keywords(interaction):
                     return self.dialogue['dialogue-id'], interaction
-            else:
-                continue
         return None, None
+
+    def get_interaction_keywords(self, interaction):
+        keywords = self.split_keywords(interaction['keyword'])
+        if (not 'set-answer-accept-no-space' in interaction 
+                or interaction['set-answer-accept-no-space'] is None):
+            return keywords
+        generated_answer = copy(keywords)
+        for answer in interaction['answers']:
+            generated_answer += self.get_answer_keywords(keywords, answer)
+        return generated_answer    
+
+    def get_answer_keywords(self, keywords, answer):
+        return [("%s%s" % (keyword, answer['choice'])).lower() for keyword in keywords]
 
     def get_offset_condition_interactions(self, interaction_id):
         offset_condition_interactions = []
@@ -48,7 +61,13 @@ class Dialogue:
             return True
         return False
 
-    def get_matching_answer(self, answers, reply):
+    def get_matching_answer(self, interaction, keyword, reply):
+        answers = interaction['answers']
+        if 'set-answer-accept-no-space' in interaction:
+            keywords = self.split_keywords(interaction['keyword'])
+            for answer in interaction['answers']:
+                if keyword in self.get_answer_keywords(keywords, answer):
+                    return answer
         try:
             index = int(reply) - 1
             if index < 0 or index > len(answers):
@@ -116,7 +135,7 @@ class Dialogue:
         
         elif 'answers' in interaction:
             # Closed questions
-            answer = self.get_matching_answer(interaction['answers'], reply)
+            answer = self.get_matching_answer(interaction, keyword, reply)
             if not answer or answer is None:
                 actions.append(UnMatchingAnswerAction(**{'answer': reply}))
             else:
@@ -178,7 +197,7 @@ class Dialogue:
             return keywords
         for interaction in self.dialogue['interactions']:
             if 'keyword' in interaction:
-                interaction_keywords = self.split_keywords(interaction['keyword'])
+                interaction_keywords = self.get_interaction_keywords(interaction)
                 for interaction_keyword in interaction_keywords:
                     keywords.append(interaction_keyword)
         return keywords

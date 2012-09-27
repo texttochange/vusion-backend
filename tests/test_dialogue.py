@@ -81,6 +81,34 @@ class DialogueTestCase(TestCase, ObjectMaker):
             actions[1],
             ProfilingAction(**{'label': 'gender', 'value': 'Male'}))
 
+    def test_get_matching_closed_question_answer(self):
+        dialogue = Dialogue(self.mkobj_dialogue_answer_not_space_supported())
+
+        ref, actions = dialogue.get_matching_reference_and_actions("genMale", [])
+        self.assertEqual(ref, {'dialogue-id': 'script.dialogues[0]',
+                               'interaction-id': 'script.dialogues[0].interactions[2]',
+                               'matching-answer': 'Male'})
+        
+        ref, actions = dialogue.get_matching_reference_and_actions("gen Male", [])
+        self.assertEqual(ref, {'dialogue-id': 'script.dialogues[0]',
+                               'interaction-id': 'script.dialogues[0].interactions[2]',
+                               'matching-answer': 'Male'})
+        
+        ref, actions = dialogue.get_matching_reference_and_actions("gen 1", [])
+        self.assertEqual(ref, {'dialogue-id': 'script.dialogues[0]',
+                               'interaction-id': 'script.dialogues[0].interactions[2]',
+                               'matching-answer': 'Male'})
+        
+        ref, actions = dialogue.get_matching_reference_and_actions("genBad", [])
+        self.assertEqual(ref, {'dialogue-id': 'script.dialogues[0]',
+                               'interaction-id': 'script.dialogues[0].interactions[2]',
+                               'matching-answer': 'Bad'})
+        
+        ref, actions = dialogue.get_matching_reference_and_actions("Genok", [])
+        self.assertEqual(ref, None)
+
+     
+
     def test_get_matching_open_question(self):
         script = Dialogue(self.dialogue_question_answer)
 
@@ -126,10 +154,17 @@ class DialogueTestCase(TestCase, ObjectMaker):
             ProfilingAction(**{'label': 'gender','value': 'male'}))    
        
     def test_get_all_keywords(self):
-        script = Dialogue(self.dialogue_question_answer)
+        dialogue_helper = Dialogue(self.dialogue_question_answer)
 
-        self.assertTrue(script.get_all_keywords(),
-                        ['feel', 'fel'])
+        self.assertEqual(
+            dialogue_helper.get_all_keywords(),
+            ['feel', 'fel', 'name'])
+        
+        dialogue_helper = Dialogue(self.mkobj_dialogue_answer_not_space_supported())
+        
+        self.assertEqual(
+            dialogue_helper.get_all_keywords(),
+            ['fool', 'gen', 'genmale', 'genbad'])
 
     def test_get_offset_condition_action(self):
         script = Dialogue(self.mkobj_dialogue_question_offset_conditional())
