@@ -317,7 +317,8 @@ class TtcGenericWorker(ApplicationWorker):
                 {'$set': {'session-id': None,
                           'last-optin-date': None}})
             self.collections['schedules'].remove({
-                'participant-phone': participant_phone})
+                'participant-phone': participant_phone,
+                'object-type': {'$ne': 'feedback-schedule'}})
         elif (action.get_type() == 'feedback'):
             self.save_schedule(participant_phone,
                                time_to_vusion_format(self.get_local_time()),
