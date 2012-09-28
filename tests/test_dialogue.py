@@ -216,4 +216,35 @@ class DialogueTestCase(TestCase, ObjectMaker):
             actions[3],
             ProfilingAction(**{'value': 'John',
                                'label': 'name'}))
+        
+    def test_get_actions_from_returned_answer(self):
+        multi_dialogue_helper = Dialogue(self.mkobj_dialogue_question_multi_keyword())
+        dialogue = self.mkobj_dialogue_question_multi_keyword()
+
+        actions = Actions()
+        returned_answer = multi_dialogue_helper.get_matching_answer_keyword(
+                           dialogue['interactions'][0]['answer-keywords'],
+                           "male")
+        actions = multi_dialogue_helper.get_actions_from_returned_answer(
+                        dialogue['dialogue-id'],
+                        dialogue['interactions'][0],
+                        returned_answer,
+                        'keyword',
+                        [])
+        self.assertEqual(1, len(actions))
+        
+        dialogue_helper = Dialogue(self.mkobj_dialogue_question_offset_days())
+        new_dialogue = self.mkobj_dialogue_question_offset_days()
+        
+        returned_answer = dialogue_helper.get_matching_answer(
+                           new_dialogue['interactions'][0],
+                           "feel",
+                           "ok")
+        actions = dialogue_helper.get_actions_from_returned_answer(
+                        new_dialogue['dialogue-id'],
+                        new_dialogue['interactions'][0],
+                        returned_answer,
+                        'choice',
+                        [])
+        self.assertEqual(2, len(actions))
 

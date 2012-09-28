@@ -93,7 +93,7 @@ class Dialogue:
                 return answer_keyword
         return None
     
-    def get_actions_from_returned_answer(self, interaction, returned_answer, field, actions):
+    def get_actions_from_returned_answer(self, dialogue_id, interaction, returned_answer, field, actions):
         if self.has_reminders(interaction):
             actions.append(RemoveDeadlineAction(**{
                 'dialogue-id': dialogue_id,
@@ -135,7 +135,7 @@ class Dialogue:
                 actions.append(UnMatchingAnswerAction(**{'answer': message}))
             else:                
                 reference_metadata['matching-answer'] = answer_keyword['keyword']
-                self.get_actions_from_returned_answer(interaction, answer_keyword, 'keyword', actions)
+                self.get_actions_from_returned_answer(dialogue_id, interaction, answer_keyword, 'keyword', actions)
         
         elif 'answers' in interaction:
             # Closed questions
@@ -144,7 +144,7 @@ class Dialogue:
                 actions.append(UnMatchingAnswerAction(**{'answer': reply}))
             else:
                 reference_metadata['matching-answer'] = answer['choice']
-                self.get_actions_from_returned_answer(interaction, answer, 'choice', actions)
+                self.get_actions_from_returned_answer(dialogue_id, interaction, answer, 'choice', actions)
         else:
             # Open questions
             answer = self.get_open_answer(message)
