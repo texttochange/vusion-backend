@@ -136,6 +136,22 @@ class DialogueTestCase(TestCase, ObjectMaker):
         self.assertEqual(
             actions[1],
             UnMatchingAnswerAction(**{'answer': ''}))
+        
+    def test_get_matching_question_multi_keyword(self):
+        script = Dialogue(self.mkobj_dialogue_question_multi_keyword())
+
+        ref, actions = script.get_matching_reference_and_actions("male", [])
+        self.assertEqual(ref, {'dialogue-id': '05',
+                               'interaction-id': '05',
+                               'matching-answer': "male"})
+        self.assertEqual(len(actions), 2)
+        self.assertEqual(
+            actions[0], 
+            RemoveQuestionAction(**{'dialogue-id': '05',
+                                    'interaction-id': '05'}))
+        self.assertEqual(
+            actions[1], 
+            ProfilingAction(**{'label': 'gender','value': 'male'}))    
        
     def test_get_all_keywords(self):
         dialogue_helper = Dialogue(self.dialogue_question_answer)
@@ -149,6 +165,10 @@ class DialogueTestCase(TestCase, ObjectMaker):
         self.assertEqual(
             dialogue_helper.get_all_keywords(),
             ['fool', 'gen', 'genmale', 'genbad'])
+        
+    def test_get_all_keywords_question_multi_keyword(self):
+        dialogue_helper = Dialogue(self.mkobj_dialogue_question_multi_keyword())
+        self.assertEqual(dialogue_helper.get_all_keywords(),['male', 'female'])
 
     def test_get_offset_condition_action(self):
         script = Dialogue(self.mkobj_dialogue_question_offset_conditional())
