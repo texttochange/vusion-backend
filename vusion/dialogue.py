@@ -92,7 +92,23 @@ class Dialogue:
             if answer_keyword['keyword'].lower() == message:
                 return answer_keyword
         return None
-
+    
+    def get_actions_from_returned_answer(self, interaction, returned_answer, field, actions):
+        if self.has_reminders(interaction):
+            actions.append(RemoveDeadlineAction(**{
+                'dialogue-id': dialogue_id,
+                'interaction-id':interaction['interaction-id']}))
+        actions = self.add_feedback_action(actions, returned_answer)
+        if 'label-for-participant-profiling' in interaction:
+            action = ProfilingAction(**{
+                'label': interaction['label-for-participant-profiling'],
+                'value': returned_answer[field]})
+            actions.append(action)
+        if 'answer-actions' in returned_answer:
+            for returned_answer_action in returned_answer['answer-actions']:
+                actions.append(action_generator(**returned_answer_action))
+        return actions
+    
     def get_matching_reference_and_actions(self, message, actions):
         keyword = get_first_word(message).lower()
         reply = self.get_reply(message).lower()
@@ -117,21 +133,9 @@ class Dialogue:
             answer_keyword = self.get_matching_answer_keyword(interaction['answer-keywords'], message)
             if not answer_keyword or answer_keyword is None:
                 actions.append(UnMatchingAnswerAction(**{'answer': message}))
-            else:
+            else:                
                 reference_metadata['matching-answer'] = answer_keyword['keyword']
-                if self.has_reminders(interaction):
-                    actions.append(RemoveDeadlineAction(**{
-                        'dialogue-id': dialogue_id,
-                        'interaction-id':interaction['interaction-id']}))
-                actions = self.add_feedback_action(actions, answer_keyword)
-                if 'label-for-participant-profiling' in interaction:
-                    action = ProfilingAction(**{
-                        'label': interaction['label-for-participant-profiling'],
-                        'value': answer_keyword['keyword']})
-                    actions.append(action)
-                if 'answer-actions' in answer_keyword:
-                    for answer_keyword_action in answer_keyword['answer-actions']:
-                        actions.append(action_generator(**answer_keyword_action))
+                self.get_actions_from_returned_answer(interaction, answer_keyword, 'keyword', actions)
         
         elif 'answers' in interaction:
             # Closed questions
@@ -140,19 +144,7 @@ class Dialogue:
                 actions.append(UnMatchingAnswerAction(**{'answer': reply}))
             else:
                 reference_metadata['matching-answer'] = answer['choice']
-                if self.has_reminders(interaction):
-                    actions.append(RemoveDeadlineAction(**{
-                        'dialogue-id': dialogue_id,
-                        'interaction-id':interaction['interaction-id']}))
-                actions = self.add_feedback_action(actions, answer)
-                if 'label-for-participant-profiling' in interaction:
-                    action = ProfilingAction(**{
-                        'label': interaction['label-for-participant-profiling'],
-                        'value': answer['choice']})
-                    actions.append(action)
-                if 'answer-actions' in answer:
-                    for answer_action in answer['answer-actions']:
-                        actions.append(action_generator(**answer_action))
+                self.get_actions_from_returned_answer(interaction, answer, 'choice', actions)
         else:
             # Open questions
             answer = self.get_open_answer(message)
