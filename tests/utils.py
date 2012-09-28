@@ -398,6 +398,28 @@ class ObjectMaker:
             'at-time': '22:30'}]
     }
     
+    def mkobj_dialogue_question_multi_keyword(self):
+        return {
+            'activated': 1,
+            'dialogue-id': '05',
+            'interactions': [
+                {'interaction-id': '05',
+                 'type-interaction': 'question-answer-keyword',
+                 'type-schedule': 'offset-time',
+                 'minutes': '15',
+                 'content': 'What is your gender?\n male or female',
+                 'label-for-participant-profiling': 'gender',
+                 "answer-keywords": [
+                    {
+                        "keyword": "male"
+                    },
+                    {
+                        "keyword": "female"
+                    }]
+                 }]
+        }
+                 
+    
     def mkobj_dialogue_open_question(self):
         return deepcopy(self.dialogue_open_question)
     
