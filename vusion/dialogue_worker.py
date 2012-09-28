@@ -26,7 +26,7 @@ from vumi import log
 from vusion.dialogue import Dialogue, split_keywords
 from vusion.utils import (time_to_vusion_format, get_local_time,
                           get_local_time_as_timestamp, time_from_vusion_format,
-                          get_shortcode_value)
+                          get_shortcode_value, get_offset_date_time)
 from vusion.error import (MissingData, SendingDatePassed, VusionError,
                           MissingTemplate)
 from vusion.message import DispatcherControl
@@ -112,21 +112,26 @@ class TtcGenericWorker(ApplicationWorker):
             self.sender.stop()
 
     def save_schedule(self, participant_phone, date_time, object_type,
-                      **kwargs):
+                      action=None, origin=None, **kwargs):
         schedule = {
             'object-type': object_type,
             'participant-phone': participant_phone,
             'date-time': date_time}        
         if '_id' in kwargs and kwargs['_id'] is not None: 
             schedule['_id']= kwargs['_id']
-        if object_type=='dialogue-schedule' or object_type=='deadline-schedule' or object_type=='reminder-schedule':
+        if object_type == 'dialogue-schedule' or object_type=='deadline-schedule' or object_type=='reminder-schedule':
             schedule['dialogue-id']=kwargs['dialogue_id']
             schedule['interaction-id']=kwargs['interaction_id']
-        elif object_type=='unattach-schedule':
+        elif object_type == 'unattach-schedule':
             schedule['unattach-id']=kwargs['unattach_id']
-        elif object_type=='feedback-schedule':
+        elif object_type == 'feedback-schedule':
             schedule['content']=kwargs['content']
             schedule['type-content']='feedback'
+        elif object_type == 'action-schedule':
+            schedule['action'] = action.get_as_dict()
+            if origin is not None:
+                for key in origin:
+                    schedule[key] = origin[key]
         else:
             raise VusionError('object type not supported by schedule %s' % object_type)
         self.log("Save schedule %r" % schedule)
@@ -287,22 +292,21 @@ class TtcGenericWorker(ApplicationWorker):
             'profile':{}
         }
 
-    def run_action(self, participant_phone, action):
+    def run_action(self, participant_phone, action, origin=None):
         regex_ANSWER = re.compile('ANSWER')
         self.log(("Run action for %s %s" % (participant_phone, action,)))
         if (action.get_type() == 'optin'):
             participant = self.collections['participants'].find_one({'phone': participant_phone})
             if participant:
-                if (participant['session-id'] == None):
-                    self.collections['participants'].update(
-                        {'phone': participant_phone},
-                        {'$set': {'session-id': uuid4().get_hex(), 
-                                  'last-optin-date': time_to_vusion_format(self.get_local_time()),
-                                  'tags': [],
-                                  'enrolled': [],
-                                  'profile': {} }})
-                else:
+                if (participant['session-id'] != None):
                     return
+                self.collections['participants'].update(
+                    {'phone': participant_phone},
+                    {'$set': {'session-id': uuid4().get_hex(), 
+                              'last-optin-date': time_to_vusion_format(self.get_local_time()),
+                              'tags': [],
+                              'enrolled': [],
+                              'profile': {} }})
             else:
                 self.collections['participants'].save(self.create_participant(participant_phone))
             for dialogue in self.get_active_dialogues({'auto-enrollment':'all'}):
@@ -364,6 +368,15 @@ class TtcGenericWorker(ApplicationWorker):
             participant = self.collections['participants'].find_one(
                 {'phone': participant_phone})
             self.schedule_participant_dialogue(participant, dialogue)
+        elif (action.get_type() == 'delayed-enrolling'):
+            self.save_schedule(
+                participant_phone,
+                time_to_vusion_format(get_offset_date_time(self.get_local_time(), 
+                                                           action['offset-days']['days'],
+                                                           action['offset-days']['at-time'])),
+                'action-schedule',
+                EnrollingAction(**{'enroll': action['enroll']}),
+                origin)
         elif (action.get_type() == 'profiling'):
             self.collections['participants'].update(
                 {'phone': participant_phone,
@@ -396,7 +409,7 @@ class TtcGenericWorker(ApplicationWorker):
             self.run_action(participant_phone, OptoutAction())
             self.run_action(participant_phone, OptinAction())
         else:
-            self.log("The action is not supported %s" % action['type-action'])
+            self.log("The action is not supported %s" % action.get_type())
 
     def consume_user_message(self, message):
         self.log("User message received from %s '%s'" % (message['from_addr'],
@@ -441,7 +454,7 @@ class TtcGenericWorker(ApplicationWorker):
                  or self.has_already_valid_answer(participant, **ref))):
             return
         for action in actions.items():
-            self.run_action(participant['phone'], action)
+            self.run_action(participant['phone'], action, ref)
 
     def is_enrolled(self, participant, dialogue_id):
         for enrolled in participant['enrolled']:
@@ -497,7 +510,7 @@ class TtcGenericWorker(ApplicationWorker):
         active_dialogues = self.get_active_dialogues()
         for dialogue in active_dialogues:
             participants = self.collections['participants'].find(
-                {'enrolled': {'$ne': dialogue['dialogue-id']},
+                {'enrolled.dialogue-id':dialogue['dialogue-id'],
                  'session-id': {'$ne': None}})
             self.schedule_participants_dialogue(
                 participants, dialogue['Dialogue'])
@@ -575,9 +588,10 @@ class TtcGenericWorker(ApplicationWorker):
 
                 if (interaction['type-schedule'] == 'offset-days'):
                     enrolled = self.get_enrollment_time(participant, dialogue)
-                    sendingDay = time_from_vusion_format(enrolled['date-time']) + timedelta(days=int(interaction['days']))
-                    timeOfSending = interaction['at-time'].split(':', 1)
-                    sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
+                    sendingDateTime = get_offset_date_time(
+                        time_from_vusion_format(enrolled['date-time']),
+                        interaction['days'],
+                        interaction['at-time'])
                 elif (interaction['type-schedule'] == 'offset-time'):
                     enrolled = self.get_enrollment_time(participant, dialogue)
                     sendingDateTime = time_from_vusion_format(enrolled['date-time']) + timedelta(minutes=int(interaction['minutes']))
@@ -730,7 +744,8 @@ class TtcGenericWorker(ApplicationWorker):
             try:
                 interaction, reference_metadata = self.from_schedule_to_message(toSend)
 
-                if not interaction:
+                # delayed action are always run even if there original interaction has been deleted
+                if not interaction and toSend['object-type']!='action-schedule':
                     continue
                 
                 if toSend['object-type'] == 'deadline-schedule':
@@ -739,7 +754,11 @@ class TtcGenericWorker(ApplicationWorker):
                         for action in interaction['reminder-actions']:
                             actions.append(action_generator(**action))
                     for action in actions.items():
-                        self.run_action(toSend['participant-phone'], action)
+                        self.run_action(toSend['participant-phone'], action, reference_metadata)
+                    continue
+                elif toSend['object-type'] == 'action-schedule':
+                    self.run_action(toSend['participant-phone'], 
+                                    action_generator(**toSend['action']))
                     continue
 
                 message_content = self.generate_message(interaction)

@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timedelta, time
 import pytz
-import time
+from time import mktime
 import iso8601
 import re
 
@@ -25,7 +25,7 @@ def get_local_time(timezone):
 
 
 def get_local_time_as_timestamp(local_time):
-    return long("%s%s" % (long(time.mktime(local_time.timetuple())), 
+    return long("%s%s" % (long(mktime(local_time.timetuple())), 
                           local_time.microsecond))
 
 
@@ -36,6 +36,12 @@ def get_shortcode_value(stored_shortcode):
     if re.match(regex_NATIONAL_SHORTCODE, stored_shortcode):
         return stored_shortcode.split('-')[1]
     return stored_shortcode
+
+
+def get_offset_date_time(reference_time, days, at_time):
+    sending_day = reference_time + timedelta(days=int(days))
+    time_of_sending = at_time.split(':', 1)
+    return datetime.combine(sending_day, time(int(time_of_sending[0]), int(time_of_sending[1])))
 
 
 #TODO remove DataLayerUtils in tests package

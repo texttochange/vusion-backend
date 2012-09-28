@@ -40,7 +40,12 @@ class Action(object):
         for field in fields:
             if field not in self.payload:
                 raise MissingField(field)
-            
+
+    def get_as_dict(self):
+        action_dict = {'type-action': self.get_type()}
+        for key in self.payload:
+            action_dict[key] = self.payload[key]
+        return action_dict
 
 class OptinAction(Action):
     
@@ -98,6 +103,16 @@ class EnrollingAction(Action):
         self.assert_field_present('enroll')
 
 
+class DelayedEnrollingAction(Action):
+    
+    ACTION_TYPE = 'delayed-enrolling'
+    
+    def validate_fields(self):
+        self.assert_field_present(
+            'enroll',
+            'offset-days')
+
+
 class ProfilingAction(Action):
 
     ACTION_TYPE = 'profiling'
@@ -150,6 +165,8 @@ def action_generator(**kwargs):
         return ResetAction(**kwargs)
     elif kwargs['type-action'] == 'enrolling':
         return EnrollingAction(**kwargs)
+    elif kwargs['type-action'] == 'delayed-enrolling':
+        return DelayedEnrollingAction(**kwargs)
     elif kwargs['type-action'] == 'tagging':
         return TaggingAction(**kwargs)
     elif kwargs['type-action'] == 'profiling':

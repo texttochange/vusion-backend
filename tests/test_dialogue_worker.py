@@ -19,7 +19,8 @@ from vusion.action import (UnMatchingAnswerAction, EnrollingAction,
                            FeedbackAction, OptinAction, OptoutAction,
                            TaggingAction, ProfilingAction,
                            OffsetConditionAction, RemoveRemindersAction,
-                           ResetAction, RemoveDeadlineAction, Actions)
+                           ResetAction, RemoveDeadlineAction,
+                           DelayedEnrollingAction, action_generator, Actions)
 
 from transports import YoUgHttpTransport
 
@@ -360,7 +361,6 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         for history in histories:
             self.assertTrue(history['participant-session-id'] is not None)
 
-    #@inlineCallbacks
     def test05_send_scheduled_deadline(self):  
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
@@ -368,7 +368,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
 
         dNow = self.worker.get_local_time()
         dPast = dNow - timedelta(minutes=2)   
-        
+
         dialogue = self.mkobj_dialogue_open_question_reminder()
         participant = self.mkobj_participant('06')
         self.collections['dialogues'].save(dialogue)
@@ -383,6 +383,29 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         
         saved_participant = self.collections['participants'].find_one()
         self.assertEqual(saved_participant['session-id'], None)
+
+    def test05_send_scheduled_run_action(self):  
+        for program_setting in self.mkobj_program_settings():
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
+        dNow = self.worker.get_local_time()
+        dPast = dNow - timedelta(minutes=2)   
+        
+        dialogue = self.mkobj_dialogue_open_question()
+        participant = self.mkobj_participant('06')
+        self.collections['dialogues'].save(dialogue)
+        self.collections['participants'].save(participant)
+        self.collections['schedules'].save({
+            'participant-phone': '06',
+            'date-time': dPast.strftime(self.time_format),
+            'object-type': 'action-schedule',
+            'action': {'type-action': 'enrolling',
+                       'enroll': '04'}})
+        self.worker.send_scheduled()
+        
+        saved_participant = self.collections['participants'].find_one({'enrolled.dialogue-id': '04'})
+        self.assertTrue(saved_participant)
     
     def test06_schedule_interaction_while_interaction_in_history(self):
         mytimezone = self.program_settings[2]['value']
@@ -1162,6 +1185,32 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual(participant['enrolled'][0]['dialogue-id'], '01')
         self.assertTrue(
             dNow - time_from_vusion_format(participant['enrolled'][0]['date-time']) < timedelta(seconds=1))
+
+    def test18_run_action_delayed_enrolling(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        
+        dialogue = self.mkobj_dialogue_question_offset_days()
+        dNow = self.worker.get_local_time();
+        self.collections['participants'].save(self.mkobj_participant(
+            "08", last_optin_date=time_to_vusion_format(dNow)))        
+        self.collections['dialogues'].save(dialogue)
+     
+        self.worker.run_action(
+            "08",
+            DelayedEnrollingAction(**{
+                'enroll': '01',
+                'offset-days': {'days':'1', 'at-time': '12:00'}}),
+            origin={'dialogue-id': '02'}
+        )
+
+        schedule = self.collections['schedules'].find_one({'object-type': 'action-schedule'})
+        self.assertTrue(schedule is not None)
+        self.assertEqual(schedule['dialogue-id'], '02')
+        self.assertTrue(
+            action_generator(**schedule['action']),
+            EnrollingAction(**{'enroll': '01'}))
 
     def test18_run_action_optin_optout(self):
         for program_setting in self.program_settings:
