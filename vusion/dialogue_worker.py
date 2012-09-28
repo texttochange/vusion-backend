@@ -886,7 +886,8 @@ class TtcGenericWorker(ApplicationWorker):
 
         message = interaction['content']
         if ('type-interaction' in interaction
-                and interaction['type-interaction'] == 'question-answer'):
+                and interaction['type-interaction'] == 'question-answer'
+                and 'set-use-template' in interaction):
             if 'template' in interaction:
                 #need to get the template
                 pass

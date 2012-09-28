@@ -542,7 +542,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         
     def test10_schedule_participant_reminders(self):
         config = self.simple_config
-        dialogue = self.dialogue_open_question_with_reminder
+        dialogue = self.mkobj_dialogue_open_question_reminder()
         mytimezone = self.program_settings[2]['value']
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
         dNow = dNow.replace(tzinfo=None)
@@ -618,22 +618,14 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertRaises(MissingData, self.worker.customize_message, '07', message_two)
 
     #@inlineCallbacks
-    def test12_generate_message(self):
-        for program_setting in self.program_settings:
+    def test12_generate_message_use_template(self):
+        for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
+        
+        dialogue = self.mkobj_dialogue_question_offset_days()
 
-        interaction_closed_question = {
-            'type-interaction': 'question-answer',
-            'type-question': 'closed-question',
-            'content': 'How are you?',
-            'keyword': 'FEEL',
-            'answers': [
-                {'choice': 'Fine'},
-                {'choice': 'Ok'}],
-        }
-
-        self.assertRaises(MissingTemplate, self.worker.generate_message, interaction_closed_question)
+        self.assertRaises(MissingTemplate, self.worker.generate_message, dialogue['interactions'][0])
 
         saved_template_id = self.collections['templates'].save(self.template_closed_question)
         self.collections['program_settings'].save(
@@ -642,7 +634,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         )
         self.worker.load_data()
 
-        close_question = self.worker.generate_message(interaction_closed_question)
+        close_question = self.worker.generate_message(dialogue['interactions'][0])
 
         self.assertEqual(
             close_question,
@@ -656,20 +648,15 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             {'key': 'shortcode',
              'value': '+3123456'})
         self.worker.load_data()
+        
+        interaction = self.mkobj_dialogue_open_question()['interactions'][0]
+        interaction['keyword'] = "name, nam"
 
-        interaction_open_question = {
-            'type-interaction': 'question-answer',
-            'type-question': 'open-question',
-            'content': 'Which dealer did you buy the system from?',
-            'keyword': 'DEALER, deal',
-            'answer-label': 'Name dealer',
-        }
-
-        open_question = self.worker.generate_message(interaction_open_question)
+        open_question = self.worker.generate_message(interaction)
 
         self.assertEqual(
             open_question,
-            "Which dealer did you buy the system from?\n To reply send: DEALER<space><Name dealer> to +3123456")
+            "What is your name?\n To reply send: NAME<space><name> to +3123456")
 
         self.collections['program_settings'].drop()
         self.collections['program_settings'].save(
@@ -678,7 +665,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         )
         self.worker.load_data()
 
-        self.assertRaises(MissingTemplate, self.worker.generate_message, interaction_open_question)
+        self.assertRaises(MissingTemplate, self.worker.generate_message, interaction)
         
         self.collections['program_settings'].drop()
         self.collections['program_settings'].save(
@@ -687,7 +674,20 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         )
         self.worker.load_data()
 
-        self.assertRaises(MissingTemplate, self.worker.generate_message, interaction_open_question)
+        self.assertRaises(MissingTemplate, self.worker.generate_message, interaction)
+
+    def test12_generate_message_no_template(self):
+        for program_setting in self.mkobj_program_settings():
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        
+        interaction = self.mkobj_dialogue_question_offset_days()['interactions'][0]
+        interaction.pop('set-use-template')
+        
+        close_question = self.worker.generate_message(interaction)
+        self.assertEqual(
+            close_question,
+            "How are you?")
 
     @inlineCallbacks
     def test13_received_delivered(self):
