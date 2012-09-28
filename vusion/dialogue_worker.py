@@ -646,17 +646,17 @@ class TtcGenericWorker(ApplicationWorker):
         for reminder_schedule_to_be_deleted in schedules:
             self.collections['schedules'].remove(reminder_schedule_to_be_deleted['_id'])
         
-        if (interaction['type-schedule-reminder'] == 'offset-days'):
+        if (interaction['type-schedule-reminder'] == 'reminder-offset-days'):
             sendingDay = initialSendDateTime
-            timeOfSending = interaction['at-time'].split(':', 1)
+            timeOfSending = interaction['reminder-at-time'].split(':', 1)
             sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
-        elif (interaction['type-schedule-reminder'] == 'offset-time'):
+        elif (interaction['type-schedule-reminder'] == 'reminder-offset-time'):
             sendingDateTime = initialSendDateTime
-        for number in range(int(interaction['number'])+1):                
-            if (interaction['type-schedule-reminder'] == 'offset-time'):
-                sendingDateTime += timedelta(minutes=int(interaction['minutes']))
-            elif (interaction['type-schedule-reminder'] == 'offset-days'):
-                sendingDay += timedelta(days=int(interaction['days']))
+        for number in range(int(interaction['reminder-number'])+1):                
+            if (interaction['type-schedule-reminder'] == 'reminder-offset-time'):
+                sendingDateTime += timedelta(minutes=int(interaction['reminder-minutes']))
+            elif (interaction['type-schedule-reminder'] == 'reminder-offset-days'):
+                sendingDay += timedelta(days=int(interaction['reminder-days']))
                 sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
                                                                           
             schedule = {
@@ -666,7 +666,7 @@ class TtcGenericWorker(ApplicationWorker):
                 "interaction-id": interaction["interaction-id"]}                                                                               
             self.save_schedule(schedule['participant-phone'],
                 self.to_vusion_format(sendingDateTime),
-                'reminder-schedule' if number < int(interaction['number']) else 'deadline-schedule',
+                'reminder-schedule' if number < int(interaction['reminder-number']) else 'deadline-schedule',
                 _id=schedule['_id'],
                 dialogue_id=schedule['dialogue-id'],
                 interaction_id=schedule['interaction-id'])
@@ -886,7 +886,8 @@ class TtcGenericWorker(ApplicationWorker):
 
         message = interaction['content']
         if ('type-interaction' in interaction
-                and interaction['type-interaction'] == 'question-answer'):
+                and interaction['type-interaction'] == 'question-answer'
+                and 'set-use-template' in interaction):
             if 'template' in interaction:
                 #need to get the template
                 pass

@@ -351,6 +351,8 @@ class ObjectMaker:
                  'type-interaction': 'question-answer',
                  'content': 'How are you?',
                  'keyword': 'FEEL, FEL',
+                 'set-use-template': 'use-template',
+                 'type-question': 'closed-question',
                  'type-schedule': 'offset-days',
                  'days': '1',
                  'at-time': '22:30',            
@@ -388,6 +390,7 @@ class ObjectMaker:
              'type-interaction': 'question-answer',
              'content': 'What is your name?',
              'keyword': 'name',
+             'set-use-template': 'use-template',
              'type-question': 'open-question',
              'answer-label': 'name',
              'type-schedule': 'offset-days',
@@ -440,9 +443,9 @@ class ObjectMaker:
              'type-schedule': 'fixed-time',
              'date-time': '2012-03-12T12:30:00',
              'set-reminder': 'reminder',
-             'number': '2',
-             'type-schedule-reminder': 'offset-time',
-             'minutes': '30',
+             'reminder-number': '2',
+             'type-schedule-reminder': 'reminder-offset-time',
+             'reminder-minutes': '30',
              'reminder-actions': [
                  {'type-action': 'optout'}]
              }]
