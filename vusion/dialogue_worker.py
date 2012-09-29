@@ -289,7 +289,7 @@ class TtcGenericWorker(ApplicationWorker):
             'last-optin-date': time_to_vusion_format(self.get_local_time()),
             'tags': [],
             'enrolled':[],
-            'profile':{}
+            'profile':[]
         }
 
     def run_action(self, participant_phone, action, origin=None):
@@ -306,7 +306,7 @@ class TtcGenericWorker(ApplicationWorker):
                               'last-optin-date': time_to_vusion_format(self.get_local_time()),
                               'tags': [],
                               'enrolled': [],
-                              'profile': {} }})
+                              'profile': [] }})
             else:
                 self.collections['participants'].save(self.create_participant(participant_phone))
             for dialogue in self.get_active_dialogues({'auto-enrollment':'all'}):
@@ -382,7 +382,8 @@ class TtcGenericWorker(ApplicationWorker):
             self.collections['participants'].update(
                 {'phone': participant_phone,
                  'session-id': {'$ne': None}},
-                {'$set': {('profile.%s' % action['label']): action['value']}})
+                {'$push': {'profile': {'label': action['label'],
+                                        'value': action['value']}}})
         elif (action.get_type() == 'offset-conditioning'):
             self.schedule_participant_dialogue(
                 self.collections['participants'].find_one({'phone':participant_phone,
@@ -952,6 +953,10 @@ class TtcGenericWorker(ApplicationWorker):
             message = re.sub(regex_Breakline, '\n', message)
         return message
 
+    def get_participant_label_value(self, participant, label):
+        label_indexer = dict((p['label'], p['value']) for i, p in enumerate(participant['profile']))
+        return label_indexer.get(label, None)
+
     def customize_message(self, participant_phone, message):
         tags_regexp = re.compile(r'\[(?P<table>\w*)\.(?P<attribute>\w*)\]')
         tags = re.findall(tags_regexp, message)
@@ -959,10 +964,11 @@ class TtcGenericWorker(ApplicationWorker):
             participant = self.collections['participants'].find_one(
                 {'phone': participant_phone})
             attribute = attribute.lower()
-            if not attribute in participant['profile']:
+            participant_label_value = self.get_participant_label_value(participant, attribute)
+            if not participant_label_value:
                 raise MissingData("%s has no attribute %s" %
                                   (participant_phone, attribute))
             message = message.replace('[%s.%s]' %
                                       (table, attribute),
-                                      participant['profile'][attribute])
+                                      participant_label_value)
         return message

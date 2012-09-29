@@ -663,7 +663,7 @@ class ObjectMaker:
 
     def mkobj_participant(self, participant_phone='06',
                           last_optin_date='2012-02-01T18:30:20', session_id='1',
-                          enrolled=[], tags=[], profile={}):
+                          enrolled=[], tags=[], profile=[]):
         return { 
             'phone': participant_phone,
             'session-id': session_id,

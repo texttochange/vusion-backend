@@ -650,15 +650,17 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             'date-time': '12/03/2012 12:30'
         }
 
-        participants = [
-            {'phone': '06',
-             'name': 'oliv'},
-            {'phone': '07',
-             'gender': 'Female'}
-        ]
+        participant1 = self.mkobj_participant(
+            '06',
+            profile=[{'label': 'name',
+                      'value': 'oliv'}])
+        participant2 = self.mkobj_participant(
+            '07',
+            profile=[{'label': 'gender',
+                      'value': 'Female'}])
 
-        self.collections['participants'].save(self.mkobj_participant('06', profile={'name':'oliv'}))
-        self.collections['participants'].save(self.mkobj_participant('07', profile={'gender':'Femal'}))
+        self.collections['participants'].save(participant1)
+        self.collections['participants'].save(participant2)
 
         message_one = self.worker.generate_message(interaction_using_tag)
         message_one = self.worker.customize_message('06', message_one)
@@ -953,8 +955,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         yield self.send(inbound_msg_matching_request, 'inbound')
 
         participant = self.collections['participants'].find_one({'phone': '06'})
-        self.assertTrue('name' in participant['profile'])
-        self.assertEqual('john doe', participant['profile']['name'])
+        self.assertTrue('name' in participant['profile'][0]['label'])
+        self.assertEqual('john doe', participant['profile'][0]['value'])
         
         ## One Way road, and action is not replayed
         inbound_msg_matching_request = self.mkmsg_in(
@@ -962,7 +964,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             content='name olivier')
         yield self.send(inbound_msg_matching_request, 'inbound')
         participant = self.collections['participants'].find_one({'phone': '06'})
-        self.assertEqual('john doe', participant['profile']['name']) 
+        self.assertEqual('john doe', participant['profile'][0]['value']) 
 
     @inlineCallbacks
     def test17_receiving_inbound_message_no_repeat_dialogue_enroll(self):
@@ -1007,7 +1009,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         yield self.send(inbound_msg_matching_request, 'inbound')
 
         participant = self.collections['participants'].find_one({'phone': '06'})
-        self.assertTrue(not 'name' in participant['profile'])
+        self.assertEqual(participant['profile'], [])
 
     @inlineCallbacks
     def test17_receiving_inbound_request_not_optin(self):
@@ -1093,7 +1095,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.collections['participants'].save(self.mkobj_participant(
             '08',
             tags=['geek'],
-            profile={'name':'Oliv'}))
+            profile=[{'label': 'name',
+                     'value': 'Oliv'}]))
         
         ## Error message
         saved_template_id = self.collections['templates'].save(
@@ -1126,8 +1129,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         ## Profiling
         self.worker.run_action("08", ProfilingAction(**{'label': 'gender',
                                                         'value': 'Female'}))
-        self.assertTrue(self.collections['participants'].find_one({'profile.gender': 'Female'}))
-        self.assertTrue(self.collections['participants'].find_one({'profile.name': 'Oliv'}))
+        self.assertTrue(self.collections['participants'].find_one({'profile.label': 'gender'}))
+        self.assertTrue(self.collections['participants'].find_one({'profile.value': 'Female'}))
 
 
     def test18_run_action_enroll(self):
@@ -1209,7 +1212,8 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             last_optin_date=None,
             session_id=None,
             tags=['geeks'],
-            profile={'name':'Oliv'},
+            profile=[{'lable':'name',
+                      'value':'Oliv'}],
             enrolled=[{'dialogue-id': '01',
                        'date-time': '2012-08-08T12:36:20'}]))
         dNow = self.worker.get_local_time()
@@ -1218,7 +1222,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         
         participant = self.collections['participants'].find_one({'phone':'06'})
         self.assertEqual(participant['tags'], [])
-        self.assertEqual(participant['profile'], {})
+        self.assertEqual(participant['profile'], [])
         self.assertEqual(participant['enrolled'][0]['dialogue-id'], '01')
         self.assertTrue(
             dNow - time_from_vusion_format(participant['enrolled'][0]['date-time']) < timedelta(seconds=1))
@@ -1296,26 +1300,29 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             last_optin_date=None,
             session_id=None,
             tags=['geeks'],
-            profile={'name':'Oliv'},
+            profile=[{'label': 'name',
+                      'value': 'Oliv'}],
             enrolled=['1']
         ))
         self.worker.run_action("06", OptinAction())
         participant = self.collections['participants'].find_one({'phone':'06'})
         self.assertEqual(participant['tags'], [])
-        self.assertEqual(participant['profile'], {})
+        self.assertEqual(participant['profile'], [])
         self.assertEqual(participant['enrolled'], [])
         
         ## Participant profile is not cleard by optout
         self.collections['participants'].save(self.mkobj_participant(
             participant_phone='07',
             tags=['geeks'],
-            profile={'name': 'Oliv'},
+            profile=[{'label': 'name',
+                      'value':'Oliv'}],
             enrolled=['1']
         ))
         self.worker.run_action("06", OptoutAction())
         participant = self.collections['participants'].find_one({'phone':'07'})
         self.assertEqual(participant['tags'], ['geeks'])
-        self.assertEqual(participant['profile'], {'name': 'Oliv'})
+        self.assertEqual(participant['profile'], [{'label': 'name',
+                                                   'value':'Oliv'}])
         self.assertEqual(participant['enrolled'], ['1'])
         
 
@@ -1437,14 +1444,15 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         participant = self.mkobj_participant(
             '06',
             last_optin_date=time_to_vusion_format(dNow),
-            profile={'name':'Oliv'})
+            profile=[{'label': 'name',
+                     'value': 'Oliv'}])
         self.collections['participants'].save(participant)
         
         self.worker.run_action("06", ResetAction())
         
         reset_participant = self.collections['participants'].find_one({'phone':'06'})
         
-        self.assertEqual(reset_participant['profile'], {})
+        self.assertEqual(reset_participant['profile'], [])
 
     def test21_schedule_unattach_message(self):
         participants = [self.mkobj_participant(),
