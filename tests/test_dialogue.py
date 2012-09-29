@@ -140,10 +140,10 @@ class DialogueTestCase(TestCase, ObjectMaker):
     def test_get_matching_question_multi_keyword(self):
         script = Dialogue(self.mkobj_dialogue_question_multi_keyword())
 
-        ref, actions = script.get_matching_reference_and_actions("male", [])
+        ref, actions = script.get_matching_reference_and_actions("Male", [])
         self.assertEqual(ref, {'dialogue-id': '05',
                                'interaction-id': '05',
-                               'matching-answer': "male"})
+                               'matching-answer': "maLe"})
         self.assertEqual(len(actions), 2)
         self.assertEqual(
             actions[0], 
@@ -151,7 +151,7 @@ class DialogueTestCase(TestCase, ObjectMaker):
                                     'interaction-id': '05'}))
         self.assertEqual(
             actions[1], 
-            ProfilingAction(**{'label': 'gender','value': 'male'}))    
+            ProfilingAction(**{'label': 'gender','value': 'maLe'}))    
        
     def test_get_all_keywords(self):
         dialogue_helper = Dialogue(self.dialogue_question_answer)

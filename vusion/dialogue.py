@@ -81,15 +81,8 @@ class Dialogue:
         return None
 
     def get_matching_answer_keyword(self, answer_keywords, message):
-        try:
-            index = int(message) - 1
-            if index < 0 or index > len(answer_keywords):
-                return None
-            return answer_keywords[index]
-        except:
-            pass
         for answer_keyword in answer_keywords:
-            if answer_keyword['keyword'].lower() == message:
+            if answer_keyword['keyword'].lower() == message.lower():
                 return answer_keyword
         return None
     

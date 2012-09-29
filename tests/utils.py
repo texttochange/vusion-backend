@@ -411,7 +411,7 @@ class ObjectMaker:
                  'label-for-participant-profiling': 'gender',
                  "answer-keywords": [
                     {
-                        "keyword": "male"
+                        "keyword": "maLe"
                     },
                     {
                         "keyword": "female"
