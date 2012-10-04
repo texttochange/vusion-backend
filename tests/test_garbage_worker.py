@@ -39,7 +39,10 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
         yield self.worker.startWorker()
 
     def tearDown(self):
+        self.broker.dispatched = {}
         self.unmatchable_replies_collection.drop()
+        self.shortcodes_collection.drop()
+        self.templates_collection.drop()
 
     @inlineCallbacks
     def send(self, msg):
