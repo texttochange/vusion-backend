@@ -38,7 +38,7 @@ def get_shortcode_value(stored_shortcode):
     return stored_shortcode
 
 def get_shortcode_address(shortcode):
-    if shortcode['supported-internationally'] == "0":
+    if shortcode['supported-internationally'] == 0:
         return ("%s-%s" % (shortcode['international-prefix'], shortcode['shortcode']))
     return shortcode['shortcode']
 

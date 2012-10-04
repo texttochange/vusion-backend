@@ -68,8 +68,8 @@ class GarbageWorker(ApplicationWorker):
                 )
             })
             yield self.transport_publisher.publish_message(error_message)
-            log.debug("Reply '%s' sent to %s" %
-                      (error_message['content'], error_message['to_addr']))
+            log.debug("Reply '%s' sent from %s to %s" %
+                      (error_message['content'], error_message['from_addr'], error_message['to_addr']))
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             log.error(
