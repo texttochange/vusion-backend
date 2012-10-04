@@ -77,9 +77,8 @@ class GarbageWorker(ApplicationWorker):
 
     def get_shortcode(self, msg):
         matching_code = None
-        codes = self.shortcodes_collection.find({
-            'shortcode': {'$regex': ("^[0-9]+-%s" % msg['to_addr'])}})
-        if codes is None:
+        codes = self.shortcodes_collection.find({'shortcode': msg['to_addr']})
+        if codes is None or codes.count()==0:
             log.err("Could not find shortcode for %s" % msg['to_addr'])
             return None
         elif codes.count() > 1:

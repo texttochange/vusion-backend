@@ -194,24 +194,26 @@ class MessageMaker:
 
 class ObjectMaker:
 
-    def mkobj_template_unmatching_keyword(self):
+    def mkobj_template_unmatching_keyword(self,
+                                          message='KEYWORD does not match any keyword.'):
         return {
             'name': 'error template',
             'type-template': 'unmatching-keyword',
-            'template': 'KEYWORD does not match any keyword.'}
+            'template': message}
 
     shortcodes = {
         'country': 'Uganda',
         'international-prefix': '256',
-        'shortcode': '256-8181',
+        'shortcode': '8181',
         'error-template': None,
         'support-customized-id': 0,
         'supported-internationally': 0,
     }
 
-    def mkobj_shortcode(self, error_template=None):
+    def mkobj_shortcode(self, error_template=None, code='8181'):
         shortcode = deepcopy(self.shortcodes)
         shortcode['error-template'] = error_template
+        shortcode['shortcode'] = code
         return shortcode
 
     def mkobj_shortcode_international(self):
