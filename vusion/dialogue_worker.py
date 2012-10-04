@@ -134,7 +134,7 @@ class TtcGenericWorker(ApplicationWorker):
                     schedule[key] = origin[key]
         else:
             raise VusionError('object type not supported by schedule %s' % object_type)
-        self.log("Save schedule %r" % schedule)
+        #self.log("Save schedule %r" % schedule)
         self.collections['schedules'].save(schedule)        
 
     def save_history(self, message_content, participant_phone,
@@ -171,10 +171,10 @@ class TtcGenericWorker(ApplicationWorker):
             return participant['session-id']
 
     def get_current_dialogue(self, dialogue_id):
-        return self.collections['dialogues'].find_one(
-            {'activated': 1, 'dialogue-id': dialogue_id},
-            sort=[('modified', pymongo.DESCENDING)],
-            limit=1)
+        dialogue = self.get_active_dialogues({'dialogue-id': dialogue_id})
+        if dialogue == []:
+            return None
+        return dialogue[0]['Dialogue']
 
     def get_active_dialogues(self, conditions=None):
         dialogues = self.collections['dialogues'].group(
@@ -748,6 +748,7 @@ class TtcGenericWorker(ApplicationWorker):
 
                 # delayed action are always run even if there original interaction has been deleted
                 if not interaction and toSend['object-type']!='action-schedule':
+                    self.log("Sender Failure, schedule without interaction %r" % toSend)
                     continue
                 
                 if toSend['object-type'] == 'deadline-schedule':
