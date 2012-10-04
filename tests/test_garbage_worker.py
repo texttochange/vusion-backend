@@ -57,7 +57,7 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
 
         yield self.send(msg)
 
-        self.assertTrue(self.unmatchable_replies_collection.find_one())
+        self.assertEqual(1, self.unmatchable_replies_collection.count())
         messages = self.broker.get_messages('vumi', 'garbage.outbound')
         self.assertEqual(len(messages), 0)
 
@@ -71,7 +71,7 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
 
         yield self.send(msg)
 
-        self.assertTrue(self.unmatchable_replies_collection.find_one())
+        self.assertTrue(2, self.unmatchable_replies_collection.count())
         messages = self.broker.get_messages('vumi', 'garbage.outbound')
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['content'],
@@ -96,7 +96,7 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
 
         yield self.send(msg)
 
-        self.assertTrue(self.unmatchable_replies_collection.find_one())
+        self.assertEqual(2, self.unmatchable_replies_collection.count())
         messages = self.broker.get_messages('vumi', 'garbage.outbound')
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['content'],

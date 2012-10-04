@@ -39,11 +39,11 @@ class GarbageWorker(ApplicationWorker):
         try:
             regex_KEYWORD = re.compile('KEYWORD')
             log.debug("Consumer user message %s" % (msg,))
-            if msg['timestamp']:
-                timestamp = time_to_vusion_format(msg['timestamp'])
+            timestamp = time_to_vusion_format(msg['timestamp'])
             self.unmatchable_reply_collection.save(
                 {'participant-phone': msg['from_addr'],
                  'to': msg['to_addr'],
+                 'direction': 'incoming',
                  'message-content': msg['content'],
                  'timestamp': timestamp,
                  })
@@ -68,8 +68,13 @@ class GarbageWorker(ApplicationWorker):
                 )
             })
             yield self.transport_publisher.publish_message(error_message)
-            log.debug("Reply '%s' sent from %s to %s" %
-                      (error_message['content'], error_message['from_addr'], error_message['to_addr']))
+            self.unmatchable_reply_collection.save(
+                {'participant-phone': error_message['from_addr'],
+                 'to': error_message['to_addr'],
+                 'direction': 'outgoing',
+                 'message-content': error_message['content'],
+                 'timestamp': timestamp,
+                 })
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             log.error(
