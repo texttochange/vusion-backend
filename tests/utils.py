@@ -206,8 +206,8 @@ class ObjectMaker:
         'international-prefix': '256',
         'shortcode': '8181',
         'error-template': None,
-        'support-customized-id': 0,
-        'supported-internationally': 0,
+        'support-customized-id': "0",
+        'supported-internationally': "0",
     }
 
     def mkobj_shortcode(self, error_template=None, code='8181'):
