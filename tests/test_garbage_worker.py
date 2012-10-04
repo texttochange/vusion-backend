@@ -77,6 +77,7 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
         self.assertEqual(messages[0]['content'],
                          'Gen does not match any keyword.')
         self.assertEqual(messages[0]['to_addr'], msg['from_addr'])
+        self.assertEqual(messages[0]['from_addr'], '256-8181')
     
     @inlineCallbacks
     def test_receive_user_message_with_two_error_template_matching_to_addr(self):

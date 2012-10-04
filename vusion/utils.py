@@ -37,6 +37,10 @@ def get_shortcode_value(stored_shortcode):
         return stored_shortcode.split('-')[1]
     return stored_shortcode
 
+def get_shortcode_address(shortcode):
+    if shortcode['supported-internationally']:
+        return shortcode['shortcode']
+    return ("%s-%s" % (shortcode['international-prefix'], shortcode['shortcode']))
 
 def get_offset_date_time(reference_time, days, at_time):
     sending_day = reference_time + timedelta(days=int(days))

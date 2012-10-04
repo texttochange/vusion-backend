@@ -69,7 +69,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.setup_collections(['templates'])
 
         self.drop_collections()
-
+        self.broker.dispatched = {}
         #Let's rock"
         self.worker.startService()
         yield self.worker.startWorker()
@@ -361,6 +361,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         for history in histories:
             self.assertTrue(history['participant-session-id'] is not None)
 
+    @inlineCallbacks
     def test05_send_scheduled_deadline(self):  
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
@@ -379,11 +380,12 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             'dialogue-id': '04',
             'interaction-id': '01-01',
             'participant-phone': '06'})
-        self.worker.send_scheduled()
+        yield self.worker.send_scheduled()
         
         saved_participant = self.collections['participants'].find_one()
         self.assertEqual(saved_participant['session-id'], None)
 
+    @inlineCallbacks
     def test05_send_scheduled_run_action(self):  
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
@@ -402,7 +404,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
             'object-type': 'action-schedule',
             'action': {'type-action': 'enrolling',
                        'enroll': '04'}})
-        self.worker.send_scheduled()
+        yield self.worker.send_scheduled()
         
         saved_participant = self.collections['participants'].find_one({'enrolled.dialogue-id': '04'})
         self.assertTrue(saved_participant)

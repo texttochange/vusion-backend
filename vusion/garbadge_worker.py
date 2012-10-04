@@ -13,7 +13,8 @@ from vumi.message import TransportUserMessage
 from vumi import log
 from vumi.utils import get_first_word
 
-from vusion.utils import time_to_vusion_format, get_shortcode_value
+from vusion.utils import (time_to_vusion_format, get_shortcode_value,
+                          get_shortcode_address)
 
 
 class GarbageWorker(ApplicationWorker):
@@ -56,7 +57,7 @@ class GarbageWorker(ApplicationWorker):
             if template is None:
                 return
             error_message = TransportUserMessage(**{
-                'from_addr': msg['to_addr'],
+                'from_addr': get_shortcode_address(matching_code),
                 'to_addr': msg['from_addr'],
                 'transport_name': msg['transport_name'],
                 'transport_type': msg['transport_type'],
