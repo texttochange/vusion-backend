@@ -16,6 +16,16 @@ class DialogueTestCase(TestCase, ObjectMaker):
     def tearDown(self):
         pass
 
+    def test_get_matching_failed_dialogues_empty_interaction(self):
+        dialogue = self.mkobj_dialogue_open_question()
+        dialogue['interactions'] = None
+        dialogue_helper = Dialogue(dialogue)
+        
+        actions = Actions()
+        ref, actions = dialogue_helper.get_matching_reference_and_actions("feel 1", actions)
+        self.assertTrue(ref is None)
+        self.assertTrue(actions)
+
     def test_get_matching_closed_question_answer(self):
         script = Dialogue(self.dialogue_question_answer)
 
@@ -107,8 +117,6 @@ class DialogueTestCase(TestCase, ObjectMaker):
         ref, actions = dialogue.get_matching_reference_and_actions("Genok", [])
         self.assertEqual(ref, None)
 
-     
-
     def test_get_matching_open_question(self):
         script = Dialogue(self.dialogue_question_answer)
 
@@ -152,7 +160,16 @@ class DialogueTestCase(TestCase, ObjectMaker):
         self.assertEqual(
             actions[1], 
             ProfilingAction(**{'label': 'gender','value': 'maLe'}))    
-       
+        
+    def test_get_all_keywords_empty_interactions(self):
+        dialogue = self.mkobj_dialogue_open_question()
+        dialogue['interactions'] = None
+        dialogue_helper = Dialogue(dialogue)
+        
+        self.assertEqual(
+            dialogue_helper.get_all_keywords(),
+            [])
+
     def test_get_all_keywords(self):
         dialogue_helper = Dialogue(self.dialogue_question_answer)
 

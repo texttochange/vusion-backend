@@ -1021,6 +1021,7 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
                                                      content='wWw info')
         yield self.send(inbound_msg_matching_request, 'inbound')
         
+        self.assertEqual(1, self.collections['history'].count())
         self.assertEqual(0, self.collections['schedules'].count())
         
     @inlineCallbacks
@@ -1509,7 +1510,9 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         self.assertEqual([
             {'app': 'test', 'keyword': 'feel', 'to_addr': '8181', 'prefix': '+256'},
             {'app': 'test', 'keyword': 'fel', 'to_addr': '8181', 'prefix': '+256'},
-            {'app': 'test', 'keyword': 'www', 'to_addr': '8181', 'prefix': '+256'}],
+            {'app': 'test', 'keyword': 'www', 'to_addr': '8181', 'prefix': '+256'},
+            {'app': 'test', 'keyword': 'quit', 'to_addr': '8181', 'prefix': '+256'},
+            {'app': 'test', 'keyword': 'quitnow', 'to_addr': '8181', 'prefix': '+256'}],
             messages[0]['rules'])
 
     @inlineCallbacks

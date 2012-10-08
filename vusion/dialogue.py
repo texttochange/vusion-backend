@@ -23,7 +23,7 @@ class Dialogue:
         return [k.lower() for k in (keywords or '').split(', ')]
 
     def get_matching_interaction(self, keyword):
-        if not 'interactions' in self.dialogue:
+        if self.dialogue['interactions'] is None:
             return None, None
         for interaction in self.dialogue['interactions']:
             if interaction['type-interaction'] == 'question-answer-keyword':
@@ -178,7 +178,7 @@ class Dialogue:
 
     def get_all_keywords(self):
         keywords = []
-        if not 'interactions' in self.dialogue:
+        if self.dialogue['interactions'] is None :
             return keywords
         for interaction in self.dialogue['interactions']:
             if 'keyword' in interaction:
