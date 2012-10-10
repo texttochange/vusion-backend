@@ -1,4 +1,4 @@
-from vusion.error import MissingField
+from vusion.error import MissingField, FailingModelUpgrade
 
 class VusionModel(object):
 
@@ -11,7 +11,7 @@ class VusionModel(object):
         if kwargs['model-version'] != self.MODEL_VERSION:
             kwargs = self.upgrade(**kwargs)
             if kwargs['model-version'] != self.MODEL_VERSION:
-                raise FailModelUpgrade()
+                raise FailingModelUpgrade()
         self.payload = kwargs
         self.validate_fields()
 
