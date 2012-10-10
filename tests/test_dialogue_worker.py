@@ -225,6 +225,30 @@ class TtcGenericWorkerTestCase(TestCase, MessageMaker, DataLayerUtils,
         active_dialogue = self.worker.get_current_dialogue("0")
         self.assertTrue(active_dialogue)
         self.assertEqual([], active_dialogue['interactions'])
+    
+    def test03_get_matching_request_actions(self):
+        request_1 = self.mkobj_request_response('www info')
+        request_2 = self.mkobj_request_reponse_lazy_matching('www')
+        request_1_id = self.collections['requests'].save(request_1)
+        request_2_id = self.collections['requests'].save(request_2)        
+
+        ref, actions = self.worker.get_matching_request_actions('www info', Actions())
+        self.assertEqual(ref['request-id'], request_1_id)
+       
+        ref, actions = self.worker.get_matching_request_actions('www', Actions())
+        self.assertEqual(ref['request-id'], request_2_id)
+        
+        ref, actions = self.worker.get_matching_request_actions('www tata', Actions())
+        self.assertTrue(ref is not None)
+        self.assertEqual(ref['request-id'], request_2_id)
+        self.assertTrue(actions.contains('feedback'))
+        
+        ref, actions = self.worker.get_matching_request_actions('ww tata', Actions())
+        self.assertTrue(ref is None)
+        
+        ref, actions = self.worker.get_matching_request_actions('ww', Actions())
+        self.assertTrue(ref is None)
+
 
     def test04_schedule_participant_dialogue_offset_days(self):
         config = self.simple_config

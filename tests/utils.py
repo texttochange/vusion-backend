@@ -563,7 +563,10 @@ class ObjectMaker:
             'actions': [
                 {'type-action': 'optin'},
                 {'type-action': 'enrolling',
-                 'enroll': '01'}]}
+                 'enroll': '01'}],
+            'object-type': 'request',
+            'model-version': '1',
+        }
 
     request_tag = {
         'keyword': 'www tagme',
@@ -571,26 +574,36 @@ class ObjectMaker:
             {'type-action': 'tagging',
              'tag': 'onetag'}],
         'responses': [ 
-            {'content': 'you are tagged'}]
+            {'content': 'you are tagged'}],
+        'object-type': 'request',
+        'model-version': '1',
     }
     
     def mkobj_request_tag(self):
         return deepcopy(self.request_tag)
-
-    def mkobj_request_response(self):
+    
+    def mkobj_request_reponse_lazy_matching(self, keyword):
+        request = self.mkobj_request_response(keyword)
+        request['set-no-request-matching-try-keyword-only'] = 'no-request-matching-try-keyword-only'
+        request['model-version'] = '2'
+        return request
+        
+    def mkobj_request_response(self, keyword='www info'):
         return {
-            'keyword': 'www info',
+            'keyword': keyword,
             'responses': [ 
                 {'content': 'a response'}],
-            'actions': []
-        }
+            'actions': [],
+            'object-type': 'request',
+            'model-version': '1'}
 
     request_leave = {
         'keyword': 'www quit, quit, quit now, quitnow',
         'responses': [],
         'actions': [
-            {'type-action': 'optout'}]
-    }
+            {'type-action': 'optout'}],
+        'object-type': 'request',
+        'model-version': '1'}
 
     def mkobj_request_leave(self):
         return deepcopy(self.request_leave)

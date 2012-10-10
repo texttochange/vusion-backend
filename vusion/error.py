@@ -16,3 +16,7 @@ class MissingTemplate(VusionError):
 
 class MissingField(VusionError):
     pass
+
+
+class FailingModelUpgrade(VusionError):
+    pass

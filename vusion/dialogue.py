@@ -121,15 +121,15 @@ class Dialogue:
             actions.append(RemoveRemindersAction(**{
                 'dialogue-id': dialogue_id,
                 'interaction-id':interaction['interaction-id']}))
-            
+
         if 'answer-keywords' in interaction:
+            # Multi keyword question
             answer_keyword = self.get_matching_answer_keyword(interaction['answer-keywords'], message)
             if not answer_keyword or answer_keyword is None:
                 actions.append(UnMatchingAnswerAction(**{'answer': message}))
             else:                
                 reference_metadata['matching-answer'] = answer_keyword['keyword']
                 self.get_actions_from_returned_answer(dialogue_id, interaction, answer_keyword, 'keyword', actions)
-        
         elif 'answers' in interaction:
             # Closed questions
             answer = self.get_matching_answer(interaction, keyword, reply)
