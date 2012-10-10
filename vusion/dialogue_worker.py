@@ -22,6 +22,7 @@ from vumi.application import ApplicationWorker
 from vumi.message import Message, TransportUserMessage, TransportEvent
 from vumi.application import SessionManager
 from vumi import log
+from vumi.utils import get_first_word
 
 from vusion.dialogue import Dialogue, split_keywords
 from vusion.utils import (time_to_vusion_format, get_local_time,
@@ -33,6 +34,7 @@ from vusion.message import DispatcherControl
 from vusion.action import (Actions, action_generator,
                            FeedbackAction, EnrollingAction,
                            OptinAction, OptoutAction)
+from vusion.persist import Request
 
 class TtcGenericWorker(ApplicationWorker):
     
@@ -270,14 +272,23 @@ class TtcGenericWorker(ApplicationWorker):
         self.collections['history'].save(history)
 
     def get_matching_request_actions(self, content, actions):
-        regx = re.compile(('(,\s|^)%s($|,)' % content), re.IGNORECASE)
+        # exact matching
+        exact_regex = re.compile(('(,\s|^)%s($|,)' % content), re.IGNORECASE)
         matching_request = self.collections['requests'].find_one(
-            {'keyword': {'$regex': regx}})
+            {'keyword': {'$regex': exact_regex}})
         if matching_request:
-            for action in matching_request['actions']:
-                actions.append(action_generator(**action))
-            for response in matching_request['responses']:
-                actions.append(FeedbackAction(**{'content': response['content']}))
+            request = Request(**matching_request)
+            request.append_actions(actions)
+            return {'request-id': matching_request['_id']}, actions
+        # lazy keyword matching
+        lazy_regex = re.compile(
+            ('(,\s|^)%s(\s.*|$|,)' % get_first_word(content)), re.IGNORECASE)
+        matching_request = self.collections['requests'].find_one(
+            {'keyword': {'$regex': lazy_regex},
+             'set-no-request-matching-try-keyword-only': 'no-request-matching-try-keyword-only'})
+        if matching_request:
+            request = Request(**matching_request)
+            request.append_actions(actions)
             return {'request-id': matching_request['_id']}, actions
         return None, actions 
 
