@@ -8,7 +8,7 @@ from vumi.multiworker import MultiWorker
 from vumi.tests.utils import StubbedWorkerCreator, get_stubbed_worker
 from vumi.tests.test_multiworker import ToyWorker
 
-from vusion import VusionMultiWorker, TtcGenericWorker
+from vusion import VusionMultiWorker, DialogueWorker
 from tests.utils import MessageMaker, DataLayerUtils
 
 
@@ -33,7 +33,7 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         'mongodb_port': 27017,
         'dispatcher_name': 'dispatcher',
         'workers': {
-            'worker1': 'vusion.TtcGenericWorker'},
+            'worker1': 'vusion.DialogueWorker'},
         'worker1': {
             'control_name': 'test',
             'transport_name': 'test',
@@ -90,7 +90,7 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             self.mkmsg_multiworker_control(
                 message_type='add_worker',
                 worker_name='worker2',
-                worker_class='vusion.TtcGenericWorker',
+                worker_class='vusion.DialogueWorker',
                 config=self.new_worker_config))
 
         yield self.worker.wait_for_workers()
@@ -103,7 +103,7 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
             self.mkmsg_multiworker_control(
                 message_type='add_worker',
                 worker_name='worker2',
-                worker_class='vusion.TtcGenericWorker',
+                worker_class='vusion.DialogueWorker',
                 config=self.new_worker_config))
 
         yield self.worker.wait_for_workers()
@@ -141,7 +141,7 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         self.assertTrue('worker1' in self.worker.workers)
         self.assertTrue(isinstance(self.worker.workers['worker1'],
-                                   TtcGenericWorker))
+                                   DialogueWorker))
         self.assertTrue('worker2' in self.worker.workers)
         self.assertTrue(isinstance(self.worker.workers['worker2'],
                                    ToyWorker))

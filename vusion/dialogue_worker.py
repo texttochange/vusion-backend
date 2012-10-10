@@ -36,13 +36,13 @@ from vusion.action import (Actions, action_generator,
                            OptinAction, OptoutAction)
 from vusion.persist import Request
 
-class TtcGenericWorker(ApplicationWorker):
+class DialogueWorker(ApplicationWorker):
     
     INCOMING = "incoming"
     OUTGOING = "outgoing"
     
     def __init__(self, *args, **kwargs):
-        super(TtcGenericWorker, self).__init__(*args, **kwargs)
+        super(DialogueWorker, self).__init__(*args, **kwargs)
 
     def startService(self):
         self._d = Deferred()
@@ -62,7 +62,7 @@ class TtcGenericWorker(ApplicationWorker):
         self.transport_name = None
         self.transport_type = None
         self.program_name = None
-        super(TtcGenericWorker, self).startService()
+        super(DialogueWorker, self).startService()
 
     @inlineCallbacks
     def setup_application(self):
