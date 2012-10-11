@@ -296,8 +296,8 @@ class ObjectMaker:
 
     def mkobj_dialogue_annoucement(self):
         return {
-            'created': Timestamp(datetime.now(),0),
-            'modified': Timestamp(datetime.now(),0),
+            'model-version': '2',
+            'object-type': 'dialogue',
             'activated': 1,
             'auto-enrollment': 'all',
             'dialogue-id': '0',
@@ -307,7 +307,11 @@ class ObjectMaker:
                  'content': 'Hello',
                  'type-schedule': 'offset-days',
                  'days': '1',
-                 'at-time': '22:30'}]
+                 'at-time': '22:30',
+                 'model-version':'2',
+                 'object-type': 'interaction'}],
+            'created': Timestamp(datetime.now(),0),
+            'modified': Timestamp(datetime.now(),0),
         }
 
     dialogue_annoucement_2 = {
@@ -331,9 +335,11 @@ class ObjectMaker:
         'interactions': [
             {'interaction-id': '01-01',
             'type-interaction': 'question-answer',
+            'type-question': 'closed-question',
             'content': 'How are you?',
             'keyword': 'FEEL, FEL',
             'type-schedule': 'offset-days',
+            'set-use-template': 'use-template',
             'days': '1',
             'at-time': '22:30',            
             'answers': [
@@ -348,6 +354,7 @@ class ObjectMaker:
         return {
             'activated': 1,
             'dialogue-id': '01',
+            'name': 'test dialogue',
             'interactions': [
                 {'interaction-id': '01-01',
                  'type-interaction': 'question-answer',
@@ -403,6 +410,8 @@ class ObjectMaker:
     def mkobj_dialogue_question_multi_keyword(self):
         return {
             'activated': 1,
+            'name': 'test dialogue',
+            'auto-enrollment': None,
             'dialogue-id': '05',
             'interactions': [
                 {'interaction-id': '05',
@@ -434,6 +443,8 @@ class ObjectMaker:
     
     dialogue_open_question_with_reminder = {
         'activated': 1,
+        'name': 'test dialogue',
+        'auto-enrollment': None,
         'dialogue-id': '04',
         'interactions': [
             {'interaction-id': '01-01',
@@ -485,6 +496,9 @@ class ObjectMaker:
     
     dialogue_question_answer = {
         'dialogue-id': '01',
+        'name': 'test dialogue',
+        'auto-enrollment': None,
+        'activated': 1,
         'interactions': [
             {
                 'interaction-id': '01-01',
@@ -492,6 +506,7 @@ class ObjectMaker:
                 "content": 'How are you?',
                 'keyword': 'FEEL, Fel',
                 'type-question': 'closed-question',
+                'set-use-template': None,
                 'answers': [
                     {'choice': 'Fine',
                      'feedbacks': [
@@ -499,7 +514,8 @@ class ObjectMaker:
                          {'content':'thank you again'}]
                      },
                     {'choice': 'Ok'}],
-                'type-schedule': 'immediately'},
+                'type-schedule': 'fixed-time',
+                'date-time': '2012-03-12T12:30:00'},
             {
                 'interaction-id': '01-02',
                 'type-interaction': 'question-answer',
@@ -507,15 +523,18 @@ class ObjectMaker:
                 'keyword': 'name',
                 'type-question': 'open-question',
                 'answer-label': 'name',
+                'set-use-template': None,
                 'feedbacks': [
                     {'content':'thank you for this answer'}],
-                'type-schedule': 'immediately'
+                'type-schedule': 'fixed-time',
+                'date-time': '2012-03-12T12:30:00'
             }
         ]
     }
 
     dialogue_other_question_answer = {
         "name": "something",
+        'auto-enrollment': None,
         "interactions": [
             {"type-schedule": "immediately",
              "type-interaction": "question-answer",

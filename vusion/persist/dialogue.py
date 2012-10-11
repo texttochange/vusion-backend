@@ -7,6 +7,7 @@ from vusion.action import (UnMatchingAnswerAction, FeedbackAction,
                            OffsetConditionAction, RemoveRemindersAction,
                            RemoveDeadlineAction, RemoveQuestionAction)
 from vusion.persist.vusion_model import VusionModel
+from vusion.persist.interaction import Interaction
 
 
 class Dialogue(VusionModel):
@@ -19,8 +20,15 @@ class Dialogue(VusionModel):
               'auto-enrollment',
               'interactions',
               'activated']
-    #def __init__(self, dialogue):
-        #self.payload = dialogue
+
+    interations = []
+
+    def validate_fields(self):
+        super(Dialogue, self).validate_fields()
+        self.interactions = []
+        for interaction_raw in self.payload['interactions']:
+            self.interactions.append(Interaction(**interaction_raw))
+        
 
     def get_reply(self, content, delimiter=' '):
         return (content or '').partition(delimiter)[2]

@@ -8,7 +8,7 @@ from vusion.action import (FeedbackAction, UnMatchingAnswerAction,
 
 from tests.utils import ObjectMaker
 
-class DialogueTestCase(TestCase, ObjectMaker):
+class TestDialogue(TestCase, ObjectMaker):
 
     def setUp(self):
         pass
