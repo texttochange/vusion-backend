@@ -24,10 +24,11 @@ from vumi.application import SessionManager
 from vumi import log
 from vumi.utils import get_first_word
 
-from vusion.dialogue import Dialogue, split_keywords
+from vusion.persist import Dialogue
 from vusion.utils import (time_to_vusion_format, get_local_time,
                           get_local_time_as_timestamp, time_from_vusion_format,
-                          get_shortcode_value, get_offset_date_time)
+                          get_shortcode_value, get_offset_date_time,
+                          split_keywords)
 from vusion.error import (MissingData, SendingDatePassed, VusionError,
                           MissingTemplate)
 from vusion.message import DispatcherControl
@@ -174,10 +175,18 @@ class DialogueWorker(ApplicationWorker):
             return participant['session-id']
 
     def get_current_dialogue(self, dialogue_id):
-        dialogue = self.get_active_dialogues({'dialogue-id': dialogue_id})
-        if dialogue == []:
-            return None
-        return dialogue[0]['Dialogue']
+        try:
+            dialogue = self.get_active_dialogues({'dialogue-id': dialogue_id})
+            if dialogue == []:
+                return None
+            return Dialogue(**dialogue[0]['Dialogue'])
+        except:
+            self.log("Cannot get current dialogue %s" % dialogue_id)
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            self.log(
+                "Error message: %r" %
+                traceback.format_exception(exc_type, exc_value, exc_traceback))
+
 
     def get_active_dialogues(self, conditions=None):
         dialogues = self.collections['dialogues'].group(
@@ -193,7 +202,7 @@ class DialogueWorker(ApplicationWorker):
         for dialogue in dialogues:
             if dialogue['Dialogue'] == 0.0:
                 continue
-            active_dialogues.append(dialogue)
+            active_dialogues.append(Dialogue(**dialogue))
         return active_dialogues
 
     def get_dialogue_obj(self, dialogue_obj_id):
@@ -433,7 +442,7 @@ class DialogueWorker(ApplicationWorker):
             actions = Actions()
             active_dialogues = self.get_active_dialogues()
             for dialogue in active_dialogues:
-                scriptHelper = Dialogue(dialogue['Dialogue'])
+                scriptHelper = Dialogue(**dialogue['Dialogue'])
                 ref, actions = scriptHelper.get_matching_reference_and_actions(
                     message['content'], actions)
                 if ref:
@@ -576,8 +585,6 @@ class DialogueWorker(ApplicationWorker):
     #TODO: decide which id should be in an schedule object
     def schedule_participant_dialogue(self, participant, dialogue):
         try:
-            if not 'interactions' in dialogue:
-                return
             for interaction in dialogue['interactions']:
                 self.log("Scheduling %r" % interaction)
                 schedule = self.collections['schedules'].find_one({
@@ -655,7 +662,7 @@ class DialogueWorker(ApplicationWorker):
                 if 'set-reminder' in interaction:
                     self.schedule_participant_reminders(participant, dialogue, interaction, sendingDateTime)
         except:
-            self.log("Scheduling exception: %s" % interaction)
+            self.log("Scheduling dialogue exception: %s" % dialogue['dialogue-id'])
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log(
                 "Error during schedule message: %r" %
@@ -880,7 +887,7 @@ class DialogueWorker(ApplicationWorker):
         self.log('Synchronizing with dispatcher')
         keywords = []
         for dialogue in self.get_active_dialogues():
-            keywords += Dialogue(dialogue['Dialogue']).get_all_keywords()
+            keywords += Dialogue(**dialogue['Dialogue']).get_all_keywords()
         for request in self.collections['requests'].find():
             keyphrases = request['keyword'].split(', ')
             for keyphrase in keyphrases:

@@ -47,6 +47,9 @@ def get_offset_date_time(reference_time, days, at_time):
     time_of_sending = at_time.split(':', 1)
     return datetime.combine(sending_day, time(int(time_of_sending[0]), int(time_of_sending[1])))
 
+def split_keywords(keywords):
+    return [k.lower() for k in (keywords or '').split(', ')]
+
 
 #TODO remove DataLayerUtils in tests package
 class DataLayerUtils:

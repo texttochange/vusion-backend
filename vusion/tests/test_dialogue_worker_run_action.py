@@ -21,7 +21,7 @@ from vusion.action import (UnMatchingAnswerAction, EnrollingAction,
                            DelayedEnrollingAction, action_generator, Actions)
 
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
-from tests.test_dialogue_worker import DialogueWorkerTestCase
+from vusion.tests.test_dialogue_worker import DialogueWorkerTestCase
 
 
 class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):

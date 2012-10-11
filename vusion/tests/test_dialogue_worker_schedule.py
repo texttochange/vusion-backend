@@ -13,7 +13,7 @@ from vusion.dialogue_worker import DialogueWorker
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
 
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
-from tests.test_dialogue_worker import DialogueWorkerTestCase
+from vusion.tests.test_dialogue_worker import DialogueWorkerTestCase
 
 class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase, MessageMaker,
                                               DataLayerUtils, ObjectMaker):

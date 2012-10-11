@@ -6,15 +6,21 @@ from vusion.action import (UnMatchingAnswerAction, FeedbackAction,
                            action_generator, ProfilingAction,
                            OffsetConditionAction, RemoveRemindersAction,
                            RemoveDeadlineAction, RemoveQuestionAction)
-
-def split_keywords(keywords):
-    return [k.lower() for k in (keywords or '').split(', ')]
+from vusion.persist.vusion_model import VusionModel
 
 
-class Dialogue:
+class Dialogue(VusionModel):
 
-    def __init__(self, dialogue):
-        self.dialogue = dialogue
+    MODEL_TYPE = 'dialogue'
+    MODEL_VERSION = '1'
+
+    fields = ['name',
+              'dialogue-id',
+              'auto-enrollment',
+              'interactions',
+              'activated']
+    #def __init__(self, dialogue):
+        #self.payload = dialogue
 
     def get_reply(self, content, delimiter=' '):
         return (content or '').partition(delimiter)[2]
@@ -23,16 +29,16 @@ class Dialogue:
         return [k.lower() for k in (keywords or '').split(', ')]
 
     def get_matching_interaction(self, keyword):
-        if self.dialogue['interactions'] is None:
+        if self.payload['interactions'] is None:
             return None, None
-        for interaction in self.dialogue['interactions']:
+        for interaction in self.payload['interactions']:
             if interaction['type-interaction'] == 'question-answer-keyword':
                 for answer_keyword in interaction['answer-keywords']:
                     if keyword in self.split_keywords(answer_keyword['keyword']):
-                        return self.dialogue['dialogue-id'], interaction
+                        return self.payload['dialogue-id'], interaction
             elif interaction['type-interaction'] == 'question-answer':
                 if keyword in self.get_interaction_keywords(interaction):
-                    return self.dialogue['dialogue-id'], interaction
+                    return self.payload['dialogue-id'], interaction
         return None, None
 
     def get_interaction_keywords(self, interaction):
@@ -50,7 +56,7 @@ class Dialogue:
 
     def get_offset_condition_interactions(self, interaction_id):
         offset_condition_interactions = []
-        for interaction in self.dialogue['interactions']:
+        for interaction in self.payload['interactions']:
             if (interaction['type-schedule'] == 'offset-condition' and
                     interaction['offset-condition-interaction-id'] == interaction_id):
                 offset_condition_interactions.append(interaction['interaction-id'])
@@ -178,9 +184,9 @@ class Dialogue:
 
     def get_all_keywords(self):
         keywords = []
-        if self.dialogue['interactions'] is None :
+        if self.payload['interactions'] is None :
             return keywords
-        for interaction in self.dialogue['interactions']:
+        for interaction in self.payload['interactions']:
             if 'keyword' in interaction:
                 interaction_keywords = self.get_interaction_keywords(interaction)
                 for interaction_keyword in interaction_keywords:
