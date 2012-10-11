@@ -6,12 +6,13 @@ class Request(VusionModel):
     MODEL_TYPE = 'request'
     MODEL_VERSION = '2'
     
+    fields = ['keyword',
+              'set-no-request-matching-try-keyword-only',
+              'actions',
+              'responses']
+    
     def validate_fields(self):
-        self.assert_field_present(
-            'keyword',
-            'set-no-request-matching-try-keyword-only',
-            'actions',
-            'responses')
+        self.assert_field_present(*self.fields)
 
     def upgrade(self, **kwargs):
         if kwargs['model-version'] == '1':

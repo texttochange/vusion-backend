@@ -5,13 +5,19 @@ class VusionModel(object):
     MODEL_TYPE = None
     MODEL_VERSION = None
     
+    fields = []
+    
     def __init__ (self, **kwargs):
+        if kwargs == {}:
+            kwargs = self.create_instance()
         if 'model-version' not in kwargs:
             kwargs['model-version'] = '1'
         if kwargs['model-version'] != self.MODEL_VERSION:
             kwargs = self.upgrade(**kwargs)
             if kwargs['model-version'] != self.MODEL_VERSION:
                 raise FailingModelUpgrade()
+        for key in kwargs:
+            kwargs[key] = self.process_field(key, kwargs[key])
         self.payload = kwargs
         self.validate_fields()
 
@@ -34,6 +40,9 @@ class VusionModel(object):
     def __setitem__(self, key, value):
         self.payload[key] = value
 
+    def process_field(self, key, value):
+        return value
+
     def validate_fields(self):
         pass
     
@@ -48,12 +57,22 @@ class VusionModel(object):
             if field not in self.payload:
                 raise MissingField(field)
 
+    def create_instance(self):
+        new_instance = {'object-type': self.get_type(),
+                      'model-version': self.get_version()}
+        for key in self.fields:
+            new_instance[key] = ''
+        return new_instance
+
     def get_as_dict(self):
-        model_dict = {'object-type': self.get_type(),
+        instance_dict = {'object-type': self.get_type(),
                       'model-version': self.get_version()}
         for key in self.payload:
-            model_dict[key] = self.payload[key]
-        return model_dict
+            instance_dict[key] = self.payload[key]
+        return instance_dict
     
     def upgrade(self, **kwargs):
         return kwargs
+    
+    def is_already_saved(self):
+        return '_id' in self.payload

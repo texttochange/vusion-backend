@@ -3,8 +3,9 @@ vusion_database_name: vusion
 mongodb_host: localhost
 mongodb_port: 27017
 workers:
-    m4rh: vusion.TtcGenericWorker
-    mrs: vusion.TtcGenericWorker
+    m4rh: vusion.DialogueWorker
+    mrs: vusion.DialogueWorker
+    c4c: vusion.DialogueWorker
 m4rh:
     control_name: m4rh
     transport_name: m4rh
@@ -13,6 +14,10 @@ mrs:
     control_name: mrs
     transport_name: mrs
     database_name: mrs
+c4c:
+    control_name: c4c
+    transport_name: c4c
+    database_name: c4c    
 defaults:
     mongodb_host: localhost
     mongodb_port: 27017

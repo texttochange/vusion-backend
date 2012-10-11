@@ -23,8 +23,8 @@ from vusion.action import (UnMatchingAnswerAction, EnrollingAction,
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 from tests.test_dialogue_worker import DialogueWorkerTestCase
 
-class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase, MessageMaker,
-                                              DataLayerUtils, ObjectMaker):
+
+class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
 
     def test_run_action(self):
         for program_setting in self.program_settings:

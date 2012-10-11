@@ -62,6 +62,7 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     def tearDown(self):
         yield self.worker.wait_for_workers()
         yield self.worker.stopService()
+        self.collections['workers'].drop()
 
     def send_control(self, rkey, message, exchange='vumi'):
         self.broker.publish_message(exchange,
@@ -138,6 +139,13 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
         yield self.get_multiwoker(self.base_config)
         yield self.worker.wait_for_workers()
+        
+        self.assertEqual(self.collections['workers'].count(), 2)
+        worker_configs = self.collections['workers'].find()
+        self.assertEqual(worker_configs[0]['class'], 'vusion.DialogueWorker')
+        self.assertEqual(worker_configs[0]['model-version'], '2')
+        self.assertEqual(worker_configs[1]['class'], 'vumi.tests.test_multiworker.ToyWorker')
+        self.assertEqual(worker_configs[1]['model-version'], '2')
 
         self.assertTrue('worker1' in self.worker.workers)
         self.assertTrue(isinstance(self.worker.workers['worker1'],
@@ -145,3 +153,4 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
         self.assertTrue('worker2' in self.worker.workers)
         self.assertTrue(isinstance(self.worker.workers['worker2'],
                                    ToyWorker))
+        

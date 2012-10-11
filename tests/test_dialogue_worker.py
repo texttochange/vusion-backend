@@ -105,8 +105,7 @@ class DialogueWorkerTestCase(TestCase, MessageMaker,
         self.collections['history'].save(history)
 
 
-class DialogueWorkerTestCase_main(DialogueWorkerTestCase, MessageMaker,
-                                    DataLayerUtils, ObjectMaker):
+class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
 
     def test01_has_already_been_answered(self):
         dNow = datetime.now()
@@ -157,7 +156,6 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase, MessageMaker,
         
         self.assertTrue(self.worker.has_already_valid_answer(
             participant, **{'dialogue-id':'1', 'interaction-id':'1', 'matching-answer': 'something else'}))
-
 
     def test02_is_enrolled(self):
         participant = self.mkobj_participant(enrolled = [{'dialogue-id':'01',

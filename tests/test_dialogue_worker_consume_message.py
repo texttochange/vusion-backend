@@ -18,8 +18,8 @@ from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 from tests.test_dialogue_worker import DialogueWorkerTestCase
 
-class DialogueWorkerTestCase_consumeParticipantMessage(
-    DialogueWorkerTestCase, MessageMaker, DataLayerUtils, ObjectMaker):
+
+class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
     
     @inlineCallbacks
     def test_receive_inbound_message_matching(self):

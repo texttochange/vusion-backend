@@ -36,6 +36,7 @@ from vusion.action import (Actions, action_generator,
                            OptinAction, OptoutAction)
 from vusion.persist import Request
 
+
 class DialogueWorker(ApplicationWorker):
     
     INCOMING = "incoming"

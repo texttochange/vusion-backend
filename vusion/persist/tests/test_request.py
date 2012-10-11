@@ -1,4 +1,4 @@
-"""Tests for persist.request."""
+"""Tests for vusion.persist.request."""
 
 from twisted.trial.unittest import TestCase
 
