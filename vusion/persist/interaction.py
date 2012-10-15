@@ -6,8 +6,10 @@ class Interaction(VusionModel):
     MODEL_TYPE = 'interaction'
     MODEL_VERSION = '2'
     
-    fields = ['type-schedule',
-              'type-interaction']
+    fields = [
+        'interaction-id',
+        'type-schedule',
+        'type-interaction']
               
     SCHEDULE_TYPES = {
         'fixed-time': {'date-time': lambda v: v is not None},

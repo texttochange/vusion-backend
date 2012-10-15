@@ -16,6 +16,11 @@ class TestDialogue(TestCase, ObjectMaker):
     def tearDown(self):
         pass
 
+    def test_get_as_dict(self):
+        dialogue = Dialogue(**self.mkobj_dialogue_open_question())
+        dialogue_as_dict = dialogue.get_as_dict()
+        self.assertTrue('model-version' in dialogue_as_dict['interactions'][0])
+
     def test_get_matching_failed_dialogues_empty_interaction(self):
         dialogue = self.mkobj_dialogue_open_question()
         dialogue['interactions'] = None
@@ -27,7 +32,7 @@ class TestDialogue(TestCase, ObjectMaker):
         self.assertTrue(actions)
 
     def test_get_matching_closed_question_answer(self):
-        script = Dialogue(self.dialogue_question_answer)
+        script = Dialogue(**self.mkobj_dialogue_question_answer())
 
         ref, actions = script.get_matching_reference_and_actions("feel 1", [])
         self.assertEqual(ref, {'dialogue-id': '01',
@@ -118,7 +123,7 @@ class TestDialogue(TestCase, ObjectMaker):
         self.assertEqual(ref, None)
 
     def test_get_matching_open_question(self):
-        script = Dialogue(**self.dialogue_question_answer)
+        script = Dialogue(**self.mkobj_dialogue_question_answer())
 
         ref, actions = script.get_matching_reference_and_actions("name john doe", [])
         self.assertEqual(ref, {'dialogue-id': '01',
@@ -171,7 +176,7 @@ class TestDialogue(TestCase, ObjectMaker):
             [])
 
     def test_get_all_keywords(self):
-        dialogue_helper = Dialogue(**self.dialogue_question_answer)
+        dialogue_helper = Dialogue(**self.mkobj_dialogue_question_answer())
 
         self.assertEqual(
             dialogue_helper.get_all_keywords(),
@@ -248,6 +253,7 @@ class TestDialogue(TestCase, ObjectMaker):
                         returned_answer,
                         'keyword',
                         [])
+        self.assertEqual('profiling', actions[0].get_type())
         self.assertEqual(1, len(actions))
         
         dialogue_helper = Dialogue(**self.mkobj_dialogue_question_offset_days())
@@ -263,5 +269,6 @@ class TestDialogue(TestCase, ObjectMaker):
                         returned_answer,
                         'choice',
                         [])
+        self.assertEqual('enrolling', actions[1].get_type())
+        self.assertEqual('feedback', actions[0].get_type())
         self.assertEqual(2, len(actions))
-

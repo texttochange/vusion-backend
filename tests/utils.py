@@ -13,6 +13,7 @@ from vumi.tests.utils import RegexMatcher, UTCNearNow
 
 from vusion.message import DispatcherControl
 
+from vusion.persist import Dialogue
 
 class DataLayerUtils:
 
@@ -256,25 +257,27 @@ class ObjectMaker:
                                'value': 'all'}
         return program_settings
 
-
     dialogue_announcement = {
-            'activated': 1,
-            'auto-enrollment': 'all',
-            'dialogue-id': '0',
-            'interactions': [
-                {'type-interaction': 'announcement',
-                 'interaction-id': '0',
-                 'content': 'Hello',
-                 'type-schedule': 'offset-days',
-                 'days': '1',
-                 'at-time': '22:30'},
-                {'type-interaction': 'announcement',
-                 'interaction-id': '1',
-                 'content': 'How are you',
-                 'type-schedule': 'offset-days',
-                 'days': '2',
-                 'at-time': '22:30'},]
-        }
+        'name': 'test dialogue',
+        'activated': 1,
+        'auto-enrollment': 'all',
+        'dialogue-id': '0',
+        'interactions': [
+            {'type-interaction': 'announcement',
+             'interaction-id': '0',
+             'content': 'Hello',
+             'type-schedule': 'offset-days',
+             'days': '1',
+             'at-time': '22:30'},
+            {'type-interaction': 'announcement',
+             'interaction-id': '1',
+             'content': 'How are you',
+             'type-schedule': 'offset-days',
+             'days': '2',
+             'at-time': '22:30'}]}
+    
+    def mkobj_dialogue_announcement_offset_days(self):
+        return Dialogue(**self.dialogue_announcement).get_as_dict()
     
     def mkobj_dialogue_announcement_offset_time(self):
         dialogue = deepcopy(self.dialogue_announcement)
@@ -282,24 +285,23 @@ class ObjectMaker:
         dialogue['modified'] = Timestamp(datetime.now(),0)
         dialogue['interactions'][0] = {
             'interaction-id': '2',
-            'type-interaction': 'annoucement',
+            'type-interaction': 'announcement',
             'content': 'How is your day?',
             'type-schedule': 'offset-time',
             'minutes': '10'}
         dialogue['interactions'][1] = {
             'interaction-id': '3',
-            'type-interaction': 'annoucement',
+            'type-interaction': 'announcement',
             'content': 'Bye bye',
             'type-schedule': 'offset-time',
             'minutes': '50'}
-        return dialogue
+        return Dialogue(**dialogue).get_as_dict()
 
     def mkobj_dialogue_annoucement(self):
         return {
-            'model-version': '2',
-            'object-type': 'dialogue',
             'activated': 1,
             'auto-enrollment': 'all',
+            'name': 'test dialogue',
             'dialogue-id': '0',
             'interactions': [
                 {'type-interaction': 'announcement',
@@ -315,21 +317,34 @@ class ObjectMaker:
         }
 
     dialogue_annoucement_2 = {
+        'name': 'test dialogue',
+        'auto-enrollment': None,
         "activated": 1,
         "dialogue-id": "2",
         "interactions": [
             {"type-interaction": "announcement",
              "interaction-id": "0",
-             "content": "Hello"},
+             "content": "Hello",
+             'type-schedule': 'offset-time',
+             'minutes': '1'},
             {"type-interaction": "announcement",
              "interaction-id": "1",
-             "content": "Today will be sunny"},
+             "content": "Today will be sunny",
+             'type-schedule': 'offset-time',
+             'minutes': '2'},
             {"type-interaction": "announcement",
              "interaction-id": "2",
-             "content": "Today is the special day"}]
+             "content": "Today is the special day",
+             'type-schedule': 'offset-time',
+             'minutes': '3'}]
     }
+    
+    def mkobj_dialogue_announcement_2(self):
+        return Dialogue(**self.dialogue_annoucement_2).get_as_dict()
 
     dialogue_question = {
+        'name': 'test dialogue',
+        'auto-enrollment': None,
         'activated': 1,
         'dialogue-id': '01',
         'interactions': [
@@ -351,9 +366,10 @@ class ObjectMaker:
     }
     
     def mkobj_dialogue_question_offset_days(self):
-        return {
+        return Dialogue(**{
             'activated': 1,
             'dialogue-id': '01',
+            'auto-enrollment': None,
             'name': 'test dialogue',
             'interactions': [
                 {'interaction-id': '01-01',
@@ -371,7 +387,7 @@ class ObjectMaker:
                       'feedbacks': [{'content': 'Thank you'}],
                       'answer-actions':[{'type-answer-action': 'enrolling',
                                          'enroll': '2'}]}]}]
-        }
+        }).get_as_dict()
 
     def mkobj_dialogue_question_offset_conditional(self):
         dialogue = deepcopy(self.dialogue_question)
@@ -379,19 +395,21 @@ class ObjectMaker:
         dialogue['modified'] = Timestamp(datetime.now(),0)
         dialogue['interactions'].append(
             {'interaction-id': '01-02',
-             'type-interaction': 'annoucement',
+             'type-interaction': 'announcement',
              'content': 'Message received',
              'type-schedule': 'offset-condition',
              'offset-condition-interaction-id': '01-01'})
         dialogue['interactions'].append(
             {'interaction-id': '01-03',
-             'type-interaction': 'annoucement',
+             'type-interaction': 'announcement',
              'content': 'Another message',
              'type-schedule': 'offset-condition',
              'offset-condition-interaction-id': '01-01'})
         return dialogue
 
     dialogue_open_question = {
+        'name': 'test dialogue',
+        'auto-enrollment': None,
         'activated': 1,
         'dialogue-id': '04',
         'interactions': [
@@ -408,7 +426,7 @@ class ObjectMaker:
     }
     
     def mkobj_dialogue_question_multi_keyword(self):
-        return {
+        return Dialogue(**{
             'activated': 1,
             'name': 'test dialogue',
             'auto-enrollment': None,
@@ -427,8 +445,7 @@ class ObjectMaker:
                     {
                         "keyword": "female"
                     }]
-                 }]
-        }
+                 }]}).get_as_dict()
                  
     
     def mkobj_dialogue_open_question(self):
@@ -453,6 +470,7 @@ class ObjectMaker:
              'keyword': 'name',
              'type-question': 'open-question',
              'answer-label': 'name',
+             'set-use-template': 'use-template',
              'type-schedule': 'fixed-time',
              'date-time': '2012-03-12T12:30:00',
              'set-reminder': 'reminder',
@@ -465,8 +483,8 @@ class ObjectMaker:
     }
     
     def mkobj_dialogue_open_question_reminder(self):
-        dialogue = deepcopy(self.dialogue_open_question_with_reminder)
-        return dialogue
+        dialogue = Dialogue(**deepcopy(self.dialogue_open_question_with_reminder))
+        return dialogue.get_as_dict()
 
     def mkobj_dialogue_open_question_offset_conditional(self):
         dialogue = self.dialogue_open_question
@@ -474,11 +492,11 @@ class ObjectMaker:
         dialogue['modified'] = Timestamp(datetime.now(),0)
         dialogue['interactions'].append(
             {'interaction-id': '01-02',
-             'type-interaction': 'annoucement',
+             'type-interaction': 'announcement',
              'content': 'Message received',
              'type-schedule': 'offset-condition',
              'offset-condition-interaction-id': '01-01'})
-        return dialogue
+        return Dialogue(**dialogue).get_as_dict()
 
     dialogue_announcement_fixedtime = {
         'activated': 1,
@@ -531,15 +549,22 @@ class ObjectMaker:
             }
         ]
     }
+    
+    def mkobj_dialogue_question_answer(self):
+        return Dialogue(**deepcopy(self.dialogue_question_answer)).get_as_dict()
 
     dialogue_other_question_answer = {
         "name": "something",
         'auto-enrollment': None,
+        'activated': 1,
         "interactions": [
-            {"type-schedule": "immediately",
+            {'type-schedule': 'offset-time',
+             'minutes': '2',
              "type-interaction": "question-answer",
+             "type-question": "closed-question",
              "content": "How are you [participant.name]?",
              "keyword": "Fool",
+             "set-use-template": "use-template",
              "type-reminder": "no-reminder",
              "type-question": "close-question",
              "answers": [
@@ -554,8 +579,11 @@ class ObjectMaker:
                  ],
              "interaction-id": "script.dialogues[0].interactions[0]"
              },
-            {"type-schedule": "immediately",
+            {'type-schedule': 'offset-time',
+             'minutes': '2',
              "type-interaction": "question-answer",
+             "type-question": "closed-question",
+             "set-use-template": "use-template",
              "content": "What is your gender?",
              'label-for-participant-profiling': 'gender',
              "keyword": "GEN",

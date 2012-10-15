@@ -21,14 +21,16 @@ class Dialogue(VusionModel):
               'interactions',
               'activated']
 
-    interations = []
-
     def validate_fields(self):
         super(Dialogue, self).validate_fields()
         self.interactions = []
+        if self.payload['interactions'] is None:
+            return
         for interaction_raw in self.payload['interactions']:
             self.interactions.append(Interaction(**interaction_raw))
-        
+        self.payload['interactions'] = []
+        for interaction in self.interactions:
+            self.payload['interactions'].append(interaction.get_as_dict())
 
     def get_reply(self, content, delimiter=' '):
         return (content or '').partition(delimiter)[2]
@@ -71,7 +73,7 @@ class Dialogue(VusionModel):
         return offset_condition_interactions
     
     def has_reminders(self, interaction):
-        if 'set-reminder' in interaction:
+        if 'set-reminder' in interaction and interaction['set-reminder'] is not None:
             return True
         return False
 

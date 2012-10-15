@@ -179,7 +179,7 @@ class DialogueWorker(ApplicationWorker):
             dialogue = self.get_active_dialogues({'dialogue-id': dialogue_id})
             if dialogue == []:
                 return None
-            return Dialogue(**dialogue[0]['Dialogue'])
+            return dialogue[0]
         except:
             self.log("Cannot get current dialogue %s" % dialogue_id)
             exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -194,7 +194,7 @@ class DialogueWorker(ApplicationWorker):
             conditions,
             {'Dialogue': 0},
             """function(obj, prev){
-            if (obj.activated &&
+            if (obj.activated==1 &&
             (prev.Dialogue==0 || prev.Dialogue.modified <= obj.modified))
             prev.Dialogue = obj;}"""
         )
@@ -202,7 +202,7 @@ class DialogueWorker(ApplicationWorker):
         for dialogue in dialogues:
             if dialogue['Dialogue'] == 0.0:
                 continue
-            active_dialogues.append(Dialogue(**dialogue))
+            active_dialogues.append(Dialogue(**dialogue['Dialogue']))
         return active_dialogues
 
     def get_dialogue_obj(self, dialogue_obj_id):
@@ -442,8 +442,7 @@ class DialogueWorker(ApplicationWorker):
             actions = Actions()
             active_dialogues = self.get_active_dialogues()
             for dialogue in active_dialogues:
-                scriptHelper = Dialogue(**dialogue['Dialogue'])
-                ref, actions = scriptHelper.get_matching_reference_and_actions(
+                ref, actions = dialogue.get_matching_reference_and_actions(
                     message['content'], actions)
                 if ref:
                     break
@@ -536,7 +535,7 @@ class DialogueWorker(ApplicationWorker):
                 {'enrolled.dialogue-id':dialogue['dialogue-id'],
                  'session-id': {'$ne': None}})
             self.schedule_participants_dialogue(
-                participants, dialogue['Dialogue'])
+                participants, dialogue)
         #Schedule the nonattached messages
         self.schedule_participants_unattach_messages(
             self.collections['participants'].find({'session-id': {'$ne': None}}))
@@ -855,8 +854,8 @@ class DialogueWorker(ApplicationWorker):
     def get_interaction(self, active_dialogues, dialogue_id, interaction_id):
         for dialogue in active_dialogues:
             if dialogue['dialogue-id'] == dialogue_id:
-                for interaction in dialogue['Dialogue']['interactions']:
-                    if interaction["interaction-id"] == interaction_id:
+                for interaction in dialogue['interactions']:
+                    if interaction['interaction-id'] == interaction_id:
                         return interaction
 
     def log(self, msg, level='msg'):
@@ -887,7 +886,7 @@ class DialogueWorker(ApplicationWorker):
         self.log('Synchronizing with dispatcher')
         keywords = []
         for dialogue in self.get_active_dialogues():
-            keywords += Dialogue(**dialogue['Dialogue']).get_all_keywords()
+            keywords += dialogue.get_all_keywords()
         for request in self.collections['requests'].find():
             keyphrases = request['keyword'].split(', ')
             for keyphrase in keyphrases:
