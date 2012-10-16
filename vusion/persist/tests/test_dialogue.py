@@ -29,7 +29,7 @@ class TestDialogue(TestCase, ObjectMaker):
         actions = Actions()
         ref, actions = dialogue_helper.get_matching_reference_and_actions("feel 1", actions)
         self.assertTrue(ref is None)
-        self.assertTrue(actions)
+        self.assertEqual(len(actions), 0)
 
     def test_get_matching_closed_question_answer(self):
         script = Dialogue(**self.mkobj_dialogue_question_answer())
@@ -135,10 +135,10 @@ class TestDialogue(TestCase, ObjectMaker):
             RemoveQuestionAction(**{'dialogue-id': '01',
                                     'interaction-id': '01-02'}))
         self.assertEqual(
-            actions[1], 
+            actions[2], 
             FeedbackAction(**{'content': 'thank you for this answer'}))
         self.assertEqual(
-            actions[2], 
+            actions[1], 
             ProfilingAction(**{'label': 'name','value': 'john doe'}))
 
         ref, actions = script.get_matching_reference_and_actions("name", [])
@@ -209,10 +209,10 @@ class TestDialogue(TestCase, ObjectMaker):
                                      'dialogue-id': '01'})) 
 
     def test_get_remove_reminders_action(self):
-        script = Dialogue(**self.mkobj_dialogue_open_question_reminder())
+        dialogue = Dialogue(**self.mkobj_dialogue_open_question_reminder())
         actions = Actions()
 
-        ref, actions = script.get_matching_reference_and_actions("name", actions)
+        ref, actions = dialogue.get_matching_reference_and_actions("name", actions)
         
         self.assertEqual(
             actions[1],
@@ -224,7 +224,7 @@ class TestDialogue(TestCase, ObjectMaker):
             UnMatchingAnswerAction(**{'answer': ''}))
         
         actions = Actions()
-        ref, actions = script.get_matching_reference_and_actions("name John", actions)
+        ref, actions = dialogue.get_matching_reference_and_actions("name John", actions)
         
         self.assertEqual(
             actions[1],
@@ -239,36 +239,4 @@ class TestDialogue(TestCase, ObjectMaker):
             ProfilingAction(**{'value': 'John',
                                'label': 'name'}))
         
-    def test_get_actions_from_returned_answer(self):
-        multi_dialogue_helper = Dialogue(**self.mkobj_dialogue_question_multi_keyword())
-        dialogue = self.mkobj_dialogue_question_multi_keyword()
-
-        actions = Actions()
-        returned_answer = multi_dialogue_helper.get_matching_answer_keyword(
-                           dialogue['interactions'][0]['answer-keywords'],
-                           "male")
-        actions = multi_dialogue_helper.get_actions_from_returned_answer(
-                        dialogue['dialogue-id'],
-                        dialogue['interactions'][0],
-                        returned_answer,
-                        'keyword',
-                        [])
-        self.assertEqual('profiling', actions[0].get_type())
-        self.assertEqual(1, len(actions))
-        
-        dialogue_helper = Dialogue(**self.mkobj_dialogue_question_offset_days())
-        new_dialogue = self.mkobj_dialogue_question_offset_days()
-        
-        returned_answer = dialogue_helper.get_matching_answer(
-                           new_dialogue['interactions'][0],
-                           "feel",
-                           "ok")
-        actions = dialogue_helper.get_actions_from_returned_answer(
-                        new_dialogue['dialogue-id'],
-                        new_dialogue['interactions'][0],
-                        returned_answer,
-                        'choice',
-                        [])
-        self.assertEqual('enrolling', actions[1].get_type())
-        self.assertEqual('feedback', actions[0].get_type())
-        self.assertEqual(2, len(actions))
+  

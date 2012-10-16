@@ -263,13 +263,15 @@ class ObjectMaker:
         'auto-enrollment': 'all',
         'dialogue-id': '0',
         'interactions': [
-            {'type-interaction': 'announcement',
+            {'activated': 0,
+            'type-interaction': 'announcement',
              'interaction-id': '0',
              'content': 'Hello',
              'type-schedule': 'offset-days',
              'days': '1',
              'at-time': '22:30'},
-            {'type-interaction': 'announcement',
+            {'activated': 0,
+             'type-interaction': 'announcement',
              'interaction-id': '1',
              'content': 'How are you',
              'type-schedule': 'offset-days',
@@ -284,12 +286,14 @@ class ObjectMaker:
         dialogue['created'] = Timestamp(datetime.now(),0)
         dialogue['modified'] = Timestamp(datetime.now(),0)
         dialogue['interactions'][0] = {
+            'activated': 0,
             'interaction-id': '2',
             'type-interaction': 'announcement',
             'content': 'How is your day?',
             'type-schedule': 'offset-time',
             'minutes': '10'}
         dialogue['interactions'][1] = {
+            'activated': 0,
             'interaction-id': '3',
             'type-interaction': 'announcement',
             'content': 'Bye bye',
@@ -304,7 +308,8 @@ class ObjectMaker:
             'name': 'test dialogue',
             'dialogue-id': '0',
             'interactions': [
-                {'type-interaction': 'announcement',
+                {'activated': 0,
+                'type-interaction': 'announcement',
                  'interaction-id': '0',
                  'content': 'Hello',
                  'type-schedule': 'offset-days',
@@ -322,17 +327,20 @@ class ObjectMaker:
         "activated": 1,
         "dialogue-id": "2",
         "interactions": [
-            {"type-interaction": "announcement",
+            {'activated': 0,
+             "type-interaction": "announcement",
              "interaction-id": "0",
              "content": "Hello",
              'type-schedule': 'offset-time',
              'minutes': '1'},
-            {"type-interaction": "announcement",
+            {'activated': 0,
+             "type-interaction": "announcement",
              "interaction-id": "1",
              "content": "Today will be sunny",
              'type-schedule': 'offset-time',
              'minutes': '2'},
-            {"type-interaction": "announcement",
+            {'activated': 0,
+             "type-interaction": "announcement",
              "interaction-id": "2",
              "content": "Today is the special day",
              'type-schedule': 'offset-time',
@@ -348,7 +356,8 @@ class ObjectMaker:
         'activated': 1,
         'dialogue-id': '01',
         'interactions': [
-            {'interaction-id': '01-01',
+            {'activated': 0,
+            'interaction-id': '01-01',
             'type-interaction': 'question-answer',
             'type-question': 'closed-question',
             'content': 'How are you?',
@@ -372,7 +381,8 @@ class ObjectMaker:
             'auto-enrollment': None,
             'name': 'test dialogue',
             'interactions': [
-                {'interaction-id': '01-01',
+                {'activated': 1,
+                 'interaction-id': '01-01',
                  'type-interaction': 'question-answer',
                  'content': 'How are you?',
                  'keyword': 'FEEL, FEL',
@@ -380,6 +390,8 @@ class ObjectMaker:
                  'type-question': 'closed-question',
                  'type-schedule': 'offset-days',
                  'days': '1',
+                 'label-for-participant-profiling': None,
+                 'set-answer-accept-no-space': None,
                  'at-time': '22:30',            
                  'answers': [
                      {'choice': 'Fine'},
@@ -394,13 +406,15 @@ class ObjectMaker:
         dialogue['created'] = Timestamp(datetime.now(),0)
         dialogue['modified'] = Timestamp(datetime.now(),0)
         dialogue['interactions'].append(
-            {'interaction-id': '01-02',
+            {'activated': 1,
+             'interaction-id': '01-02',
              'type-interaction': 'announcement',
              'content': 'Message received',
              'type-schedule': 'offset-condition',
              'offset-condition-interaction-id': '01-01'})
         dialogue['interactions'].append(
-            {'interaction-id': '01-03',
+            {'activated': 1,
+             'interaction-id': '01-03',
              'type-interaction': 'announcement',
              'content': 'Another message',
              'type-schedule': 'offset-condition',
@@ -413,7 +427,8 @@ class ObjectMaker:
         'activated': 1,
         'dialogue-id': '04',
         'interactions': [
-            {'interaction-id': '01-01',
+            {'activated': 1,
+             'interaction-id': '01-01',
              'type-interaction': 'question-answer',
              'content': 'What is your name?',
              'keyword': 'name',
@@ -432,7 +447,8 @@ class ObjectMaker:
             'auto-enrollment': None,
             'dialogue-id': '05',
             'interactions': [
-                {'interaction-id': '05',
+                {'activated': 1,
+                 'interaction-id': '05',
                  'type-interaction': 'question-answer-keyword',
                  'type-schedule': 'offset-time',
                  'minutes': '15',
@@ -464,7 +480,8 @@ class ObjectMaker:
         'auto-enrollment': None,
         'dialogue-id': '04',
         'interactions': [
-            {'interaction-id': '01-01',
+            {'activated': 1,
+             'interaction-id': '01-01',
              'type-interaction': 'question-answer',
              'content': 'How are you?',
              'keyword': 'name',
@@ -491,7 +508,8 @@ class ObjectMaker:
         dialogue['created'] = Timestamp(datetime.now(),0)
         dialogue['modified'] = Timestamp(datetime.now(),0)
         dialogue['interactions'].append(
-            {'interaction-id': '01-02',
+            {'activated': 1,
+             'interaction-id': '01-02',
              'type-interaction': 'announcement',
              'content': 'Message received',
              'type-schedule': 'offset-condition',
@@ -502,13 +520,13 @@ class ObjectMaker:
         'activated': 1,
         'dialogue-id': '1',
         'interactions': [
-            {
-                'interaction-id':'1',
-                'type-interaction': 'announcement',
-                'content': 'Hello',
-                'type-schedule': 'fixed-time',
-                'date-time': '2012-03-12T12:30:00'
-            }
+            {'activated': 1,
+             'interaction-id':'1',
+             'type-interaction': 'announcement',
+             'content': 'Hello',
+             'type-schedule': 'fixed-time',
+             'date-time': '2012-03-12T12:30:00'
+             }
         ]
     }
     
@@ -518,35 +536,35 @@ class ObjectMaker:
         'auto-enrollment': None,
         'activated': 1,
         'interactions': [
-            {
-                'interaction-id': '01-01',
-                'type-interaction': 'question-answer',
-                "content": 'How are you?',
-                'keyword': 'FEEL, Fel',
-                'type-question': 'closed-question',
-                'set-use-template': None,
-                'answers': [
-                    {'choice': 'Fine',
-                     'feedbacks': [
-                         {'content':'thank you'},
-                         {'content':'thank you again'}]
-                     },
-                    {'choice': 'Ok'}],
-                'type-schedule': 'fixed-time',
-                'date-time': '2012-03-12T12:30:00'},
-            {
-                'interaction-id': '01-02',
-                'type-interaction': 'question-answer',
-                "content": 'What is your name?',
-                'keyword': 'name',
-                'type-question': 'open-question',
-                'answer-label': 'name',
-                'set-use-template': None,
-                'feedbacks': [
-                    {'content':'thank you for this answer'}],
-                'type-schedule': 'fixed-time',
-                'date-time': '2012-03-12T12:30:00'
-            }
+            {'activated': 1,
+             'interaction-id': '01-01',
+             'type-interaction': 'question-answer',
+             "content": 'How are you?',
+             'keyword': 'FEEL, Fel',
+             'type-question': 'closed-question',
+             'set-use-template': None,
+             'answers': [
+                 {'choice': 'Fine',
+                  'feedbacks': [
+                      {'content':'thank you'},
+                      {'content':'thank you again'}]
+                  },
+                 {'choice': 'Ok'}],
+             'type-schedule': 'fixed-time',
+             'date-time': '2012-03-12T12:30:00'},
+            {'activated': 1,
+             'interaction-id': '01-02',
+             'type-interaction': 'question-answer',
+             "content": 'What is your name?',
+             'keyword': 'name',
+             'type-question': 'open-question',
+             'answer-label': 'name',
+             'set-use-template': None,
+             'feedbacks': [
+                 {'content':'thank you for this answer'}],
+             'type-schedule': 'fixed-time',
+             'date-time': '2012-03-12T12:30:00'
+             }
         ]
     }
     
@@ -558,7 +576,8 @@ class ObjectMaker:
         'auto-enrollment': None,
         'activated': 1,
         "interactions": [
-            {'type-schedule': 'offset-time',
+            {'activated': 1,
+             'type-schedule': 'offset-time',
              'minutes': '2',
              "type-interaction": "question-answer",
              "type-question": "closed-question",
@@ -566,7 +585,7 @@ class ObjectMaker:
              "keyword": "Fool",
              "set-use-template": "use-template",
              "type-reminder": "no-reminder",
-             "type-question": "close-question",
+             "type-question": "closed-question",
              "answers": [
                  {"choice": "Good",
                   "feedbacks": [
@@ -579,7 +598,8 @@ class ObjectMaker:
                  ],
              "interaction-id": "script.dialogues[0].interactions[0]"
              },
-            {'type-schedule': 'offset-time',
+            {'activated': 1,
+             'type-schedule': 'offset-time',
              'minutes': '2',
              "type-interaction": "question-answer",
              "type-question": "closed-question",
