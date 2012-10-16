@@ -6,9 +6,9 @@ from vusion.action import (FeedbackAction, UnMatchingAnswerAction,
                            RemoveRemindersAction, RemoveDeadlineAction,
                            RemoveQuestionAction, Actions)
 
-from tests.utils import ObjectMaker
+from tests.utils import MessageMaker, ObjectMaker
 
-class DialogueTestCase(TestCase, ObjectMaker):
+class DialogueTestCase(TestCase, MessageMaker, ObjectMaker):
 
     def setUp(self):
         pass
@@ -22,7 +22,8 @@ class DialogueTestCase(TestCase, ObjectMaker):
         dialogue_helper = Dialogue(**dialogue)
         
         actions = Actions()
-        ref, actions = dialogue_helper.get_matching_reference_and_actions("feel 1", actions)
+        message = self.mkmsg_in(from_addr='06', content='feel 1')
+        ref, actions = dialogue_helper.get_matching_reference_and_actions(message, actions)
         self.assertTrue(ref is None)
         self.assertTrue(actions)
 
@@ -93,34 +94,42 @@ class DialogueTestCase(TestCase, ObjectMaker):
 
     def test_get_matching_closed_question_answer(self):
         dialogue = Dialogue(**self.mkobj_dialogue_answer_not_space_supported())
+        
+        message = self.mkmsg_in(from_addr='06', content='genMale')
 
-        ref, actions = dialogue.get_matching_reference_and_actions("genMale", [])
+        ref, actions = dialogue.get_matching_reference_and_actions(message, [])
         self.assertEqual(ref, {'dialogue-id': 'script.dialogues[0]',
                                'interaction-id': 'script.dialogues[0].interactions[2]',
                                'matching-answer': 'Male'})
         
-        ref, actions = dialogue.get_matching_reference_and_actions("gen Male", [])
+        message['content'] = "gen Male"
+        ref, actions = dialogue.get_matching_reference_and_actions(message, [])
         self.assertEqual(ref, {'dialogue-id': 'script.dialogues[0]',
                                'interaction-id': 'script.dialogues[0].interactions[2]',
                                'matching-answer': 'Male'})
         
-        ref, actions = dialogue.get_matching_reference_and_actions("gen 1", [])
+        message['content'] = "gen 1"
+        ref, actions = dialogue.get_matching_reference_and_actions(message, [])
         self.assertEqual(ref, {'dialogue-id': 'script.dialogues[0]',
                                'interaction-id': 'script.dialogues[0].interactions[2]',
                                'matching-answer': 'Male'})
         
-        ref, actions = dialogue.get_matching_reference_and_actions("genBad", [])
+        message['content'] = "genBad"
+        ref, actions = dialogue.get_matching_reference_and_actions(message, [])
         self.assertEqual(ref, {'dialogue-id': 'script.dialogues[0]',
                                'interaction-id': 'script.dialogues[0].interactions[2]',
                                'matching-answer': 'Bad'})
         
-        ref, actions = dialogue.get_matching_reference_and_actions("Genok", [])
+        message['content'] = "Genok"
+        ref, actions = dialogue.get_matching_reference_and_actions(message, [])
         self.assertEqual(ref, None)
 
     def test_get_matching_open_question(self):
         script = Dialogue(**self.dialogue_question_answer)
+        
+        message = self.mkmsg_in(from_addr='06', content='name john doe')
 
-        ref, actions = script.get_matching_reference_and_actions("name john doe", [])
+        ref, actions = script.get_matching_reference_and_actions(message, [])
         self.assertEqual(ref, {'dialogue-id': '01',
                                'interaction-id': '01-02',
                                'matching-answer': "john doe"})
@@ -136,7 +145,8 @@ class DialogueTestCase(TestCase, ObjectMaker):
             actions[2], 
             ProfilingAction(**{'label': 'name','value': 'john doe'}))
 
-        ref, actions = script.get_matching_reference_and_actions("name", [])
+        message['content']= 'name'
+        ref, actions = script.get_matching_reference_and_actions(message, [])
         self.assertEqual(ref, {'dialogue-id': '01',
                                'interaction-id': '01-02',
                                'matching-answer': None})
@@ -147,8 +157,10 @@ class DialogueTestCase(TestCase, ObjectMaker):
         
     def test_get_matching_question_multi_keyword(self):
         script = Dialogue(**self.mkobj_dialogue_question_multi_keyword())
+        
+        message = self.mkmsg_in(from_addr='06', content='Male')
 
-        ref, actions = script.get_matching_reference_and_actions("Male", [])
+        ref, actions = script.get_matching_reference_and_actions(message, [])
         self.assertEqual(ref, {'dialogue-id': '05',
                                'interaction-id': '05',
                                'matching-answer': "maLe"})
@@ -191,7 +203,8 @@ class DialogueTestCase(TestCase, ObjectMaker):
         script = Dialogue(**self.mkobj_dialogue_question_offset_conditional())
         actions = Actions()
         
-        ref, actions = script.get_matching_reference_and_actions("feel 1", actions)
+        message = self.mkmsg_in(from_addr='06', content='feel 1')
+        ref, actions = script.get_matching_reference_and_actions(message, actions)
         
         self.assertEqual(
             actions[1],
@@ -207,19 +220,16 @@ class DialogueTestCase(TestCase, ObjectMaker):
         script = Dialogue(**self.mkobj_dialogue_open_question_reminder())
         actions = Actions()
 
-        ref, actions = script.get_matching_reference_and_actions("name", actions)
+        message = self.mkmsg_in(from_addr='06', content='name')
+        ref, actions = script.get_matching_reference_and_actions(message, actions)
         
         self.assertEqual(
             actions[1],
-            RemoveRemindersAction(**{'dialogue-id': '04',
-                                     'interaction-id': '01-01'}))
-        
-        self.assertEqual(
-            actions[2],
             UnMatchingAnswerAction(**{'answer': ''}))
         
         actions = Actions()
-        ref, actions = script.get_matching_reference_and_actions("name John", actions)
+        message['content'] = 'name John'
+        ref, actions = script.get_matching_reference_and_actions(message, actions)
         
         self.assertEqual(
             actions[1],
