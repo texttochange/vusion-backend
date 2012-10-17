@@ -505,7 +505,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.worker.load_data()
         
         interaction = self.mkobj_dialogue_question_offset_days()['interactions'][0]
-        interaction.pop('set-use-template')
+        interaction['set-use-template'] = None
         
         close_question = self.worker.generate_message(interaction)
         self.assertEqual(

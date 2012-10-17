@@ -101,3 +101,9 @@ class Dialogue(VusionModel):
         for interaction in self.interactions:
             keywords += interaction.get_keywords();
         return keywords
+
+    def get_interaction(self, interaction_id):
+        for interaction in self.interactions:
+            if interaction_id == interaction['interaction-id']:
+                return interaction
+        return None

@@ -153,6 +153,7 @@ class Interaction(VusionModel):
                     kwargs['type-interaction'] == 'question-answer-keyword'):
                 kwargs['type-unmatching-feedback'] = 'program-unmatching-feedback'
                 kwargs['set-reminder'] = kwargs['set-reminder'] if 'set-reminder' in kwargs else None
+                kwargs['set-use-template'] = kwargs['set-use-template'] if 'set-use-template' in kwargs else None
                 if ('type-question' in kwargs and 
                         kwargs['type-question'] == 'closed-question'):
                     kwargs['label-for-participant-profiling'] = kwargs['label-for-participant-profiling'] if 'label-for-participant-profiling' in kwargs else None

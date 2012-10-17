@@ -187,7 +187,6 @@ class DialogueWorker(ApplicationWorker):
                 "Error message: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
 
-
     def get_active_dialogues(self, conditions=None):
         dialogues = self.collections['dialogues'].group(
             ['dialogue-id'],
@@ -202,7 +201,15 @@ class DialogueWorker(ApplicationWorker):
         for dialogue in dialogues:
             if dialogue['Dialogue'] == 0.0:
                 continue
-            active_dialogues.append(Dialogue(**dialogue['Dialogue']))
+            try:
+                active_dialogues.append(Dialogue(**dialogue['Dialogue']))
+            except:
+                self.log("Error dialogue model cannot be instanciated on name:%s id:%s" 
+                         % (dialogue['name'], dialogue['dialogue-id']))
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                self.log(
+                    "Error message: %r" %
+                    traceback.format_exception(exc_type, exc_value, exc_traceback)) 
         return active_dialogues
 
     def get_dialogue_obj(self, dialogue_obj_id):
@@ -721,20 +728,16 @@ class DialogueWorker(ApplicationWorker):
         if (schedule['object-type'] == 'dialogue-schedule' 
                 or schedule['object-type'] == 'reminder-schedule'
                 or schedule['object-type'] == 'deadline-schedule'):
-            interaction = self.get_interaction(
-                self.get_active_dialogues(),
-                schedule['dialogue-id'],
-                schedule['interaction-id'])
+            dialogue = self.get_current_dialogue(schedule['dialogue-id'])
+            interaction = dialogue.get_interaction(schedule['interaction-id'])
             reference_metadata = {
                 'dialogue-id': schedule['dialogue-id'],
-                'interaction-id': schedule['interaction-id']
-            }
+                'interaction-id': schedule['interaction-id']}
         elif schedule['object-type'] == 'unattach-schedule':
             interaction = self.collections['unattached_messages'].find_one(
                 {'_id': ObjectId(schedule['unattach-id'])})
             reference_metadata = {
-                'unattach-id': schedule['unattach-id']
-            }
+                'unattach-id': schedule['unattach-id']}
         elif schedule['object-type'] == 'feedback-schedule':
             interaction = {
                 'content': schedule['content'],
@@ -771,7 +774,7 @@ class DialogueWorker(ApplicationWorker):
                 
                 if toSend['object-type'] == 'deadline-schedule':
                     actions = Actions()
-                    if 'reminder-actions' in interaction:
+                    if interaction.has_reminder():
                         for action in interaction['reminder-actions']:
                             actions.append(action_generator(**action))
                     for action in actions.items():
@@ -851,13 +854,11 @@ class DialogueWorker(ApplicationWorker):
     #may not be necessary in the near future
     #https://jira.mongodb.org/browse/SERVER-828
     #https://jira.mongodb.org/browse/SERVER-3089
-    def get_interaction(self, active_dialogues, dialogue_id, interaction_id):
-        for dialogue in active_dialogues:
-            if dialogue['dialogue-id'] == dialogue_id:
-                for interaction in dialogue['interactions']:
-                    if interaction['interaction-id'] == interaction_id:
-                        return interaction
-
+    #def get_interaction(self, dialogue, interaction_id):
+        #for interaction in dialogue['interactions']:
+            #if interaction['interaction-id'] == interaction_id:
+                #return interaction
+                    
     def log(self, msg, level='msg'):
         timezone = None
         local_time = self.get_local_time()
@@ -925,29 +926,24 @@ class DialogueWorker(ApplicationWorker):
         regex_Breakline = re.compile('\\r\\n')
 
         message = interaction['content']
-        if ('type-interaction' in interaction
-                and interaction['type-interaction'] == 'question-answer'
-                and 'set-use-template' in interaction):
-            if 'template' in interaction:
-                #need to get the template
-                pass
+        if (interaction['type-interaction'] == 'question-answer'
+                and interaction['set-use-template'] is not None):
+            default_template = None
+            if (interaction['type-question'] == 'closed-question'):
+                default_template = self.properties['default-template-closed-question']
+            elif (interaction['type-question'] == 'open-question'):
+                default_template = self.properties['default-template-open-question']
             else:
-                default_template = None
-                if (interaction['type-question'] == 'closed-question'):
-                    default_template = self.properties['default-template-closed-question']
-                elif (interaction['type-question'] == 'open-question'):
-                    default_template = self.properties['default-template-open-question']
-                else:
-                    pass
-                if (default_template is None):
-                    raise MissingTemplate(
-                        "Cannot find default template for %s" %
-                        (interaction['type-question'],))
-                template = self.collections['templates'].find_one({"_id": ObjectId(default_template)})
-                if (template is None):
-                    raise MissingTemplate(
-                        "Cannot find specified template id %s" %
-                        (default_template,))
+                pass
+            if (default_template is None):
+                raise MissingTemplate(
+                    "Cannot find default template for %s" %
+                    (interaction['type-question'],))
+            template = self.collections['templates'].find_one({"_id": ObjectId(default_template)})
+            if (template is None):
+                raise MissingTemplate(
+                    "Cannot find specified template id %s" %
+                    (default_template,))
             #replace question
             message = re.sub(regex_QUESTION, interaction['content'], template['template'])
             #replace answers
