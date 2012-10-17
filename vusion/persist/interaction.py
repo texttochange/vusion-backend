@@ -72,14 +72,32 @@ class Interaction(VusionModel):
             
     ANSWER_KEYWORD = {
         'keyword': lambda v: v is not None,
-        'feedbacks': lambda v: v is not None,
+        'feedbacks': lambda v: isinstance(v, list),
         'answer-actions': lambda v: Interaction.validate_actions(v)}
     
     ANSWER = {
         'choice' : lambda v: v is not None,
-        'feedbacks': lambda v: v is not None,
+        'feedbacks': lambda v: isinstance(v, list),
         'answer-actions': lambda v: Interaction.validate_actions(v)}
 
+    FIELD_THAT_SHOULD_BE_ARRAY = {
+        'feedbacks',
+        'answers',
+        'answer-keywords',
+        'answer-actions'
+        }
+    
+    @staticmethod
+    def validate_actions(actions):
+        if not isinstance(actions, list):
+            return False
+        for action in actions:
+            action_generator(**action)
+        return True
+
+    def modify_field_that_should_be_array(self, field):
+        if field in self.FIELD_THAT_SHOULD_BE_ARRAY and self[field] is None:
+            self[field] = []
 
     def validate_fields(self):
         super(Interaction, self).validate_fields()
@@ -108,8 +126,9 @@ class Interaction(VusionModel):
                 raise InvalidField("Unknow question type %r" % (question_type,))
             for extra_field, check in self.QUESTION_TYPE[question_type].items():
                 self.assert_field_present(extra_field)
-            if not check(self[extra_field]):
-                raise InvalidField(extra_field)
+                self.modify_field_that_should_be_array(extra_field)
+                if not check(self[extra_field]):
+                    raise InvalidField(extra_field)
         # Check reminder
         if self.payload['set-reminder'] == 'reminder':
             for extra_field, check in self.REMINDER_FIELDS.items():
@@ -118,17 +137,16 @@ class Interaction(VusionModel):
                     raise InvalidField(extra_field)
             for extra_field, check in self.REMINDER_SCHEDULE_TYPE[self[extra_field]].items():
                 self.assert_field_present(extra_field)
+                self.modify_field_that_should_be_array(extra_field)
                 if not check(self[extra_field]):
                     raise InvalidField(extra_field)
         # Check answers
         if self.payload['type-interaction'] == 'question-answer-keyword':
-            if self.payload['answer-keywords'] == None:
-                self.payload['answer-keywords'] = []
+            self.modify_field_that_should_be_array('answer-keywords')
             self.validate_answers(self.payload['answer-keywords'], self.ANSWER_KEYWORD)
         elif (self.payload['type-interaction'] == 'question-answer'
                   and self.payload['type-question'] == 'closed-question'):
-            if self.payload['answers'] == None:
-                self.payload['answers'] = []
+            self.modify_field_that_should_be_array('answers')
             self.validate_answers(self.payload['answers'], self.ANSWER)
             
     def validate_answers(self, answers, validation_rules):
@@ -136,16 +154,10 @@ class Interaction(VusionModel):
             for extra_field, check in validation_rules.items():
                 if not extra_field in answer:
                     raise MissingField(extra_field)
+                if extra_field in self.FIELD_THAT_SHOULD_BE_ARRAY and answer[extra_field] is None:
+                    answer[extra_field] = []
                 if not check(answer[extra_field]):
                     raise InvalidField(extra_field)
-
-    @staticmethod
-    def validate_actions(actions):
-        if actions is None:
-            return True
-        for action in actions:
-            action_generator(**action)
-        return True
 
     def upgrade(self, **kwargs):
         if kwargs['model-version'] == '1':
@@ -160,19 +172,19 @@ class Interaction(VusionModel):
                     kwargs['set-answer-accept-no-space'] = kwargs['set-answer-accept-no-space'] if 'set-answer-accept-no-space' in kwargs else None
                 if ('type-question' in kwargs and 
                         kwargs['type-question'] == 'open-question'):
-                    kwargs['feedbacks'] = kwargs['feedbacks'] if 'feedbacks' in kwargs else []
+                    kwargs['feedbacks'] = kwargs['feedbacks'] if 'feedbacks' in kwargs else None
                 if (kwargs['type-interaction'] == 'question-answer-keyword'):
                     kwargs['label-for-participant-profiling'] = kwargs['label-for-participant-profiling'] if 'label-for-participant-profiling' in kwargs else None
                 if kwargs['type-interaction'] == 'question-answer-keyword':
-                    kwargs['answer-keywords'] = kwargs['answer-keywords'] if 'answer-keywords' in kwargs else []
+                    kwargs['answer-keywords'] = kwargs['answer-keywords'] if 'answer-keywords' in kwargs else None
                     for answer in kwargs['answer-keywords']:
-                        answer['feedbacks'] = answer['feedbacks'] if 'feedbacks' in answer else []
-                        answer['answer-actions'] = answer['answer-actions'] if 'answer-actions' in answer else []
+                        answer['feedbacks'] = answer['feedbacks'] if 'feedbacks' in answer else None
+                        answer['answer-actions'] = answer['answer-actions'] if 'answer-actions' in answer else None
                 if kwargs['type-interaction'] == 'question-answer' and kwargs['type-question'] == 'closed-question':
-                    kwargs['answers'] = kwargs['answers'] if 'answers' in kwargs else []
+                    kwargs['answers'] = kwargs['answers'] if 'answers' in kwargs else None
                     for answer in kwargs['answers']:
-                        answer['feedbacks'] = answer['feedbacks'] if 'feedbacks' in answer else []
-                        answer['answer-actions'] = answer['answer-actions'] if 'answer-actions' in answer else []
+                        answer['feedbacks'] = answer['feedbacks'] if 'feedbacks' in answer else None
+                        answer['answer-actions'] = answer['answer-actions'] if 'answer-actions' in answer else None
             kwargs['model-version'] = '2'
         return kwargs
 
@@ -227,7 +239,8 @@ class Interaction(VusionModel):
                 'label': self.payload['answer-label'],
                 'value': matching_value})
             actions.append(action)            
-        if 'feedbacks' in self.payload:
+        if ('feedbacks' in self.payload 
+                and self.payload['feedbacks'] is not None):
             for feedback in self.payload['feedbacks']:
                 action = FeedbackAction(**{'content': feedback['content']})
                 actions.append(action)

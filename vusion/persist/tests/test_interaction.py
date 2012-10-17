@@ -20,6 +20,7 @@ class TestInteraction(TestCase, ObjectMaker):
         dialogue = self.mkobj_dialogue_open_question()
         interaction = Interaction(**dialogue['interactions'][0])
         self.assertTrue(interaction is not None)
+        self.assertEqual(interaction['feedbacks'], [])
         
     def test_validation_closed_question(self):
         dialogue = self.dialogue_question
@@ -76,11 +77,23 @@ class TestInteraction(TestCase, ObjectMaker):
    
         actions = Actions()     
         matching_answer = interaction.get_matching_answer("feel", "ok")
-        actions = interaction.get_actions_from_matching_answer(
-                        dialogue['dialogue-id'],
-                        matching_answer,
-                        'ok',
-                        actions)
+        interaction.get_actions_from_matching_answer(
+            dialogue['dialogue-id'],
+            matching_answer,
+            'ok',
+            actions)
         self.assertEqual(2, len(actions))
         self.assertEqual('enrolling', actions[1].get_type())
         self.assertEqual('feedback', actions[0].get_type())
+        
+    def test_get_actions_from_matching_answer_open_question(self):                
+        dialogue = self.mkobj_dialogue_open_question()
+        interaction = Interaction(**dialogue['interactions'][0])
+   
+        actions = Actions()     
+        interaction.get_actions_from_interaction(
+            dialogue['dialogue-id'],
+            'olivier',
+            actions)
+        self.assertEqual(1, len(actions))
+        self.assertEqual('profiling', actions[0].get_type())

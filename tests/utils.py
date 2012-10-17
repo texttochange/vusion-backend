@@ -436,6 +436,7 @@ class ObjectMaker:
              'type-question': 'open-question',
              'answer-label': 'name',
              'type-schedule': 'offset-days',
+             'feedbacks': None,
              'days': '1',
             'at-time': '22:30'}]
     }
