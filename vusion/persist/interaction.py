@@ -46,7 +46,6 @@ class Interaction(VusionModel):
             'content': lambda v: v is not None,
             'label-for-participant-profiling': lambda v: v is not None,
             'answer-keywords': lambda v: isinstance(v, list),
-            'type-unmatching-feedback': lambda v: v in Interaction.UNMATCHING_FEEDBACK_TYPE,
             'set-reminder': lambda v: True}}
 
     QUESTION_TYPE = {
@@ -163,7 +162,8 @@ class Interaction(VusionModel):
         if kwargs['model-version'] == '1':
             if (kwargs['type-interaction'] == 'question-answer' or 
                     kwargs['type-interaction'] == 'question-answer-keyword'):
-                kwargs['type-unmatching-feedback'] = 'program-unmatching-feedback'
+                if kwargs['type-interaction'] == 'question-answer':
+                    kwargs['type-unmatching-feedback'] = 'program-unmatching-feedback'
                 kwargs['set-reminder'] = kwargs['set-reminder'] if 'set-reminder' in kwargs else None
                 kwargs['set-use-template'] = kwargs['set-use-template'] if 'set-use-template' in kwargs else None
                 if ('type-question' in kwargs and 
@@ -192,6 +192,9 @@ class Interaction(VusionModel):
         return self.payload['set-reminder'] is not None
 
     def get_unmatching_action(self, answer, actions):
+        # case of question-answer-keyword
+        if 'type-unmatching-feedback' not in self.payload:
+            return
         if self.payload['type-unmatching-feedback'] == 'interaction-unmatching-feedback':
             actions.append(FeedbackAction(**{'content': self.payload['unmatching-feedback-content']}))
         elif self.payload['type-unmatching-feedback'] == 'program-unmatching-feedback':
