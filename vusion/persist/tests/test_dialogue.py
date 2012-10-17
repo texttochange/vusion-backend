@@ -211,11 +211,6 @@ class DialogueTestCase(TestCase, ObjectMaker):
         
         self.assertEqual(
             actions[1],
-            RemoveRemindersAction(**{'dialogue-id': '04',
-                                     'interaction-id': '01-01'}))
-        
-        self.assertEqual(
-            actions[2],
             UnMatchingAnswerAction(**{'answer': ''}))
         
         actions = Actions()

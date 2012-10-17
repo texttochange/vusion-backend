@@ -344,6 +344,13 @@ class ObjectMaker:
                                     'enroll': '2'}]}]}]
     }
     
+    def mkobj_dialogue_question(self):
+        dialogue = deepcopy(self.dialogue_question)
+        dialogue['interactions'][0]['set-max-unmatching-answers'] = 'max-unamatching-answers'
+        dialogue['interactions'][0]['max-unmatching-answer-number'] = '5'
+        dialogue['interactions'][0]['max-unmatching-answer-actions'] = [{'type-action':'optout'}]
+        return dialogue
+    
     def mkobj_dialogue_question_offset_days(self):
         return {
             'activated': 1,

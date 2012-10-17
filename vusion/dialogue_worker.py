@@ -463,6 +463,14 @@ class DialogueWorker(ApplicationWorker):
                 message_direction='incoming',
                 reference_metadata=ref)
             if (not ref is None):
+                if (not 'request-id' in ref):
+                    interaction = self.get_max_unmatching_answers_interaction(ref['dialogue-id'], ref['interaction-id'])
+                    if (interaction is not None
+                         and self.has_max_unmatching_answers(participant, ref['dialogue-id'], interaction)):
+                        actions = scriptHelper.add_remove_reminders_and_deadline_action(actions,
+                                ref['dialogue-id'], interaction['interaction-id'])
+                        for action in interaction['max-unmatching-answer-actions']:
+                            actions.append(action_generator(**action))
                 self.run_actions(participant, ref, actions)
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -500,6 +508,25 @@ class DialogueWorker(ApplicationWorker):
         if history is None or history.count() <= 1:
             return False
         return True
+    
+    def has_max_unmatching_answers(self, participant, dialogue_id, interaction):
+        query = {'participant-phone': participant['phone'],
+                 'participant-session-id':participant['session-id'],
+                 'message-direction': 'incoming',
+                 'dialogue-id': dialogue_id,
+                 'interaction-id': interaction['interaction-id'],
+                 'matching-answer': None}
+        history = self.collections['history'].find(query)
+        if history.count() < int(interaction['max-unmatching-answer-number']):
+            return False
+        return True
+    
+    def get_max_unmatching_answers_interaction(self, dialogue_id, interaction_id):
+        active_dialogues = self.get_active_dialogues()
+        returned_interaction = self.get_interaction(active_dialogues, dialogue_id, interaction_id)
+        if 'set-max-unmatching-answers' in returned_interaction:
+            return returned_interaction
+        return None
 
     @inlineCallbacks
     def daemon_process(self):

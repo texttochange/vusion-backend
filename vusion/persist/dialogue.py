@@ -94,9 +94,8 @@ class Dialogue(VusionModel):
     
     def get_actions_from_returned_answer(self, dialogue_id, interaction, returned_answer, field, actions):
         if self.has_reminders(interaction):
-            actions.append(RemoveDeadlineAction(**{
-                'dialogue-id': dialogue_id,
-                'interaction-id':interaction['interaction-id']}))
+            actions = self.add_remove_reminders_and_deadline_action(actions,
+                                dialogue_id, interaction['interaction-id'])
         actions = self.add_feedback_action(actions, returned_answer)
         if 'label-for-participant-profiling' in interaction:
             action = ProfilingAction(**{
@@ -123,11 +122,7 @@ class Dialogue(VusionModel):
         actions.append(RemoveQuestionAction(**{
                 'dialogue-id': dialogue_id,
                 'interaction-id':interaction['interaction-id']}))
-        if self.has_reminders(interaction):
-            actions.append(RemoveRemindersAction(**{
-                'dialogue-id': dialogue_id,
-                'interaction-id':interaction['interaction-id']}))
-
+        
         if 'answer-keywords' in interaction:
             # Multi keyword question
             answer_keyword = self.get_matching_answer_keyword(interaction['answer-keywords'], message)
@@ -152,9 +147,8 @@ class Dialogue(VusionModel):
             else:
                 reference_metadata['matching-answer'] = answer
                 if self.has_reminders(interaction):
-                    actions.append(RemoveDeadlineAction(**{
-                        'dialogue-id': dialogue_id,
-                        'interaction-id':interaction['interaction-id']}))
+                    actions = self.add_remove_reminders_and_deadline_action(actions,
+                                dialogue_id, interaction['interaction-id'])
                 actions = self.add_feedback_action(actions, interaction)
                 if 'answer-label' in interaction:
                     actions.append(ProfilingAction(**{
@@ -180,6 +174,15 @@ class Dialogue(VusionModel):
             for feedback in obj['feedbacks']:
                 action = FeedbackAction(**{'content': feedback['content']})
                 actions.append(action)
+        return actions
+    
+    def add_remove_reminders_and_deadline_action(self, actions, dialogue_id, interaction_id):
+        actions.append(RemoveRemindersAction(**{
+            'dialogue-id': dialogue_id,
+            'interaction-id':interaction_id}))
+        actions.append(RemoveDeadlineAction(**{
+            'dialogue-id': dialogue_id,
+            'interaction-id':interaction_id}))
         return actions
 
     def get_all_keywords(self):

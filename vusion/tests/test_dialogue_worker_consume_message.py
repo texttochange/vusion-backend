@@ -18,6 +18,9 @@ from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 from vusion.tests.test_dialogue_worker import DialogueWorkerTestCase
 
+from vusion.persist import Dialogue
+from vusion.action import (Actions)
+
 
 class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
     
@@ -357,4 +360,48 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
             'message-id': event['user_message_id']})
 
         self.assertEqual('ack', status['message-status'])
+        
+    @inlineCallbacks
+    def test_limit_max_unmatching_answers(self):
+        for program_setting in self.mkobj_program_settings():
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
+        dNow = self.worker.get_local_time()
+        dFuture = dNow + timedelta(minutes=10)
+        
+        dialogue = self.mkobj_dialogue_question()
+        self.collections['dialogues'].save(dialogue)
+        
+        dialogue_helper = Dialogue(**dialogue)
+        
+        self.collections['participants'].save(self.mkobj_participant('06',
+             enrolled = [{'dialogue-id': dialogue['dialogue-id'],
+                          'date-time': dNow}]
+         ))
+        
+        self.collections['schedules'].save(self.mkobj_schedule(
+            dialogue_id='01',
+            interaction_id='01-01',
+            object_type='reminder-schedule',
+            participant_phone='06',
+            date_time=time_to_vusion_format(dFuture)))
+        
+        self.collections['schedules'].save(self.mkobj_schedule(
+            dialogue_id='01',
+            interaction_id='01-01',
+            object_type = 'deadline-schedule',
+            participant_phone='06',
+            date_time=time_to_vusion_format(dFuture)))
+        
+        inbound_msg_unmatching = self.mkmsg_in(from_addr='06',
+                                             content='feel weird')
+        participant = self.collections['participants'].find_one({'phone': '06'})
+        for num in range(5):
+            yield self.send(inbound_msg_unmatching, 'inbound')
+        ref, actions = dialogue_helper.get_matching_reference_and_actions('feel weird', Actions())
+        self.assertTrue(actions.contains('unmatching-answer'))
+        interaction = self.worker.get_max_unmatching_answers_interaction(ref['dialogue-id'], ref['interaction-id'])
+        self.assertTrue(self.worker.has_max_unmatching_answers(participant, ref['dialogue-id'], interaction))
+        self.assertEqual(0, self.collections['schedules'].count())
 
