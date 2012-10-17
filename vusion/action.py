@@ -209,3 +209,6 @@ class Actions():
     
     def get_priority_action(self):
         return self.actions.pop(0)
+
+    def __len__(self):
+        return len(self.actions)

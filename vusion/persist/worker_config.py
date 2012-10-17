@@ -27,7 +27,7 @@ class WorkerConfig(VusionModel):
                 kwargs['class'] = 'vusion.DialogueWorker'
             kwargs['model-version'] = '2'
         return kwargs
-    
+
     def create_instance(self):
         obj = super(WorkerConfig, self).create_instance()
         obj['config'] = {}
