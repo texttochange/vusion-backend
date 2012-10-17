@@ -344,9 +344,6 @@ class ObjectMaker:
                                     'enroll': '2'}]}]}]
     }
     
-    def mkobj_dialogue_question(self):
-        return deepcopy(self.dialogue_question)
-    
     def mkobj_dialogue_question_offset_days(self):
         return {
             'activated': 1,

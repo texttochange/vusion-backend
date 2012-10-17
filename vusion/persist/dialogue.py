@@ -94,9 +94,6 @@ class Dialogue(VusionModel):
     
     def get_actions_from_returned_answer(self, dialogue_id, interaction, returned_answer, field, actions):
         if self.has_reminders(interaction):
-            actions.append(RemoveRemindersAction(**{
-                'dialogue-id': dialogue_id,
-                'interaction-id':interaction['interaction-id']}))
             actions.append(RemoveDeadlineAction(**{
                 'dialogue-id': dialogue_id,
                 'interaction-id':interaction['interaction-id']}))
@@ -112,8 +109,8 @@ class Dialogue(VusionModel):
         return actions
     
     def get_matching_reference_and_actions(self, message, actions):
-        keyword = get_first_word(message['content']).lower()
-        reply = self.get_reply(message['content']).lower()
+        keyword = get_first_word(message).lower()
+        reply = self.get_reply(message).lower()
         dialogue_id, interaction = self.get_matching_interaction(keyword)
 
         if not interaction:
@@ -126,21 +123,16 @@ class Dialogue(VusionModel):
         actions.append(RemoveQuestionAction(**{
                 'dialogue-id': dialogue_id,
                 'interaction-id':interaction['interaction-id']}))
-        
-        count_unmatching = 0;
+        if self.has_reminders(interaction):
+            actions.append(RemoveRemindersAction(**{
+                'dialogue-id': dialogue_id,
+                'interaction-id':interaction['interaction-id']}))
 
         if 'answer-keywords' in interaction:
             # Multi keyword question
-            answer_keyword = self.get_matching_answer_keyword(interaction['answer-keywords'], message['content'])
+            answer_keyword = self.get_matching_answer_keyword(interaction['answer-keywords'], message)
             if not answer_keyword or answer_keyword is None:
-                actions.append(UnMatchingAnswerAction(**{'answer': message['content']}))
-                if self.has_max_unmatching_answers_in_history(message):
-                    actions.append(RemoveRemindersAction(**{
-                        'dialogue-id': dialogue_id,
-                        'interaction-id':interaction['interaction-id']}))
-                    actions.append(RemoveDeadlineAction(**{
-                        'dialogue-id': dialogue_id,
-                        'interaction-id':interaction['interaction-id']}))
+                actions.append(UnMatchingAnswerAction(**{'answer': message}))
             else:                
                 reference_metadata['matching-answer'] = answer_keyword['keyword']
                 self.get_actions_from_returned_answer(dialogue_id, interaction, answer_keyword, 'keyword', actions)
@@ -149,34 +141,17 @@ class Dialogue(VusionModel):
             answer = self.get_matching_answer(interaction, keyword, reply)
             if not answer or answer is None:
                 actions.append(UnMatchingAnswerAction(**{'answer': reply}))
-                if self.has_max_unmatching_answers_in_history(message):
-                    actions.append(RemoveRemindersAction(**{
-                        'dialogue-id': dialogue_id,
-                        'interaction-id':interaction['interaction-id']}))
-                    actions.append(RemoveDeadlineAction(**{
-                        'dialogue-id': dialogue_id,
-                        'interaction-id':interaction['interaction-id']}))
             else:
                 reference_metadata['matching-answer'] = answer['choice']
                 self.get_actions_from_returned_answer(dialogue_id, interaction, answer, 'choice', actions)
         else:
             # Open questions
-            answer = self.get_open_answer(message['content'])
+            answer = self.get_open_answer(message)
             if answer == '':
                 actions.append(UnMatchingAnswerAction(**{'answer': reply}))
-                if self.has_max_unmatching_answers_in_history(message):
-                    actions.append(RemoveRemindersAction(**{
-                        'dialogue-id': dialogue_id,
-                        'interaction-id':interaction['interaction-id']}))
-                    actions.append(RemoveDeadlineAction(**{
-                        'dialogue-id': dialogue_id,
-                        'interaction-id':interaction['interaction-id']}))
             else:
                 reference_metadata['matching-answer'] = answer
                 if self.has_reminders(interaction):
-                    actions.append(RemoveRemindersAction(**{
-                        'dialogue-id': dialogue_id,
-                        'interaction-id':interaction['interaction-id']}))
                     actions.append(RemoveDeadlineAction(**{
                         'dialogue-id': dialogue_id,
                         'interaction-id':interaction['interaction-id']}))
@@ -184,7 +159,7 @@ class Dialogue(VusionModel):
                 if 'answer-label' in interaction:
                     actions.append(ProfilingAction(**{
                         'label': interaction['answer-label'],
-                        'value': self.get_open_answer(message['content'])}))
+                        'value': self.get_open_answer(message)}))
                 if 'answer-actions' in interaction:
                     for answer_action in interaction['answer-actions']:
                         actions.append(action_generator(**answer_action))
@@ -220,21 +195,3 @@ class Dialogue(VusionModel):
                 for answer_keyword in interaction['answer-keywords']:
                     keywords += self.split_keywords(answer_keyword['keyword'])
         return keywords
-    
-    def has_max_unmatching_answers_in_history(self, message):
-        keyword = get_first_word(message['content']).lower()
-        dialogue_id, interaction = self.get_matching_interaction(keyword)
-        interaction_id = interaction['interaction-id']
-        participant = self.collections['participants'].find_one({
-                         'participant-phone': message['from_addr']})
-        
-        histories = self.collections['history'].find({
-                      'participant-phone': participant['phone'],
-                      'participant-session-id': participant['session_id'],
-                      'dialogue-id': dialogue_id,
-                      'interaction-id': interaction_id,
-                      'message-direction': 'incoming',
-                      'matching-answer': None})
-        if histories.count() >= 5:
-            return True
-        return False

@@ -1,4 +1,5 @@
 from datetime import datetime, time, date, timedelta
+import pytz
 
 import json
 import pymongo
@@ -16,9 +17,6 @@ from vusion.utils import time_to_vusion_format, time_from_vusion_format
 
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 from vusion.tests.test_dialogue_worker import DialogueWorkerTestCase
-
-from vusion.persist import Dialogue
-from vusion.action import (Actions)
 
 
 class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
@@ -359,27 +357,4 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
             'message-id': event['user_message_id']})
 
         self.assertEqual('ack', status['message-status'])
-        
-    @inlineCallbacks
-    def test_limit_max_unmatching_answers(self):
-        dialogue = self.mkobj_dialogue_question()
-        dialogue['interactions'][0]['set-reminder'] = 'reminder'
-        dialogue['interactions'][0]['reminder-number'] = '2'
-        dialogue['interactions'][0]['type-schedule-reminder'] = 'reminder-offset-time'
-        dialogue['interactions'][0]['reminder-minutes'] = '30'
-        self.collections['dialogues'].save(dialogue)
-        self.collections['participants'].save(self.mkobj_participant('06'))
-        
-        inbound_msg_unmatching = self.mkmsg_in(from_addr='06',
-                                             content='feel weird')
-        participant = self.collections['participants'].find_one({'phone': '06'})
-        dialogue_helper = Dialogue(**dialogue)        
-        for num in range(5):
-            yield self.send(inbound_msg_unmatching, 'inbound')
-        histories = self.collections['history'].find({'participant-session-id': participant['session-id']})
-        ref, actions = dialogue_helper.get_matching_reference_and_actions(
-                          inbound_msg_unmatching, Actions())
-        self.assertEqual(5, histories.count())
-        self.assertTrue(actions.contains('remove-reminders'))
-        self.assertTrue(actions.contains('remove-deadline'))
 
