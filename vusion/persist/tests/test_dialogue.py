@@ -214,13 +214,9 @@ class TestDialogue(TestCase, ObjectMaker):
 
         ref, actions = dialogue.get_matching_reference_and_actions("name", actions)
         
+        self.assertEqual(2, len(actions))
         self.assertEqual(
             actions[1],
-            RemoveRemindersAction(**{'dialogue-id': '04',
-                                     'interaction-id': '01-01'}))
-        
-        self.assertEqual(
-            actions[2],
             UnMatchingAnswerAction(**{'answer': ''}))
         
         actions = Actions()

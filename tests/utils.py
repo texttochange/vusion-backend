@@ -367,12 +367,31 @@ class ObjectMaker:
             'days': '1',
             'at-time': '22:30',            
             'answers': [
-                {'choice': 'Fine'},
+                {'choice': 'Fine',
+                 'feedbacks': None,
+                 'answer-actions': None},
                 {'choice': 'Ok',
                  'feedbacks': [{'content': 'Thank you'}],
                  'answer-actions':[{'type-answer-action': 'enrolling',
                                     'enroll': '2'}]}]}]
     }
+    
+    def mkobj_dialogue_question_max_unmatching(self):
+        dialogue = deepcopy(self.dialogue_question)
+        dialogue['interactions'][0]['model-version'] = '2'
+        dialogue['interactions'][0]['object-type'] = 'interaction'
+        dialogue['interactions'][0]['set-max-unmatching-answers'] = 'max-unamatching-answers'
+        dialogue['interactions'][0]['max-unmatching-answer-number'] = '5'
+        dialogue['interactions'][0]['max-unmatching-answer-actions'] = [{'type-action':'feedback', 'content': 'thank you'}]
+        dialogue['interactions'][0]['type-unmatching-feedback'] = 'program-unmatching-feedback'
+        dialogue['interactions'][0]['set-reminder'] = 'reminder'
+        dialogue['interactions'][0]['type-schedule-reminder'] = 'reminder-offset-time'
+        dialogue['interactions'][0]['reminder-minutes'] = '10'
+        dialogue['interactions'][0]['reminder-number'] = '2'
+        dialogue['interactions'][0]['reminder-actions'] = None
+        dialogue['interactions'][0]['label-for-participant-profiling'] = None
+        dialogue['interactions'][0]['set-answer-accept-no-space'] = None
+        return Dialogue(**dialogue).get_as_dict()
     
     def mkobj_dialogue_question_offset_days(self):
         return Dialogue(**{

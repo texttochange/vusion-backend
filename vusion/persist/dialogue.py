@@ -59,7 +59,7 @@ class Dialogue(VusionModel):
                     interaction['offset-condition-interaction-id'] == interaction_id):
                 offset_condition_interactions.append(interaction['interaction-id'])
         return offset_condition_interactions
-        
+
     def get_matching_reference_and_actions(self, message, actions):
         keyword = get_first_word(message).lower()
         reply = self.get_reply(message).lower()
@@ -71,17 +71,10 @@ class Dialogue(VusionModel):
         reference_metadata = {
             'dialogue-id': dialogue_id,
             'interaction-id': interaction['interaction-id'],
-            'matching-answer': None}
-        actions.append(RemoveQuestionAction(**{
-                'dialogue-id': dialogue_id,
-                'interaction-id':interaction['interaction-id']}))
-        if interaction.has_reminder():
-            actions.append(RemoveRemindersAction(**{
-                'dialogue-id': dialogue_id,
-                'interaction-id':interaction['interaction-id']}))
+            'matching-answer': None}        
         
         interaction.get_actions(dialogue_id, message, keyword, reply, reference_metadata, actions)
-            
+
         # Check if offset condition on this answer
         if not reference_metadata['matching-answer'] is None:
             for interaction_to_schedule in self.get_offset_condition_interactions(interaction['interaction-id']):
@@ -89,10 +82,6 @@ class Dialogue(VusionModel):
                     'dialogue-id': dialogue_id,
                     'interaction-id': interaction_to_schedule}))
         return reference_metadata, actions
-
-    def get_open_answer(self, message):
-        words = (message or '').split(' ')
-        return " ".join(words[1:])
 
     def get_all_keywords(self):
         keywords = []
