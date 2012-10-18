@@ -8,13 +8,18 @@ from vusion.action import (FeedbackAction, UnMatchingAnswerAction,
 
 from tests.utils import ObjectMaker
 
-class DialogueTestCase(TestCase, ObjectMaker):
+class TestDialogue(TestCase, ObjectMaker):
 
     def setUp(self):
         pass
 
     def tearDown(self):
         pass
+
+    def test_get_as_dict(self):
+        dialogue = Dialogue(**self.mkobj_dialogue_open_question())
+        dialogue_as_dict = dialogue.get_as_dict()
+        self.assertTrue('model-version' in dialogue_as_dict['interactions'][0])
 
     def test_get_matching_failed_dialogues_empty_interaction(self):
         dialogue = self.mkobj_dialogue_open_question()
@@ -24,10 +29,10 @@ class DialogueTestCase(TestCase, ObjectMaker):
         actions = Actions()
         ref, actions = dialogue_helper.get_matching_reference_and_actions("feel 1", actions)
         self.assertTrue(ref is None)
-        self.assertTrue(actions)
+        self.assertEqual(len(actions), 0)
 
     def test_get_matching_closed_question_answer(self):
-        script = Dialogue(self.dialogue_question_answer)
+        script = Dialogue(**self.mkobj_dialogue_question_answer())
 
         ref, actions = script.get_matching_reference_and_actions("feel 1", [])
         self.assertEqual(ref, {'dialogue-id': '01',
@@ -118,7 +123,7 @@ class DialogueTestCase(TestCase, ObjectMaker):
         self.assertEqual(ref, None)
 
     def test_get_matching_open_question(self):
-        script = Dialogue(**self.dialogue_question_answer)
+        script = Dialogue(**self.mkobj_dialogue_question_answer())
 
         ref, actions = script.get_matching_reference_and_actions("name john doe", [])
         self.assertEqual(ref, {'dialogue-id': '01',
@@ -130,10 +135,10 @@ class DialogueTestCase(TestCase, ObjectMaker):
             RemoveQuestionAction(**{'dialogue-id': '01',
                                     'interaction-id': '01-02'}))
         self.assertEqual(
-            actions[1], 
+            actions[2], 
             FeedbackAction(**{'content': 'thank you for this answer'}))
         self.assertEqual(
-            actions[2], 
+            actions[1], 
             ProfilingAction(**{'label': 'name','value': 'john doe'}))
 
         ref, actions = script.get_matching_reference_and_actions("name", [])
@@ -171,7 +176,7 @@ class DialogueTestCase(TestCase, ObjectMaker):
             [])
 
     def test_get_all_keywords(self):
-        dialogue_helper = Dialogue(**self.dialogue_question_answer)
+        dialogue_helper = Dialogue(**self.mkobj_dialogue_question_answer())
 
         self.assertEqual(
             dialogue_helper.get_all_keywords(),
@@ -204,17 +209,18 @@ class DialogueTestCase(TestCase, ObjectMaker):
                                      'dialogue-id': '01'})) 
 
     def test_get_remove_reminders_action(self):
-        script = Dialogue(**self.mkobj_dialogue_open_question_reminder())
+        dialogue = Dialogue(**self.mkobj_dialogue_open_question_reminder())
         actions = Actions()
 
-        ref, actions = script.get_matching_reference_and_actions("name", actions)
+        ref, actions = dialogue.get_matching_reference_and_actions("name", actions)
         
+        self.assertEqual(2, len(actions))
         self.assertEqual(
             actions[1],
             UnMatchingAnswerAction(**{'answer': ''}))
         
         actions = Actions()
-        ref, actions = script.get_matching_reference_and_actions("name John", actions)
+        ref, actions = dialogue.get_matching_reference_and_actions("name John", actions)
         
         self.assertEqual(
             actions[1],
@@ -229,34 +235,4 @@ class DialogueTestCase(TestCase, ObjectMaker):
             ProfilingAction(**{'value': 'John',
                                'label': 'name'}))
         
-    def test_get_actions_from_returned_answer(self):
-        multi_dialogue_helper = Dialogue(**self.mkobj_dialogue_question_multi_keyword())
-        dialogue = self.mkobj_dialogue_question_multi_keyword()
-
-        actions = Actions()
-        returned_answer = multi_dialogue_helper.get_matching_answer_keyword(
-                           dialogue['interactions'][0]['answer-keywords'],
-                           "male")
-        actions = multi_dialogue_helper.get_actions_from_returned_answer(
-                        dialogue['dialogue-id'],
-                        dialogue['interactions'][0],
-                        returned_answer,
-                        'keyword',
-                        [])
-        self.assertEqual(1, len(actions))
-        
-        dialogue_helper = Dialogue(**self.mkobj_dialogue_question_offset_days())
-        new_dialogue = self.mkobj_dialogue_question_offset_days()
-        
-        returned_answer = dialogue_helper.get_matching_answer(
-                           new_dialogue['interactions'][0],
-                           "feel",
-                           "ok")
-        actions = dialogue_helper.get_actions_from_returned_answer(
-                        new_dialogue['dialogue-id'],
-                        new_dialogue['interactions'][0],
-                        returned_answer,
-                        'choice',
-                        [])
-        self.assertEqual(2, len(actions))
-
+  

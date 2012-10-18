@@ -18,5 +18,9 @@ class MissingField(VusionError):
     pass
 
 
+class InvalidField(VusionError):
+    pass
+
+
 class FailingModelUpgrade(VusionError):
     pass

@@ -44,7 +44,7 @@ class VusionModel(object):
         return value
 
     def validate_fields(self):
-        pass
+        self.assert_field_present(*self.fields)
     
     def get_type(self):
         return self.MODEL_TYPE

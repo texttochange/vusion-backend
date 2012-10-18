@@ -174,45 +174,53 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         dNow = self.worker.get_local_time()
         dPast1 = datetime.now() - timedelta(minutes=30)
         dPast2 = datetime.now() - timedelta(minutes=60)
+        dPast3 = datetime.now() - timedelta(minutes=70)
 
+        dialogue = self.mkobj_dialogue_question_answer()
+
+        dialogue['dialogue-id'] = '1'
+        dialogue['activated'] = 1
+        dialogue['modified'] = dPast1
         id_active_dialogue_one = self.collections['dialogues'].save(
-            {'do': 'current dialogue',
-             'dialogue-id': '1',
-             'activated': 1,
-             'modified': dPast1})
-        self.collections['dialogues'].save(
-            {'do': 'previsous dialogue',
-             'dialogue-id': '1',
-             'activated': 1,
-             'modified': dPast2})
-        self.collections['dialogues'].save(
-            {'do': 'future dialogue still in draft',
-             'dialogue-id': '1',
-             'activated': 0,
-             'modified': '50'})
-        id_active_dialogue_two = self.collections['dialogues'].save(
-            {'do': 'current dialogue',
-             'dialogue-id': '2',
-             'activated': 1,
-             'modified': dPast1})
-        self.collections['dialogues'].save(
-            {'do': 'previsous dialogue',
-             'dialogue-id': '2',
-             'activated': 1,
-             'modified': dPast2})
-        self.collections['dialogues'].save(
-            {'do': 'future dialogue still in draft',
-             'dialogue-id': '2',
-             'activated': 0,
-             'modified': '50'})
+            dialogue)
+        
+        dialogue.pop('_id')        
+        dialogue['dialogue-id'] = '1'        
+        dialogue['activated'] = 1
+        dialogue['modified'] = dPast2
+        self.collections['dialogues'].save(dialogue)
+
+        dialogue.pop('_id')
+        dialogue['dialogue-id'] = '1'        
+        dialogue['activated'] = 0
+        dialogue['modified'] = dPast3        
+        self.collections['dialogues'].save(dialogue)
+        
+        dialogue.pop('_id')
+        dialogue['dialogue-id'] = '2'
+        dialogue['activated'] = 1
+        dialogue['modified'] = dPast1
+        id_active_dialogue_two = self.collections['dialogues'].save(dialogue)
+        
+        dialogue.pop('_id')
+        dialogue['dialogue-id'] = '2'
+        dialogue['activated'] = 1
+        dialogue['modified'] = dPast2
+        self.collections['dialogues'].save(dialogue)
+        
+        dialogue.pop('_id')
+        dialogue['dialogue-id'] = '2'
+        dialogue['activated'] = 0
+        dialogue['modified'] = dPast2        
+        self.collections['dialogues'].save(dialogue)
 
         self.collections['participants'].save({'phone': '06'})
 
         dialogues = self.worker.get_active_dialogues()
         self.assertEqual(len(dialogues), 2)
-        self.assertEqual(dialogues[0]['Dialogue']['_id'],
+        self.assertEqual(dialogues[0]['_id'],
                          id_active_dialogue_one)
-        self.assertEqual(dialogues[1]['Dialogue']['_id'],
+        self.assertEqual(dialogues[1]['_id'],
                          id_active_dialogue_two)
 
     def test03_get_current_dialogue(self):
@@ -251,7 +259,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
 
     #@inlineCallbacks
     def test05_send_scheduled_messages(self):
-        dialogue = self.dialogue_annoucement_2
+        dialogue = self.mkobj_dialogue_announcement_2()
         participant = self.mkobj_participant('09')
         mytimezone = self.program_settings[2]['value']
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
@@ -497,7 +505,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.worker.load_data()
         
         interaction = self.mkobj_dialogue_question_offset_days()['interactions'][0]
-        interaction.pop('set-use-template')
+        interaction['set-use-template'] = None
         
         close_question = self.worker.generate_message(interaction)
         self.assertEqual(
@@ -579,8 +587,8 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.worker.load_data()
         dNow = self.worker.get_local_time()
 
-        self.collections['dialogues'].save(self.dialogue_announcement)
-        self.collections['dialogues'].save(self.dialogue_question)
+        self.collections['dialogues'].save(self.mkobj_dialogue_announcement_offset_days())
+        self.collections['dialogues'].save(self.mkobj_dialogue_question_offset_days())
         self.collections['participants'].save(
             self.mkobj_participant(
                 participant_phone='08',
