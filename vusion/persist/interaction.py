@@ -3,7 +3,8 @@ from vusion.persist.vusion_model import VusionModel
 from vusion.error import InvalidField, MissingField
 from vusion.action import (action_generator, FeedbackAction,
                            UnMatchingAnswerAction, ProfilingAction,
-                           RemoveDeadlineAction)
+                           RemoveDeadlineAction, RemoveQuestionAction,
+                           RemoveRemindersAction)
 
 class Interaction(VusionModel):
     
@@ -41,6 +42,7 @@ class Interaction(VusionModel):
             'set-use-template': lambda v: True,
             'type-question': lambda v: True,
             'type-unmatching-feedback': lambda v: v in Interaction.UNMATCHING_FEEDBACK_TYPE,
+            'set-max-unmatching-answers': lambda v: True,
             'set-reminder': lambda v: True},
         'question-answer-keyword': {
             'content': lambda v: v is not None,
@@ -56,6 +58,10 @@ class Interaction(VusionModel):
         'open-question': {
             'answer-label': lambda v: v is not None,
             'feedbacks': lambda v: isinstance(v, list)}}
+    
+    MAX_UNMATCHING_ANSWER_FIELDS = {
+          'max-unmatching-answer-number': lambda v: v>=1,
+          'max-unmatching-answer-actions': lambda v: Interaction.validate_actions(v)}
 
     REMINDER_FIELDS = {
          'type-schedule-reminder': lambda v: True,
@@ -83,7 +89,9 @@ class Interaction(VusionModel):
         'feedbacks',
         'answers',
         'answer-keywords',
-        'answer-actions'
+        'answer-actions',
+        'max-unmatching-answer-actions',
+        'reminder-actions'
         }
     
     @staticmethod
@@ -128,10 +136,18 @@ class Interaction(VusionModel):
                 self.modify_field_that_should_be_array(extra_field)
                 if not check(self[extra_field]):
                     raise InvalidField(extra_field)
+            # check max-unmatching-answers
+            if self.payload['set-max-unmatching-answers'] == 'max-unmatching-answers':
+                for extra_field, check in self.MAX_UNMATCHING_ANSWER_FIELDS.items():
+                    self.assert_field_present(extra_field)
+                    self.modify_field_that_should_be_array(extra_field)
+                    if not check(self[extra_field]):
+                        raise InvalidField(extra_field)  
         # Check reminder
         if self.payload['set-reminder'] == 'reminder':
             for extra_field, check in self.REMINDER_FIELDS.items():
                 self.assert_field_present(extra_field)
+                self.modify_field_that_should_be_array(extra_field)
                 if not check(self[extra_field]):
                     raise InvalidField(extra_field)
             for extra_field, check in self.REMINDER_SCHEDULE_TYPE[self[extra_field]].items():
@@ -164,6 +180,7 @@ class Interaction(VusionModel):
                     kwargs['type-interaction'] == 'question-answer-keyword'):
                 if kwargs['type-interaction'] == 'question-answer':
                     kwargs['type-unmatching-feedback'] = 'program-unmatching-feedback'
+                    kwargs['set-max-unmatching-answers'] = None
                 kwargs['set-reminder'] = kwargs['set-reminder'] if 'set-reminder' in kwargs else None
                 kwargs['set-use-template'] = kwargs['set-use-template'] if 'set-use-template' in kwargs else None
                 if ('type-question' in kwargs and 
@@ -190,6 +207,9 @@ class Interaction(VusionModel):
 
     def has_reminder(self):
         return self.payload['set-reminder'] is not None
+    
+    def has_max_unmatching_answers(self):
+        return self.payload['set-max-unmatching-answers'] is not None
 
     def get_unmatching_action(self, answer, actions):
         # case of question-answer-keyword
@@ -199,6 +219,17 @@ class Interaction(VusionModel):
             actions.append(FeedbackAction(**{'content': self.payload['unmatching-feedback-content']}))
         elif self.payload['type-unmatching-feedback'] == 'program-unmatching-feedback':
             actions.append(UnMatchingAnswerAction(**{'answer': answer}))
+            
+    def get_max_unmatching_action(self, dialogue_id, actions):
+        if self.has_reminder():
+            actions.append(RemoveRemindersAction(**{
+                'dialogue-id': dialogue_id,
+                'interaction-id': self.payload['interaction-id']}))
+            actions.append(RemoveDeadlineAction(**{
+                'dialogue-id': dialogue_id,
+                'interaction-id': self.payload['interaction-id']}))
+        for action in self.payload['max-unmatching-answer-actions']:
+            actions.append(action_generator(**action))
 
     def get_interaction_keywords(self):
         keywords = self.split_keywords(self.payload['keyword'])
@@ -227,6 +258,9 @@ class Interaction(VusionModel):
     
     def get_actions_from_interaction(self, dialogue_id, matching_value, actions):
         if self.has_reminder():
+            actions.append(RemoveRemindersAction(**{
+                'dialogue-id': dialogue_id,
+                'interaction-id': self.payload['interaction-id']}))
             actions.append(RemoveDeadlineAction(**{
                 'dialogue-id': dialogue_id,
                 'interaction-id': self.payload['interaction-id']}))
@@ -249,6 +283,9 @@ class Interaction(VusionModel):
                 actions.append(action)
         
     def get_actions(self, dialogue_id, msg, msg_keyword, msg_reply, reference_metadata, actions):
+        actions.append(RemoveQuestionAction(**{
+            'dialogue-id': dialogue_id,
+            'interaction-id': self.payload['interaction-id']}))
         if 'answer-keywords' in self.payload:
             # Multi keyword question
             matching_answer_keyword = self.get_matching_answer_keyword(self.payload['answer-keywords'], msg_keyword)
