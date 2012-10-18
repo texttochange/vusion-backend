@@ -56,6 +56,7 @@ class DialogueWorker(ApplicationWorker):
             'default-template-closed-question': None,
             'default-template-open-question': None,
             'default-template-unmatching-answer': None,
+            'unmatching-answer-remove-reminder': 0, 
             'customized-id': None}
         self.sender = None
         self.r_prefix = None
@@ -521,8 +522,8 @@ class DialogueWorker(ApplicationWorker):
     def load_data(self):
         program_settings = self.collections['program_settings'].find()
         for program_setting in program_settings:
-            self.properties[program_setting['key']] = (program_setting['value'] 
-                                                       if program_setting['value']!='' else None)
+            self.properties[program_setting['key']] = (
+                program_setting['value'] if program_setting['value'] is not None else self.properties[program_setting['key']])
 
     def is_ready(self):
         if not 'shortcode' in self.properties:
