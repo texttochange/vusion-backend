@@ -404,4 +404,5 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         interaction = self.worker.get_max_unmatching_answers_interaction(ref['dialogue-id'], ref['interaction-id'])
         self.assertTrue(self.worker.has_max_unmatching_answers(participant, ref['dialogue-id'], interaction))
         self.assertEqual(0, self.collections['schedules'].count())
+        self.assertTrue(self.collections['participants'].find_one({'phone': '06','session-id':'1'}) is None)
 
