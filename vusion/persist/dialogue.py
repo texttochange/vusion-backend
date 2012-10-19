@@ -71,6 +71,7 @@ class Dialogue(VusionModel):
         reference_metadata = {
             'dialogue-id': dialogue_id,
             'interaction-id': interaction['interaction-id'],
+            'interaction': interaction,
             'matching-answer': None}        
         
         interaction.get_actions(dialogue_id, message, keyword, reply, reference_metadata, actions)

@@ -113,7 +113,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         participant = self.mkobj_participant()
        
         self.assertFalse(self.worker.has_already_valid_answer(
-            participant, **{'dialogue-id':'1', 'interaction-id':'1', 'matching-answer': None}))
+            participant, '1', '1'))
        
         self.collections['history'].save(self.mkobj_history_dialogue(
             direction='incoming',
@@ -126,10 +126,10 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         ))
         
         self.assertFalse(self.worker.has_already_valid_answer(
-            participant, **{'dialogue-id':'1', 'interaction-id':'1', 'matching-answer': None}))
+            participant, '1', '1'))
         
         self.assertFalse(self.worker.has_already_valid_answer(
-            participant, **{'dialogue-id':'1', 'interaction-id':'1', 'matching-answer': 'something'}))
+            participant, '1', '1'))
       
         self.collections['history'].save(self.mkobj_history_dialogue(
             direction='incoming',
@@ -142,7 +142,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         ))
        
         self.assertFalse(self.worker.has_already_valid_answer(
-            participant, **{'dialogue-id':'1', 'interaction-id':'1', 'matching-answer': 'something'}))
+            participant, '1', '1'))
 
         self.collections['history'].save(self.mkobj_history_dialogue(
             direction='incoming',
@@ -155,7 +155,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         ))
         
         self.assertTrue(self.worker.has_already_valid_answer(
-            participant, **{'dialogue-id':'1', 'interaction-id':'1', 'matching-answer': 'something else'}))
+            participant, '1', '1'))
 
     def test02_is_enrolled(self):
         participant = self.mkobj_participant(enrolled = [{'dialogue-id':'01',

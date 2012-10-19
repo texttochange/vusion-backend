@@ -165,6 +165,8 @@ class DialogueWorker(ApplicationWorker):
         if reference_metadata is None:
             reference_metadata = {}
         for key, value in reference_metadata.iteritems():
+            if (key=='interaction'):
+                continue
             history[key] = value
         self.collections['history'].save(history)
 
@@ -470,11 +472,9 @@ class DialogueWorker(ApplicationWorker):
                 message_direction='incoming',
                 reference_metadata=ref)
             if (not ref is None):
-                if (not 'request-id' in ref):
-                    interaction = self.get_max_unmatching_answers_interaction(ref['dialogue-id'], ref['interaction-id'])
-                    if (interaction is not None
-                         and self.participant_has_max_unmatching_answers(participant, ref['dialogue-id'], interaction)):
-                        interaction.get_max_unmatching_action(ref['dialogue-id'], actions)                        
+                if ('interaction' in ref
+                    and self.participant_has_max_unmatching_answers(participant, ref['dialogue-id'], ref['interaction'])):
+                    ref['interaction'].get_max_unmatching_action(ref['dialogue-id'], actions)                        
                 self.run_actions(participant, ref, actions)
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -486,7 +486,7 @@ class DialogueWorker(ApplicationWorker):
         if ((not 'request-id' in ref)
             and (participant['session-id'] is None
                  or not self.is_enrolled(participant, ref['dialogue-id']) 
-                 or self.has_already_valid_answer(participant, **ref))):
+                 or self.has_already_valid_answer(participant, ref['dialogue-id'], ref['interaction-id']))):
             return
         for action in actions.items():
             self.run_action(participant['phone'], action, ref)
@@ -497,23 +497,21 @@ class DialogueWorker(ApplicationWorker):
                 return True
         return False
 
-    def has_already_valid_answer(self, participant, **kwargs):
-        if kwargs is None:
-            return
+    def has_already_valid_answer(self, participant, dialogue_id, interaction_id):
         query = {'participant-phone': participant['phone'],
                  'participant-session-id':participant['session-id'],
-                 'message-direction': 'incoming'}
-        for key in kwargs:
-            if key == 'matching-answer':
-                query[key] = {'$ne': None}
-            else:
-                query[key] = kwargs[key]
+                 'message-direction': 'incoming',
+                 'matching-answer': {'$ne': None},
+                 'dialogue-id': dialogue_id,
+                 'interaction-id': interaction_id}
         history = self.collections['history'].find(query)
         if history is None or history.count() <= 1:
             return False
         return True
     
     def participant_has_max_unmatching_answers(self, participant, dialogue_id, interaction):
+        if (not interaction.has_max_unmatching_answers()):
+            return False
         query = {'participant-phone': participant['phone'],
                  'participant-session-id':participant['session-id'],
                  'message-direction': 'incoming',
