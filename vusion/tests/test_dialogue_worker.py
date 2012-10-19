@@ -26,8 +26,9 @@ from vusion.action import (UnMatchingAnswerAction, EnrollingAction,
 
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 
+
 class DialogueWorkerTestCase(TestCase, MessageMaker,
-                               DataLayerUtils, ObjectMaker):
+                             DataLayerUtils, ObjectMaker):
     @inlineCallbacks
     def setUp(self):
         self.transport_name = 'test'
@@ -101,7 +102,7 @@ class DialogueWorkerTestCase(TestCase, MessageMaker,
             'message-status': message_status,
             'timestamp': time_to_vusion_format(timestamp)}
         for key in metadata:
-            history[key] = metadata[key] 
+            history[key] = metadata[key]
         self.collections['history'].save(history)
 
 
@@ -111,10 +112,14 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         dNow = datetime.now()
 
         participant = self.mkobj_participant()
-       
+
         self.assertFalse(self.worker.has_already_valid_answer(
-            participant, **{'dialogue-id':'1', 'interaction-id':'1', 'matching-answer': None}))
-       
+            participant,
+            **{'dialogue-id': '1',
+               'interaction-id': '1',
+               'matching-answer': None}
+        ))
+
         self.collections['history'].save(self.mkobj_history_dialogue(
             direction='incoming',
             participant_phone='06',
@@ -124,13 +129,21 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             interaction_id='1',
             matching_answer=None
         ))
-        
+
         self.assertFalse(self.worker.has_already_valid_answer(
-            participant, **{'dialogue-id':'1', 'interaction-id':'1', 'matching-answer': None}))
-        
+            participant,
+            **{'dialogue-id': '1',
+               'interaction-id': '1',
+               'matching-answer': None}
+        ))
+
         self.assertFalse(self.worker.has_already_valid_answer(
-            participant, **{'dialogue-id':'1', 'interaction-id':'1', 'matching-answer': 'something'}))
-      
+            participant,
+            **{'dialogue-id': '1',
+               'interaction-id': '1',
+               'matching-answer': 'something'}
+        ))
+
         self.collections['history'].save(self.mkobj_history_dialogue(
             direction='incoming',
             participant_phone='06',
@@ -140,9 +153,13 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             interaction_id='1',
             matching_answer='something'
         ))
-       
+
         self.assertFalse(self.worker.has_already_valid_answer(
-            participant, **{'dialogue-id':'1', 'interaction-id':'1', 'matching-answer': 'something'}))
+            participant,
+            **{'dialogue-id': '1',
+               'interaction-id': '1',
+               'matching-answer': 'something'}
+        ))
 
         self.collections['history'].save(self.mkobj_history_dialogue(
             direction='incoming',
@@ -153,15 +170,20 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             interaction_id='1',
             matching_answer='something else'
         ))
-        
+
         self.assertTrue(self.worker.has_already_valid_answer(
-            participant, **{'dialogue-id':'1', 'interaction-id':'1', 'matching-answer': 'something else'}))
+            participant,
+            **{'dialogue-id': '1',
+               'interaction-id': '1',
+               'matching-answer': 'something else'}
+        ))
 
     def test02_is_enrolled(self):
-        participant = self.mkobj_participant(enrolled = [{'dialogue-id':'01',
-                                                          'date-time': 'someting'},
-                                                         {'dialogue-id':'3',
-                                                          'date-time': 'something'}])
+        participant = self.mkobj_participant(enrolled=[{
+            'dialogue-id': '01',
+            'date-time': 'someting'},
+            {'dialogue-id': '3',
+             'date-time': 'something'}])
         self.assertTrue(self.worker.is_enrolled(participant, '01'))
         self.assertTrue(self.worker.is_enrolled(participant, '3'))
         self.assertFalse(self.worker.is_enrolled(participant, '2'))
@@ -170,7 +192,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
-      
+
         dNow = self.worker.get_local_time()
         dPast1 = datetime.now() - timedelta(minutes=30)
         dPast2 = datetime.now() - timedelta(minutes=60)
@@ -183,35 +205,35 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         dialogue['modified'] = dPast1
         id_active_dialogue_one = self.collections['dialogues'].save(
             dialogue)
-        
-        dialogue.pop('_id')        
-        dialogue['dialogue-id'] = '1'        
+
+        dialogue.pop('_id')
+        dialogue['dialogue-id'] = '1'
         dialogue['activated'] = 1
         dialogue['modified'] = dPast2
         self.collections['dialogues'].save(dialogue)
 
         dialogue.pop('_id')
-        dialogue['dialogue-id'] = '1'        
+        dialogue['dialogue-id'] = '1'
         dialogue['activated'] = 0
-        dialogue['modified'] = dPast3        
+        dialogue['modified'] = dPast3
         self.collections['dialogues'].save(dialogue)
-        
+
         dialogue.pop('_id')
         dialogue['dialogue-id'] = '2'
         dialogue['activated'] = 1
         dialogue['modified'] = dPast1
         id_active_dialogue_two = self.collections['dialogues'].save(dialogue)
-        
+
         dialogue.pop('_id')
         dialogue['dialogue-id'] = '2'
         dialogue['activated'] = 1
         dialogue['modified'] = dPast2
         self.collections['dialogues'].save(dialogue)
-        
+
         dialogue.pop('_id')
         dialogue['dialogue-id'] = '2'
         dialogue['activated'] = 0
-        dialogue['modified'] = dPast2        
+        dialogue['modified'] = dPast2
         self.collections['dialogues'].save(dialogue)
 
         self.collections['participants'].save({'phone': '06'})
@@ -225,7 +247,8 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
 
     def test03_get_current_dialogue(self):
         dialogue = self.mkobj_dialogue_annoucement()
-        dialogue['modified'] = Timestamp(datetime.now()-timedelta(minutes=1),0)
+        dialogue['modified'] = Timestamp(datetime.now() - timedelta(minutes=1),
+                                         0)
         self.collections['dialogues'].save(dialogue)
         other_dialogue = self.mkobj_dialogue_annoucement()
         other_dialogue['interactions'] = []
@@ -233,28 +256,33 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         active_dialogue = self.worker.get_current_dialogue("0")
         self.assertTrue(active_dialogue)
         self.assertEqual([], active_dialogue['interactions'])
-    
+
     def test03_get_matching_request_actions(self):
         request_1 = self.mkobj_request_response('www info')
         request_2 = self.mkobj_request_reponse_lazy_matching('www')
         request_1_id = self.collections['requests'].save(request_1)
-        request_2_id = self.collections['requests'].save(request_2)        
+        request_2_id = self.collections['requests'].save(request_2)
 
-        ref, actions = self.worker.get_matching_request_actions('www info', Actions())
+        ref, actions = self.worker.get_matching_request_actions('www info',
+                                                                Actions())
         self.assertEqual(ref['request-id'], request_1_id)
-       
-        ref, actions = self.worker.get_matching_request_actions('www', Actions())
+
+        ref, actions = self.worker.get_matching_request_actions('www',
+                                                                Actions())
         self.assertEqual(ref['request-id'], request_2_id)
-        
-        ref, actions = self.worker.get_matching_request_actions('www tata', Actions())
+
+        ref, actions = self.worker.get_matching_request_actions('www tata',
+                                                                Actions())
         self.assertTrue(ref is not None)
         self.assertEqual(ref['request-id'], request_2_id)
         self.assertTrue(actions.contains('feedback'))
-        
-        ref, actions = self.worker.get_matching_request_actions('ww tata', Actions())
+
+        ref, actions = self.worker.get_matching_request_actions('ww tata',
+                                                                Actions())
         self.assertTrue(ref is None)
-        
-        ref, actions = self.worker.get_matching_request_actions('ww', Actions())
+
+        ref, actions = self.worker.get_matching_request_actions('ww',
+                                                                Actions())
         self.assertTrue(ref is None)
 
     #@inlineCallbacks
@@ -324,13 +352,13 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             self.assertTrue(history['participant-session-id'] is not None)
 
     @inlineCallbacks
-    def test05_send_scheduled_deadline(self):  
+    def test05_send_scheduled_deadline(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
 
         dNow = self.worker.get_local_time()
-        dPast = dNow - timedelta(minutes=2)   
+        dPast = dNow - timedelta(minutes=2)
 
         dialogue = self.mkobj_dialogue_open_question_reminder()
         participant = self.mkobj_participant('06')
@@ -343,19 +371,19 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             'interaction-id': '01-01',
             'participant-phone': '06'})
         yield self.worker.send_scheduled()
-        
+
         saved_participant = self.collections['participants'].find_one()
         self.assertEqual(saved_participant['session-id'], None)
 
     @inlineCallbacks
-    def test05_send_scheduled_run_action(self):  
+    def test05_send_scheduled_run_action(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
 
         dNow = self.worker.get_local_time()
-        dPast = dNow - timedelta(minutes=2)   
-        
+        dPast = dNow - timedelta(minutes=2)
+
         dialogue = self.mkobj_dialogue_open_question()
         participant = self.mkobj_participant('06')
         self.collections['dialogues'].save(dialogue)
@@ -367,16 +395,17 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             'action': {'type-action': 'enrolling',
                        'enroll': '04'}})
         yield self.worker.send_scheduled()
-        
-        saved_participant = self.collections['participants'].find_one({'enrolled.dialogue-id': '04'})
+
+        saved_participant = self.collections['participants'].find_one({
+            'enrolled.dialogue-id': '04'})
         self.assertTrue(saved_participant)
-        
+
     @inlineCallbacks
     def test05_send_scheduled_question_multi_keyword(self):
         mytimezone = self.program_settings[2]['value']
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
-        dPast = dNow - timedelta(minutes=2)        
-        
+        dPast = dNow - timedelta(minutes=2)
+
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -391,12 +420,13 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
                 dialogue_id='05',
                 interaction_id='05',
                 participant_phone='06'))
-        
+
         yield self.worker.send_scheduled()
-        
+
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 1)
-        self.assertEqual(messages[0]['content'], 'What is your gender?\n male or female')
+        self.assertEqual(messages[0]['content'],
+                         'What is your gender?\n male or female')
 
     def test11_customize_message(self):
         for program_setting in self.program_settings:
@@ -428,32 +458,38 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertEqual(message_one, 'Hello oliv')
 
         message_two = self.worker.generate_message(interaction_using_tag)
-        self.assertRaises(MissingData, self.worker.customize_message, '07', message_two)
+        self.assertRaises(MissingData,
+                          self.worker.customize_message, '07', message_two)
 
     #@inlineCallbacks
     def test12_generate_message_use_template(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
-        
+
         dialogue = self.mkobj_dialogue_question_offset_days()
 
-        self.assertRaises(MissingTemplate, self.worker.generate_message, dialogue['interactions'][0])
+        self.assertRaises(MissingTemplate,
+                          self.worker.generate_message,
+                          dialogue['interactions'][0])
 
-        saved_template_id = self.collections['templates'].save(self.template_closed_question)
+        saved_template_id = self.collections['templates'].save(
+            self.template_closed_question)
         self.collections['program_settings'].save(
             {'key': 'default-template-closed-question',
              'value': saved_template_id}
         )
         self.worker.load_data()
 
-        close_question = self.worker.generate_message(dialogue['interactions'][0])
+        close_question = self.worker.generate_message(
+            dialogue['interactions'][0])
 
         self.assertEqual(
             close_question,
             "How are you?\n1. Fine\n2. Ok\n To reply send: FEEL<space><AnswerNb> to 8181")
 
-        saved_template_id = self.collections['templates'].save(self.template_open_question)
+        saved_template_id = self.collections['templates'].save(
+            self.template_open_question)
         self.collections['program_settings'].save(
             {'key': 'default-template-open-question',
              'value': saved_template_id})
@@ -461,7 +497,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             {'key': 'shortcode',
              'value': '+3123456'})
         self.worker.load_data()
-        
+
         interaction = self.mkobj_dialogue_open_question()['interactions'][0]
         interaction['keyword'] = "name, nam"
 
@@ -469,7 +505,8 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
 
         self.assertEqual(
             open_question,
-            "What is your name?\n To reply send: NAME<space><name> to +3123456")
+            "What is your name?\n To reply send: NAME<space><name> to +3123456"
+        )
 
         self.collections['program_settings'].drop()
         self.collections['program_settings'].save(
@@ -478,35 +515,39 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         )
         self.worker.load_data()
 
-        self.assertRaises(MissingTemplate, self.worker.generate_message, interaction)
-        
+        self.assertRaises(MissingTemplate,
+                          self.worker.generate_message, interaction)
+
         self.collections['program_settings'].drop()
         self.collections['program_settings'].save(
             {'key': 'default-template-open-question',
              'value': ''}
         )
         self.worker.load_data()
-        self.assertRaises(MissingTemplate, self.worker.generate_message, interaction)
-        
+        self.assertRaises(MissingTemplate,
+                          self.worker.generate_message, interaction)
+
     def test12_generate_message_question_multi_keyword_uses_no_template(self):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
 
         interaction_question_multi_keyword = self.mkobj_dialogue_question_multi_keyword()['interactions'][0]
-        
-        question_multi_keyword = self.worker.generate_message(interaction_question_multi_keyword)
-        
-        self.assertEqual(question_multi_keyword, "What is your gender?\n male or female")        
+
+        question_multi_keyword = self.worker.generate_message(
+            interaction_question_multi_keyword)
+
+        self.assertEqual(question_multi_keyword,
+                         "What is your gender?\n male or female")
 
     def test12_generate_message_no_template(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
-        
+
         interaction = self.mkobj_dialogue_question_offset_days()['interactions'][0]
         interaction['set-use-template'] = None
-        
+
         close_question = self.worker.generate_message(interaction)
         self.assertEqual(
             close_question,
@@ -553,12 +594,12 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         ## load a first time the properties
-        self.worker.load_data() 
+        self.worker.load_data()
         for program_setting in self.mkobj_program_settings_international_shortcode():
             self.collections['program_settings'].save(program_setting)
-    
+
         yield self.worker.daemon_process()
-        
+
         messages = self.broker.get_messages('vumi', 'dispatcher.control')
         self.assertEqual(1, len(messages))
 
@@ -587,26 +628,33 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.worker.load_data()
         dNow = self.worker.get_local_time()
 
-        self.collections['dialogues'].save(self.mkobj_dialogue_announcement_offset_days())
-        self.collections['dialogues'].save(self.mkobj_dialogue_question_offset_days())
+        self.collections['dialogues'].save(
+            self.mkobj_dialogue_announcement_offset_days())
+        self.collections['dialogues'].save(
+            self.mkobj_dialogue_question_offset_days())
         self.collections['participants'].save(
             self.mkobj_participant(
                 participant_phone='08',
-                enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dNow)}]))
+                enrolled=[{'dialogue-id': '0',
+                           'date-time': time_to_vusion_format(dNow)}]))
         self.collections['participants'].save(
             self.mkobj_participant(
                 participant_phone='09',
-                enrolled=[{'dialogue-id': '01', 'date-time': time_to_vusion_format(dNow)},
-                          {'dialogue-id': '0', 'date-time': time_to_vusion_format(dNow)}]))
+                enrolled=[{'dialogue-id': '01',
+                           'date-time': time_to_vusion_format(dNow)},
+                          {'dialogue-id': '0',
+                           'date-time': time_to_vusion_format(dNow)}]))
         ##optout
         self.collections['participants'].save(
             self.mkobj_participant(participant_phone='10', session_id=None))
         self.collections['participants'].save(
             self.mkobj_participant(
                 participant_phone='11',
-                session_id=None, 
-                enrolled=[{'dialogue-id': '01', 'date-time': time_to_vusion_format(dNow)},
-                          {'dialogue-id': '0', 'date-time': time_to_vusion_format(dNow)}]))
+                session_id=None,
+                enrolled=[{'dialogue-id': '01',
+                           'date-time': time_to_vusion_format(dNow)},
+                          {'dialogue-id': '0',
+                           'date-time': time_to_vusion_format(dNow)}]))
 
         event = self.mkmsg_dialogueworker_control('update-schedule')
         yield self.send(event, 'control')
