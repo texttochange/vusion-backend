@@ -209,6 +209,8 @@ class Interaction(VusionModel):
         return self.payload['set-reminder'] is not None
     
     def has_max_unmatching_answers(self):
+        if 'set-max-unmatching-answers' not in self.payload:
+            return False
         return self.payload['set-max-unmatching-answers'] is not None
 
     def get_unmatching_action(self, answer, actions):

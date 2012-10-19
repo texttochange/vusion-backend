@@ -32,9 +32,9 @@ from vusion.utils import (time_to_vusion_format, get_local_time,
 from vusion.error import (MissingData, SendingDatePassed, VusionError,
                           MissingTemplate)
 from vusion.message import DispatcherControl
-from vusion.action import (Actions, action_generator,
-                           FeedbackAction, EnrollingAction,
-                           OptinAction, OptoutAction)
+from vusion.action import (Actions, action_generator,FeedbackAction,
+                           EnrollingAction, OptinAction, OptoutAction,
+                           RemoveRemindersAction)
 from vusion.persist import Request
 
 
@@ -207,12 +207,11 @@ class DialogueWorker(ApplicationWorker):
             try:
                 active_dialogues.append(Dialogue(**dialogue['Dialogue']))
             except:
-                self.log("Error dialogue model cannot be instanciated on name:%s id:%s" 
-                         % (dialogue['name'], dialogue['dialogue-id']))
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 self.log(
-                    "Error message: %r" %
-                    traceback.format_exception(exc_type, exc_value, exc_traceback)) 
+                    "Error while applying dialogue model on dialogue %s: %r" %
+                    (dialogue['Dialogue']['name'],
+                     traceback.format_exception(exc_type, exc_value, exc_traceback)))
         return active_dialogues
 
     def get_dialogue_obj(self, dialogue_obj_id):
@@ -460,6 +459,7 @@ class DialogueWorker(ApplicationWorker):
                 ref, actions = self.get_matching_request_actions(
                     message['content'],
                     actions)
+            # High priority to run an optin or enrolling action to get sessionId 
             if (self.get_participant_session_id(message['from_addr']) is None 
                     and (actions.contains('optin') or actions.contains('enrolling'))):
                 self.run_action(message['from_addr'], actions.get_priority_action())
@@ -474,7 +474,8 @@ class DialogueWorker(ApplicationWorker):
             if (not ref is None):
                 if ('interaction' in ref
                     and self.participant_has_max_unmatching_answers(participant, ref['dialogue-id'], ref['interaction'])):
-                    ref['interaction'].get_max_unmatching_action(ref['dialogue-id'], actions)                        
+                    ref['interaction'].get_max_unmatching_action(ref['dialogue-id'], actions)
+                self.get_program_actions(participant, ref, actions)
                 self.run_actions(participant, ref, actions)
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -490,6 +491,15 @@ class DialogueWorker(ApplicationWorker):
             return
         for action in actions.items():
             self.run_action(participant['phone'], action, ref)
+
+    def get_program_actions(self, participant, context, actions):
+        if self.properties['unmatching-answer-remove-reminder']==1:
+            if ('interaction' in context 
+                and context['interaction'].has_reminder()
+                and context['matching-answer'] is None):
+                actions.append(RemoveRemindersAction(**{
+                    'dialogue-id': context['dialogue-id'],
+                    'interaction-id': context['interaction-id']}))
 
     def is_enrolled(self, participant, dialogue_id):
         for enrolled in participant['enrolled']:

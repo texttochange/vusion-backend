@@ -21,6 +21,7 @@ from vusion.action import (UnMatchingAnswerAction, EnrollingAction,
                            OffsetConditionAction, RemoveRemindersAction,
                            ResetAction, RemoveDeadlineAction,
                            DelayedEnrollingAction, action_generator, Actions)
+from vusion.persist import Dialogue
 
 #from transports import YoUgHttpTransport
 
@@ -397,6 +398,27 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['content'], 'What is your gender?\n male or female')
+
+    def test06_get_program_actions(self):
+        self.collections['program_settings'].save({
+            'key': 'unmatching-answer-remove-reminder',
+            'value': 1})        
+        self.worker.load_data()
+
+        actions = Actions()
+        dialogue = Dialogue(**self.mkobj_dialogue_open_question_reminder())
+        participant = self.mkobj_participant()
+        context = {
+            'dialogue-id': '04',
+            'interaction-id': '01-01',
+            'interaction': dialogue.get_interaction('01-01'),
+            'matching-answer': None}
+        
+        self.worker.get_program_actions(participant, context, actions)
+        
+        self.assertEqual(1, len(actions))
+        
+            
 
     def test11_customize_message(self):
         for program_setting in self.program_settings:
