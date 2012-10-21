@@ -57,7 +57,8 @@ class DialogueWorker(ApplicationWorker):
             'default-template-open-question': None,
             'default-template-unmatching-answer': None,
             'unmatching-answer-remove-reminder': 0, 
-            'customized-id': None}
+            'customized-id': None,
+            'double-matching-answer-feedback': None}
         self.sender = None
         self.r_prefix = None
         self.r_config = {}
@@ -472,9 +473,9 @@ class DialogueWorker(ApplicationWorker):
                 message_direction='incoming',
                 reference_metadata=ref)
             if (not ref is None):
-                if ('interaction' in ref
-                    and self.participant_has_max_unmatching_answers(participant, ref['dialogue-id'], ref['interaction'])):
-                    ref['interaction'].get_max_unmatching_action(ref['dialogue-id'], actions)
+                if ('interaction' in ref):
+                    if self.participant_has_max_unmatching_answers(participant, ref['dialogue-id'], ref['interaction']):
+                        ref['interaction'].get_max_unmatching_action(ref['dialogue-id'], actions)
                 self.get_program_actions(participant, ref, actions)
                 self.run_actions(participant, ref, actions)
         except:
@@ -486,8 +487,7 @@ class DialogueWorker(ApplicationWorker):
     def run_actions(self, participant, ref, actions):
         if ((not 'request-id' in ref)
             and (participant['session-id'] is None
-                 or not self.is_enrolled(participant, ref['dialogue-id']) 
-                 or self.has_already_valid_answer(participant, ref['dialogue-id'], ref['interaction-id']))):
+                 or not self.is_enrolled(participant, ref['dialogue-id']))):
             return
         for action in actions.items():
             self.run_action(participant['phone'], action, ref)
@@ -500,6 +500,11 @@ class DialogueWorker(ApplicationWorker):
                 actions.append(RemoveRemindersAction(**{
                     'dialogue-id': context['dialogue-id'],
                     'interaction-id': context['interaction-id']}))
+        if ('matching-answer' in context 
+            and self.has_already_valid_answer(participant, context['dialogue-id'], context['interaction-id'])):
+            actions.clear_all()
+            if self.properties['double-matching-answer-feedback'] is not None:
+                actions.append(FeedbackAction(**{'content': self.properties['double-matching-answer-feedback']}))
 
     def is_enrolled(self, participant, dialogue_id):
         for enrolled in participant['enrolled']:
@@ -555,7 +560,7 @@ class DialogueWorker(ApplicationWorker):
         program_settings = self.collections['program_settings'].find()
         for program_setting in program_settings:
             self.properties[program_setting['key']] = (
-                program_setting['value'] if program_setting['value'] is not None else self.properties[program_setting['key']])
+                program_setting['value'] if (program_setting['value'] is not None and program_setting['value'] != '') else self.properties[program_setting['key']])
 
     def is_ready(self):
         if not 'shortcode' in self.properties:

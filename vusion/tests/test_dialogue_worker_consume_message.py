@@ -144,6 +144,9 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
     def test_receive_inbound_message_no_repeat_dialogue_action(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
+        self.collections['program_settings'].save({
+            'key': 'double-matching-answer-feedback',
+            'value': 'you have already answer this message'})
         self.worker.load_data()
 
         dNow = self.worker.get_local_time()
@@ -169,7 +172,9 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
             content='name olivier')
         yield self.send(inbound_msg_matching_request, 'inbound')
         participant = self.collections['participants'].find_one({'phone': '06'})
-        self.assertEqual('john doe', participant['profile'][0]['value']) 
+        self.assertEqual('john doe', participant['profile'][0]['value'])
+        schedule = self.collections['schedules'].find_one({'object-type': 'feedback-schedule'})
+        self.assertEqual('you have already answer this message', schedule['content'])
 
     @inlineCallbacks
     def test_receive_inbound_message_no_repeat_dialogue_enroll(self):
