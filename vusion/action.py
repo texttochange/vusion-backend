@@ -212,3 +212,6 @@ class Actions():
 
     def __len__(self):
         return len(self.actions)
+    
+    def clear_all(self):
+        self.actions = []

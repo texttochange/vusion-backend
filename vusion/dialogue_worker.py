@@ -32,9 +32,9 @@ from vusion.utils import (time_to_vusion_format, get_local_time,
 from vusion.error import (MissingData, SendingDatePassed, VusionError,
                           MissingTemplate)
 from vusion.message import DispatcherControl
-from vusion.action import (Actions, action_generator,
-                           FeedbackAction, EnrollingAction,
-                           OptinAction, OptoutAction)
+from vusion.action import (Actions, action_generator,FeedbackAction,
+                           EnrollingAction, OptinAction, OptoutAction,
+                           RemoveRemindersAction)
 from vusion.persist import Request
 
 
@@ -56,7 +56,9 @@ class DialogueWorker(ApplicationWorker):
             'default-template-closed-question': None,
             'default-template-open-question': None,
             'default-template-unmatching-answer': None,
-            'customized-id': None}
+            'unmatching-answer-remove-reminder': 0, 
+            'customized-id': None,
+            'double-matching-answer-feedback': None}
         self.sender = None
         self.r_prefix = None
         self.r_config = {}
@@ -164,6 +166,8 @@ class DialogueWorker(ApplicationWorker):
         if reference_metadata is None:
             reference_metadata = {}
         for key, value in reference_metadata.iteritems():
+            if (key=='interaction'):
+                continue
             history[key] = value
         self.collections['history'].save(history)
 
@@ -204,12 +208,11 @@ class DialogueWorker(ApplicationWorker):
             try:
                 active_dialogues.append(Dialogue(**dialogue['Dialogue']))
             except:
-                self.log("Error dialogue model cannot be instanciated on name:%s id:%s" 
-                         % (dialogue['name'], dialogue['dialogue-id']))
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 self.log(
-                    "Error message: %r" %
-                    traceback.format_exception(exc_type, exc_value, exc_traceback)) 
+                    "Error while applying dialogue model on dialogue %s: %r" %
+                    (dialogue['Dialogue']['name'],
+                     traceback.format_exception(exc_type, exc_value, exc_traceback)))
         return active_dialogues
 
     def get_dialogue_obj(self, dialogue_obj_id):
@@ -457,6 +460,7 @@ class DialogueWorker(ApplicationWorker):
                 ref, actions = self.get_matching_request_actions(
                     message['content'],
                     actions)
+            # High priority to run an optin or enrolling action to get sessionId 
             if (self.get_participant_session_id(message['from_addr']) is None 
                     and (actions.contains('optin') or actions.contains('enrolling'))):
                 self.run_action(message['from_addr'], actions.get_priority_action())
@@ -469,11 +473,10 @@ class DialogueWorker(ApplicationWorker):
                 message_direction='incoming',
                 reference_metadata=ref)
             if (not ref is None):
-                if (not 'request-id' in ref):
-                    interaction = self.get_max_unmatching_answers_interaction(ref['dialogue-id'], ref['interaction-id'])
-                    if (interaction is not None
-                         and self.participant_has_max_unmatching_answers(participant, ref['dialogue-id'], interaction)):
-                        interaction.get_max_unmatching_action(ref['dialogue-id'], actions)                        
+                if ('interaction' in ref):
+                    if self.participant_has_max_unmatching_answers(participant, ref['dialogue-id'], ref['interaction']):
+                        ref['interaction'].get_max_unmatching_action(ref['dialogue-id'], actions)
+                self.get_program_actions(participant, ref, actions)
                 self.run_actions(participant, ref, actions)
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -484,11 +487,24 @@ class DialogueWorker(ApplicationWorker):
     def run_actions(self, participant, ref, actions):
         if ((not 'request-id' in ref)
             and (participant['session-id'] is None
-                 or not self.is_enrolled(participant, ref['dialogue-id']) 
-                 or self.has_already_valid_answer(participant, **ref))):
+                 or not self.is_enrolled(participant, ref['dialogue-id']))):
             return
         for action in actions.items():
             self.run_action(participant['phone'], action, ref)
+
+    def get_program_actions(self, participant, context, actions):
+        if self.properties['unmatching-answer-remove-reminder']==1:
+            if ('interaction' in context 
+                and context['interaction'].has_reminder()
+                and context['matching-answer'] is None):
+                actions.append(RemoveRemindersAction(**{
+                    'dialogue-id': context['dialogue-id'],
+                    'interaction-id': context['interaction-id']}))
+        if ('matching-answer' in context 
+            and self.has_already_valid_answer(participant, context['dialogue-id'], context['interaction-id'])):
+            actions.clear_all()
+            if self.properties['double-matching-answer-feedback'] is not None:
+                actions.append(FeedbackAction(**{'content': self.properties['double-matching-answer-feedback']}))
 
     def is_enrolled(self, participant, dialogue_id):
         for enrolled in participant['enrolled']:
@@ -496,23 +512,21 @@ class DialogueWorker(ApplicationWorker):
                 return True
         return False
 
-    def has_already_valid_answer(self, participant, **kwargs):
-        if kwargs is None:
-            return
+    def has_already_valid_answer(self, participant, dialogue_id, interaction_id):
         query = {'participant-phone': participant['phone'],
                  'participant-session-id':participant['session-id'],
-                 'message-direction': 'incoming'}
-        for key in kwargs:
-            if key == 'matching-answer':
-                query[key] = {'$ne': None}
-            else:
-                query[key] = kwargs[key]
+                 'message-direction': 'incoming',
+                 'matching-answer': {'$ne': None},
+                 'dialogue-id': dialogue_id,
+                 'interaction-id': interaction_id}
         history = self.collections['history'].find(query)
         if history is None or history.count() <= 1:
             return False
         return True
     
     def participant_has_max_unmatching_answers(self, participant, dialogue_id, interaction):
+        if (not interaction.has_max_unmatching_answers()):
+            return False
         query = {'participant-phone': participant['phone'],
                  'participant-session-id':participant['session-id'],
                  'message-direction': 'incoming',
@@ -545,8 +559,8 @@ class DialogueWorker(ApplicationWorker):
     def load_data(self):
         program_settings = self.collections['program_settings'].find()
         for program_setting in program_settings:
-            self.properties[program_setting['key']] = (program_setting['value'] 
-                                                       if program_setting['value']!='' else None)
+            self.properties[program_setting['key']] = (
+                program_setting['value'] if (program_setting['value'] is not None and program_setting['value'] != '') else self.properties[program_setting['key']])
 
     def is_ready(self):
         if not 'shortcode' in self.properties:

@@ -100,24 +100,24 @@ class TestDialogue(TestCase, ObjectMaker):
         dialogue = Dialogue(**self.mkobj_dialogue_answer_not_space_supported())
 
         ref, actions = dialogue.get_matching_reference_and_actions("genMale", [])
-        self.assertEqual(ref, {'dialogue-id': 'script.dialogues[0]',
-                               'interaction-id': 'script.dialogues[0].interactions[2]',
-                               'matching-answer': 'Male'})
+        self.assertEqual(ref['dialogue-id'], 'script.dialogues[0]')
+        self.assertEqual(ref['interaction-id'], 'script.dialogues[0].interactions[2]')
+        self.assertEqual(ref['matching-answer'], 'Male')
         
         ref, actions = dialogue.get_matching_reference_and_actions("gen Male", [])
-        self.assertEqual(ref, {'dialogue-id': 'script.dialogues[0]',
-                               'interaction-id': 'script.dialogues[0].interactions[2]',
-                               'matching-answer': 'Male'})
+        self.assertEqual(ref['dialogue-id'], 'script.dialogues[0]')
+        self.assertEqual(ref['interaction-id'], 'script.dialogues[0].interactions[2]')
+        self.assertEqual(ref['matching-answer'], 'Male')
         
         ref, actions = dialogue.get_matching_reference_and_actions("gen 1", [])
-        self.assertEqual(ref, {'dialogue-id': 'script.dialogues[0]',
-                               'interaction-id': 'script.dialogues[0].interactions[2]',
-                               'matching-answer': 'Male'})
+        self.assertEqual(ref['dialogue-id'], 'script.dialogues[0]')
+        self.assertEqual(ref['interaction-id'], 'script.dialogues[0].interactions[2]')
+        self.assertEqual(ref['matching-answer'], 'Male')
         
         ref, actions = dialogue.get_matching_reference_and_actions("genBad", [])
-        self.assertEqual(ref, {'dialogue-id': 'script.dialogues[0]',
-                               'interaction-id': 'script.dialogues[0].interactions[2]',
-                               'matching-answer': 'Bad'})
+        self.assertEqual(ref['dialogue-id'], 'script.dialogues[0]')
+        self.assertEqual(ref['interaction-id'], 'script.dialogues[0].interactions[2]')
+        self.assertEqual(ref['matching-answer'], 'Bad')
         
         ref, actions = dialogue.get_matching_reference_and_actions("Genok", [])
         self.assertEqual(ref, None)
@@ -126,9 +126,10 @@ class TestDialogue(TestCase, ObjectMaker):
         script = Dialogue(**self.mkobj_dialogue_question_answer())
 
         ref, actions = script.get_matching_reference_and_actions("name john doe", [])
-        self.assertEqual(ref, {'dialogue-id': '01',
-                               'interaction-id': '01-02',
-                               'matching-answer': "john doe"})
+        self.assertEqual(ref['dialogue-id'], '01')
+        self.assertEqual(ref['interaction-id'], '01-02')
+        self.assertEqual(ref['matching-answer'], "john doe")
+        
         self.assertEqual(len(actions), 3)
         self.assertEqual(
             actions[0], 
@@ -142,9 +143,10 @@ class TestDialogue(TestCase, ObjectMaker):
             ProfilingAction(**{'label': 'name','value': 'john doe'}))
 
         ref, actions = script.get_matching_reference_and_actions("name", [])
-        self.assertEqual(ref, {'dialogue-id': '01',
-                               'interaction-id': '01-02',
-                               'matching-answer': None})
+        self.assertEqual(ref['dialogue-id'], '01')
+        self.assertEqual(ref['interaction-id'], '01-02')
+        self.assertEqual(ref['matching-answer'], None)
+
         self.assertEqual(len(actions), 2)
         self.assertEqual(
             actions[1],
@@ -154,9 +156,10 @@ class TestDialogue(TestCase, ObjectMaker):
         script = Dialogue(**self.mkobj_dialogue_question_multi_keyword())
 
         ref, actions = script.get_matching_reference_and_actions("Male", [])
-        self.assertEqual(ref, {'dialogue-id': '05',
-                               'interaction-id': '05',
-                               'matching-answer': "maLe"})
+        self.assertEqual(ref['dialogue-id'], '05')
+        self.assertEqual(ref['interaction-id'], '05')
+        self.assertEqual(ref['matching-answer'], 'maLe')
+
         self.assertEqual(len(actions), 2)
         self.assertEqual(
             actions[0], 
