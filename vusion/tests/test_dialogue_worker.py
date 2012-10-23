@@ -341,15 +341,21 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         dPast = dNow - timedelta(minutes=2)   
 
         dialogue = self.mkobj_dialogue_open_question_reminder()
+        dialogue['interactions'][0]['reminder-actions'].append(
+            {'type-action': 'feedback', 'content': 'Bye'})
+        dialogue = Dialogue(**dialogue)
         participant = self.mkobj_participant('06')
-        self.collections['dialogues'].save(dialogue)
+        self.collections['dialogues'].save(dialogue.get_as_dict())
         self.collections['participants'].save(participant)
-        self.collections['schedules'].save({
-            'date-time': dPast.strftime(self.time_format),
+        schedule = schedule_generator(**{
             'object-type': 'deadline-schedule',
+            'model-version': '2',
+            'date-time': dPast.strftime(self.time_format),
             'dialogue-id': '04',
             'interaction-id': '01-01',
-            'participant-phone': '06'})
+            'participant-phone': '06',
+            'participant-session-id': '1'})
+        self.collections['schedules'].save(schedule.get_as_dict())
 
         yield self.worker.send_scheduled()
         
@@ -357,6 +363,9 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertEqual(saved_participant['session-id'], None)
         history = self.collections['history'].find_one({'object-type': 'oneway-marker-history'})
         self.assertTrue(history is not None) 
+        schedule = self.collections['schedules'].find_one()
+        self.assertEqual(schedule['object-type'], 'feedback-schedule')
+        self.assertEqual(schedule['context']['participant-session-id'], '1')
 
     @inlineCallbacks
     def test05_send_scheduled_run_action(self):  

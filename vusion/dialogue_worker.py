@@ -767,8 +767,6 @@ class DialogueWorker(ApplicationWorker):
         return interaction, reference_metadata
 
     #TODO: fire error feedback if the ddialogue do not exit anymore
-    #TODO: if dialogue is deleted, need to remove the scheduled message
-    #(or they are also canceled if cannot find the dialogue)
     #TODO fire action scheduled by reminder if no reply is sent for any reminder
     @inlineCallbacks
     def send_scheduled(self):
@@ -783,7 +781,8 @@ class DialogueWorker(ApplicationWorker):
             message_content = None
             try:
                 schedule = schedule_generator(**toSend)
-                interaction, reference_metadata = self.from_schedule_to_message(schedule)
+                participant = self.collections['participants'].find_one({'phone': schedule['participant-phone']})
+                interaction, message_ref = self.from_schedule_to_message(schedule)
 
                 # delayed action are always run even if there original interaction has been deleted
                 if not interaction and schedule.get_type()!='action-schedule':
@@ -795,8 +794,11 @@ class DialogueWorker(ApplicationWorker):
                     if interaction.has_reminder():
                         for action in interaction['reminder-actions']:
                             actions.append(action_generator(**action))
+                    self.add_oneway_marker(participant, message_ref)
+                    context = message_ref
+                    context.update({'participant-session-id': schedule['participant-session-id']})
                     for action in actions.items():
-                        self.run_action(toSend['participant-phone'], action, reference_metadata)
+                        self.run_action(schedule['participant-phone'], action, context)
                     continue
                 elif schedule.get_type() == 'action-schedule':
                     self.run_action(schedule['participant-phone'], 
@@ -813,9 +815,9 @@ class DialogueWorker(ApplicationWorker):
                     history = {
                         'object-type': 'datepassed-marker-history',
                         'participant-phone': schedule['participant-phone'],
-                        'participant-session-id': self.get_participant_session_id(schedule['participant-phone']),
+                        'participant-session-id': participant['session-id'],
                         'failure-reason': "Message should have been sent at %s" % (schedule['date-time'],)}
-                    history.update(reference_metadata)
+                    history.update(message_ref)
                     self.save_history(**history)
                     continue
                 
@@ -831,30 +833,28 @@ class DialogueWorker(ApplicationWorker):
                     message['transport_metadata']['customized_id'] = self.properties['customized-id']
                 
                 yield self.transport_publisher.publish_message(message)
-                self.log(
-                    "Message has been sent to %s '%s'" % (message['to_addr'],
-                                                          message['content']))
+                self.log("Message has been sent to %s '%s'" % 
+                         (message['to_addr'], message['content']))
+
                 if schedule.get_type() == 'dialogue-schedule':
                     object_type = 'dialogue-history'
                 elif schedule.get_type() == 'unattach-schedule':
                     object_type = 'unattach-history'
                 elif schedule.get_type() == 'feedback-schedule':
-                    context = schedule.get_context()
-                    if 'dialogue-id' in context:
+                    message_ref = schedule.get_context()
+                    if 'dialogue-id' in message_ref:
                         object_type = 'dialogue-history'
-                        reference_metadata = context
-                    elif 'request-id' in context:
+                    elif 'request-id' in message_ref:
                         object_type = 'request-history'
-                        reference_metadata = context
                 history = {
                     'object-type': object_type,
                     'message-content': message['content'],
                     'participant-phone': message['to_addr'],
-                    'participant-session-id': self.get_participant_session_id(message['to_addr']),
+                    'participant-session-id': participant['session-id'],
                     'message-direction': 'outgoing',
                     'message-status': 'pending',
                     'message-id': message['message_id']}
-                history.update(reference_metadata)
+                history.update(message_ref)
                 self.save_history(**history)
 
             except:

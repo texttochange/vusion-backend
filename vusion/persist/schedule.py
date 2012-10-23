@@ -9,6 +9,7 @@ class Schedule(VusionModel):
     
     SCHEDULE_FIELDS = {
         'participant-phone': lambda v: v is not None,
+        'participant-session-id': lambda v: True,
         'date-time': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)T0?(\d+):0?(\d+)(:0?(\d+))$'), v)}
 
     def validate_fields(self):
@@ -23,11 +24,17 @@ class Schedule(VusionModel):
             return None
         return self.payload['context']
 
+    def upgrade(self, **kwargs):
+        if kwargs['model-version'] == '1':
+            kwargs['participant-session-id'] = None
+            kwargs['model-version'] = '2'
+        return kwargs
+
 
 class DialogueSchedule(Schedule):
 
     MODEL_TYPE = 'dialogue-schedule'
-    MODEL_VERSION = '1'
+    MODEL_VERSION = '2'
 
     fields = [
         'dialogue-id',
@@ -40,7 +47,7 @@ class DialogueSchedule(Schedule):
 class DeadlineSchedule(Schedule):
 
     MODEL_TYPE = 'deadline-schedule'
-    MODEL_VERSION = '1'
+    MODEL_VERSION = '2'
 
     fields = [
         'dialogue-id',
@@ -53,7 +60,7 @@ class DeadlineSchedule(Schedule):
 class ReminderSchedule(Schedule):
 
     MODEL_TYPE = 'reminder-schedule'
-    MODEL_VERSION = '1'
+    MODEL_VERSION = '2'
 
     fields = [
         'dialogue-id',
@@ -66,7 +73,7 @@ class ReminderSchedule(Schedule):
 class UnattachSchedule(Schedule):
 
     MODEL_TYPE = 'unattach-schedule'
-    MODEL_VERSION = '1'
+    MODEL_VERSION = '2'
 
     fields = ['unattach-id']
 
@@ -77,7 +84,7 @@ class UnattachSchedule(Schedule):
 class FeedbackSchedule(Schedule):
 
     MODEL_TYPE = 'feedback-schedule'
-    MODEL_VERSION = '1'
+    MODEL_VERSION = '2'
 
     fields = ['content', 'context']
 
@@ -88,7 +95,7 @@ class FeedbackSchedule(Schedule):
 class ActionSchedule(Schedule):
     
     MODEL_TYPE = 'action-schedule'
-    MODEL_VERSION = '1'
+    MODEL_VERSION = '2'
 
     fields = ['action', 'context']
 
