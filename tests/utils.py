@@ -13,7 +13,8 @@ from vumi.tests.utils import RegexMatcher, UTCNearNow
 
 from vusion.message import DispatcherControl
 
-from vusion.persist import Dialogue
+from vusion.persist import (Dialogue, DialogueHistory, UnattachHistory,
+                            history_generator, schedule_generator)
 
 class DataLayerUtils:
 
@@ -279,7 +280,8 @@ class ObjectMaker:
              'at-time': '22:30'}]}
     
     def mkobj_dialogue_announcement_offset_days(self):
-        return Dialogue(**self.dialogue_announcement).get_as_dict()
+        dialogue = deepcopy(self.dialogue_announcement)
+        return Dialogue(**dialogue).get_as_dict()
     
     def mkobj_dialogue_announcement_offset_time(self):
         dialogue = deepcopy(self.dialogue_announcement)
@@ -524,7 +526,7 @@ class ObjectMaker:
         return dialogue.get_as_dict()
 
     def mkobj_dialogue_open_question_offset_conditional(self):
-        dialogue = self.dialogue_open_question
+        dialogue = deepcopy(self.dialogue_open_question)
         dialogue['created'] = Timestamp(datetime.now(),0)
         dialogue['modified'] = Timestamp(datetime.now(),0)
         dialogue['interactions'].append(
@@ -538,6 +540,8 @@ class ObjectMaker:
 
     dialogue_announcement_fixedtime = {
         'activated': 1,
+        'name': 'test dialogue',
+        'auto-enrollment': None,
         'dialogue-id': '1',
         'interactions': [
             {'activated': 1,
@@ -549,6 +553,10 @@ class ObjectMaker:
              }
         ]
     }
+    
+    def mkobj_dialogue_announcement_fixedtime(self):
+        dialogue = deepcopy(self.dialogue_announcement_fixedtime)
+        return Dialogue(**dialogue).get_as_dict()
     
     dialogue_question_answer = {
         'dialogue-id': '01',
@@ -727,44 +735,46 @@ class ObjectMaker:
     def mkobj_history_unattach(self, unattach_id, timestamp,
                                participant_phone='06',
                                participant_session_id="1"):
-        return {
+        return history_generator(**{
             'timestamp': timestamp,
             'participant-phone': participant_phone,
             'participant-session-id': participant_session_id,
             'message-direction': 'outgoing',
             'message-status': 'delivered',
-            'unattach-id': unattach_id}
+            'message-id': '1',
+            'message-content': 'A message',
+            'unattach-id': unattach_id}).get_as_dict()
     
     def mkobj_history_dialogue(self, dialogue_id, interaction_id,
                                timestamp, participant_phone='06',
                                participant_session_id="1", direction='outgoing',
-                               matching_answer=None):
-        return {
+                               matching_answer=None, message_content=''):
+        return history_generator(**{
             'timestamp': timestamp,
             'participant-phone': participant_phone,
             'participant-session-id': participant_session_id,
+            'message-id': '1',
             'message-direction': direction,
             'message-status': 'delivered',
+            'message-content': message_content,
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id,
-            'matching-answer' : matching_answer
-            }
+            'matching-answer' : matching_answer}).get_as_dict()
     
     def mkobj_history_dialogue_open_question(self, dialogue_id, interaction_id,
                                timestamp, participant_phone='06',
                                participant_session_id="1", direction='outgoing'):
-        return {
+        return history_generator(**{
             'timestamp': timestamp,
             'participant-phone': participant_phone,
             'participant-session-id': participant_session_id,
             'message-direction': direction,
             'message-status': 'delivered',
             'dialogue-id': dialogue_id,
-            'interaction-id': interaction_id
-            }
+            'interaction-id': interaction_id}).get_as_dict()
 
     def mkobj_participant(self, participant_phone='06',
-                          last_optin_date='2012-02-01T18:30:20', session_id='1',
+                          last_optin_date='2012-02-01T18:30', session_id='1',
                           enrolled=[], tags=[], profile=[]):
         return { 
             'phone': participant_phone,
@@ -776,32 +786,35 @@ class ObjectMaker:
             }
     
     def mkobj_schedule(self, participant_phone='06', 
-                       date_time=None, object_type='dialogue-schedule',
+                       date_time='2116-12-06T16:24:12',
+                       object_type='dialogue-schedule',
                        dialogue_id='1',interaction_id='2'):
-        return {
+        return schedule_generator(**{
             'participant-phone': participant_phone,
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id,
             'object-type': object_type,
             'date-time': date_time
-            }
+            }).get_as_dict()
     
     def mkobj_schedule_unattach(self, participant_phone='06', 
                        date_time=None,
                        unattach_id='1'):
-        return {
+        return schedule_generator(**{
             'participant-phone': participant_phone,
             'unattach-id': unattach_id,
             'object-type': 'unattach-schedule',
             'date-time': date_time
-            }
+            }).get_as_dict()
         
     def mkobj_schedule_feedback(self, participant_phone='06', 
                        date_time=None,
-                       content='Thank You'):
-        return {
+                       content='Thank You',
+                       context={}):
+        schedule = {
             'participant-phone': participant_phone,
             'object-type': 'feedback-schedule',
             'date-time': date_time,
-            'content': content
-            }
+            'content': content,
+            'context': context}
+        return schedule_generator(**schedule).get_as_dict()

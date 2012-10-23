@@ -206,6 +206,8 @@ class Interaction(VusionModel):
         return kwargs
 
     def has_reminder(self):
+        if 'set-reminder' not in self.payload:
+            return False
         return self.payload['set-reminder'] is not None
     
     def has_max_unmatching_answers(self):

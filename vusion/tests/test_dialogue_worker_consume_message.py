@@ -40,12 +40,14 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
             from_addr='06',
             content='Feel ok')
         yield self.send(inbound_msg_matching, 'inbound')
+        self.assertEqual(1, self.collections['history'].count())
         
         #Only message matching keyword should be forwarded to the worker
         inbound_msg_non_matching_keyword = self.mkmsg_in(
             from_addr='06',
             content='ok')
         yield self.send(inbound_msg_non_matching_keyword, 'inbound')
+        self.assertEqual(2, self.collections['history'].count())
 
         inbound_msg_non_matching_answer = self.mkmsg_in(
             from_addr='06',
@@ -382,8 +384,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         
         self.collections['participants'].save(self.mkobj_participant('06',
              enrolled = [{'dialogue-id': dialogue['dialogue-id'],
-                          'date-time': dNow}]
-         ))
+                          'date-time': dNow}]))
         
         self.collections['schedules'].save(self.mkobj_schedule(
             dialogue_id='01',
@@ -405,4 +406,3 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         for num in range(5):
             yield self.send(inbound_msg_unmatching, 'inbound')
         self.assertEqual(1, self.collections['schedules'].count())
-
