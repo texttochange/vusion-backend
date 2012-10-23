@@ -350,10 +350,13 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             'dialogue-id': '04',
             'interaction-id': '01-01',
             'participant-phone': '06'})
+
         yield self.worker.send_scheduled()
         
         saved_participant = self.collections['participants'].find_one()
         self.assertEqual(saved_participant['session-id'], None)
+        history = self.collections['history'].find_one({'object-type': 'oneway-marker-history'})
+        self.assertTrue(history is not None) 
 
     @inlineCallbacks
     def test05_send_scheduled_run_action(self):  

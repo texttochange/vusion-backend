@@ -18,8 +18,8 @@ from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 from vusion.tests.test_dialogue_worker import DialogueWorkerTestCase
 
-from vusion.persist import Dialogue
-from vusion.action import (Actions)
+from vusion.persist import Dialogue, history_generator
+from vusion.action import Actions
 
 
 class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
@@ -380,11 +380,12 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         dialogue = self.mkobj_dialogue_question_max_unmatching()
         self.collections['dialogues'].save(dialogue)
         
-        dialogue_helper = Dialogue(**dialogue)
-        
-        self.collections['participants'].save(self.mkobj_participant('06',
-             enrolled = [{'dialogue-id': dialogue['dialogue-id'],
-                          'date-time': dNow}]))
+        #dialogue_helper = Dialogue(**dialogue)
+        participant = self.mkobj_participant(
+            '06',
+            enrolled = [{'dialogue-id': dialogue['dialogue-id'],
+                         'date-time': dNow}])
+        self.collections['participants'].save(participant)
         
         self.collections['schedules'].save(self.mkobj_schedule(
             dialogue_id='01',
@@ -402,7 +403,17 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         
         inbound_msg_unmatching = self.mkmsg_in(from_addr='06',
                                              content='feel weird')
-        participant = self.collections['participants'].find_one({'phone': '06'})
+        #participant = self.collections['participants'].find_one({'phone': '06'})
         for num in range(5):
+            self.assertEqual(self.collections['schedules'].count(), 2)
             yield self.send(inbound_msg_unmatching, 'inbound')
-        self.assertEqual(1, self.collections['schedules'].count())
+        self.assertEqual(6, self.collections['history'].count())
+        history = self.collections['history'].find_one({'object-type': 'oneway-marker-history'})
+        self.assertTrue(history is not None)
+        self.assertEqual(self.collections['schedules'].count(), 0)
+
+        inbound_msg_matching = self.mkmsg_in(from_addr='06',
+                                             content='feel ok')        
+        yield self.send(inbound_msg_matching, 'inbound')
+        self.assertEqual(self.collections['schedules'].count(), 0)
+        

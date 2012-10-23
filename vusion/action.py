@@ -215,3 +215,10 @@ class Actions():
     
     def clear_all(self):
         self.actions = []
+
+    def keep_only_remove_action(self):
+        for action in self.actions:
+            if (action.get_type() != 'remove-reminders' and
+                action.get_type() != 'remove-deadline' and
+                action.get_type() != 'remove-question'):
+                self.actions.remove(action)

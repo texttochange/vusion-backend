@@ -127,7 +127,7 @@ class DialogueWorker(ApplicationWorker):
 
     def save_history(self, **kwargs):
         if 'timestamp' in kwargs:
-            kwargs['timestamp'] = time_to_vusion_format(timestamp)
+            kwargs['timestamp'] = time_to_vusion_format(kwargs['timestamp'])
         else:
             kwargs['timestamp'] = time_to_vusion_format(self.get_local_time())
         if 'interaction' in kwargs:
@@ -442,6 +442,7 @@ class DialogueWorker(ApplicationWorker):
             if (context != {} and participant is not None):
                 if ('interaction' in context):
                     if self.participant_has_max_unmatching_answers(participant, context['dialogue-id'], context['interaction']):
+                        self.add_oneway_marker(participant, context)
                         context['interaction'].get_max_unmatching_action(context['dialogue-id'], actions)
                 self.get_program_actions(participant, context, actions)
                 self.run_actions(participant, context, actions)
@@ -472,6 +473,9 @@ class DialogueWorker(ApplicationWorker):
             actions.clear_all()
             if self.properties['double-matching-answer-feedback'] is not None:
                 actions.append(FeedbackAction(**{'content': self.properties['double-matching-answer-feedback']}))
+        if ('dialogue-id' in context
+            and self.has_oneway_marker(participant, context)):
+            actions.keep_only_remove_action()
 
     def is_enrolled(self, participant, dialogue_id):
         for enrolled in participant['enrolled']:
@@ -489,7 +493,7 @@ class DialogueWorker(ApplicationWorker):
         history = self.collections['history'].find(query)
         if history is None or history.count() <= 1:
             return False
-        return True
+        return True        
     
     def participant_has_max_unmatching_answers(self, participant, dialogue_id, interaction):
         if (not interaction.has_max_unmatching_answers()):
@@ -504,6 +508,31 @@ class DialogueWorker(ApplicationWorker):
         if history.count() < int(interaction['max-unmatching-answer-number']):
             return False
         return True
+    
+    def has_oneway_marker(self, participant, context):
+        return self.collections['history'].find_one({
+            'object-type': 'oneway-marker-history',
+            'participant-phone': participant['phone'],
+            'participant-session-id':participant['session-id'],
+            'dialogue-id': context['dialogue-id'],
+            'interaction-id': context['interaction-id']}) is not None
+    
+    def add_oneway_marker(self, participant, context):
+        history = self.collections['history'].find_one({
+            'object-type': 'oneway-marker-history',
+            'participant-phone': participant['phone'],
+            'participant-session-id':participant['session-id'],
+            'dialogue-id': context['dialogue-id'],
+            'interaction-id': context['interaction-id']})
+        if history is None:
+            history = {
+                'object-type': 'oneway-marker-history',
+                'timestamp': self.get_local_time(),
+                'participant-phone': participant['phone'],
+                'participant-session-id':participant['session-id'],
+                'dialogue-id': context['dialogue-id'],
+                'interaction-id': context['interaction-id']}
+            self.save_history(**history)
     
     def get_max_unmatching_answers_interaction(self, dialogue_id, interaction_id):
         dialogue = self.get_current_dialogue(dialogue_id)
