@@ -58,7 +58,8 @@ class DialogueWorker(ApplicationWorker):
             'default-template-unmatching-answer': None,
             'unmatching-answer-remove-reminder': 0, 
             'customized-id': None,
-            'double-matching-answer-feedback': None}
+            'double-matching-answer-feedback': None,
+            'double-optin-error-feedback': None}
         self.sender = None
         self.r_prefix = None
         self.r_config = {}
@@ -505,6 +506,11 @@ class DialogueWorker(ApplicationWorker):
             actions.clear_all()
             if self.properties['double-matching-answer-feedback'] is not None:
                 actions.append(FeedbackAction(**{'content': self.properties['double-matching-answer-feedback']}))
+        if (actions.contains('optin')
+            and participant['session-id'] is not None
+            and self.properties['double-optin-error-feedback'] is not None):
+            actions.append(FeedbackAction(**{
+                'content': self.properties['double-optin-error-feedback']}))
 
     def is_enrolled(self, participant, dialogue_id):
         for enrolled in participant['enrolled']:
