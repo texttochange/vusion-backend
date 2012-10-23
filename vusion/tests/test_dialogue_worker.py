@@ -523,7 +523,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.collections['program_settings'].drop()
         self.collections['program_settings'].save(
             {'key': 'default-template-open-question',
-             'value': ''}
+             'value': None}
         )
         self.worker.load_data()
         self.assertRaises(MissingTemplate,

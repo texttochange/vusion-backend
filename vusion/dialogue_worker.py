@@ -507,10 +507,11 @@ class DialogueWorker(ApplicationWorker):
             if self.properties['double-matching-answer-feedback'] is not None:
                 actions.append(FeedbackAction(**{'content': self.properties['double-matching-answer-feedback']}))
         if (actions.contains('optin')
-            and participant['session-id'] is not None
-            and self.properties['double-optin-error-feedback'] is not None):
-            actions.append(FeedbackAction(**{
-                'content': self.properties['double-optin-error-feedback']}))
+            and participant['session-id'] is not None):
+            actions.clear_all()
+            if self.properties['double-optin-error-feedback'] is not None:
+                actions.append(FeedbackAction(**{
+                    'content': self.properties['double-optin-error-feedback']}))
 
     def is_enrolled(self, participant, dialogue_id):
         for enrolled in participant['enrolled']:
@@ -565,8 +566,7 @@ class DialogueWorker(ApplicationWorker):
     def load_data(self):
         program_settings = self.collections['program_settings'].find()
         for program_setting in program_settings:
-            self.properties[program_setting['key']] = (
-                program_setting['value'] if (program_setting['value'] is not None and program_setting['value'] != '') else self.properties[program_setting['key']])
+            self.properties[program_setting['key']] = program_setting['value']
 
     def is_ready(self):
         if not 'shortcode' in self.properties:
