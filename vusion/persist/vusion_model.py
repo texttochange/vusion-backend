@@ -7,7 +7,7 @@ class VusionModel(object):
     
     fields = []
     
-    def __init__ (self, **kwargs):
+    def __init__(self, **kwargs):
         if kwargs == {}:
             kwargs = self.create_instance()
         if 'model-version' not in kwargs:

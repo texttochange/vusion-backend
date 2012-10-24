@@ -14,13 +14,14 @@ from vusion.utils import time_to_vusion_format, time_from_vusion_format
 
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 from vusion.tests.test_dialogue_worker import DialogueWorkerTestCase
+from vusion.persist import Dialogue
 
 class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase, MessageMaker,
                                               DataLayerUtils, ObjectMaker):
     
     def test_schedule_participant_dialogue_offset_days(self):
         config = self.simple_config
-        dialogue = self.dialogue_announcement
+        dialogue = Dialogue(**self.mkobj_dialogue_announcement_offset_days())
         mytimezone = self.program_settings[2]['value']
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
         dNow = dNow.replace(tzinfo=None)
@@ -60,9 +61,8 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase, MessageMaker,
     def test_schedule_participant_dialogue_offset_time(self):        
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()        
-        #config = self.simple_config
-        dialogue = self.mkobj_dialogue_announcement_offset_time()
+        self.worker.load_data()
+        dialogue = Dialogue(**self.mkobj_dialogue_announcement_offset_time())
         mytimezone = self.program_settings[2]['value']
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
         dNow = dNow.replace(tzinfo=None)
@@ -72,9 +72,8 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase, MessageMaker,
             '06',
             last_optin_date=time_to_vusion_format(dPast - timedelta(minutes=60)),
             enrolled=[{'dialogue-id': '0',
-                       'date-time': time_to_vusion_format(dPast)}]
-        )
-        
+                       'date-time': time_to_vusion_format(dPast)}])
+
         self.worker.schedule_participant_dialogue(
             participant, dialogue)
 
@@ -98,7 +97,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase, MessageMaker,
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
         dPast = dNow - timedelta(minutes=30)
 
-        dialogue = self.dialogue_announcement
+        dialogue = Dialogue(**self.mkobj_dialogue_announcement_offset_days())
         participant = self.mkobj_participant(
             '06', 
             last_optin_date=time_to_vusion_format(dPast - timedelta(days=1)),
@@ -132,16 +131,17 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase, MessageMaker,
             enrolled = [{'dialogue-id': '0', 'date-time': time_to_vusion_format(dPast)}]
         )
         
-        dialogue = self.dialogue_announcement        
+        dialogue = self.mkobj_dialogue_announcement_offset_days()      
         dialogue['interactions'][1]['type-schedule'] = 'fixed-time'
         dialogue['interactions'][1]['date-time'] = dLaterFuture.strftime(
             self.time_format)
+        dialogue = Dialogue(**dialogue)
 
         #Declare collection for scheduling messages
         self.collections['schedules'].save({
             'date-time': dFuture.strftime(self.time_format),
             'participant-phone': '06',
-             'object-type': 'dialogue-schedule',
+            'object-type': 'dialogue-schedule',
             'interaction-id': '1',
             'dialogue-id': '0'})
         self.save_history(
@@ -172,6 +172,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase, MessageMaker,
         dialogue = self.mkobj_dialogue_annoucement()
         dialogue['interactions'][0]['type-schedule'] = 'fixed-time'
         dialogue['interactions'][0]['date-time'] = time_to_vusion_format(dPast)
+        dialogue = Dialogue(**dialogue)
 
         self.worker.schedule_participant_dialogue(
             participant, dialogue)
@@ -187,10 +188,9 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase, MessageMaker,
         dNow = self.worker.get_local_time()
         dPast = dNow - timedelta(days=2)
 
-        dialogue = self.mkobj_dialogue_annoucement()
+        dialogue = Dialogue(**self.mkobj_dialogue_annoucement())
         participant = self.mkobj_participant(
-            enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dPast)}]
-        )
+            enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dPast)}])
         
         self.worker.schedule_participant_dialogue(
             participant, dialogue)
@@ -207,7 +207,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase, MessageMaker,
         dNow = self.worker.get_local_time()
         dPast = dNow - timedelta(minutes=60)
 
-        dialogue = self.mkobj_dialogue_announcement_offset_time()
+        dialogue = Dialogue(**self.mkobj_dialogue_announcement_offset_time())
         participant = self.mkobj_participant(
             enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dPast)}])
         
@@ -218,7 +218,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase, MessageMaker,
         self.assertEqual(self.collections['history'].count(), 2)
 
     def test_schedule_at_fixed_time(self):
-        dialogue = self.dialogue_announcement_fixedtime
+        dialogue = self.mkobj_dialogue_announcement_fixedtime()
         participant = self.mkobj_participant('06')
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
@@ -228,9 +228,9 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase, MessageMaker,
         dFuture = datetime.now() + timedelta(days=2, minutes=30)
         dialogue['interactions'][0]['date-time'] = dFuture.strftime(
             self.time_format)
-
-        self.collections['dialogues'].save(dialogue)
-        self.collections['participants'].save(participant)
+        dialogue = Dialogue(**dialogue)
+        #self.collections['dialogues'].save(dialogue)
+        #self.collections['participants'].save(participant)
 
         #action
         self.worker.schedule_participant_dialogue(
@@ -317,7 +317,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase, MessageMaker,
         self.collections['unattached_messages'].save(unattach_messages[1])
 
         self.collections['history'].save(self.mkobj_history_unattach(
-            unattach_id, dPast))
+            unattach_id, time_to_vusion_format(dPast)))
 
         self.worker.load_data()
 

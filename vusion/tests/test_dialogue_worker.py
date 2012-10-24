@@ -21,7 +21,7 @@ from vusion.action import (UnMatchingAnswerAction, EnrollingAction,
                            OffsetConditionAction, RemoveRemindersAction,
                            ResetAction, RemoveDeadlineAction,
                            DelayedEnrollingAction, action_generator, Actions)
-from vusion.persist import Dialogue
+from vusion.persist import Dialogue, schedule_generator
 
 #from transports import YoUgHttpTransport
 
@@ -237,34 +237,35 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         active_dialogue = self.worker.get_current_dialogue("0")
         self.assertTrue(active_dialogue)
         self.assertEqual([], active_dialogue['interactions'])
-
-    def test03_get_matching_request_actions(self):
+    
+    def test03_get_matching_request(self):
         request_1 = self.mkobj_request_response('www info')
         request_2 = self.mkobj_request_reponse_lazy_matching('www')
         request_1_id = self.collections['requests'].save(request_1)
         request_2_id = self.collections['requests'].save(request_2)
 
-        ref, actions = self.worker.get_matching_request_actions('www info',
-                                                                Actions())
-        self.assertEqual(ref['request-id'], request_1_id)
-
-        ref, actions = self.worker.get_matching_request_actions('www',
-                                                                Actions())
-        self.assertEqual(ref['request-id'], request_2_id)
-
-        ref, actions = self.worker.get_matching_request_actions('www tata',
-                                                                Actions())
-        self.assertTrue(ref is not None)
-        self.assertEqual(ref['request-id'], request_2_id)
+        context = {}
+        self.worker.get_matching_request_actions('www info', Actions(), context)
+        self.assertEqual(context['request-id'], request_1_id)
+       
+        context = {}
+        self.worker.get_matching_request_actions('www', Actions(), context)
+        self.assertEqual(context['request-id'], request_2_id)
+        
+        context = {}
+        actions = Actions()
+        self.worker.get_matching_request_actions('www tata', actions, context)
+        self.assertTrue(context != {})
+        self.assertEqual(context['request-id'], request_2_id)
         self.assertTrue(actions.contains('feedback'))
-
-        ref, actions = self.worker.get_matching_request_actions('ww tata',
-                                                                Actions())
-        self.assertTrue(ref is None)
-
-        ref, actions = self.worker.get_matching_request_actions('ww',
-                                                                Actions())
-        self.assertTrue(ref is None)
+        
+        context = {}
+        self.worker.get_matching_request_actions('ww tata', Actions(), context)
+        self.assertTrue(context == {})
+        
+        context = {}
+        self.worker.get_matching_request_actions('ww', Actions(), context)
+        self.assertTrue(context == {})
 
     #@inlineCallbacks
     def test05_send_scheduled_messages(self):
@@ -313,7 +314,8 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             self.mkobj_schedule_feedback(
                 date_time=time_to_vusion_format(dNow),
                 content='Thank you',
-                participant_phone='09'))
+                participant_phone='09',
+                context={'dialogue-id': '2', 'interaction-id': '1'}))
         self.worker.load_data()
 
         self.worker.send_scheduled()
@@ -342,19 +344,31 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         dPast = dNow - timedelta(minutes=2)
 
         dialogue = self.mkobj_dialogue_open_question_reminder()
+        dialogue['interactions'][0]['reminder-actions'].append(
+            {'type-action': 'feedback', 'content': 'Bye'})
+        dialogue = Dialogue(**dialogue)
         participant = self.mkobj_participant('06')
-        self.collections['dialogues'].save(dialogue)
+        self.collections['dialogues'].save(dialogue.get_as_dict())
         self.collections['participants'].save(participant)
-        self.collections['schedules'].save({
-            'date-time': dPast.strftime(self.time_format),
+        schedule = schedule_generator(**{
             'object-type': 'deadline-schedule',
+            'model-version': '2',
+            'date-time': dPast.strftime(self.time_format),
             'dialogue-id': '04',
             'interaction-id': '01-01',
-            'participant-phone': '06'})
+            'participant-phone': '06',
+            'participant-session-id': '1'})
+        self.collections['schedules'].save(schedule.get_as_dict())
+
         yield self.worker.send_scheduled()
 
         saved_participant = self.collections['participants'].find_one()
         self.assertEqual(saved_participant['session-id'], None)
+        history = self.collections['history'].find_one({'object-type': 'oneway-marker-history'})
+        self.assertTrue(history is not None) 
+        schedule = self.collections['schedules'].find_one()
+        self.assertEqual(schedule['object-type'], 'feedback-schedule')
+        self.assertEqual(schedule['participant-session-id'], '1')
 
     @inlineCallbacks
     def test05_send_scheduled_run_action(self):
@@ -369,12 +383,14 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         participant = self.mkobj_participant('06')
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)
-        self.collections['schedules'].save({
+        schedule = schedule_generator(**{
             'participant-phone': '06',
             'date-time': dPast.strftime(self.time_format),
             'object-type': 'action-schedule',
             'action': {'type-action': 'enrolling',
-                       'enroll': '04'}})
+                       'enroll': '04'},
+            'context': {'request-id': '1'}})
+        self.collections['schedules'].save(schedule.get_as_dict())
         yield self.worker.send_scheduled()
 
         saved_participant = self.collections['participants'].find_one({
@@ -424,7 +440,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             'interaction': dialogue.get_interaction('01-01'),
             'matching-answer': None}
         
-        self.worker.get_program_actions(participant, context, actions)
+        self.worker.get_program_dialogue_actions(participant, context, actions)
         
         self.assertEqual(1, len(actions))
         

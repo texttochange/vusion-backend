@@ -44,10 +44,16 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             {'key': 'default-template-unmatching-answer',
              'value': saved_template_id})
 
-        self.worker.run_action("08", FeedbackAction(**{'content': 'message'}))
+        self.worker.run_action(
+            "08", 
+            FeedbackAction(**{'content': 'message'}),
+            {'request-id': '1'})
         self.assertEqual(1, self.collections['schedules'].count())
 
-        self.worker.run_action("08", UnMatchingAnswerAction(**{'answer': 'best'}))
+        self.worker.run_action(
+            "08",
+            UnMatchingAnswerAction(**{'answer': 'best'}),
+            {'request-id':'1'})
         unmatching_template = self.collections['program_settings'].find_one({
             'key': 'default-template-unmatching-answer'})
         self.assertEqual(saved_template_id, unmatching_template['value'])
@@ -182,12 +188,11 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             DelayedEnrollingAction(**{
                 'enroll': '01',
                 'offset-days': {'days':'1', 'at-time': '12:00'}}),
-            origin={'dialogue-id': '02'}
-        )
+            context={'dialogue-id': '02'})
 
         schedule = self.collections['schedules'].find_one({'object-type': 'action-schedule'})
         self.assertTrue(schedule is not None)
-        self.assertEqual(schedule['dialogue-id'], '02')
+        self.assertEqual(schedule['context']['dialogue-id'], '02')
         self.assertTrue(
             action_generator(**schedule['action']),
             EnrollingAction(**{'enroll': '01'}))
