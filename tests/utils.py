@@ -384,7 +384,7 @@ class ObjectMaker:
         dialogue['interactions'][0]['object-type'] = 'interaction'
         dialogue['interactions'][0]['set-max-unmatching-answers'] = 'max-unamatching-answers'
         dialogue['interactions'][0]['max-unmatching-answer-number'] = '5'
-        dialogue['interactions'][0]['max-unmatching-answer-actions'] = [{'type-action':'feedback', 'content': 'thank you'}]
+        dialogue['interactions'][0]['max-unmatching-answer-actions'] = [{'type-action':'feedback', 'content': 'You reached the limit'}]
         dialogue['interactions'][0]['type-unmatching-feedback'] = 'program-unmatching-feedback'
         dialogue['interactions'][0]['set-reminder'] = 'reminder'
         dialogue['interactions'][0]['type-schedule-reminder'] = 'reminder-offset-time'
@@ -785,35 +785,44 @@ class ObjectMaker:
             'profile': profile
             }
     
-    def mkobj_schedule(self, participant_phone='06', 
+    def mkobj_schedule(self, participant_phone='06',
+                       participant_session_id='1',
                        date_time='2116-12-06T16:24:12',
                        object_type='dialogue-schedule',
                        dialogue_id='1',interaction_id='2'):
         return schedule_generator(**{
+            'model-version': '2',
             'participant-phone': participant_phone,
+            'participant-session-id': participant_session_id,
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id,
             'object-type': object_type,
             'date-time': date_time
             }).get_as_dict()
     
-    def mkobj_schedule_unattach(self, participant_phone='06', 
-                       date_time=None,
-                       unattach_id='1'):
+    def mkobj_schedule_unattach(self, participant_phone='06',
+                                participant_session_id='1',
+                                date_time=None,
+                                unattach_id='1'):
         return schedule_generator(**{
-            'participant-phone': participant_phone,
-            'unattach-id': unattach_id,
             'object-type': 'unattach-schedule',
+            'model-version': '2',
+            'participant-phone': participant_phone,
+            'participant-session-id': participant_session_id,
+            'unattach-id': unattach_id,
             'date-time': date_time
             }).get_as_dict()
         
-    def mkobj_schedule_feedback(self, participant_phone='06', 
-                       date_time=None,
-                       content='Thank You',
-                       context={}):
+    def mkobj_schedule_feedback(self, participant_phone='06',
+                                participant_session_id='1',
+                                date_time=None,
+                                content='Thank You',
+                                context={}):
         schedule = {
-            'participant-phone': participant_phone,
             'object-type': 'feedback-schedule',
+            'model-version': '2',
+            'participant-phone': participant_phone,
+            'participant-session-id': participant_session_id,
             'date-time': date_time,
             'content': content,
             'context': context}

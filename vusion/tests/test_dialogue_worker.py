@@ -365,7 +365,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertTrue(history is not None) 
         schedule = self.collections['schedules'].find_one()
         self.assertEqual(schedule['object-type'], 'feedback-schedule')
-        self.assertEqual(schedule['context']['participant-session-id'], '1')
+        self.assertEqual(schedule['participant-session-id'], '1')
 
     @inlineCallbacks
     def test05_send_scheduled_run_action(self):  
@@ -435,7 +435,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             'interaction': dialogue.get_interaction('01-01'),
             'matching-answer': None}
         
-        self.worker.get_program_actions(participant, context, actions)
+        self.worker.get_program_dialogue_actions(participant, context, actions)
         
         self.assertEqual(1, len(actions))
         

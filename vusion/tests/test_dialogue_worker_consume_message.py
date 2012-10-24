@@ -410,10 +410,15 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual(6, self.collections['history'].count())
         history = self.collections['history'].find_one({'object-type': 'oneway-marker-history'})
         self.assertTrue(history is not None)
-        self.assertEqual(self.collections['schedules'].count(), 0)
+        self.assertEqual(self.collections['schedules'].count(), 1)
+        schedule = self.collections['schedules'].find_one()
+        self.assertEqual(schedule['content'], 'You reached the limit')
 
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
                                              content='feel ok')        
         yield self.send(inbound_msg_matching, 'inbound')
-        self.assertEqual(self.collections['schedules'].count(), 0)
+        self.assertEqual(self.collections['schedules'].count(), 1)
+        
+        yield self.send(inbound_msg_unmatching, 'inbound')
+        self.assertEqual(self.collections['schedules'].count(), 1)
         
