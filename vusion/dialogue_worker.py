@@ -643,7 +643,8 @@ class DialogueWorker(ApplicationWorker):
     def schedule_participant_dialogue(self, participant, dialogue):
         try:
             for interaction in dialogue.interactions:
-                self.log("Scheduling %r" % interaction)
+                self.log("Scheduling %s interaction %s for %s" % 
+                         (dialogue['name'], interaction['content'], participant['phone'],))
                 history = self.collections['history'].find_one(
                     {"participant-phone": participant['phone'],
                      "participant-session-id": participant['session-id'],
@@ -866,7 +867,7 @@ class DialogueWorker(ApplicationWorker):
                 self.log("Message has been sent to %s '%s'" % 
                          (message['to_addr'], message['content']))
 
-                if schedule.get_type() == 'dialogue-schedule':
+                if schedule.get_type() in ['dialogue-schedule', 'reminder-schedule']:
                     object_type = 'dialogue-history'
                 elif schedule.get_type() == 'unattach-schedule':
                     object_type = 'unattach-history'
@@ -876,6 +877,9 @@ class DialogueWorker(ApplicationWorker):
                         object_type = 'dialogue-history'
                     elif 'request-id' in message_ref:
                         object_type = 'request-history'
+                else:
+                    raise VusionError("%s is not supported" % schedule.get_type())
+
                 history = {
                     'object-type': object_type,
                     'message-content': message['content'],
@@ -886,7 +890,6 @@ class DialogueWorker(ApplicationWorker):
                     'message-id': message['message_id']}
                 history.update(message_ref)
                 self.save_history(**history)
-
             except:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 self.log(

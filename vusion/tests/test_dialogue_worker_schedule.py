@@ -198,7 +198,6 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase, MessageMaker,
         self.assertEqual(self.collections['schedules'].count(), 0)
         self.assertEqual(self.collections['history'].count(), 1)
 
-
     def test_schedule_interaction_offset_time_expired(self):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
@@ -229,8 +228,6 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase, MessageMaker,
         dialogue['interactions'][0]['date-time'] = dFuture.strftime(
             self.time_format)
         dialogue = Dialogue(**dialogue)
-        #self.collections['dialogues'].save(dialogue)
-        #self.collections['participants'].save(participant)
 
         #action
         self.worker.schedule_participant_dialogue(
