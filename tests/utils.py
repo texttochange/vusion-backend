@@ -11,7 +11,7 @@ from vumi.message import (TransportEvent, TransportMessage,
 from vumi.transports.failures import FailureMessage
 from vumi.tests.utils import RegexMatcher, UTCNearNow
 
-from vusion.message import DispatcherControl
+from vusion.message import DispatcherControl, WorkerControl
 
 from vusion.persist import (Dialogue, DialogueHistory, UnattachHistory,
                             history_generator, schedule_generator)
@@ -186,12 +186,8 @@ class MessageMaker:
             worker_class=worker_class,
             config=config)
 
-    def mkmsg_dialogueworker_control(self, action, dialogue_obj_id=None,
-                                     phone_number=None):
-        return Message(
-            action=action,
-            dialogue_obj_id=dialogue_obj_id,
-            phone_number=phone_number)
+    def mkmsg_dialogueworker_control(self, **kwargs):
+        return WorkerControl(**kwargs)
 
 
 class ObjectMaker:

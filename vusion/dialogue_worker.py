@@ -24,14 +24,14 @@ from vumi.application import SessionManager
 from vumi import log
 from vumi.utils import get_first_word
 
-from vusion.persist import Dialogue, FeedbackSchedule
+from vusion.persist import Dialogue, FeedbackSchedule, UnattachSchedule
 from vusion.utils import (time_to_vusion_format, get_local_time,
                           get_local_time_as_timestamp, time_from_vusion_format,
                           get_shortcode_value, get_offset_date_time,
                           split_keywords)
 from vusion.error import (MissingData, SendingDatePassed, VusionError,
                           MissingTemplate)
-from vusion.message import DispatcherControl
+from vusion.message import DispatcherControl, WorkerControl
 from vusion.action import (Actions, action_generator,FeedbackAction,
                            EnrollingAction, OptinAction, OptoutAction,
                            RemoveRemindersAction)
@@ -98,7 +98,7 @@ class DialogueWorker(ApplicationWorker):
         self.control_consumer = yield self.consume(
             '%(control_name)s.control' % self.config,
             self.consume_control,
-            message_class=Message)
+            message_class=WorkerControl)
         self._consumers.append(self.control_consumer)
 
         send_loop_period = (self.config['send_loop_period']
@@ -217,7 +217,7 @@ class DialogueWorker(ApplicationWorker):
             self.collections[name] = self.db.create_collection(name)
         self.log("Collection initialised: %s" % name)
 
-    @inlineCallbacks
+    #@inlineCallbacks
     def consume_control(self, message):
         try:
             self.log("Control message received to %r" % (message['action'],))
@@ -225,12 +225,15 @@ class DialogueWorker(ApplicationWorker):
             if (not self.is_ready()):
                 self.log("Worker is not ready, cannot performe the action.")
                 return
-            if message['action'] == 'update-schedule':
-                yield self.register_keywords_in_dispatcher()
-                self.schedule()
-            elif message['action'] == 'test-send-all-messages':
+            if message['action'] == 'update_schedule':
+                if message['schedule_type'] == 'dialogue':
+                    self.schedule_dialogue(message['dialogue_id'])
+                elif message['schedule_type'] == 'unattach':
+                    self.schedule_unattach(message['unattach_id'])
+                self.register_keywords_in_dispatcher()
+            elif message['action'] == 'test_send_all_messages':
                 dialogue = self.get_dialogue_obj(message['dialogue_obj_id'])
-                yield self.send_all_messages(dialogue, message['phone_number'])
+                self.send_all_messages(dialogue, message['phone_number'])
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log(
@@ -598,16 +601,55 @@ class DialogueWorker(ApplicationWorker):
         self.schedule_participants_unattach_messages(
             self.collections['participants'].find({'session-id': {'$ne': None}}))
 
+    def schedule_dialogue(self, dialogue_id):
+        dialogue = self.get_current_dialogue(dialogue_id)
+        participants = self.collections['participants'].find(
+            {'enrolled.dialogue-id': dialogue_id,
+             'session-id': {'$ne': None}})
+        self.schedule_participants_dialogue(participants, dialogue)
+
+    def schedule_unattach(self, unattach_id):
+        unattach = self.collections['unattached_messages'].find_one({
+            '_id': ObjectId(unattach_id)})
+        participants = self.collections['participants'].find(
+            {'session-id': {'$ne': None}})
+        self.schedule_participants_unattach(participants, unattach)
+
+    def schedule_participants_unattach(self, participants, unattach):
+        for participant in participants:
+            self.schedule_participant_unattach_messages(participant)
+
+    def schedule_participant_unattach(self, participant, unattach):
+        history = self.collections['history'].find_one({
+            'participant-phone': participant['phone'],
+            'unattach-id': unattach_message['_id']})
+        if history is not None:
+            return
+        schedule = self.collections['schedules'].find_one({
+            'participant-phone': participant['phone'],
+            'unattach-id': unattach_message['_id']})
+        if schedule is None:
+            schedule = UnattachSchedule(**{
+                    'model-version': '2',
+                    'participant-phone': participant['phone'],
+                    'participant-session-id': participant['session-id'],
+                    'unattach-id': unattach_message['_id'],
+                    'date-time': unattach_message['fixed-time']})
+            self.collections['schedules'].save(schedule.get_as_dict())
+
+    #Deprecated
     def get_future_unattach_messages(self):
         return self.collections['unattached_messages'].find({
             'fixed-time': {
                 '$gt': time_to_vusion_format(self.get_local_time())
             }})
 
+    #Deprecated
     def schedule_participants_unattach_messages(self, participants):
         for participant in participants:
             self.schedule_participant_unattach_messages(participant)
-
+    
+    #Deprecated
     def schedule_participant_unattach_messages(self, participant):
         unattach_messages = self.get_future_unattach_messages()
         for unattach_message in unattach_messages:
