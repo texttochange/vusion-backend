@@ -26,7 +26,7 @@ from vusion.tests.test_dialogue_worker import DialogueWorkerTestCase
 
 class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
 
-    def test_run_action(self):
+    def test_run_action_unmatching_answer(self):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -45,22 +45,29 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
              'value': saved_template_id})
 
         self.worker.run_action(
-            "08", 
-            FeedbackAction(**{'content': 'message'}),
-            {'request-id': '1'})
-        self.assertEqual(1, self.collections['schedules'].count())
-
-        self.worker.run_action(
-            "08",
+            '08',
             UnMatchingAnswerAction(**{'answer': 'best'}),
-            {'request-id':'1'})
-        unmatching_template = self.collections['program_settings'].find_one({
-            'key': 'default-template-unmatching-answer'})
-        self.assertEqual(saved_template_id, unmatching_template['value'])
-        self.assertEqual(2, self.collections['schedules'].count())
-        schedules = self.collections['schedules'].find()
-        self.assertEqual(schedules[1]['content'],
+            {'request-id':'1'},
+            '1')
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(self.collections['history'].count(), 1)
+        history = self.collections['history'].find_one()
+        self.assertEqual(history['participant-session-id'], '1')
+        self.assertEqual(history['participant-phone'], '08')
+        self.assertEqual(history['message-content'],
                          "best does not match any answer")
+
+    def test_run_action_tagging(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        
+        self.collections['participants'].save(self.mkobj_participant(
+            '08',
+            tags=['geek'],
+            profile=[{'label': 'name',
+                     'value': 'Oliv'}]))
 
         ## Tagging
         self.worker.run_action("08", TaggingAction(**{'tag': 'my tag'}))
@@ -69,14 +76,41 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.worker.run_action("08", TaggingAction(**{'tag': 'my tag'}))
         self.assertEqual(
             ['geek', 'my tag', 'my second tag'],
-            self.collections['participants'].find_one({'tags': 'my tag'})['tags'])
+        self.collections['participants'].find_one({'tags': 'my tag'})['tags'])
+
+    def test_run_action_profiling(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
         
-        ## Profiling
+        self.collections['participants'].save(self.mkobj_participant(
+            '08',
+            tags=['geek'],
+            profile=[{'label': 'name',
+                     'value': 'Oliv'}]))
+
         self.worker.run_action("08", ProfilingAction(**{'label': 'gender',
                                                         'value': 'Female'}))
         self.assertTrue(self.collections['participants'].find_one({'profile.label': 'gender'}))
         self.assertTrue(self.collections['participants'].find_one({'profile.value': 'Female'}))
 
+
+    def test_run_action_feedback(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        
+        self.worker.run_action(
+            '08', 
+            FeedbackAction(**{'content': 'message'}),
+            {'request-id': '1'},
+            '1')
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(self.collections['history'].count(), 1)
+        history = self.collections['history'].find_one()
+        self.assertEqual(history['participant-session-id'], '1')
+        self.assertEqual(history['participant-phone'], '08')
 
     def test_run_action_enroll(self):
         for program_setting in self.program_settings:

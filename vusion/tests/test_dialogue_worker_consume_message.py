@@ -40,29 +40,34 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
             from_addr='06',
             content='Feel ok')
         yield self.send(inbound_msg_matching, 'inbound')
-        self.assertEqual(1, self.collections['history'].count())
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(2, self.collections['history'].count())
         
         #Only message matching keyword should be forwarded to the worker
         inbound_msg_non_matching_keyword = self.mkmsg_in(
             from_addr='06',
             content='ok')
         yield self.send(inbound_msg_non_matching_keyword, 'inbound')
-        self.assertEqual(2, self.collections['history'].count())
-
+        self.assertEqual(3, self.collections['history'].count())
+        history_unmatching = self.collections['history'].find_one({
+            'object-type': 'unmatching-history'})
+        self.assertTrue(history_unmatching is not None)
+        
         inbound_msg_non_matching_answer = self.mkmsg_in(
             from_addr='06',
             content='Feel good')
         yield self.send(inbound_msg_non_matching_answer, 'inbound')
 
-        self.assertEqual(3, self.collections['history'].count())
-        histories = self.collections['history'].find()
+        self.assertEqual(4, self.collections['history'].count())
+        histories = self.collections['history'].find({'object-type': 'dialogue-history'})
         self.assertEqual('01-01', histories[0]['interaction-id'])
         self.assertEqual('01', histories[0]['dialogue-id'])
         self.assertEqual('Ok', histories[0]['matching-answer'])
         self.assertEqual(None, histories[2]['matching-answer'])
         for history in histories:
             self.assertEqual('1', history['participant-session-id'])
-        self.assertEqual(1, self.collections['schedules'].count())
+        self.assertEqual(0, self.collections['schedules'].count())
 
     @inlineCallbacks
     def test_receive_inbound_message_matching_offset_condition(self):
@@ -175,8 +180,12 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         yield self.send(inbound_msg_matching_request, 'inbound')
         participant = self.collections['participants'].find_one({'phone': '06'})
         self.assertEqual('john doe', participant['profile'][0]['value'])
-        schedule = self.collections['schedules'].find_one({'object-type': 'feedback-schedule'})
-        self.assertEqual('you have already answer this message', schedule['content'])
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 1)
+        history = self.collections['history'].find_one({
+            'object-type': 'dialogue-history',
+            'message-direction': 'outgoing'})
+        self.assertEqual('you have already answer this message', history['message-content'])
 
     @inlineCallbacks
     def test_receive_inbound_message_no_repeat_dialogue_enroll(self):
@@ -242,7 +251,9 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
                                                      content='www')
         yield self.send(inbound_msg_matching_request, 'inbound')
         
-        self.assertEqual(2, self.collections['schedules'].count())
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 2)
+        self.assertEqual(0, self.collections['schedules'].count())
         self.assertFalse(self.collections['participants'].find_one({'phone': '07'}) is None)
 
     @inlineCallbacks
@@ -257,15 +268,20 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
                                                      content='www join')
         yield self.send(inbound_msg_matching_request, 'inbound')
 
-        self.assertEqual(2, self.collections['history'].count())
+        self.assertEqual(6, self.collections['history'].count())
         self.assertEqual(2, self.collections['participants'].count())
-        self.assertEqual(4, self.collections['schedules'].count())
-        histories = self.collections['history'].find({'request-id':{'$exists':True}})
-        participant = self.collections['participants'].find_one({'phone': '07'})
-        self.assertEqual(histories.count(), 2)
-        self.assertEqual(histories[0]['request-id'], request_id)
-        self.assertEqual(histories[1]['request-id'], request_id)
-        self.assertEqual(participant['session-id'], histories[0]['participant-session-id'])
+        self.assertEqual(0, self.collections['schedules'].count())
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 4)
+        
+        participant = self.collections['participants'].find_one({'phone': '07'})        
+        histories = self.collections['history'].find()
+        self.assertEqual(histories.count(), 6)
+        for history in histories:
+            self.assertEqual(history['request-id'], request_id)
+        histories = self.collections['history'].find({'participant-phone': '07'})
+        for history in histories:
+            self.assertEqual(participant['session-id'], history['participant-session-id'])
 
     @inlineCallbacks
     def test_receive_inbound_message_from_non_participant(self):
@@ -287,18 +303,22 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
                                              content='www join')
         yield self.send(inbound_msg_matching, 'inbound')
         self.assertEqual(1, self.collections['participants'].count())
-        self.assertEqual(2, self.collections['history'].count())
+        self.assertEqual(0, self.collections['schedules'].count())
+        self.assertEqual(4, self.collections['history'].count())
         
         # When they optout no action is performed
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
                                              content='www quit')
         yield self.send(inbound_msg_matching, 'inbound')
-        self.assertEqual(3, self.collections['history'].count())
+        self.assertEqual(0, self.collections['schedules'].count())
+        self.assertEqual(5, self.collections['history'].count())
+        
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
                                              content='www tagme')
         yield self.send(inbound_msg_matching, 'inbound')
         self.assertEqual(None, self.collections['participants'].find_one({'tags':'onetag'}))
-        self.assertEqual(4, self.collections['history'].count())
+        self.assertEqual(0, self.collections['schedules'].count())
+        self.assertEqual(7, self.collections['history'].count())
 
     @inlineCallbacks
     def test_receive_delivery(self):
@@ -407,18 +427,21 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         for num in range(5):
             self.assertEqual(self.collections['schedules'].count(), 2)
             yield self.send(inbound_msg_unmatching, 'inbound')
-        self.assertEqual(6, self.collections['history'].count())
+        self.assertEqual(7, self.collections['history'].count())
         history = self.collections['history'].find_one({'object-type': 'oneway-marker-history'})
         self.assertTrue(history is not None)
-        self.assertEqual(self.collections['schedules'].count(), 1)
-        schedule = self.collections['schedules'].find_one()
-        self.assertEqual(schedule['content'], 'You reached the limit')
-
+        history_feedback = self.collections['history'].find_one({
+            'object-type': 'dialogue-history',
+            'message-direction': 'outgoing'})
+        self.assertEqual(history_feedback['message-content'], 'You reached the limit')
+        
+        self.assertEqual(self.collections['schedules'].count(), 0)
+        
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
                                              content='feel ok')        
         yield self.send(inbound_msg_matching, 'inbound')
-        self.assertEqual(self.collections['schedules'].count(), 1)
+        self.assertEqual(self.collections['schedules'].count(), 0)
         
         yield self.send(inbound_msg_unmatching, 'inbound')
-        self.assertEqual(self.collections['schedules'].count(), 1)
+        self.assertEqual(self.collections['schedules'].count(), 0)
         

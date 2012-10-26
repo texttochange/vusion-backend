@@ -267,7 +267,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.worker.get_matching_request_actions('ww', Actions(), context)
         self.assertTrue(context == {})
 
-    #@inlineCallbacks
+    @inlineCallbacks
     def test05_send_scheduled_messages(self):
         dialogue = self.mkobj_dialogue_announcement_2()
         participant = self.mkobj_participant('09')
@@ -318,7 +318,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
                 context={'dialogue-id': '2', 'interaction-id': '1'}))
         self.worker.load_data()
 
-        self.worker.send_scheduled()
+        yield self.worker.send_scheduled()
 
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 3)
@@ -365,10 +365,13 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         saved_participant = self.collections['participants'].find_one()
         self.assertEqual(saved_participant['session-id'], None)
         history = self.collections['history'].find_one({'object-type': 'oneway-marker-history'})
-        self.assertTrue(history is not None) 
-        schedule = self.collections['schedules'].find_one()
-        self.assertEqual(schedule['object-type'], 'feedback-schedule')
-        self.assertEqual(schedule['participant-session-id'], '1')
+        self.assertTrue(history is not None)
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 1)
+        history = self.collections['history'].find_one({'object-type': 'dialogue-history'})
+        self.assertEqual(history['participant-session-id'], '1')
+        self.assertEqual(history['message-content'], 'Bye')
+
 
     @inlineCallbacks
     def test05_send_scheduled_run_action(self):

@@ -6,7 +6,7 @@ import re
 
 from uuid import uuid4
 
-from twisted.internet.defer import (inlineCallbacks, Deferred)
+from twisted.internet.defer import (inlineCallbacks, Deferred, returnValue)
 from twisted.enterprise import adbapi
 from twisted.internet import task
 
@@ -24,7 +24,7 @@ from vumi.application import SessionManager
 from vumi import log
 from vumi.utils import get_first_word
 
-from vusion.persist import Dialogue
+from vusion.persist import Dialogue, FeedbackSchedule
 from vusion.utils import (time_to_vusion_format, get_local_time,
                           get_local_time_as_timestamp, time_from_vusion_format,
                           get_shortcode_value, get_offset_date_time,
@@ -318,15 +318,14 @@ class DialogueWorker(ApplicationWorker):
                 'participant-phone': participant_phone,
                 'object-type': {'$ne': 'feedback-schedule'}})
         elif (action.get_type() == 'feedback'):
-            schedule = {
-                'object-type': 'feedback-schedule',
+            schedule = FeedbackSchedule(**{
                 'model-version': '2',
                 'participant-phone': participant_phone,
                 'participant-session-id': participant_session_id,
-                'date-time': self.get_local_time(),
+                'date-time': time_to_vusion_format(self.get_local_time()),
                 'content': action['content'],
-                'context': context}
-            self.save_schedule(**schedule)
+                'context': context})
+            self.send_schedule(schedule)
         elif (action.get_type() == 'unmatching-answer'):
             setting = self.collections['program_settings'].find_one({
                 'key': 'default-template-unmatching-answer'})
@@ -339,15 +338,14 @@ class DialogueWorker(ApplicationWorker):
             error_message = re.sub(regex_ANSWER,
                                    action['answer'],
                                    template['template'])
-            schedule = {
-                'object-type': 'feedback-schedule',
+            schedule = FeedbackSchedule(**{
                 'model-version': '2',
                 'participant-phone': participant_phone,
                 'participant-session-id': participant_session_id,
-                'date-time': self.get_local_time(),
+                'date-time': time_to_vusion_format(self.get_local_time()),
                 'content': error_message,
-                'context': context}
-            self.save_schedule(**schedule)
+                'context': context})
+            self.send_schedule(schedule)
         elif (action.get_type() == 'tagging'):
             self.collections['participants'].update(
                 {'phone': participant_phone,
@@ -768,20 +766,18 @@ class DialogueWorker(ApplicationWorker):
         return timestamp.strftime('%Y-%m-%dT%H:%M:%S')
 
     def from_schedule_to_message(self, schedule):
-        if (schedule['object-type'] == 'dialogue-schedule' 
-                or schedule['object-type'] == 'reminder-schedule'
-                or schedule['object-type'] == 'deadline-schedule'):
+        if schedule.get_type() in ['dialogue-schedule', 'reminder-schedule', 'deadline-schedule']:
             dialogue = self.get_current_dialogue(schedule['dialogue-id'])
             interaction = dialogue.get_interaction(schedule['interaction-id'])
             reference_metadata = {
                 'dialogue-id': schedule['dialogue-id'],
                 'interaction-id': schedule['interaction-id']}
-        elif schedule['object-type'] == 'unattach-schedule':
+        elif schedule.get_type() == 'unattach-schedule':
             interaction = self.collections['unattached_messages'].find_one(
                 {'_id': ObjectId(schedule['unattach-id'])})
             reference_metadata = {
                 'unattach-id': schedule['unattach-id']}
-        elif schedule['object-type'] == 'feedback-schedule':
+        elif schedule.get_type() == 'feedback-schedule':
             interaction = {
                 'content': schedule['content'],
                 'type-interaction': 'feedback'}
@@ -796,105 +792,119 @@ class DialogueWorker(ApplicationWorker):
     #TODO fire action scheduled by reminder if no reply is sent for any reminder
     @inlineCallbacks
     def send_scheduled(self):
-        self.log('Checking the schedule list...')
-        local_time = self.get_local_time()
-        toSends = self.collections['schedules'].find(
-            spec={'date-time': {'$lt': time_to_vusion_format(local_time)}},
-            sort=[('date-time', 1)])
-        for toSend in toSends:
-            self.collections['schedules'].remove(
-                {'_id': toSend['_id']})
+        try:
+            self.log('Checking the schedule list...')
+            local_time = self.get_local_time()
+            due_schedules = self.collections['schedules'].find(
+                spec={'date-time': {'$lt': time_to_vusion_format(local_time)}},
+                sort=[('date-time', 1)])
+            for due_schedule in due_schedules:
+                self.collections['schedules'].remove(
+                    {'_id': due_schedule['_id']})
+                message_content = None
+                yield self.send_schedule(schedule_generator(**due_schedule))
+        except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            self.log("Error send_scheduled: %r" %
+                     traceback.format_exception(exc_type, exc_value, exc_traceback))     
+
+    @inlineCallbacks
+    def send_schedule(self, schedule):
+        try:
+            local_time = self.get_local_time()
             message_content = None
-            try:
-                schedule = schedule_generator(**toSend)
-                #participant = self.collections['participants'].find_one({'phone': schedule['participant-phone']})
-                interaction, message_ref = self.from_schedule_to_message(schedule)
-
-                # delayed action are always run even if there original interaction has been deleted
-                if not interaction and schedule.get_type()!='action-schedule':
-                    self.log("Sender Failure, schedule without interaction %r" % schedule)
-                    continue
+            #participant = self.collections['participants'].find_one({'phone': schedule['participant-phone']})
+            interaction, message_ref = self.from_schedule_to_message(schedule)
+            
+            # delayed action are always run even if there original interaction has been deleted
+            if not interaction and schedule.get_type()!='action-schedule':
+                self.log("Sender Failure, schedule without interaction %r" % schedule)
+                return
                 
-                if schedule.get_type() == 'deadline-schedule':
-                    actions = Actions()
-                    if interaction.has_reminder():
-                        for action in interaction['reminder-actions']:
-                            actions.append(action_generator(**action))
-                    self.add_oneway_marker(schedule['participant-phone'],
-                                           schedule['participant-session-id'],
-                                           message_ref)
-                    for action in actions.items():
-                        self.run_action(schedule['participant-phone'],
-                                        action,
-                                        message_ref,
-                                        schedule['participant-session-id'])
-                    continue
-                elif schedule.get_type() == 'action-schedule':
-                    self.run_action(schedule['participant-phone'], 
-                                    action_generator(**schedule['action']),
-                                    schedule.get_context(),
-                                    schedule['participant-session-id'])
-                    continue
+            if schedule.get_type() == 'deadline-schedule':
+                actions = Actions()
+                if interaction.has_reminder():
+                    for action in interaction['reminder-actions']:
+                        actions.append(action_generator(**action))
+                    self.add_oneway_marker(
+                        schedule['participant-phone'],
+                        schedule['participant-session-id'],
+                        message_ref)
+                for action in actions.items():
+                    self.run_action(
+                        schedule['participant-phone'],
+                        action,
+                        message_ref,
+                        schedule['participant-session-id'])
+                return
+            elif schedule.get_type() == 'action-schedule':
+                self.run_action(
+                    schedule['participant-phone'], 
+                    action_generator(**schedule['action']),
+                    schedule.get_context(),
+                    schedule['participant-session-id'])
+                return
 
-                message_content = self.generate_message(interaction)
-                message_content = self.customize_message(
-                    schedule['participant-phone'],
-                    message_content)
+            message_content = self.generate_message(interaction)
+            message_content = self.customize_message(
+                schedule['participant-phone'],
+                message_content)
 
-                if (time_from_vusion_format(schedule['date-time']) <
-                        (local_time - timedelta(minutes=15))):
-                    history = {
-                        'object-type': 'datepassed-marker-history',
-                        'participant-phone': schedule['participant-phone'],
-                        'participant-session-id': schedule['participant-session-id'],
-                        'failure-reason': "Message should have been sent at %s" % (schedule['date-time'],)}
-                    history.update(message_ref)
-                    self.save_history(**history)
-                    continue
-                
-                message = TransportUserMessage(**{
-                    'from_addr': self.properties['shortcode'],
-                    'to_addr': schedule['participant-phone'],
-                    'transport_name': self.transport_name,
-                    'transport_type': self.transport_type,
-                    'content': message_content})
-                
-                if ('customized-id' in self.properties 
-                        and self.properties['customized-id'] is not None):
-                    message['transport_metadata']['customized_id'] = self.properties['customized-id']
-                
-                yield self.transport_publisher.publish_message(message)
-                self.log("Message has been sent to %s '%s'" % 
-                         (message['to_addr'], message['content']))
-
-                if schedule.get_type() in ['dialogue-schedule', 'reminder-schedule']:
-                    object_type = 'dialogue-history'
-                elif schedule.get_type() == 'unattach-schedule':
-                    object_type = 'unattach-history'
-                elif schedule.get_type() == 'feedback-schedule':
-                    message_ref = schedule.get_context()
-                    if 'dialogue-id' in message_ref:
-                        object_type = 'dialogue-history'
-                    elif 'request-id' in message_ref:
-                        object_type = 'request-history'
-                else:
-                    raise VusionError("%s is not supported" % schedule.get_type())
-
+            if (time_from_vusion_format(schedule['date-time']) <
+                    (local_time - timedelta(minutes=15))):
                 history = {
-                    'object-type': object_type,
-                    'message-content': message['content'],
-                    'participant-phone': message['to_addr'],
+                    'object-type': 'datepassed-marker-history',
+                    'participant-phone': schedule['participant-phone'],
                     'participant-session-id': schedule['participant-session-id'],
-                    'message-direction': 'outgoing',
-                    'message-status': 'pending',
-                    'message-id': message['message_id']}
+                    'failure-reason': "Message should have been sent at %s" % (schedule['date-time'],)}
                 history.update(message_ref)
                 self.save_history(**history)
-            except:
-                exc_type, exc_value, exc_traceback = sys.exc_info()
-                self.log(
-                    "Error during consume user message: %r" %
-                    traceback.format_exception(exc_type, exc_value, exc_traceback))        
+                returnValue(False)
+                
+            message = TransportUserMessage(**{
+                'from_addr': self.properties['shortcode'],
+                'to_addr': schedule['participant-phone'],
+                'transport_name': self.transport_name,
+                'transport_type': self.transport_type,
+                'content': message_content})
+                
+            if ('customized-id' in self.properties 
+                    and self.properties['customized-id'] is not None):
+                message['transport_metadata']['customized_id'] = self.properties['customized-id']
+                
+            yield self.transport_publisher.publish_message(message)
+            self.log("Message has been sent to %s '%s'" % 
+                     (message['to_addr'], message['content']))
+
+            if schedule.get_type() in ['dialogue-schedule', 'reminder-schedule']:
+                object_type = 'dialogue-history'
+            elif schedule.get_type() == 'unattach-schedule':
+                object_type = 'unattach-history'
+            elif schedule.get_type() == 'feedback-schedule':
+                message_ref = schedule.get_context()
+                if 'dialogue-id' in message_ref:
+                    object_type = 'dialogue-history'
+                elif 'request-id' in message_ref:
+                    object_type = 'request-history'
+            else:
+                raise VusionError("%s is not supported" % schedule.get_type())
+
+            history = {
+                'object-type': object_type,
+                'message-content': message['content'],
+                'participant-phone': message['to_addr'],
+                'participant-session-id': schedule['participant-session-id'],
+                'message-direction': 'outgoing',
+                'message-status': 'pending',
+                'message-id': message['message_id']}
+            history.update(message_ref)
+            self.save_history(**history)
+            return
+        except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            self.log("Error send schedule: %r" %
+                     traceback.format_exception(exc_type, exc_value, exc_traceback))
+            returnValue(False)
 
     @inlineCallbacks
     def send_all_messages(self, dialogue, phone_number):
@@ -911,16 +921,6 @@ class DialogueWorker(ApplicationWorker):
             self.log("Test message has been sent to %s '%s'"
                      % (message['to_addr'], message['content'],))
 
-    #TODO: move into VusionScript
-    #MongoDB do not support fetching a subpart of an array
-    #may not be necessary in the near future
-    #https://jira.mongodb.org/browse/SERVER-828
-    #https://jira.mongodb.org/browse/SERVER-3089
-    #def get_interaction(self, dialogue, interaction_id):
-        #for interaction in dialogue['interactions']:
-            #if interaction['interaction-id'] == interaction_id:
-                #return interaction
-                    
     def log(self, msg, level='msg'):
         timezone = None
         local_time = self.get_local_time()
