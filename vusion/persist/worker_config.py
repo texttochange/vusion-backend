@@ -1,17 +1,18 @@
 from vusion.persist.vusion_model import VusionModel
 
+
 class WorkerConfig(VusionModel):
-    
+
     MODEL_TYPE = 'worker-config'
     MODEL_VERSION = '2'
-    
+
     fields = ['name', 'class', 'config']
-    
+
     def validate_fields(self):
         self.assert_field_present(*self.fields)
 
     def process_field(self, key, value):
-        if key == '_id': 
+        if key == '_id':
             return value
         if key == 'config':
             for config_param in value.keys():

@@ -13,6 +13,7 @@ from vumi import log
 from vusion.utils import DataLayerUtils
 from vusion.persist import WorkerConfig
 
+
 class VusionMultiWorker(Worker, DataLayerUtils):
 
     WORKER_CREATOR = WorkerCreator
@@ -67,7 +68,7 @@ class VusionMultiWorker(Worker, DataLayerUtils):
         worker_configs = self.collections['workers'].find()
         for worker_config_raw in worker_configs:
             worker_config = WorkerConfig(**worker_config_raw)
-            self.add_worker(worker_config) 
+            self.add_worker(worker_config)
 
     def save_worker_config(self, worker_config):
         if worker_config.is_already_saved():

@@ -25,27 +25,30 @@ def get_local_time(timezone):
 
 
 def get_local_time_as_timestamp(local_time):
-    return long("%s%s" % (long(mktime(local_time.timetuple())), 
+    return long("%s%s" % (long(mktime(local_time.timetuple())),
                           local_time.microsecond))
 
 
 def get_shortcode_value(stored_shortcode):
-    if stored_shortcode == None :
+    if stored_shortcode is None :
         return None
     regex_NATIONAL_SHORTCODE = re.compile('[0-9]+-[0-9]+')
     if re.match(regex_NATIONAL_SHORTCODE, stored_shortcode):
         return stored_shortcode.split('-')[1]
     return stored_shortcode
 
+
 def get_shortcode_address(shortcode):
     if shortcode['supported-internationally'] == 0:
         return ("%s-%s" % (shortcode['international-prefix'], shortcode['shortcode']))
     return shortcode['shortcode']
 
+
 def get_offset_date_time(reference_time, days, at_time):
     sending_day = reference_time + timedelta(days=int(days))
     time_of_sending = at_time.split(':', 1)
     return datetime.combine(sending_day, time(int(time_of_sending[0]), int(time_of_sending[1])))
+
 
 def split_keywords(keywords):
     return [k.lower() for k in (keywords or '').split(', ')]

@@ -6,10 +6,11 @@ from vusion.persist import DialogueHistory, history_generator
 
 from tests.utils import ObjectMaker
 
+
 class TestDialogueHistory(TestCase, ObjectMaker):
-    
+
     def test_validation_dialogue(self):
-        history= self.mkobj_history_dialogue(
+        history = self.mkobj_history_dialogue(
             '1',
             '1',
             '2012-10-10T15:25:12')
@@ -17,7 +18,7 @@ class TestDialogueHistory(TestCase, ObjectMaker):
         self.assertTrue(dialogue_history is not None)
         self.assertEqual(dialogue_history['object-type'], 'dialogue-history')
         self.assertEqual(dialogue_history['model-version'], '1')
-    
+
     def test_validation_unattach(self):
         history = self.mkobj_history_unattach(
             '1',

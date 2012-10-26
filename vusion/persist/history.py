@@ -2,8 +2,9 @@ from vusion.persist.vusion_model import VusionModel
 from vusion.error import InvalidField
 import re
 
+
 class History(VusionModel):
-        
+
     HISTORY_FIELDS = {
         'timestamp': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)T0?(\d+):0?(\d+):0?(\d+)$'), v),
         'participant-phone': lambda v: v is not None,
@@ -18,7 +19,7 @@ class History(VusionModel):
             'message-id': lambda v: True,
             'message-status': lambda v: v in ['failed', 'pending', 'delivered']},
         'incoming': {}}
-    
+
     SPECIFIC_STATUS_FIELDS = {
         'failed': {'failure-reason': lambda v: v is not None},
         'pending': {},
@@ -48,17 +49,18 @@ class History(VusionModel):
                     if not check(self[field]):
                         raise InvalidField(field)
 
+
 class DialogueHistory(History):
-    
+
     MODEL_TYPE = 'dialogue-history'
     MODEL_VERSION = '1'
-    
+
     fields = ['dialogue-id',
               'interaction-id']
-    
+
     def is_message(self):
         return True
-    
+
     def validate_fields(self):
         super(DialogueHistory, self).validate_fields()
 
@@ -67,7 +69,7 @@ class RequestHistory(History):
 
     MODEL_TYPE = 'request-history'
     MODEL_VERSION = '1'
-    
+
     fields = ['request-id']
 
     def is_message(self):
@@ -106,13 +108,13 @@ class UnmatchingHistory(History):
 
 
 class OnewayMarkerHistory(History):
-    
+
     MODEL_TYPE = 'oneway-marker-history'
     MODEL_VERSION = '1'
-    
+
     fields = ['dialogue-id',
               'interaction-id']
-    
+
     def is_message(self):
         return False
 
@@ -121,13 +123,13 @@ class OnewayMarkerHistory(History):
 
 
 class DatePassedMarkerHistory(History):
-    
+
     MODEL_TYPE = 'datepassed-marker-history'
     MODEL_VERSION = '1'
-    
+
     fields = ['dialogue-id',
               'interaction-id']
-    
+
     def is_message(self):
         return False
 
@@ -140,10 +142,10 @@ def history_generator(**kwargs):
         if 'dialogue-id' in kwargs:
             kwargs['object-type'] = 'dialogue-history'
         elif 'request-id' in kwargs:
-            kwargs['object-type'] = 'request-history'            
+            kwargs['object-type'] = 'request-history'
         elif 'unattach-id' in kwargs:
             kwargs['object-type'] = 'unattach-history'
-    
+
     if kwargs['object-type'] == 'dialogue-history':
         return DialogueHistory(**kwargs)
     elif kwargs['object-type'] == 'request-history':
@@ -156,5 +158,5 @@ def history_generator(**kwargs):
         return OnewayMarkerHistory(**kwargs)
     elif kwargs['object-type'] == 'datepassed-marker-history':
         return DatePassedMarkerHistory(**kwargs)
-    
+
     raise VusionError("%s not supported" % kwargs['object-type'])

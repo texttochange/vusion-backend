@@ -23,7 +23,7 @@ from vusion.action import Actions
 
 
 class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
-    
+
     @inlineCallbacks
     def test_receive_inbound_message_matching(self):
         for program_setting in self.mkobj_program_settings():
@@ -33,7 +33,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.collections['dialogues'].save(self.mkobj_dialogue_question_offset_days())
         self.collections['participants'].save(self.mkobj_participant(
             '06',
-            enrolled=[{'dialogue-id': '01', 
+            enrolled=[{'dialogue-id': '01',
                        'date-time': time_to_vusion_format(dNow)}]))
 
         inbound_msg_matching = self.mkmsg_in(
@@ -43,7 +43,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 1)
         self.assertEqual(2, self.collections['history'].count())
-        
+
         #Only message matching keyword should be forwarded to the worker
         inbound_msg_non_matching_keyword = self.mkmsg_in(
             from_addr='06',
@@ -53,7 +53,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         history_unmatching = self.collections['history'].find_one({
             'object-type': 'unmatching-history'})
         self.assertTrue(history_unmatching is not None)
-        
+
         inbound_msg_non_matching_answer = self.mkmsg_in(
             from_addr='06',
             content='Feel good')
@@ -78,7 +78,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.collections['dialogues'].save(self.mkobj_dialogue_open_question_offset_conditional())
         self.collections['participants'].save(self.mkobj_participant(
             '06',
-            enrolled=[{'dialogue-id': '04', 
+            enrolled=[{'dialogue-id': '04',
                        'date-time': time_to_vusion_format(dNow)}]))
         self.collections['history'].save(self.mkobj_history_dialogue(
             participant_phone='06',
@@ -86,14 +86,13 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
             dialogue_id='04',
             interaction_id='01-01',
             direction='outgoing',
-            timestamp=time_to_vusion_format(dNow)
-        ))
-        
+            timestamp=time_to_vusion_format(dNow)))
+
         inbound_msg_matching = self.mkmsg_in(
             from_addr='06',
             content='name olivier')
         yield self.send(inbound_msg_matching, 'inbound')
-        
+
         self.assertEqual(1, self.collections['schedules'].count())
 
     @inlineCallbacks
@@ -114,35 +113,35 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
             enrolled=[{'dialogue-id':'04',
                        'date-time': time_to_vusion_format(dNow)}])
         self.collections['participants'].save(participant)
-                
+
         dialogue['interactions'][0]['date-time'] = time_to_vusion_format(dPast)
-        
+
         self.collections['history'].save(self.mkobj_history_dialogue(
             participant_phone='06',
             participant_session_id='1',
             direction='outgoing',
             dialogue_id='04',
             interaction_id='01-01',
-            timestamp= time_to_vusion_format(dPast)))
-        
+            timestamp=time_to_vusion_format(dPast)))
+
         self.collections['schedules'].save(self.mkobj_schedule(
             dialogue_id='04',
             interaction_id='01-01',
             object_type='reminder-schedule',
             participant_phone='06',
             date_time=time_to_vusion_format(dFuture)))
-        
+
         self.collections['schedules'].save(self.mkobj_schedule(
             dialogue_id='04',
             interaction_id='01-01',
-            object_type = 'deadline-schedule',
+            object_type='deadline-schedule',
             participant_phone='06',
             date_time=time_to_vusion_format(dFuture)))
-          
+
         inbound_msg_matching = self.mkmsg_in(
             from_addr='06',
             content='name ok')
-        
+
         yield self.send(inbound_msg_matching, 'inbound')
 
         self.assertEqual(0, self.collections['schedules'].count())   
@@ -157,7 +156,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.worker.load_data()
 
         dNow = self.worker.get_local_time()
-        
+
         self.collections['dialogues'].save(self.mkobj_dialogue_open_question())
         self.collections['participants'].save(self.mkobj_participant(
             '06',
@@ -172,7 +171,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         participant = self.collections['participants'].find_one({'phone': '06'})
         self.assertTrue('name' in participant['profile'][0]['label'])
         self.assertEqual('john doe', participant['profile'][0]['value'])
-        
+
         ## One Way road, and action is not replayed
         inbound_msg_matching_request = self.mkmsg_in(
             from_addr='06',
@@ -194,7 +193,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.worker.load_data()
 
         dNow = self.worker.get_local_time()
-        
+
         self.collections['dialogues'].save(self.mkobj_dialogue_open_question_enroll_action('0'))
         self.collections['participants'].save(self.mkobj_participant(
             '06',
@@ -204,7 +203,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.collections['history'].save(self.mkobj_history_dialogue(
             participant_phone='06',
             participant_session_id='1',
-            direction = 'incoming',
+            direction='incoming',
             dialogue_id='04',
             interaction_id='01-01',
             matching_answer='1',
@@ -217,7 +216,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         yield self.send(inbound_msg_matching_request, 'inbound')
 
         participant = self.collections['participants'].find_one({'phone': '06'})
-        self.assertEqual(1, len(participant['enrolled'])) 
+        self.assertEqual(1, len(participant['enrolled']))
 
     @inlineCallbacks
     def test_receive_inbound_message_only_enrolled(self):
@@ -235,22 +234,22 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
     @inlineCallbacks
     def test_receive_inbound_request_not_optin(self):
         request_id = self.collections['requests'].save(self.mkobj_request_response())
-      
+
         inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
                                                      content='wWw info')
         yield self.send(inbound_msg_matching_request, 'inbound')
-        
+
         self.assertEqual(1, self.collections['history'].count())
         self.assertEqual(0, self.collections['schedules'].count())
-        
+
     @inlineCallbacks
     def test_receive_inbound_request_optin(self):
         request_id = self.collections['requests'].save(self.mkobj_request_join())
-      
+
         inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
                                                      content='www')
         yield self.send(inbound_msg_matching_request, 'inbound')
-        
+ 
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 2)
         self.assertEqual(0, self.collections['schedules'].count())
@@ -259,7 +258,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
     @inlineCallbacks
     def test_receive_inbound_message_request_optin(self):
         request_id = self.collections['requests'].save(self.mkobj_request_join())
-      
+
         inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
                                                      content='wWw')
         yield self.send(inbound_msg_matching_request, 'inbound')
@@ -273,8 +272,8 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual(0, self.collections['schedules'].count())
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 4)
-        
-        participant = self.collections['participants'].find_one({'phone': '07'})        
+
+        participant = self.collections['participants'].find_one({'phone': '07'})
         histories = self.collections['history'].find()
         self.assertEqual(histories.count(), 6)
         for history in histories:
@@ -288,12 +287,12 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.collections['requests'].save(self.mkobj_request_join())
         self.collections['requests'].save(self.mkobj_request_tag())
         self.collections['requests'].save(self.mkobj_request_leave())
-        
+
         # No action in case never optin
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
                                              content='www tagme')
         yield self.send(inbound_msg_matching, 'inbound')
-        
+
         self.assertEqual(0, self.collections['participants'].count())
         self.assertEqual(0, self.collections['schedules'].count())
         self.assertEqual(1, self.collections['history'].count())
@@ -305,14 +304,14 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual(1, self.collections['participants'].count())
         self.assertEqual(0, self.collections['schedules'].count())
         self.assertEqual(4, self.collections['history'].count())
-        
+
         # When they optout no action is performed
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
                                              content='www quit')
         yield self.send(inbound_msg_matching, 'inbound')
         self.assertEqual(0, self.collections['schedules'].count())
         self.assertEqual(5, self.collections['history'].count())
-        
+
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
                                              content='www tagme')
         yield self.send(inbound_msg_matching, 'inbound')
@@ -327,8 +326,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.collections['history'].save({
             'message-id': event['user_message_id'],
             'message-direction': 'outgoing',
-            'message-status': 'pending'
-        })
+            'message-status': 'pending'})
 
         yield self.send(event, 'event')
 
@@ -358,8 +356,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.collections['history'].save({
             'message-id': event['user_message_id'],
             'message-direction': 'outgoing',
-            'message-status': 'pending'
-        })
+            'message-status': 'pending'})
 
         yield self.send(event, 'event')
 
@@ -378,8 +375,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.collections['history'].save({
             'message-id': event['user_message_id'],
             'message-direction': 'outgoing',
-            'message-status': 'pending'
-        })
+            'message-status': 'pending'})
 
         yield self.send(event, 'event')
 
@@ -387,7 +383,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
             'message-id': event['user_message_id']})
 
         self.assertEqual('ack', status['message-status'])
-        
+
     @inlineCallbacks
     def test_limit_max_unmatching_answers(self):
         for program_setting in self.mkobj_program_settings():
@@ -396,34 +392,33 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
         dNow = self.worker.get_local_time()
         dFuture = dNow + timedelta(minutes=10)
-        
+
         dialogue = self.mkobj_dialogue_question_max_unmatching()
         self.collections['dialogues'].save(dialogue)
-        
+
         #dialogue_helper = Dialogue(**dialogue)
         participant = self.mkobj_participant(
             '06',
-            enrolled = [{'dialogue-id': dialogue['dialogue-id'],
-                         'date-time': dNow}])
+            enrolled=[{'dialogue-id': dialogue['dialogue-id'],
+                       'date-time': dNow}])
         self.collections['participants'].save(participant)
-        
+
         self.collections['schedules'].save(self.mkobj_schedule(
             dialogue_id='01',
             interaction_id='01-01',
             object_type='reminder-schedule',
             participant_phone='06',
             date_time=time_to_vusion_format(dFuture)))
-        
+
         self.collections['schedules'].save(self.mkobj_schedule(
             dialogue_id='01',
             interaction_id='01-01',
             object_type = 'deadline-schedule',
             participant_phone='06',
             date_time=time_to_vusion_format(dFuture)))
-        
+
         inbound_msg_unmatching = self.mkmsg_in(from_addr='06',
-                                             content='feel weird')
-        #participant = self.collections['participants'].find_one({'phone': '06'})
+                                               content='feel weird')
         for num in range(5):
             self.assertEqual(self.collections['schedules'].count(), 2)
             yield self.send(inbound_msg_unmatching, 'inbound')
@@ -434,14 +429,13 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
             'object-type': 'dialogue-history',
             'message-direction': 'outgoing'})
         self.assertEqual(history_feedback['message-content'], 'You reached the limit')
-        
+
         self.assertEqual(self.collections['schedules'].count(), 0)
-        
+
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
-                                             content='feel ok')        
+                                             content='feel ok')   
         yield self.send(inbound_msg_matching, 'inbound')
         self.assertEqual(self.collections['schedules'].count(), 0)
-        
+
         yield self.send(inbound_msg_unmatching, 'inbound')
         self.assertEqual(self.collections['schedules'].count(), 0)
-        

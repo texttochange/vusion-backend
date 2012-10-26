@@ -46,22 +46,22 @@ class YoUgHttpTransport(Transport):
             params = {
                 'ybsacctno': self.config['ybsacctno'],
                 'password': self.config['password'],
-                'origin': origin, 
+                'origin': origin,
                 'sms_content': message['content'],
                 'destinations': self.phone_format_to_yo(message['to_addr']),
             }
             log.msg('Hitting %s with %s' % (self.config['url'], urlencode(params)))
-            
+
             response = yield http_request_full(
                 "%s?%s" % (self.config['url'], urlencode(params)),
                 "",
                 {'User-Agent': ['Vumi Yo Transport'],
                  'Content-Type': ['application/json;charset=UTF-8'], },
                 'GET')
-            
+
             if response.code != 200:
                 log.msg("Http Error %s: %s"
-                    % (response.code, response.delivered_body))
+                        % (response.code, response.delivered_body))
                 yield self.publish_delivery_report(
                     user_message_id=message['message_id'],
                     sent_message_id=message['message_id'],
@@ -114,7 +114,7 @@ class YoReceiveSMSResource(Resource):
         regex = re.compile('^[(00)(\+)]')
         regex_single = re.compile('^0')
         phone = re.sub(regex, '', phone)
-        phone = re.sub(regex_single, '', phone)        
+        phone = re.sub(regex_single, '', phone)
         return ('+%s' % phone)
 
     @inlineCallbacks

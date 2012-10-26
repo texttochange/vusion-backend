@@ -1,10 +1,11 @@
 from vusion.error import MissingField, VusionError
 
+
 class Action(object):
 
     ACTION_TYPE = None
-    
-    def __init__ (self, _process_fields=True, **kwargs):
+
+    def __init__(self, _process_fields=True, **kwargs):
         if _process_fields:
             kwargs = self.process_fields(kwargs)
         self.payload = kwargs
@@ -14,7 +15,7 @@ class Action(object):
         if isinstance(other, Action):
             return self.payload == other.payload
         return False
-    
+
     def __str__(self):
         return "Do:%s payload=%s" % (self.get_type(), repr(self.payload))
 
@@ -32,10 +33,10 @@ class Action(object):
 
     def validate_fields(self):
         pass
-    
+
     def get_type(self):
         return self.ACTION_TYPE
-    
+
     def assert_field_present(self, *fields):
         for field in fields:
             if field not in self.payload:
@@ -47,8 +48,9 @@ class Action(object):
             action_dict[key] = self.payload[key]
         return action_dict
 
+
 class OptinAction(Action):
-    
+
     ACTION_TYPE = 'optin'
 
     def validate_fields(self):
@@ -56,15 +58,15 @@ class OptinAction(Action):
 
 
 class OptoutAction(Action):
-    
+
     ACTION_TYPE = 'optout'
-    
+
     def validate_fields(self):
         pass
 
 
 class ResetAction(Action):
-    
+
     ACTION_TYPE = 'reset'
 
     def validate_fields(self):
@@ -72,17 +74,17 @@ class ResetAction(Action):
 
 
 class FeedbackAction(Action):
-    
+
     ACTION_TYPE = 'feedback'
-    
+
     def validate_fields(self):
         self.assert_field_present('content')
 
 
 class UnMatchingAnswerAction(Action):
-    
+
     ACTION_TYPE = 'unmatching-answer'
-    
+
     def validate_fields(self):
         self.assert_field_present('answer')
 
@@ -90,7 +92,7 @@ class UnMatchingAnswerAction(Action):
 class TaggingAction(Action):
 
     ACTION_TYPE = 'tagging'
-    
+
     def validate_fields(self):
         self.assert_field_present('tag')
 
@@ -98,15 +100,15 @@ class TaggingAction(Action):
 class EnrollingAction(Action):
 
     ACTION_TYPE = 'enrolling'
-    
+
     def validate_fields(self):
         self.assert_field_present('enroll')
 
 
 class DelayedEnrollingAction(Action):
-    
+
     ACTION_TYPE = 'delayed-enrolling'
-    
+
     def validate_fields(self):
         self.assert_field_present(
             'enroll',
@@ -116,13 +118,13 @@ class DelayedEnrollingAction(Action):
 class ProfilingAction(Action):
 
     ACTION_TYPE = 'profiling'
-    
+
     def validate_fields(self):
         self.assert_field_present('label', 'value')
-        
+    
 
 class RemoveQuestionAction(Action):
-    
+
     ACTION_TYPE = 'remove-question'
 
     def validate_fields(self):
@@ -130,9 +132,9 @@ class RemoveQuestionAction(Action):
 
 
 class RemoveRemindersAction(Action):
-    
+
     ACTION_TYPE = 'remove-reminders'
-    
+
     def validate_fields(self):
         self.assert_field_present('dialogue-id', 'interaction-id')
 
@@ -140,15 +142,15 @@ class RemoveRemindersAction(Action):
 class RemoveDeadlineAction(Action):
 
     ACTION_TYPE = 'remove-deadline'
-    
+
     def validate_fields(self):
         self.assert_field_present('dialogue-id', 'interaction-id')
 
 
 class OffsetConditionAction(Action):
-    
+
     ACTION_TYPE = 'offset-conditioning'
-    
+
     def validate_fields(self):
         self.assert_field_present('interaction-id', 'dialogue-id')
 
@@ -185,7 +187,7 @@ def action_generator(**kwargs):
 
 
 class Actions():
-    
+
     def __init__(self):
         self.actions = []
 
@@ -200,25 +202,25 @@ class Actions():
             if action.get_type() == action_type:
                 return True
         return False
-    
+
     def items(self):
         return self.actions.__iter__()
 
     def __getitem__(self, key):
         return self.actions[key]
-    
+
     def get_priority_action(self):
         return self.actions.pop(0)
 
     def __len__(self):
         return len(self.actions)
-    
+
     def clear_all(self):
         self.actions = []
 
     def keep_only_remove_action(self):
         for action in self.actions:
             if (action.get_type() != 'remove-reminders' and
-                action.get_type() != 'remove-deadline' and
-                action.get_type() != 'remove-question'):
+                    action.get_type() != 'remove-deadline' and
+                    action.get_type() != 'remove-question'):
                 self.actions.remove(action)
