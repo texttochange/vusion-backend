@@ -11,10 +11,11 @@ from vumi.message import (TransportEvent, TransportMessage,
 from vumi.transports.failures import FailureMessage
 from vumi.tests.utils import RegexMatcher, UTCNearNow
 
-from vusion.message import DispatcherControl
+from vusion.message import DispatcherControl, WorkerControl
 
 from vusion.persist import (Dialogue, DialogueHistory, UnattachHistory,
                             history_generator, schedule_generator)
+
 
 class DataLayerUtils:
 
@@ -53,9 +54,11 @@ class MessageMaker:
                 transport_metadata=transport_metadata,
             )
 
-    def mkmsg_delivery_for_send(self, event_type='delivery_report', user_message_id='1',
-                       sent_message_id='abc', delivery_status='delivered',
-                       transport_name=None, transport_metadata=None, **kwargs):
+    def mkmsg_delivery_for_send(self, event_type='delivery_report',
+                                user_message_id='1', sent_message_id='abc',
+                                delivery_status='delivered',
+                                transport_name=None, transport_metadata=None,
+                                **kwargs):
         if transport_metadata is None:
             transport_metadata = {}
         params = dict(
@@ -67,7 +70,7 @@ class MessageMaker:
             transport_metadata=transport_metadata,
         )
         for key in kwargs:
-            params[key] = kwargs[key] 
+            params[key] = kwargs[key]
         return TransportEvent(**params)
 
     def mkmsg_delivery(self, event_type='delivery_report', user_message_id='1',
@@ -86,7 +89,7 @@ class MessageMaker:
             transport_metadata=transport_metadata,
         )
         for key in kwargs:
-            params[key] = kwargs[key] 
+            params[key] = kwargs[key]
         return TransportEvent(**params)
 
     def mkmsg_in(self, content='hello world',
@@ -186,12 +189,8 @@ class MessageMaker:
             worker_class=worker_class,
             config=config)
 
-    def mkmsg_dialogueworker_control(self, action, dialogue_obj_id=None,
-                                     phone_number=None):
-        return Message(
-            action=action,
-            dialogue_obj_id=dialogue_obj_id,
-            phone_number=phone_number)
+    def mkmsg_dialogueworker_control(self, **kwargs):
+        return WorkerControl(**kwargs)
 
 
 class ObjectMaker:
@@ -225,7 +224,7 @@ class ObjectMaker:
         shortcode['shortcode'] = '+318181'
         shortcode['supported-internationally'] = 1
         return shortcode
-    
+
     def mkobj_shortcode_local(self):
         return deepcopy(self.shortcodes)
 
@@ -245,11 +244,11 @@ class ObjectMaker:
          'value': 'Africa/Kampala'},
         {'key': 'customized-id',
          'value': 'myid'}]
-    
+
     def mkobj_program_settings(self):
         program_settings = deepcopy(self.program_settings)
         return program_settings
-        
+
     def mkobj_program_settings_international_shortcode(self):
         program_settings = deepcopy(self.program_settings)
         program_settings[2] = {'key': 'shortcode',
@@ -265,7 +264,7 @@ class ObjectMaker:
         'dialogue-id': '0',
         'interactions': [
             {'activated': 0,
-            'type-interaction': 'announcement',
+             'type-interaction': 'announcement',
              'interaction-id': '0',
              'content': 'Hello',
              'type-schedule': 'offset-days',
@@ -278,15 +277,15 @@ class ObjectMaker:
              'type-schedule': 'offset-days',
              'days': '2',
              'at-time': '22:30'}]}
-    
+
     def mkobj_dialogue_announcement_offset_days(self):
         dialogue = deepcopy(self.dialogue_announcement)
         return Dialogue(**dialogue).get_as_dict()
-    
+
     def mkobj_dialogue_announcement_offset_time(self):
         dialogue = deepcopy(self.dialogue_announcement)
-        dialogue['created'] = Timestamp(datetime.now(),0)
-        dialogue['modified'] = Timestamp(datetime.now(),0)
+        dialogue['created'] = Timestamp(datetime.now(), 0)
+        dialogue['modified'] = Timestamp(datetime.now(), 0)
         dialogue['interactions'][0] = {
             'activated': 0,
             'interaction-id': '2',
@@ -311,7 +310,7 @@ class ObjectMaker:
             'dialogue-id': '0',
             'interactions': [
                 {'activated': 0,
-                'type-interaction': 'announcement',
+                 'type-interaction': 'announcement',
                  'interaction-id': '0',
                  'content': 'Hello',
                  'type-schedule': 'offset-days',
@@ -319,8 +318,8 @@ class ObjectMaker:
                  'at-time': '22:30',
                  'model-version':'2',
                  'object-type': 'interaction'}],
-            'created': Timestamp(datetime.now(),0),
-            'modified': Timestamp(datetime.now(),0),
+            'created': Timestamp(datetime.now(), 0),
+            'modified': Timestamp(datetime.now(), 0),
         }
 
     dialogue_annoucement_2 = {
@@ -346,9 +345,8 @@ class ObjectMaker:
              "interaction-id": "2",
              "content": "Today is the special day",
              'type-schedule': 'offset-time',
-             'minutes': '3'}]
-    }
-    
+             'minutes': '3'}]}
+
     def mkobj_dialogue_announcement_2(self):
         return Dialogue(**self.dialogue_annoucement_2).get_as_dict()
 
@@ -359,25 +357,24 @@ class ObjectMaker:
         'dialogue-id': '01',
         'interactions': [
             {'activated': 0,
-            'interaction-id': '01-01',
-            'type-interaction': 'question-answer',
-            'type-question': 'closed-question',
-            'content': 'How are you?',
-            'keyword': 'FEEL, FEL',
-            'type-schedule': 'offset-days',
-            'set-use-template': 'use-template',
-            'days': '1',
-            'at-time': '22:30',            
-            'answers': [
-                {'choice': 'Fine',
-                 'feedbacks': None,
-                 'answer-actions': None},
-                {'choice': 'Ok',
-                 'feedbacks': [{'content': 'Thank you'}],
-                 'answer-actions':[{'type-answer-action': 'enrolling',
-                                    'enroll': '2'}]}]}]
-    }
-    
+             'interaction-id': '01-01',
+             'type-interaction': 'question-answer',
+             'type-question': 'closed-question',
+             'content': 'How are you?',
+             'keyword': 'FEEL, FEL',
+             'type-schedule': 'offset-days',
+             'set-use-template': 'use-template',
+             'days': '1',
+             'at-time': '22:30',            
+             'answers': [
+                 {'choice': 'Fine',
+                  'feedbacks': None,
+                  'answer-actions': None},
+                 {'choice': 'Ok',
+                  'feedbacks': [{'content': 'Thank you'}],
+                  'answer-actions':[{'type-answer-action': 'enrolling',
+                                     'enroll': '2'}]}]}]}
+
     def mkobj_dialogue_question_max_unmatching(self):
         dialogue = deepcopy(self.dialogue_question)
         dialogue['interactions'][0]['model-version'] = '2'
@@ -394,7 +391,7 @@ class ObjectMaker:
         dialogue['interactions'][0]['label-for-participant-profiling'] = None
         dialogue['interactions'][0]['set-answer-accept-no-space'] = None
         return Dialogue(**dialogue).get_as_dict()
-    
+
     def mkobj_dialogue_question_offset_days(self):
         return Dialogue(**{
             'activated': 1,
@@ -413,7 +410,7 @@ class ObjectMaker:
                  'days': '1',
                  'label-for-participant-profiling': None,
                  'set-answer-accept-no-space': None,
-                 'at-time': '22:30',            
+                 'at-time': '22:30',
                  'answers': [
                      {'choice': 'Fine'},
                      {'choice': 'Ok',
@@ -424,8 +421,8 @@ class ObjectMaker:
 
     def mkobj_dialogue_question_offset_conditional(self):
         dialogue = deepcopy(self.dialogue_question)
-        dialogue['created'] = Timestamp(datetime.now(),0)
-        dialogue['modified'] = Timestamp(datetime.now(),0)
+        dialogue['created'] = Timestamp(datetime.now(), 0)
+        dialogue['modified'] = Timestamp(datetime.now(), 0)
         dialogue['interactions'].append(
             {'activated': 1,
              'interaction-id': '01-02',
@@ -459,9 +456,8 @@ class ObjectMaker:
              'type-schedule': 'offset-days',
              'feedbacks': None,
              'days': '1',
-            'at-time': '22:30'}]
-    }
-    
+            'at-time': '22:30'}]}
+
     def mkobj_dialogue_question_multi_keyword(self):
         return Dialogue(**{
             'activated': 1,
@@ -477,18 +473,13 @@ class ObjectMaker:
                  'content': 'What is your gender?\n male or female',
                  'label-for-participant-profiling': 'gender',
                  "answer-keywords": [
-                    {
-                        "keyword": "maLe"
-                    },
-                    {
-                        "keyword": "female"
-                    }]
+                     {"keyword": "maLe"},
+                     {"keyword": "female"}]
                  }]}).get_as_dict()
-                 
-    
+
     def mkobj_dialogue_open_question(self):
         return deepcopy(self.dialogue_open_question)
-    
+
     def mkobj_dialogue_open_question_enroll_action(self, dialogue_id):
         dialogue = deepcopy(self.dialogue_open_question)
         dialogue['interactions'][0]['answer-actions'] = [
@@ -517,18 +508,16 @@ class ObjectMaker:
              'type-schedule-reminder': 'reminder-offset-time',
              'reminder-minutes': '30',
              'reminder-actions': [
-                 {'type-action': 'optout'}]
-             }]
-    }
-    
+                 {'type-action': 'optout'}]}]}
+
     def mkobj_dialogue_open_question_reminder(self):
         dialogue = Dialogue(**deepcopy(self.dialogue_open_question_with_reminder))
         return dialogue.get_as_dict()
 
     def mkobj_dialogue_open_question_offset_conditional(self):
         dialogue = deepcopy(self.dialogue_open_question)
-        dialogue['created'] = Timestamp(datetime.now(),0)
-        dialogue['modified'] = Timestamp(datetime.now(),0)
+        dialogue['created'] = Timestamp(datetime.now(), 0)
+        dialogue['modified'] = Timestamp(datetime.now(), 0)
         dialogue['interactions'].append(
             {'activated': 1,
              'interaction-id': '01-02',
@@ -550,14 +539,12 @@ class ObjectMaker:
              'content': 'Hello',
              'type-schedule': 'fixed-time',
              'date-time': '2012-03-12T12:30:00'
-             }
-        ]
-    }
-    
+             }]}
+
     def mkobj_dialogue_announcement_fixedtime(self):
         dialogue = deepcopy(self.dialogue_announcement_fixedtime)
         return Dialogue(**dialogue).get_as_dict()
-    
+
     dialogue_question_answer = {
         'dialogue-id': '01',
         'name': 'test dialogue',
@@ -595,7 +582,7 @@ class ObjectMaker:
              }
         ]
     }
-    
+
     def mkobj_dialogue_question_answer(self):
         return Dialogue(**deepcopy(self.dialogue_question_answer)).get_as_dict()
 
@@ -643,12 +630,12 @@ class ObjectMaker:
             ],
         "dialogue-id": "script.dialogues[0]"
     }
-    
+
     def mkobj_dialogue_answer_not_space_supported(self):
         dialogue = deepcopy(self.dialogue_other_question_answer)
         dialogue['interactions'][1]['set-answer-accept-no-space'] = 'answer-accept-no-space'
         return dialogue
-    
+
     def mkobj_request_join(self):
         return {
             'keyword': 'www join, www',
@@ -660,8 +647,7 @@ class ObjectMaker:
                 {'type-action': 'enrolling',
                  'enroll': '01'}],
             'object-type': 'request',
-            'model-version': '1',
-        }
+            'model-version': '1'}
 
     request_tag = {
         'keyword': 'www tagme',
@@ -671,22 +657,21 @@ class ObjectMaker:
         'responses': [ 
             {'content': 'you are tagged'}],
         'object-type': 'request',
-        'model-version': '1',
-    }
+        'model-version': '1'}
     
     def mkobj_request_tag(self):
         return deepcopy(self.request_tag)
-    
+
     def mkobj_request_reponse_lazy_matching(self, keyword):
         request = self.mkobj_request_response(keyword)
         request['set-no-request-matching-try-keyword-only'] = 'no-request-matching-try-keyword-only'
         request['model-version'] = '2'
         return request
-        
+
     def mkobj_request_response(self, keyword='www info'):
         return {
             'keyword': keyword,
-            'responses': [ 
+            'responses': [
                 {'content': 'a response'}],
             'actions': [],
             'object-type': 'request',
@@ -711,26 +696,22 @@ class ObjectMaker:
             'to': recipient,
             'content': content,
             'type-schedule': type_schedule,
-            'fixed-time': fixed_time
-        }
+            'fixed-time': fixed_time}
 
     template_closed_question = {
         'name': 'my template',
         'type-question': 'closed-question',
-        'template': 'QUESTION\r\nANSWERS To reply send: KEYWORD<space><AnswerNb> to SHORTCODE'
-    }
+        'template': 'QUESTION\r\nANSWERS To reply send: KEYWORD<space><AnswerNb> to SHORTCODE'}
 
     template_open_question = {
         'name': 'my other template',
         'type-question': 'open-question',
-        'template': 'QUESTION\r\n To reply send: KEYWORD<space><ANSWER> to SHORTCODE'
-    }
+        'template': 'QUESTION\r\n To reply send: KEYWORD<space><ANSWER> to SHORTCODE'}
 
     template_unmatching_answer = {
         'name': 'unmatching answers template',
         'type-action': 'unmatching-answer',
-        'template': 'ANSWER does not match any answer'
-    }
+        'template': 'ANSWER does not match any answer'}
 
     def mkobj_history_unattach(self, unattach_id, timestamp,
                                participant_phone='06',
@@ -744,7 +725,7 @@ class ObjectMaker:
             'message-id': '1',
             'message-content': 'A message',
             'unattach-id': unattach_id}).get_as_dict()
-    
+
     def mkobj_history_dialogue(self, dialogue_id, interaction_id,
                                timestamp, participant_phone='06',
                                participant_session_id="1", direction='outgoing',
@@ -759,8 +740,8 @@ class ObjectMaker:
             'message-content': message_content,
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id,
-            'matching-answer' : matching_answer}).get_as_dict()
-    
+            'matching-answer': matching_answer}).get_as_dict()
+
     def mkobj_history_dialogue_open_question(self, dialogue_id, interaction_id,
                                timestamp, participant_phone='06',
                                participant_session_id="1", direction='outgoing'):
@@ -782,9 +763,8 @@ class ObjectMaker:
             'last-optin-date': last_optin_date,            
             'enrolled': enrolled,
             'tags': tags,
-            'profile': profile
-            }
-    
+            'profile': profile}
+
     def mkobj_schedule(self, participant_phone='06',
                        participant_session_id='1',
                        date_time='2116-12-06T16:24:12',
@@ -799,7 +779,7 @@ class ObjectMaker:
             'object-type': object_type,
             'date-time': date_time
             }).get_as_dict()
-    
+
     def mkobj_schedule_unattach(self, participant_phone='06',
                                 participant_session_id='1',
                                 date_time=None,
@@ -812,7 +792,7 @@ class ObjectMaker:
             'unattach-id': unattach_id,
             'date-time': date_time
             }).get_as_dict()
-        
+
     def mkobj_schedule_feedback(self, participant_phone='06',
                                 participant_session_id='1',
                                 date_time=None,

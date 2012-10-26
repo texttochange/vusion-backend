@@ -51,7 +51,7 @@ class GarbageWorker(ApplicationWorker):
             matching_code = self.get_shortcode(msg)
             if matching_code is None:
                 return
-            
+
             template = self.templates_collection.find_one({
                 '_id': ObjectId(matching_code['error-template'])})
             if template is None:
@@ -84,7 +84,7 @@ class GarbageWorker(ApplicationWorker):
     def get_shortcode(self, msg):
         matching_code = None
         codes = self.shortcodes_collection.find({'shortcode': msg['to_addr']})
-        if codes is None or codes.count()==0:
+        if codes is None or codes.count() == 0:
             log.err("Could not find shortcode for %s" % msg['to_addr'])
             return None
         elif codes.count() > 1:

@@ -6,7 +6,7 @@ from vusion.persist.vusion_model import VusionModel
 
 
 class Schedule(VusionModel):
-    
+
     SCHEDULE_FIELDS = {
         'participant-phone': lambda v: v is not None,
         'participant-session-id': lambda v: True,
@@ -18,7 +18,7 @@ class Schedule(VusionModel):
             self.assert_field_present(field)
             if not check(self[field]):
                 raise InvalidField(field)
-    
+
     def get_context(self):
         if 'context' not in self.payload:
             return None
@@ -93,7 +93,7 @@ class FeedbackSchedule(Schedule):
 
 
 class ActionSchedule(Schedule):
-    
+
     MODEL_TYPE = 'action-schedule'
     MODEL_VERSION = '2'
 

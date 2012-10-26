@@ -649,10 +649,10 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.worker.load_data()
         dNow = self.worker.get_local_time()
 
-        self.collections['dialogues'].save(
-            self.mkobj_dialogue_announcement_offset_days())
-        self.collections['dialogues'].save(
-            self.mkobj_dialogue_question_offset_days())
+        dialogue_1 = self.mkobj_dialogue_announcement_offset_days()
+        dialogue_2 = self.mkobj_dialogue_question_offset_days()
+        self.collections['dialogues'].save(dialogue_1)
+        self.collections['dialogues'].save(dialogue_2)
         self.collections['participants'].save(
             self.mkobj_participant(
                 participant_phone='08',
@@ -677,14 +677,27 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
                           {'dialogue-id': '0',
                            'date-time': time_to_vusion_format(dNow)}]))
 
-        event = self.mkmsg_dialogueworker_control('update-schedule')
+        event = self.mkmsg_dialogueworker_control(**{
+            'action':'update_schedule',
+            'schedule_type': 'dialogue',
+            'object_id': dialogue_1['dialogue-id']})
+        yield self.send(event, 'control')
+        self.assertEqual(4, self.collections['schedules'].count())
+
+        event = self.mkmsg_dialogueworker_control(**{
+            'action':'update_schedule',
+            'schedule_type': 'dialogue',
+            'object_id': dialogue_2['dialogue-id']})
         yield self.send(event, 'control')
         self.assertEqual(5, self.collections['schedules'].count())
 
-        self.collections['unattached_messages'].save(
-            self.mkobj_unattach_message())
+        unattach = self.mkobj_unattach_message()
+        unattach_id = self.collections['unattached_messages'].save(unattach)
 
-        event = self.mkmsg_dialogueworker_control('update-schedule')
+        event = self.mkmsg_dialogueworker_control(**{
+            'action':'update_schedule',
+            'schedule_type': 'unattach',
+            'object_id': str(unattach_id)})
         yield self.send(event, 'control')
         self.assertEqual(7, self.collections['schedules'].count())
 
@@ -697,9 +710,10 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
 
-        event = self.mkmsg_dialogueworker_control('test-send-all-messages',
-                                                  dialogue_id.__str__(),
-                                                  phone_number='08')
+        event = self.mkmsg_dialogueworker_control(**{
+            'action': 'test_send_all_messages',
+            'dialogue_obj_id': str(dialogue_id),
+            'phone_number': '08'})
         yield self.send(event, 'control')
 
         messages = self.broker.get_messages('vumi', 'test.outbound')

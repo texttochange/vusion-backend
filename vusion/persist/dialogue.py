@@ -72,8 +72,8 @@ class Dialogue(VusionModel):
             'dialogue-id': dialogue_id,
             'interaction-id': interaction['interaction-id'],
             'interaction': interaction,
-            'matching-answer': None})        
-        
+            'matching-answer': None})      
+
         interaction.get_actions(dialogue_id, message, keyword, reply, context, actions)
 
         # Check if offset condition on this answer
@@ -82,13 +82,13 @@ class Dialogue(VusionModel):
                 actions.append(OffsetConditionAction(**{
                     'dialogue-id': dialogue_id,
                     'interaction-id': interaction_to_schedule}))
-        
+
     def get_all_keywords(self):
         keywords = []
-        if self.payload['interactions'] is None :
+        if self.payload['interactions'] is None:
             return keywords
         for interaction in self.interactions:
-            keywords += interaction.get_keywords();
+            keywords += interaction.get_keywords()
         return keywords
 
     def get_interaction(self, interaction_id):

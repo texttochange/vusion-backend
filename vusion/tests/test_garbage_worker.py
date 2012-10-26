@@ -53,7 +53,7 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
     @inlineCallbacks
     def test_receive_user_message_without_error_template(self):
         msg = self.mkmsg_in(to_addr='8282')
-        self.shortcodes_collection.save(self.mkobj_shortcode(code = '8282'))
+        self.shortcodes_collection.save(self.mkobj_shortcode(code='8282'))
 
         yield self.send(msg)
 
@@ -78,19 +78,17 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
                          'Gen does not match any keyword.')
         self.assertEqual(messages[0]['to_addr'], msg['from_addr'])
         self.assertEqual(messages[0]['from_addr'], '256-8181')
-    
+
     @inlineCallbacks
     def test_receive_user_message_with_two_error_template_matching_to_addr(self):
         msg = self.mkmsg_in(content='Gen 2', to_addr='8282')
         template_1_id = self.templates_collection.save(
-            self.mkobj_template_unmatching_keyword()
-        )
+            self.mkobj_template_unmatching_keyword())
         shortcode_1 = self.mkobj_shortcode(template_1_id, '8181')
         self.shortcodes_collection.save(shortcode_1)
-        
+
         template_2_id = self.templates_collection.save(
-            self.mkobj_template_unmatching_keyword(message="KEYWORD is not good.")
-        )
+            self.mkobj_template_unmatching_keyword(message="KEYWORD is not good."))
         shortcode_2 = self.mkobj_shortcode(template_2_id, '8282')
         self.shortcodes_collection.save(shortcode_2)
 

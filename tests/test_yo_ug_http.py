@@ -16,6 +16,7 @@ from vumi.message import TransportMessage, TransportEvent, TransportUserMessage
 
 from tests.utils import MessageMaker
 
+
 class YoUgHttpTransportTestCase(MessageMaker, TransportTestCase):
 
     transport_name = 'yo'
@@ -60,15 +61,16 @@ class YoUgHttpTransportTestCase(MessageMaker, TransportTestCase):
                 user_message_id='1',
                 sent_message_id='1'),
             TransportMessage.from_json(smsg.body))
-        
+
     @inlineCallbacks
     def test_sending_one_sms_customized_id(self):
-        required_args = {'origin':'myid'}
+        required_args = {'origin': 'myid'}
         mocked_response = "ybs_autocreate_status%3DOK"
         #HTTP response
-        yield self.make_resource_worker(mocked_response, send_id = 'myid')
+        yield self.make_resource_worker(mocked_response, send_id='myid')
         #Message to transport
-        yield self.dispatch(self.mkmsg_out(transport_metadata={'customized_id':'myid'}))
+        yield self.dispatch(
+            self.mkmsg_out(transport_metadata={'customized_id': 'myid'}))
         [smsg] = self.get_dispatched('yo.event')
         self.assertEqual(
             self.mkmsg_delivery(
@@ -172,7 +174,7 @@ class TestResource(Resource):
                 not ('password' in request.args) or
                 not ('sms_content' in request.args) or
                 not ('ybsacctno' in request.args) or
-                (self.send_id is not None and self.send_id!=request.args['origin'][0])):
+                (self.send_id is not None and self.send_id != request.args['origin'][0])):
             return "ybs_autocreate_status=ERROR"
         else:
             return self.response

@@ -59,7 +59,7 @@ class CmYoTransport(Transport):
                 {'User-Agent': ['Vumi CM YO Transport'],
                  'Content-Type': ['application/json;charset=UTF-8'], },
                 'POST')
-   
+
             if response.code != 200:
                 log.msg("Http Error %s: %s"
                         % (response.code, response.delivered_body))
@@ -70,7 +70,7 @@ class CmYoTransport(Transport):
                     failure_code=response.code,
                     failure_reason=response.delivered_body)
                 return
-    
+
             if response.delivered_body:
                 log.msg("Cm Error: %s" % (response.delivered_body))
                 yield self.publish_delivery_report(
@@ -78,15 +78,13 @@ class CmYoTransport(Transport):
                     delivery_status='failed',
                     failure_level='service',
                     failure_code=0,
-                    failure_reason=response.delivered_body
-                )
+                    failure_reason=response.delivered_body)
                 return
-    
+
             yield self.publish_delivery_report(
                 user_message_id=message['message_id'],
                 delivery_status='delivered',
-                to_addr=message['to_addr']
-            )
+                to_addr=message['to_addr'])
         except Exception as ex:
             log.msg("Unexpected error %s" % repr(ex))
 
