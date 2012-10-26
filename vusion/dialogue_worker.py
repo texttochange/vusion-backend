@@ -217,7 +217,6 @@ class DialogueWorker(ApplicationWorker):
             self.collections[name] = self.db.create_collection(name)
         self.log("Collection initialised: %s" % name)
 
-    #@inlineCallbacks
     def consume_control(self, message):
         try:
             self.log("Control message received to %r" % (message['action'],))
@@ -227,9 +226,9 @@ class DialogueWorker(ApplicationWorker):
                 return
             if message['action'] == 'update_schedule':
                 if message['schedule_type'] == 'dialogue':
-                    self.schedule_dialogue(message['dialogue_id'])
+                    self.schedule_dialogue(message['object_id'])
                 elif message['schedule_type'] == 'unattach':
-                    self.schedule_unattach(message['unattach_id'])
+                    self.schedule_unattach(message['object_id'])
                 self.register_keywords_in_dispatcher()
             elif message['action'] == 'test_send_all_messages':
                 dialogue = self.get_dialogue_obj(message['dialogue_obj_id'])
@@ -588,18 +587,18 @@ class DialogueWorker(ApplicationWorker):
             return False
         return True
 
-    def schedule(self):
-        #Schedule the dialogues
-        active_dialogues = self.get_active_dialogues()
-        for dialogue in active_dialogues:
-            participants = self.collections['participants'].find(
-                {'enrolled.dialogue-id':dialogue['dialogue-id'],
-                 'session-id': {'$ne': None}})
-            self.schedule_participants_dialogue(
-                participants, dialogue)
-        #Schedule the nonattached messages
-        self.schedule_participants_unattach_messages(
-            self.collections['participants'].find({'session-id': {'$ne': None}}))
+    #def schedule(self):
+        ##Schedule the dialogues
+        #active_dialogues = self.get_active_dialogues()
+        #for dialogue in active_dialogues:
+            #participants = self.collections['participants'].find(
+                #{'enrolled.dialogue-id':dialogue['dialogue-id'],
+                 #'session-id': {'$ne': None}})
+            #self.schedule_participants_dialogue(
+                #participants, dialogue)
+        ##Schedule the nonattached messages
+        #self.schedule_participants_unattach_messages(
+            #self.collections['participants'].find({'session-id': {'$ne': None}}))
 
     def schedule_dialogue(self, dialogue_id):
         dialogue = self.get_current_dialogue(dialogue_id)
@@ -617,59 +616,59 @@ class DialogueWorker(ApplicationWorker):
 
     def schedule_participants_unattach(self, participants, unattach):
         for participant in participants:
-            self.schedule_participant_unattach_messages(participant)
+            self.schedule_participant_unattach(participant, unattach)
 
     def schedule_participant_unattach(self, participant, unattach):
         history = self.collections['history'].find_one({
             'participant-phone': participant['phone'],
-            'unattach-id': unattach_message['_id']})
+            'unattach-id': str(unattach['_id'])})
         if history is not None:
             return
         schedule = self.collections['schedules'].find_one({
             'participant-phone': participant['phone'],
-            'unattach-id': unattach_message['_id']})
+            'unattach-id': str(unattach['_id'])})
         if schedule is None:
             schedule = UnattachSchedule(**{
                     'model-version': '2',
                     'participant-phone': participant['phone'],
                     'participant-session-id': participant['session-id'],
-                    'unattach-id': unattach_message['_id'],
-                    'date-time': unattach_message['fixed-time']})
+                    'unattach-id': str(unattach['_id']),
+                    'date-time': unattach['fixed-time']})
             self.collections['schedules'].save(schedule.get_as_dict())
 
-    #Deprecated
-    def get_future_unattach_messages(self):
-        return self.collections['unattached_messages'].find({
-            'fixed-time': {
-                '$gt': time_to_vusion_format(self.get_local_time())
-            }})
+    ##Deprecated
+    #def get_future_unattach_messages(self):
+        #return self.collections['unattached_messages'].find({
+            #'fixed-time': {
+                #'$gt': time_to_vusion_format(self.get_local_time())
+            #}})
 
-    #Deprecated
-    def schedule_participants_unattach_messages(self, participants):
-        for participant in participants:
-            self.schedule_participant_unattach_messages(participant)
+    ##Deprecated
+    #def schedule_participants_unattach_messages(self, participants):
+        #for participant in participants:
+            #self.schedule_participant_unattach_messages(participant)
     
-    #Deprecated
-    def schedule_participant_unattach_messages(self, participant):
-        unattach_messages = self.get_future_unattach_messages()
-        for unattach_message in unattach_messages:
-            history = self.collections['history'].find_one({
-                'participant-phone': participant['phone'],
-                'unattach-id': unattach_message['_id']})
-            if history is not None:
-                continue
-            schedule = self.collections['schedules'].find_one({
-                'participant-phone': participant['phone'],
-                'unattach-id': unattach_message['_id']})
-            if schedule is None:
-                schedule = {
-                    'object-type': 'unattach-schedule',
-                    'model-version': '2',
-                    'participant-phone': participant['phone'],
-                    'participant-session-id': participant['session-id'],
-                    'unattach-id': unattach_message['_id']}
-            schedule.update({'date-time': time_from_vusion_format(unattach_message['fixed-time'])})
-            self.save_schedule(**schedule)
+    ##Deprecated
+    #def schedule_participant_unattach_messages(self, participant):
+        #unattach_messages = self.get_future_unattach_messages()
+        #for unattach_message in unattach_messages:
+            #history = self.collections['history'].find_one({
+                #'participant-phone': participant['phone'],
+                #'unattach-id': unattach_message['_id']})
+            #if history is not None:
+                #continue
+            #schedule = self.collections['schedules'].find_one({
+                #'participant-phone': participant['phone'],
+                #'unattach-id': unattach_message['_id']})
+            #if schedule is None:
+                #schedule = {
+                    #'object-type': 'unattach-schedule',
+                    #'model-version': '2',
+                    #'participant-phone': participant['phone'],
+                    #'participant-session-id': participant['session-id'],
+                    #'unattach-id': unattach_message['_id']}
+            #schedule.update({'date-time': time_from_vusion_format(unattach_message['fixed-time'])})
+            #self.save_schedule(**schedule)
 
     def schedule_participants_dialogue(self, participants, dialogue):
         for participant in participants:

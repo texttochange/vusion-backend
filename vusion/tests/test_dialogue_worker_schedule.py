@@ -290,8 +290,8 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase, MessageMaker,
         self.assertEqual(schedules[2]['object-type'], 'deadline-schedule')
 
     def test_schedule_unattach_message(self):
-        participants = [self.mkobj_participant(),
-                        self.mkobj_participant('07')]
+        participants = [self.mkobj_participant('06', session_id = None),
+                        self.mkobj_participant('07', session_id = '1')]
 
         mytimezone = self.program_settings[2]['value']
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
@@ -318,8 +318,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase, MessageMaker,
 
         self.worker.load_data()
 
-        self.worker.schedule_participants_unattach_messages(
-            participants)
+        self.worker.schedule_unattach(unattach_id)
 
         schedules_count = self.collections['schedules'].count()
         self.assertEqual(schedules_count, 1)

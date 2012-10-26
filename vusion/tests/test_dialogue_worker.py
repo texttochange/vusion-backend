@@ -680,14 +680,14 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         event = self.mkmsg_dialogueworker_control(**{
             'action':'update_schedule',
             'schedule_type': 'dialogue',
-            'dialogue_id': dialogue_1['dialogue-id']})
+            'object_id': dialogue_1['dialogue-id']})
         yield self.send(event, 'control')
         self.assertEqual(4, self.collections['schedules'].count())
 
         event = self.mkmsg_dialogueworker_control(**{
             'action':'update_schedule',
             'schedule_type': 'dialogue',
-            'dialogue_id': dialogue_2['dialogue-id']})
+            'object_id': dialogue_2['dialogue-id']})
         yield self.send(event, 'control')
         self.assertEqual(5, self.collections['schedules'].count())
 
@@ -697,7 +697,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         event = self.mkmsg_dialogueworker_control(**{
             'action':'update_schedule',
             'schedule_type': 'unattach',
-            'unattach_id': str(unattach_id)})
+            'object_id': str(unattach_id)})
         yield self.send(event, 'control')
         self.assertEqual(7, self.collections['schedules'].count())
 

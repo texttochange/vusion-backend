@@ -10,12 +10,10 @@ class DispatcherControl(Message):
 
 class WorkerControl(Message):
 
-    SCHEDULE_TYPE = {
-        'dialogue': {'dialogue_id': lambda v: v is not None},
-        'unattach': {'unattach_id': lambda v: v is not None}}
-
     ACTION_TYPES = {
-        'update_schedule': {'schedule_type': lambda v: WorkerControl.SCHEDULE_TYPE.has_key(v)},
+        'update_schedule': {
+            'schedule_type': lambda v: v in ['dialogue', 'unattach'],
+            'object_id': lambda v: v is not None},
         'test_send_all_messages': {
             'dialogue_obj_id': lambda v: v is not None,
             'phone_number': lambda v: v is not None,
@@ -29,8 +27,3 @@ class WorkerControl(Message):
             self.assert_field_present(field)
             if not check(self[field]):
                 raise InvalidMessageField(self[field])
-            if field == 'schedule_type':
-                for field, check in self.SCHEDULE_TYPE[self[field]].items():
-                    self.assert_field_present(field)
-                    if not check(self[field]):
-                        raise InvalidMessageField(self[field])
