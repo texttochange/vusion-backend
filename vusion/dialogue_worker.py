@@ -24,7 +24,8 @@ from vumi.application import SessionManager
 from vumi import log
 from vumi.utils import get_first_word
 
-from vusion.persist import Dialogue, FeedbackSchedule, UnattachSchedule
+from vusion.persist import (Dialogue, FeedbackSchedule, UnattachSchedule,
+                            schedule_generator)
 from vusion.utils import (time_to_vusion_format, get_local_time,
                           get_local_time_as_timestamp, time_from_vusion_format,
                           get_shortcode_value, get_offset_date_time,
@@ -626,7 +627,10 @@ class DialogueWorker(ApplicationWorker):
                     'participant-session-id': participant['session-id'],
                     'unattach-id': str(unattach['_id']),
                     'date-time': unattach['fixed-time']})
-            self.collections['schedules'].save(schedule.get_as_dict())
+        else:
+            schedule = schedule_generator(**schedule)
+            schedule['date-time'] = unattach['fixed-time']
+        self.collections['schedules'].save(schedule.get_as_dict())
 
     def schedule_participants_dialogue(self, participants, dialogue):
         for participant in participants:
