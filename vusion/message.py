@@ -16,8 +16,10 @@ class WorkerControl(Message):
             'object_id': lambda v: v is not None},
         'test_send_all_messages': {
             'dialogue_obj_id': lambda v: v is not None,
-            'phone_number': lambda v: v is not None,
-        }}
+            'phone_number': lambda v: v is not None},
+        'update_registered_keywords': {},
+        'reload_program_settings': {}
+    }
 
     def validate_fields(self):
         self.assert_field_present('action')

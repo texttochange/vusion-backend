@@ -718,3 +718,32 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
 
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 1)
+
+    @inlineCallbacks
+    def test26_consume_control_update_keywords(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
+        event = self.mkmsg_dialogueworker_control(**{
+            'action': 'update_registered_keywords'})
+        yield self.send(event, 'control')
+
+        messages = self.broker.get_messages('vumi', 'dispatcher.control')
+        self.assertEqual(len(messages), 1)
+
+    @inlineCallbacks
+    def test27_consume_control_reload_program_settings(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
+        program_setting = self.collections['program_settings'].find_one({'key': 'timezone'})
+        program_setting['value'] = 'Europe/Paris'
+        self.collections['program_settings'].save(program_setting)
+
+        event = self.mkmsg_dialogueworker_control(**{
+            'action': 'reload_program_settings'})
+        yield self.send(event, 'control')
+
+        self.assertEqual(self.worker.properties['timezone'], 'Europe/Paris')

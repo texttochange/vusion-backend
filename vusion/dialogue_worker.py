@@ -230,12 +230,14 @@ class DialogueWorker(ApplicationWorker):
             if message['action'] == 'update_schedule':
                 if message['schedule_type'] == 'dialogue':
                     self.schedule_dialogue(message['object_id'])
+                    self.register_keywords_in_dispatcher()
                 elif message['schedule_type'] == 'unattach':
                     self.schedule_unattach(message['object_id'])
-                self.register_keywords_in_dispatcher()
             elif message['action'] == 'test_send_all_messages':
                 dialogue = self.get_dialogue_obj(message['dialogue_obj_id'])
                 self.send_all_messages(dialogue, message['phone_number'])
+            elif message['action'] == 'update_registered_keywords':
+                self.register_keywords_in_dispatcher()
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log(
