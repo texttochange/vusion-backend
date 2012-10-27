@@ -195,26 +195,29 @@ class DialogueWorker(ApplicationWorker):
         connection = pymongo.Connection(self.config['mongodb_host'],
                                         self.config['mongodb_port'])
         self.db = connection[self.database_name]
-        self.setup_collections(['dialogues',
-                                'participants',
-                                'history',
-                                'schedules',
-                                'program_settings',
-                                'unattached_messages',
-                                'requests'])
+        self.setup_collections({
+            'dialogues': 'dialogue-id',
+            'participants': 'phone',
+            'history': 'timestamp',
+            'schedules': 'date-time',
+            'program_settings': None,
+            'unattached_messages': None,
+            'requests': None})
 
         self.db = connection[self.vusion_database_name]
-        self.setup_collections(['templates'])
+        self.setup_collections({'templates': None})
 
     def setup_collections(self, names):
-        for name in names:
-            self.setup_collection(name)
+        for name, index in names.items():
+            self.setup_collection(name, index)
 
-    def setup_collection(self, name):
+    def setup_collection(self, name, index):
         if name in self.db.collection_names():
             self.collections[name] = self.db[name]
         else:
             self.collections[name] = self.db.create_collection(name)
+        if index is not None:
+            self.collections[name].ensure_index(index, background=True)
         self.log("Collection initialised: %s" % name)
 
     def consume_control(self, message):
