@@ -579,7 +579,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
-       
+
         yield self.worker.register_keywords_in_dispatcher()
 
         messages = self.broker.get_messages('vumi', 'dispatcher.control')
@@ -598,7 +598,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         for program_setting in self.mkobj_program_settings_international_shortcode():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
-        
+
         yield self.worker.register_keywords_in_dispatcher()
 
         messages = self.broker.get_messages('vumi', 'dispatcher.control')
@@ -606,7 +606,6 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertEqual([
             {'app': 'test', 'keyword': 'www', 'to_addr': '+318181'}],
             messages[0]['rules'])
-
 
     def test22_daemon_shortcode_updated(self):
         for program_setting in self.mkobj_program_settings():
@@ -621,7 +620,6 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         messages = self.broker.get_messages('vumi', 'dispatcher.control')
         self.assertEqual(1, len(messages))
 
-   # @inlineCallbacks
     def test23_test_send_all_messages(self):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
