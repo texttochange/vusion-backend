@@ -391,9 +391,13 @@ class DialogueWorker(ApplicationWorker):
                 {'$push': {'profile': {'label': action['label'],
                                         'value': action['value']}}})
         elif (action.get_type() == 'offset-conditioning'):
+            participant = self.collections['participants'].find_one({
+                'phone':participant_phone,
+                'session-id':{'$ne':None}})
+            if participant is None:
+                return
             self.schedule_participant_dialogue(
-                self.collections['participants'].find_one({'phone':participant_phone,
-                                                          'session-id':{'$ne':None}}),
+                participant,
                 self.get_current_dialogue(action['dialogue-id']))
         elif (action.get_type() == 'remove-question'):
             self.collections['schedules'].remove({
