@@ -107,10 +107,6 @@ class DialogueWorker(ApplicationWorker):
         self.sender = task.LoopingCall(self.daemon_process)
         self.sender.start(float(send_loop_period))
 
-        self.load_data()
-        if self.is_ready():
-            yield self.register_keywords_in_dispatcher()
-
     @inlineCallbacks
     def teardown_application(self):
         self.log("Worker is stopped.")
@@ -224,7 +220,7 @@ class DialogueWorker(ApplicationWorker):
     def consume_control(self, message):
         try:
             self.log("Control message received to %r" % (message,))
-            self.load_data()
+            self.load_settings()
             if (not self.is_ready()):
                 self.log("Worker is not ready, cannot performe the action.")
                 return
@@ -570,18 +566,22 @@ class DialogueWorker(ApplicationWorker):
     #@inlineCallbacks
     def daemon_process(self):
         #self.log('Starting daemon_process()')
-        self.load_data()
+        self.load_settings()
         if not self.is_ready():
             return
         self.send_scheduled()
 
     def load_data(self):
         program_settings = self.collections['program_settings'].find()
-        previous_shortcode = self.properties['shortcode']
         for program_setting in program_settings:
             self.properties[program_setting['key']] = program_setting['value']
+
+    def load_settings(self):
+        previous_shortcode = self.properties['shortcode']
+        self.load_data()
         if previous_shortcode != self.properties['shortcode']:
             self.register_keywords_in_dispatcher()
+
 
     def is_ready(self):
         if not 'shortcode' in self.properties:

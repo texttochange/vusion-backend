@@ -446,8 +446,6 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.worker.get_program_dialogue_actions(participant, context, actions)
         
         self.assertEqual(1, len(actions))
-        
-            
 
     def test11_customize_message(self):
         for program_setting in self.program_settings:
@@ -482,7 +480,6 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertRaises(MissingData,
                           self.worker.customize_message, '07', message_two)
 
-    #@inlineCallbacks
     def test12_generate_message_use_template(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
@@ -582,8 +579,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
-        self.broker.dispatched = {}
-
+       
         yield self.worker.register_keywords_in_dispatcher()
 
         messages = self.broker.get_messages('vumi', 'dispatcher.control')
@@ -602,8 +598,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         for program_setting in self.mkobj_program_settings_international_shortcode():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
-        self.broker.dispatched = {}
-
+        
         yield self.worker.register_keywords_in_dispatcher()
 
         messages = self.broker.get_messages('vumi', 'dispatcher.control')
@@ -618,7 +613,6 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             self.collections['program_settings'].save(program_setting)
         ## load a first time the properties
         self.worker.load_data()
-        self.broker.dispatched = {}
         for program_setting in self.mkobj_program_settings_international_shortcode():
             self.collections['program_settings'].save(program_setting)
 
