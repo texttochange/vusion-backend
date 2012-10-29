@@ -582,6 +582,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
+        self.broker.dispatched = {}
 
         yield self.worker.register_keywords_in_dispatcher()
 
@@ -601,6 +602,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         for program_setting in self.mkobj_program_settings_international_shortcode():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
+        self.broker.dispatched = {}
 
         yield self.worker.register_keywords_in_dispatcher()
 
@@ -610,27 +612,28 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             {'app': 'test', 'keyword': 'www', 'to_addr': '+318181'}],
             messages[0]['rules'])
 
-    @inlineCallbacks
+
     def test22_daemon_shortcode_updated(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         ## load a first time the properties
         self.worker.load_data()
+        self.broker.dispatched = {}
         for program_setting in self.mkobj_program_settings_international_shortcode():
             self.collections['program_settings'].save(program_setting)
 
-        yield self.worker.daemon_process()
+        self.worker.daemon_process()
 
         messages = self.broker.get_messages('vumi', 'dispatcher.control')
         self.assertEqual(1, len(messages))
 
-    @inlineCallbacks
+   # @inlineCallbacks
     def test23_test_send_all_messages(self):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
 
-        yield self.worker.send_all_messages(self.dialogue_announcement, '06')
+        self.worker.send_all_messages(self.dialogue_announcement, '06')
 
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 2)
@@ -647,6 +650,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
+        self.broker.dispatched = {}
         dNow = self.worker.get_local_time()
 
         dialogue_1 = self.mkobj_dialogue_announcement_offset_days()
@@ -724,6 +728,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
+        self.broker.dispatched = {}
 
         event = self.mkmsg_dialogueworker_control(**{
             'action': 'update_registered_keywords'})

@@ -567,21 +567,21 @@ class DialogueWorker(ApplicationWorker):
             return returned_interaction
         return None
 
-    @inlineCallbacks
+    #@inlineCallbacks
     def daemon_process(self):
         #self.log('Starting daemon_process()')
-        previous_shortcode = self.properties['shortcode']
         self.load_data()
-        if previous_shortcode != self.properties['shortcode']:
-            self.register_keywords_in_dispatcher()
         if not self.is_ready():
             return
-        yield self.send_scheduled()
+        self.send_scheduled()
 
     def load_data(self):
         program_settings = self.collections['program_settings'].find()
+        previous_shortcode = self.properties['shortcode']
         for program_setting in program_settings:
             self.properties[program_setting['key']] = program_setting['value']
+        if previous_shortcode != self.properties['shortcode']:
+            self.register_keywords_in_dispatcher()
 
     def is_ready(self):
         if not 'shortcode' in self.properties:
