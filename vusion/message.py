@@ -12,7 +12,7 @@ class WorkerControl(Message):
 
     ACTION_TYPES = {
         'update_schedule': {
-            'schedule_type': lambda v: v in ['dialogue', 'unattach'],
+            'schedule_type': lambda v: v in ['dialogue', 'unattach', 'participant'],
             'object_id': lambda v: v is not None},
         'test_send_all_messages': {
             'dialogue_obj_id': lambda v: v is not None,

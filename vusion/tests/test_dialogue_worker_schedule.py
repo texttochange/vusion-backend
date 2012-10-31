@@ -326,3 +326,25 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         self.assertEqual(schedules_count, 1)
         schedules = self.collections['schedules'].find()
         self.assertEqual(schedules[0]['participant-phone'], '07')
+
+    def test_schedule_participant(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()        
+
+        dNow = self.worker.get_local_time()
+        dPast = dNow - timedelta(minutes=30)
+        dialogue_1 = self.mkobj_dialogue_annoucement()
+        dialogue_2 = self.mkobj_dialogue_announcement_2()
+        self.collections['dialogues'].save(dialogue_1)
+        self.collections['dialogues'].save(dialogue_2)
+        unattach = self.mkobj_unattach_message()
+        self.collections['unattached_messages'].save(unattach)
+        participant = self.mkobj_participant(
+            '06', 
+            enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dNow)}])
+        self.collections['participants'].save(participant)
+        
+        self.worker.schedule_participant('06')
+        
+        self.assertEqual(self.collections['schedules'].count(), 2)
