@@ -678,7 +678,7 @@ class ObjectMaker:
             'model-version': '1'}
 
     request_leave = {
-        'keyword': 'www quit, quit, quit now, quitnow',
+        'keyword': 'www quit, Quit, quit now, quitnow',
         'responses': [],
         'actions': [
             {'type-action': 'optout'}],
