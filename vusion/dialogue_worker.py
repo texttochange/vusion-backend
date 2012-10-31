@@ -230,6 +230,8 @@ class DialogueWorker(ApplicationWorker):
                     self.register_keywords_in_dispatcher()
                 elif message['schedule_type'] == 'unattach':
                     self.schedule_unattach(message['object_id'])
+                elif message['schedule_type'] == 'participant':
+                    self.schedule_participant(message['object_id'])
             elif message['action'] == 'test_send_all_messages':
                 dialogue = self.get_dialogue_obj(message['dialogue_obj_id'])
                 self.send_all_messages(dialogue, message['phone_number'])
@@ -597,6 +599,25 @@ class DialogueWorker(ApplicationWorker):
             return False
         return True
 
+    def schedule_participant(self, participant_phone):
+        participant = self.collections['participants'].find_one({
+            'phone': participant_phone,
+            'session-id': {'$ne': None}})
+        if participant is None:
+            return
+        for enrolled in participant['enrolled']:
+            dialogue = self.get_current_dialogue(enrolled['dialogue-id'])
+            if dialogue is not None:
+                self.schedule_participant_dialogue(participant, dialogue)
+        future_unattachs = self.get_future_unattachs()
+        for unattach in future_unattachs:
+            self.schedule_participant_unattach(participant, unattach)
+
+    def get_future_unattachs(self):
+        return self.collections['unattached_messages'].find({
+            'fixed-time': {
+                '$gt': time_to_vusion_format(self.get_local_time())}})
+
     def schedule_dialogue(self, dialogue_id):
         dialogue = self.get_current_dialogue(dialogue_id)
         participants = self.collections['participants'].find(
@@ -912,7 +933,6 @@ class DialogueWorker(ApplicationWorker):
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log("Error send schedule: %r" %
                      traceback.format_exception(exc_type, exc_value, exc_traceback))
-            returnValue(False)
 
     @inlineCallbacks
     def send_all_messages(self, dialogue, phone_number):
@@ -962,7 +982,7 @@ class DialogueWorker(ApplicationWorker):
             keyphrases = request['keyword'].split(', ')
             for keyphrase in keyphrases:
                 if not (keyphrase.split(' ')[0]) in keywords:
-                    keywords.append(keyphrase.split(' ')[0])
+                    keywords.append(keyphrase.split(' ')[0].lower())
         to_addr = get_shortcode_value(self.properties['shortcode'])
         rules = []
         self.log("Registering the keywords: %r" % keywords)
@@ -996,7 +1016,8 @@ class DialogueWorker(ApplicationWorker):
         regex_Breakline = re.compile('\\r\\n')
 
         message = interaction['content']
-        if (interaction['type-interaction'] == 'question-answer'
+        if ('type-interaction' in interaction
+                and interaction['type-interaction'] == 'question-answer'
                 and interaction['set-use-template'] is not None):
             default_template = None
             if (interaction['type-question'] == 'closed-question'):

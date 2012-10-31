@@ -41,6 +41,9 @@ class VusionModel(object):
     def __setitem__(self, key, value):
         self.payload[key] = value
 
+    def __contains__(self, key):
+        return key in self.payload
+
     def process_field(self, key, value):
         return value
 
