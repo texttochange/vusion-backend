@@ -465,6 +465,8 @@ class DialogueWorker(ApplicationWorker):
                         if self.participant_has_max_unmatching_answers(participant, context['dialogue-id'], context['interaction']):
                             self.add_oneway_marker(participant['phone'], participant['session-id'], context)
                             context['interaction'].get_max_unmatching_action(context['dialogue-id'], actions)
+                elif ('request-id' in context):
+                    self.get_program_dialogue_actions(participant, context, actions)                    
                 self.run_actions(participant, context, actions)
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()

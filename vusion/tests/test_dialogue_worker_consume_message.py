@@ -147,7 +147,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual(0, self.collections['schedules'].count())   
 
     @inlineCallbacks
-    def test_receive_inbound_message_no_repeat_dialogue_action(self):
+    def test_receive_inbound_message_double_matching_answer(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.collections['program_settings'].save({
@@ -169,6 +169,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         yield self.send(inbound_msg_matching_request, 'inbound')
 
         participant = self.collections['participants'].find_one({'phone': '06'})
+        self.assertEqual(len(participant['profile']), 1)
         self.assertTrue('name' in participant['profile'][0]['label'])
         self.assertEqual('john doe', participant['profile'][0]['value'])
 
@@ -233,6 +234,9 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test_receive_inbound_request_not_optin(self):
+        for program_setting in self.mkobj_program_settings():
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()        
         request_id = self.collections['requests'].save(self.mkobj_request_response())
 
         inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
@@ -243,7 +247,13 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual(0, self.collections['schedules'].count())
 
     @inlineCallbacks
-    def test_receive_inbound_request_optin(self):
+    def test_receive_inbound_request_double_optin_error(self):
+        program_settings = self.mkobj_program_settings()
+        program_settings.append({'key': 'double-optin-error-feedback',
+                                 'value': 'you have already optin'})
+        for program_setting in program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()        
         request_id = self.collections['requests'].save(self.mkobj_request_join())
 
         inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
@@ -254,6 +264,13 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual(len(messages), 2)
         self.assertEqual(0, self.collections['schedules'].count())
         self.assertFalse(self.collections['participants'].find_one({'phone': '07'}) is None)
+
+        inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
+                                                     content='www')
+        yield self.send(inbound_msg_matching_request, 'inbound')
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 3)
+        self.assertEqual(messages[2]['content'], 'you have already optin')
 
     @inlineCallbacks
     def test_receive_inbound_message_request_optin(self):
