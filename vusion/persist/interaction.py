@@ -354,6 +354,10 @@ class Interaction(VusionModel):
             for answer in answers:
                 if keyword in self.get_answer_keywords(keywords, answer):
                     return answer
+        for answer in answers:
+            regex_CHOICE = re.compile(("^%s" % answer['choice']), re.IGNORECASE)
+            if re.match(regex_CHOICE, reply) is not None:
+                return answer        
         try:
             probable_index = get_first_word(reply)
             index = int(probable_index) - 1
@@ -361,12 +365,7 @@ class Interaction(VusionModel):
                 return None
             return answers[index]
         except:
-            pass
-        for answer in answers:
-            regex_CHOICE = re.compile(("^%s" % answer['choice']), re.IGNORECASE)
-            if re.match(regex_CHOICE, reply) is not None:
-                return answer
-        return None
+            return None
     
     def get_open_answer(self, message):
         words = (message or '').split(' ')

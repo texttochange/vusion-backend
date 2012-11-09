@@ -176,6 +176,17 @@ class TestDialogue(TestCase, ObjectMaker):
             context['interaction-id'], 'script.dialogues[0].interactions[2]')
         self.assertEqual(context['matching-answer'], 'Male')
         
+        # test index matching one of the choice
+        dialogue = Dialogue(**self.mkobj_dialogue_closed_question_index())
+        context = {}
+        actions = Actions()
+        dialogue.get_matching_reference_and_actions("choice 1", actions, context)
+        self.assertEqual(context['dialogue-id'], '01')
+        self.assertEqual(
+            context['interaction-id'], '01-01')
+        self.assertEqual(context['matching-answer'], '1')        
+
+
     def test_get_matching_closed_question_answer_fail(self):
         dialogue = Dialogue(**self.mkobj_dialogue_answer_not_space_supported())
         

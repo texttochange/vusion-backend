@@ -375,6 +375,31 @@ class ObjectMaker:
                   'answer-actions':[{'type-answer-action': 'enrolling',
                                      'enroll': '2'}]}]}]}
 
+    def mkobj_dialogue_closed_question_index(self):
+        return {
+            'name': 'test dialogue',
+            'auto-enrollment': None,
+            'activated': 1,
+            'dialogue-id': '01',
+            'interactions': [
+                {'activated': 0,
+                 'interaction-id': '01-01',
+                 'type-interaction': 'question-answer',
+                 'type-question': 'closed-question',
+                 'content': 'What is your choice?',
+                 'keyword': 'Choice',
+                 'type-schedule': 'offset-days',
+                 'set-use-template': 'use-template',
+                 'days': '1',
+                 'at-time': '22:30',            
+                 'answers': [
+                     {'choice': '0',
+                      'feedbacks': None,
+                      'answer-actions': None},
+                     {'choice': '1',
+                      'feedbacks': None,
+                      'answer-actions': None}]}]}        
+    
     def mkobj_dialogue_question_max_unmatching(self):
         dialogue = deepcopy(self.dialogue_question)
         dialogue['interactions'][0]['model-version'] = '2'
