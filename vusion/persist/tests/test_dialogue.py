@@ -34,13 +34,13 @@ class TestDialogue(TestCase, ObjectMaker):
         self.assertEqual(context, {})
         self.assertEqual(len(actions), 0)
 
-    def test_get_matching_closed_question_answer(self):
+    def test_get_matching_closed_question_answer_actions(self):
         script = Dialogue(**self.mkobj_dialogue_question_answer())
 
-        ref, actions = script.get_matching_reference_and_actions("feel 1", [])
-        self.assertEqual(ref, {'dialogue-id': '01',
-                               'interaction-id': '01-01',
-                               'matching-answer': 'Fine'})
+        context = {}
+        actions = Actions()        
+        script.get_matching_reference_and_actions("feel 1", actions, context)
+        self.assertEqual(context['matching-answer'], 'Fine')
         self.assertEqual(len(actions), 3)
         self.assertEqual(
             actions[0],
@@ -53,10 +53,10 @@ class TestDialogue(TestCase, ObjectMaker):
             actions[2],
             FeedbackAction(**{'content': 'thank you again'}))
 
-        ref, actions = script.get_matching_reference_and_actions("feel 0", [])
-        self.assertEqual(ref, {'dialogue-id': '01',
-                               'interaction-id': '01-01',
-                               'matching-answer': None})
+        context = {}
+        actions = Actions()
+        script.get_matching_reference_and_actions("feel 0", actions, context)
+        self.assertEqual(context['matching-answer'], None)
         self.assertEqual(len(actions), 2)
         self.assertEqual(
             actions[0],
@@ -64,44 +64,50 @@ class TestDialogue(TestCase, ObjectMaker):
                                     'interaction-id': '01-01'}))
         self.assertEqual(
             actions[1],
-            UnMatchingAnswerAction(**{'answer': '0'}))
+            UnMatchingAnswerAction(**{'answer': 'feel 0'}))
 
-        ref, actions = script.get_matching_reference_and_actions("feel 3", [])
-        self.assertEqual(ref, {'dialogue-id': '01',
-                               'interaction-id': '01-01',
-                               'matching-answer': None})
+        context = {}
+        actions = Actions()        
+        script.get_matching_reference_and_actions("feel 3", actions, context)
+        self.assertEqual(context['matching-answer'], None)
         self.assertEqual(len(actions), 2)
 
-        ref, actions = script.get_matching_reference_and_actions("feel ok", [])
-        self.assertEqual(ref, {'dialogue-id': '01',
-                               'interaction-id': '01-01',
-                               'matching-answer': 'Ok'})
+        context = {}
+        actions = Actions()        
+        script.get_matching_reference_and_actions("feel ok", actions, context)
+        self.assertEqual(context['matching-answer'], 'Ok')
         self.assertEqual(len(actions), 1)
 
-        ref, actions = script.get_matching_reference_and_actions("fel ok", [])
-        self.assertEqual(ref, {'dialogue-id': '01',
-                               'interaction-id': '01-01',
-                               'matching-answer': 'Ok'})
+        context = {}
+        actions = Actions()                
+        script.get_matching_reference_and_actions("fel ok", actions, context)
+        self.assertEqual(context['matching-answer'], 'Ok')
         self.assertEqual(len(actions), 1)
 
-        script = Dialogue(self.dialogue_other_question_answer)
-        ref, actions = script.get_matching_reference_and_actions("something good", [])
+        script = Dialogue(**self.dialogue_other_question_answer)
+        context = {}
+        actions = Actions()        
+        script.get_matching_reference_and_actions("something good", actions, context)
 
-        self.assertEqual(ref, None)
-        self.assertEqual(actions, [])
+        self.assertEqual(context, {})
+        self.assertEqual(len(actions), 0)
 
-        ref, actions = script.get_matching_reference_and_actions('Gen Male', [])
-        self.assertEqual(ref, {'dialogue-id': 'script.dialogues[0]',
-                               'interaction-id': 'script.dialogues[0].interactions[2]',
-                               'matching-answer': 'Male'})
+        context = {}
+        actions = Actions()        
+        script.get_matching_reference_and_actions('Gen Male', actions, context)
+        self.assertEqual(context['matching-answer'], 'Male')
         self.assertEqual(len(actions), 2)
         self.assertEqual(
             actions[1],
             ProfilingAction(**{'label': 'gender', 'value': 'Male'}))
 
-    def test_get_matching_closed_question_answer(self):
-        dialogue = Dialogue(**self.mkobj_dialogue_answer_not_space_supported())
+    ## TODO: add a test with double word choice    
+    def test_get_matching_closed_question_answer_no_space(self):
+        dialogue_raw = self.mkobj_dialogue_answer_not_space_supported()
+        dialogue_raw['interactions'][1]['answers'].append({'choice': 'third sex'})
+        dialogue = Dialogue(**dialogue_raw)
 
+        # test close question no space
         context = {}
         actions = Actions()
         dialogue.get_matching_reference_and_actions("genMale", actions, context)
@@ -112,12 +118,47 @@ class TestDialogue(TestCase, ObjectMaker):
 
         context = {}
         actions = Actions()
+        dialogue.get_matching_reference_and_actions("genthirdsex", actions, context)
+        self.assertEqual(context['dialogue-id'], 'script.dialogues[0]')
+        self.assertEqual(
+            context['interaction-id'], 'script.dialogues[0].interactions[2]')
+        self.assertEqual(context['matching-answer'], 'third sex')        
+        
+        # test close question no space with extra message content
+        context = {}
+        actions = Actions()
+        dialogue.get_matching_reference_and_actions("genMale and other stuff", actions, context)
+        self.assertEqual(context['dialogue-id'], 'script.dialogues[0]')
+        self.assertEqual(
+            context['interaction-id'], 'script.dialogues[0].interactions[2]')
+        self.assertEqual(context['matching-answer'], 'Male')        
+
+    ## TODO: add a test with double word choice
+    def test_get_matching_closed_question_answer_with_space(self):
+        dialogue = Dialogue(**self.mkobj_dialogue_answer_not_space_supported())
+
+        # test close question space
+        context = {}
+        actions = Actions()
         dialogue.get_matching_reference_and_actions("gen Male", actions, context)
         self.assertEqual(context['dialogue-id'], 'script.dialogues[0]')
         self.assertEqual(
             context['interaction-id'], 'script.dialogues[0].interactions[2]')
         self.assertEqual(context['matching-answer'], 'Male')
 
+        # test close question space with extra message content
+        context = {}
+        actions = Actions()
+        dialogue.get_matching_reference_and_actions("gen Male and proud", actions, context)
+        self.assertEqual(context['dialogue-id'], 'script.dialogues[0]')
+        self.assertEqual(
+            context['interaction-id'], 'script.dialogues[0].interactions[2]')
+        self.assertEqual(context['matching-answer'], 'Male')
+
+    def test_get_matching_closed_question_answer_with_index(self):
+        dialogue = Dialogue(**self.mkobj_dialogue_answer_not_space_supported())
+
+        # test close question using index
         context = {}
         actions = Actions()
         dialogue.get_matching_reference_and_actions("gen 1", actions, context)
@@ -126,14 +167,19 @@ class TestDialogue(TestCase, ObjectMaker):
             context['interaction-id'], 'script.dialogues[0].interactions[2]')
         self.assertEqual(context['matching-answer'], 'Male')
 
+        # test close question using index with extra message
         context = {}
         actions = Actions()
-        dialogue.get_matching_reference_and_actions("genBad", actions, context)
+        dialogue.get_matching_reference_and_actions("gen 1 and proud", actions, context)
         self.assertEqual(context['dialogue-id'], 'script.dialogues[0]')
         self.assertEqual(
             context['interaction-id'], 'script.dialogues[0].interactions[2]')
-        self.assertEqual(context['matching-answer'], 'Bad')
-
+        self.assertEqual(context['matching-answer'], 'Male')
+        
+    def test_get_matching_closed_question_answer_fail(self):
+        dialogue = Dialogue(**self.mkobj_dialogue_answer_not_space_supported())
+        
+        # test non matching closed question
         context = {}
         actions = Actions()
         dialogue.get_matching_reference_and_actions("Genok", actions, context)
@@ -190,7 +236,15 @@ class TestDialogue(TestCase, ObjectMaker):
                                     'interaction-id': '05'}))
         self.assertEqual(
             actions[1],
-            ProfilingAction(**{'label': 'gender','value': 'maLe'}))    
+            ProfilingAction(**{'label': 'gender','value': 'maLe'}))
+        
+        # test with extra content
+        context = {}
+        actions = Actions()
+        dialogue.get_matching_reference_and_actions("Male and proud", actions, context)
+        self.assertEqual(context['dialogue-id'], '05')
+        self.assertEqual(context['interaction-id'], '05')
+        self.assertEqual(context['matching-answer'], 'maLe')        
 
     def test_get_all_keywords_empty_interactions(self):
         dialogue = self.mkobj_dialogue_open_question()

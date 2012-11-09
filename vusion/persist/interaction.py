@@ -1,4 +1,8 @@
+import re
 from copy import copy
+
+from vumi.utils import get_first_word
+
 from vusion.persist.vusion_model import VusionModel
 from vusion.error import InvalidField, MissingField
 from vusion.action import (action_generator, FeedbackAction,
@@ -351,14 +355,16 @@ class Interaction(VusionModel):
                 if keyword in self.get_answer_keywords(keywords, answer):
                     return answer
         try:
-            index = int(reply) - 1
+            probable_index = get_first_word(reply)
+            index = int(probable_index) - 1
             if index < 0 or index > len(answers):
                 return None
             return answers[index]
         except:
             pass
         for answer in answers:
-            if answer['choice'].lower() == reply:
+            regex_CHOICE = re.compile(("^%s" % answer['choice']), re.IGNORECASE)
+            if re.match(regex_CHOICE, reply) is not None:
                 return answer
         return None
     
@@ -384,4 +390,4 @@ class Interaction(VusionModel):
         return generated_answer    
 
     def get_answer_keywords(self, keywords, answer):
-        return [("%s%s" % (keyword, answer['choice'])).lower() for keyword in keywords]
+        return [("%s%s" % (keyword, answer['choice'].replace(" ",""))).lower() for keyword in keywords]
