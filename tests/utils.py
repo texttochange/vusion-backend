@@ -14,7 +14,7 @@ from vumi.tests.utils import RegexMatcher, UTCNearNow
 from vusion.message import DispatcherControl, WorkerControl
 
 from vusion.persist import (Dialogue, DialogueHistory, UnattachHistory,
-                            history_generator, schedule_generator)
+                            history_generator, schedule_generator, Participant)
 
 
 class DataLayerUtils:
@@ -782,13 +782,26 @@ class ObjectMaker:
     def mkobj_participant(self, participant_phone='06',
                           last_optin_date='2012-02-01T18:30', session_id='1',
                           enrolled=[], tags=[], profile=[]):
-        return { 
+        return Participant(**{ 
             'phone': participant_phone,
             'session-id': session_id,
             'last-optin-date': last_optin_date,            
             'enrolled': enrolled,
             'tags': tags,
-            'profile': profile}
+            'profile': profile}).get_as_dict()
+    
+    def mkobj_participant_v2(self, participant_phone='06',
+                          last_optin_date='2012-02-01T18:30', session_id='1',
+                          enrolled=[], tags=[], profile=[]):
+        return Participant(**{
+            'object-type': 'participant',
+            'model-version': '2',
+            'phone': participant_phone,
+            'session-id': session_id,
+            'last-optin-date': last_optin_date,            
+            'enrolled': enrolled,
+            'tags': tags,
+            'profile': profile}).get_as_dict()    
 
     def mkobj_schedule(self, participant_phone='06',
                        participant_session_id='1',

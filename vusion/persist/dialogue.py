@@ -77,7 +77,7 @@ class Dialogue(VusionModel):
         interaction.get_actions(dialogue_id, message, keyword, reply, context, actions)
 
         # Check if offset condition on this answer
-        if not context['matching-answer'] is None:
+        if context.is_matching_answer():
             for interaction_to_schedule in self.get_offset_condition_interactions(interaction['interaction-id']):
                 actions.append(OffsetConditionAction(**{
                     'dialogue-id': dialogue_id,

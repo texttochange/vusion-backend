@@ -452,14 +452,6 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
 
-        interaction_using_tag = {
-            'interaction-id': '0',
-            'type-interaction': 'announcement',
-            'content': 'Hello [participant.name]',
-            'type-schedule': 'fixed-time',
-            'date-time': '12/03/2012 12:30'
-        }
-
         participant1 = self.mkobj_participant(
             '06',
             profile=[{'label': 'name',
@@ -469,16 +461,24 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             profile=[{'label': 'gender',
                       'value': 'Female'}])
 
+        participant3 = self.mkobj_participant_v2(
+            '08',
+            profile=[{'label': 'gender',
+                      'value': 'Female',
+                      'raw': 'gender 2 and proud'}])        
+
         self.collections['participants'].save(participant1)
         self.collections['participants'].save(participant2)
+        self.collections['participants'].save(participant3)
 
-        message_one = self.worker.generate_message(interaction_using_tag)
-        message_one = self.worker.customize_message('06', message_one)
+        message_one = self.worker.customize_message('06', 'Hello [participant.name]')
         self.assertEqual(message_one, 'Hello oliv')
 
-        message_two = self.worker.generate_message(interaction_using_tag)
         self.assertRaises(MissingData,
-                          self.worker.customize_message, '07', message_two)
+                          self.worker.customize_message, '07', 'Hello [participant.name]')
+        
+        message_three = self.worker.customize_message('08', 'u have send: [participant.gender_raw]')        
+        self.assertEqual(message_three, 'u have send: gender 2 and proud')
 
     def test12_generate_message_use_template(self):
         for program_setting in self.mkobj_program_settings():

@@ -19,6 +19,7 @@ from vusion.action import (UnMatchingAnswerAction, EnrollingAction,
                            OffsetConditionAction, RemoveRemindersAction,
                            ResetAction, RemoveDeadlineAction,
                            DelayedEnrollingAction, action_generator, Actions)
+from vusion.context import Context
 
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 from vusion.tests.test_dialogue_worker import DialogueWorkerTestCase
@@ -44,10 +45,13 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             {'key': 'default-template-unmatching-answer',
              'value': saved_template_id})
 
+        context = Context()
+        context.update({'request-id':'1'})
+
         self.worker.run_action(
             '08',
             UnMatchingAnswerAction(**{'answer': 'best'}),
-            {'request-id':'1'},
+            context,
             '1')
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 1)
@@ -100,10 +104,13 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
         
+        context = Context()
+        context.update({'request-id': '1'})
+        
         self.worker.run_action(
             '08', 
             FeedbackAction(**{'content': 'message'}),
-            {'request-id': '1'},
+            context,
             '1')
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 1)
@@ -191,7 +198,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             last_optin_date=None,
             session_id=None,
             tags=['geeks'],
-            profile=[{'lable':'name',
+            profile=[{'label':'name',
                       'value':'Oliv'}],
             enrolled=[{'dialogue-id': '01',
                        'date-time': '2012-08-08T12:36:20'}]))
@@ -280,7 +287,8 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             tags=['geeks'],
             profile=[{'label': 'name',
                       'value': 'Oliv'}],
-            enrolled=['1']
+            enrolled=[{'dialogue-id':'1', 
+                       'date-time': '2012-11-01T10:30:20'}]
         ))
         self.worker.run_action("06", OptinAction())
         participant = self.collections['participants'].find_one({'phone':'06'})
@@ -294,14 +302,18 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             tags=['geeks'],
             profile=[{'label': 'name',
                       'value':'Oliv'}],
-            enrolled=['1']
+            enrolled=[{'dialogue-id':'1', 
+                       'date-time': '2012-11-01T10:30:20'}]
         ))
         self.worker.run_action("06", OptoutAction())
         participant = self.collections['participants'].find_one({'phone':'07'})
         self.assertEqual(participant['tags'], ['geeks'])
         self.assertEqual(participant['profile'], [{'label': 'name',
-                                                   'value':'Oliv'}])
-        self.assertEqual(participant['enrolled'], ['1'])
+                                                   'value':'Oliv', 
+                                                   'raw': None}])
+        self.assertEqual(participant['enrolled'], [
+            {'dialogue-id':'1', 
+             'date-time': '2012-11-01T10:30:20'}])
 
     def test_run_action_offset_condition(self):
         for program_setting in self.program_settings:
