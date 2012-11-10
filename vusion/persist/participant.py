@@ -63,7 +63,8 @@ class Participant(VusionModel):
     def upgrade(self, **kwargs):
         if kwargs['model-version'] == '1':
             for label in kwargs['profile']:
-                label.update({'raw': None})
+                if not 'raw' in label:
+                    label.update({'raw': None})
             kwargs['model-version'] = '2'
         return kwargs        
     

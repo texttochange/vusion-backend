@@ -229,11 +229,12 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             DelayedEnrollingAction(**{
                 'enroll': '01',
                 'offset-days': {'days':'1', 'at-time': '12:00'}}),
-            context={'dialogue-id': '02'})
+            Context(**{'dialogue-id': '02', 'interaction-id': '1'}))
 
         schedule = self.collections['schedules'].find_one({'object-type': 'action-schedule'})
         self.assertTrue(schedule is not None)
         self.assertEqual(schedule['context']['dialogue-id'], '02')
+        self.assertEqual(schedule['context']['interaction-id'], '1')        
         self.assertTrue(
             action_generator(**schedule['action']),
             EnrollingAction(**{'enroll': '01'}))
