@@ -84,6 +84,22 @@ class TestInteraction(TestCase, ObjectMaker):
         self.assertEqual('enrolling', actions[1].get_type())
         self.assertEqual('feedback', actions[0].get_type())
 
+    def test_get_matching_answer_closed_question(self):
+        dialogue = self.mkobj_dialogue_question_offset_days()
+        interaction = Interaction(**dialogue['interactions'][0])
+        interaction['answers'] = []
+        for i in range(0, 16):
+            interaction['answers'].append({'choice': '%s' % i})
+
+        matching_answer = interaction.get_matching_answer("feel", "10") 
+        self.assertEqual(matching_answer, {'choice': '10'})
+        
+        matching_answer = interaction.get_matching_answer("feel", "1") 
+        self.assertEqual(matching_answer['choice'], '1')
+        
+        matching_answer = interaction.get_matching_answer("feel", "20") 
+        self.assertEqual(matching_answer, None)
+
     def test_get_actions_from_matching_answer_open_question(self):                
         dialogue = self.mkobj_dialogue_open_question()
         interaction = Interaction(**dialogue['interactions'][0])

@@ -355,7 +355,7 @@ class Interaction(VusionModel):
                 if keyword in self.get_answer_keywords(keywords, answer):
                     return answer
         for answer in answers:
-            regex_CHOICE = re.compile(("^%s" % answer['choice']), re.IGNORECASE)
+            regex_CHOICE = re.compile(("^%s(\s|$)" % answer['choice']), re.IGNORECASE)
             if re.match(regex_CHOICE, reply) is not None:
                 return answer        
         try:
