@@ -1084,11 +1084,11 @@ class DialogueWorker(ApplicationWorker):
         return label_indexer.get(label, None)
 
     def customize_message(self, participant_phone, message):
-        tags_regexp = re.compile(r'\[(?P<table>\w*)\.(?P<attribute>\w*)\]')
+        tags_regexp = re.compile(r'\[(?P<table>\w*)\.(?P<attribute>[\s\w]*)\]')
         tags = re.findall(tags_regexp, message)
         for table, attribute in tags:
             participant = self.get_participant(participant_phone)
-            attribute = attribute.lower()
+            #attribute = attribute.lower()
             participant_label_value = participant.get_participant_label_value(attribute)
             if not participant_label_value:
                 raise MissingData("%s has no attribute %s" %

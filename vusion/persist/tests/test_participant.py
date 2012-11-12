@@ -48,3 +48,11 @@ class TestParticipant(TestCase, ObjectMaker):
         self.assertEqual(
             participant.get_participant_label_value('Some thing label_raw'),
             'keyword 1 other content')
+        
+        participant = Participant(
+            **self.mkobj_participant_v2(profile=[{'label': 'Month of Pregnancy',
+                                                  'value': 'some value',
+                                                  'raw': 'keyword 1 other content'}]))
+        self.assertEqual(
+            participant.get_participant_label_value('Month of Pregnancy_raw'),
+            'keyword 1 other content')        

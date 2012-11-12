@@ -465,7 +465,13 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             '08',
             profile=[{'label': 'gender',
                       'value': 'Female',
-                      'raw': 'gender 2 and proud'}])        
+                      'raw': 'gender 2 and proud'},
+                     {'label': 'Month of Pregnancy',
+                      'value': '2',
+                      'raw': 'month2 and proud'},
+                     {'label': '5 to 6',
+                      'value': '2',
+                      'raw': 'usingnumber 2'},])        
 
         self.collections['participants'].save(participant1)
         self.collections['participants'].save(participant2)
@@ -479,6 +485,13 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         
         message_three = self.worker.customize_message('08', 'u have send: [participant.gender_raw]')        
         self.assertEqual(message_three, 'u have send: gender 2 and proud')
+        
+        message_4 = self.worker.customize_message('08', 'u have send: [participant.Month of Pregnancy_raw]')        
+        self.assertEqual(message_4, 'u have send: month2 and proud')
+        
+        message_5 = self.worker.customize_message('08', 'u have send: [participant.5 to 6_raw]')        
+        self.assertEqual(message_5, 'u have send: usingnumber 2')        
+        
 
     def test12_generate_message_use_template(self):
         for program_setting in self.mkobj_program_settings():
