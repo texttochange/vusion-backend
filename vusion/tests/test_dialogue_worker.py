@@ -343,7 +343,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         dNow = self.worker.get_local_time()
         dPast = dNow - timedelta(minutes=2)
 
-        dialogue = self.mkobj_dialogue_open_question_reminder()
+        dialogue = self.mkobj_dialogue_open_question_reminder_offset_time()
         dialogue['interactions'][0]['reminder-actions'].append(
             {'type-action': 'feedback', 'content': 'Bye'})
         dialogue = Dialogue(**dialogue)
@@ -435,7 +435,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.worker.load_data()
 
         actions = Actions()
-        dialogue = Dialogue(**self.mkobj_dialogue_open_question_reminder())
+        dialogue = Dialogue(**self.mkobj_dialogue_open_question_reminder_offset_time())
         participant = self.mkobj_participant()
         context = {
             'dialogue-id': '04',

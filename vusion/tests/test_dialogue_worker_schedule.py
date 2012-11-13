@@ -242,7 +242,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
 
     def test_schedule_participant_reminders(self):
         config = self.simple_config
-        dialogue = self.mkobj_dialogue_open_question_reminder()
+        dialogue = self.mkobj_dialogue_open_question_reminder_offset_time()
         mytimezone = self.program_settings[2]['value']
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
         dNow = dNow.replace(tzinfo=None)

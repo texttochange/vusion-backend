@@ -512,7 +512,7 @@ class ObjectMaker:
              'enroll': dialogue_id}]
         return dialogue
     
-    dialogue_open_question_with_reminder = {
+    dialogue_open_question_with_reminder_offset_time = {
         'activated': 1,
         'name': 'test dialogue',
         'auto-enrollment': None,
@@ -535,8 +535,8 @@ class ObjectMaker:
              'reminder-actions': [
                  {'type-action': 'optout'}]}]}
 
-    def mkobj_dialogue_open_question_reminder(self):
-        dialogue = Dialogue(**deepcopy(self.dialogue_open_question_with_reminder))
+    def mkobj_dialogue_open_question_reminder_offset_time(self):
+        dialogue = Dialogue(**deepcopy(self.dialogue_open_question_with_reminder_offset_time))
         return dialogue.get_as_dict()
 
     def mkobj_dialogue_open_question_offset_conditional(self):

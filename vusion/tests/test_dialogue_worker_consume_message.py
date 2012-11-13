@@ -105,7 +105,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         dPast = dNow - timedelta(minutes=4)
         dFuture = dNow + timedelta(minutes=10)
 
-        dialogue = self.mkobj_dialogue_open_question_reminder()
+        dialogue = self.mkobj_dialogue_open_question_reminder_offset_time()
         self.collections['dialogues'].save(dialogue)
         participant = self.mkobj_participant(
             '06',

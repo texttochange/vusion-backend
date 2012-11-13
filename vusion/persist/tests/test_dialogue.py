@@ -301,7 +301,7 @@ class TestDialogue(TestCase, ObjectMaker):
                                      'dialogue-id': '01'}))
 
     def test_get_remove_reminders_action(self):
-        dialogue = Dialogue(**self.mkobj_dialogue_open_question_reminder())
+        dialogue = Dialogue(**self.mkobj_dialogue_open_question_reminder_offset_time())
         context = Context()
         actions = Actions()
         dialogue.get_matching_reference_and_actions("name", actions, context)

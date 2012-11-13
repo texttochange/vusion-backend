@@ -403,7 +403,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         dNow = self.worker.get_local_time()
         dPast = dNow - timedelta(minutes=30)
        
-        dialogue = self.mkobj_dialogue_open_question_reminder()
+        dialogue = self.mkobj_dialogue_open_question_reminder_offset_time()
         participant = self.mkobj_participant('06')
         
         interaction = dialogue['interactions'][0]
