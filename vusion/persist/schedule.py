@@ -4,6 +4,7 @@ from vusion.error import VusionError, InvalidField
 from vusion.action import action_generator
 from vusion.persist.vusion_model import VusionModel
 from vusion.context import Context
+from vusion.utils import time_from_vusion_format
 
 class Schedule(VusionModel):
 
@@ -23,6 +24,10 @@ class Schedule(VusionModel):
         if 'context' not in self.payload:
             return Context()
         return Context(**self.payload['context'])
+
+    def get_schedule_time(self):
+        return time_from_vusion_format(self['date-time'])
+        
 
     def upgrade(self, **kwargs):
         if kwargs['model-version'] == '1':

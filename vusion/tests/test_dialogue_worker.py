@@ -78,8 +78,6 @@ class DialogueWorkerTestCase(TestCase, MessageMaker,
     def tearDown(self):
         self.broker.dispatched = {}
         self.drop_collections()
-        if (self.worker.sender is not None):
-            yield self.worker.sender.stop()
         yield self.worker.stopWorker()
 
     @inlineCallbacks
@@ -584,6 +582,37 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             close_question,
             "How are you?")
 
+
+    def test13_get_time_next_daemon_iteration(self):
+        for program_setting in self.mkobj_program_settings():
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        
+        self.assertEqual(
+            60,
+            self.worker.get_time_next_daemon_iteration())
+        
+        dNow = self.worker.get_local_time()
+        dFuture = dNow + timedelta(seconds=70)        
+        schedule = self.mkobj_schedule(date_time=time_to_vusion_format(dFuture))
+        self.collections['schedules'].save(schedule)
+        self.assertEqual(
+            60,
+            self.worker.get_time_next_daemon_iteration())
+
+        dFuture = dNow + timedelta(seconds=30)
+        schedule = self.mkobj_schedule(date_time=time_to_vusion_format(dFuture))
+        self.collections['schedules'].save(schedule)
+        self.assertTrue(
+            30 - self.worker.get_time_next_daemon_iteration() < 1)
+
+        dPast = dNow - timedelta(seconds=30)
+        schedule = self.mkobj_schedule(date_time=time_to_vusion_format(dPast))
+        self.collections['schedules'].save(schedule)
+        self.assertEqual(
+            0,
+            self.worker.get_time_next_daemon_iteration())
+
     @inlineCallbacks
     def test22_register_keywords_in_dispatcher(self):
         self.collections['dialogues'].save(self.dialogue_question)
@@ -627,7 +656,8 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.worker.load_data()
         for program_setting in self.mkobj_program_settings_international_shortcode():
             self.collections['program_settings'].save(program_setting)
-
+        
+        self.worker.sender.cancel()
         self.worker.daemon_process()
 
         messages = self.broker.get_messages('vumi', 'dispatcher.control')

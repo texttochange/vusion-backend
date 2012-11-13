@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from twisted.internet.defer import (inlineCallbacks, Deferred, returnValue)
 from twisted.enterprise import adbapi
-from twisted.internet import task
+from twisted.internet import task, reactor
 
 import pymongo
 from bson.objectid import ObjectId
@@ -103,18 +103,18 @@ class DialogueWorker(ApplicationWorker):
             message_class=WorkerControl)
         self._consumers.append(self.control_consumer)
 
-        send_loop_period = (self.config['send_loop_period']
-                            if 'send_loop_period' in self.config else "60")
-        self.sender = task.LoopingCall(self.daemon_process)
-        self.sender.start(float(send_loop_period))
+        #send_loop_period = (self.config['send_loop_period']
+        #                    if 'send_loop_period' in self.config else "60")
+        self.sender = reactor.callLater(2, self.daemon_process)
+        #self.sender.start(float(send_loop_period))
 
     @inlineCallbacks
     def teardown_application(self):
         self.log("Worker is stopped.")
         if self.is_ready():
             yield self.unregister_from_dispatcher()
-        if (self.sender and self.sender.running):
-            self.sender.stop()
+        if (self.sender.active()):
+            self.sender.cancel()
 
     def save_schedule(self, **kwargs):
         if 'date-time' in kwargs:
@@ -592,13 +592,31 @@ class DialogueWorker(ApplicationWorker):
             return returned_interaction
         return None
 
-    #@inlineCallbacks
     def daemon_process(self):
-        #self.log('Starting daemon_process()')
         self.load_settings()
         if not self.is_ready():
             return
         self.send_scheduled()
+        next_iteration = self.get_time_next_daemon_iteration()
+        self.sender = reactor.callLater(
+            next_iteration,
+            self.daemon_process)
+
+    def get_time_next_daemon_iteration(self):
+        try:
+            schedule = schedule_generator(**self.collections['schedules'].find(
+                sort=[('date-time', 1)],
+                limit=1)[0])
+            schedule_time = schedule.get_schedule_time()
+            delta = schedule_time - self.get_local_time()
+            if delta < timedelta():
+                return 0
+            if delta < timedelta(seconds=60):
+                return delta.total_seconds() + 1
+            else:
+                return 60
+        except:
+            return 60
 
     def load_data(self):
         program_settings = self.collections['program_settings'].find()
