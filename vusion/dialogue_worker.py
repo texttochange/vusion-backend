@@ -337,7 +337,8 @@ class DialogueWorker(ApplicationWorker):
                     safe=True)
             for dialogue in self.get_active_dialogues({'auto-enrollment':'all'}):
                 self.run_action(participant_phone,
-                                EnrollingAction(**{'enroll': dialogue['dialogue-id']}))            
+                                EnrollingAction(**{'enroll': dialogue['dialogue-id']}))
+            self.schedule_participant(participant_phone)
         elif (action.get_type() == 'optout'):
             self.collections['participants'].update(
                 {'phone': participant_phone},
