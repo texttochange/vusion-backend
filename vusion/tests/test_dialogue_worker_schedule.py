@@ -77,16 +77,19 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         self.worker.schedule_participant_dialogue(
             participant, dialogue)
 
-        self.assertEqual(self.collections['schedules'].count(), 2)
+        self.assertEqual(self.collections['schedules'].count(), 3)
 
         schedules = self.collections['schedules'].find()
         #assert time calculation
         self.assertEqual(
             time_to_vusion_format(time_from_vusion_format(schedules[0]['date-time'])),
-            time_to_vusion_format(dPast + timedelta(minutes=10)))
+            time_to_vusion_format(dPast + timedelta(seconds=10)))
         self.assertEqual(
             time_to_vusion_format(time_from_vusion_format(schedules[1]['date-time'])),
-            time_to_vusion_format(dPast + timedelta(minutes=50)))
+            time_to_vusion_format(dPast + timedelta(minutes=10)))
+        self.assertEqual(
+            time_to_vusion_format(time_from_vusion_format(schedules[2]['date-time'])),
+            time_to_vusion_format(dPast + timedelta(minutes=50)))        
 
     def test_schedule_interaction_while_interaction_in_history(self):
         mytimezone = self.program_settings[2]['value']
@@ -212,7 +215,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
             participant, dialogue)
 
         self.assertEqual(self.collections['schedules'].count(), 0)
-        self.assertEqual(self.collections['history'].count(), 2)
+        self.assertEqual(self.collections['history'].count(), 3)
 
     def test_schedule_at_fixed_time(self):
         dialogue = self.mkobj_dialogue_announcement_fixedtime()

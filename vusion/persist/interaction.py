@@ -1,5 +1,6 @@
 import re
 from copy import copy
+from datetime import timedelta
 
 from vumi.utils import get_first_word
 
@@ -28,7 +29,7 @@ class Interaction(VusionModel):
             'days': lambda v: v>=1,
             'at-time': lambda v: v is not None},
         'offset-time': {
-            'minutes': lambda v: v>=1},
+            'minutes': lambda v: re.match(re.compile('^\d{1,4}(:\d{2})?$'), v)},
         'offset-condition': {
             'offset-condition-interaction-id': lambda v: v is not None}}
     
@@ -390,3 +391,10 @@ class Interaction(VusionModel):
 
     def get_answer_keywords(self, keywords, answer):
         return [("%s%s" % (keyword, answer['choice'].replace(" ",""))).lower() for keyword in keywords]
+
+    def get_offset_time_delta(self):
+        if self['type-schedule'] != 'offset-time':
+            return None
+        regex_MinutesSeconds = re.compile(r'(?P<minutes>\d{1,4}):?(?P<seconds>\d{2})?')
+        for minutes, seconds in re.findall(regex_MinutesSeconds, self['minutes']):
+            return timedelta(minutes=int(minutes), seconds=int(seconds) if seconds!='' else 0)

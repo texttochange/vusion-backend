@@ -287,19 +287,26 @@ class ObjectMaker:
         dialogue['created'] = Timestamp(datetime.now(), 0)
         dialogue['modified'] = Timestamp(datetime.now(), 0)
         dialogue['interactions'][0] = {
-            'activated': 0,
+            'activated': 1,
+            'interaction-id': '1',
+            'type-interaction': 'announcement',
+            'content': 'How are you?',
+            'type-schedule': 'offset-time',
+            'minutes': '00:10'}        
+        dialogue['interactions'][1] = {
+            'activated': 1,
             'interaction-id': '2',
             'type-interaction': 'announcement',
             'content': 'How is your day?',
             'type-schedule': 'offset-time',
             'minutes': '10'}
-        dialogue['interactions'][1] = {
-            'activated': 0,
+        dialogue['interactions'].append({
+            'activated': 1,
             'interaction-id': '3',
             'type-interaction': 'announcement',
             'content': 'Bye bye',
             'type-schedule': 'offset-time',
-            'minutes': '50'}
+            'minutes': '50'})
         return Dialogue(**dialogue).get_as_dict()
 
     def mkobj_dialogue_annoucement(self):

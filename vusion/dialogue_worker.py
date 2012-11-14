@@ -103,11 +103,8 @@ class DialogueWorker(ApplicationWorker):
             message_class=WorkerControl)
         self._consumers.append(self.control_consumer)
 
-        #send_loop_period = (self.config['send_loop_period']
-        #                    if 'send_loop_period' in self.config else "60")
         self.sender = reactor.callLater(2, self.daemon_process)
-        #self.sender.start(float(send_loop_period))
-
+      
     @inlineCallbacks
     def teardown_application(self):
         self.log("Worker is stopped.")
@@ -335,7 +332,9 @@ class DialogueWorker(ApplicationWorker):
                               'enrolled': [],
                               'profile': [] }})
             else:
-                self.collections['participants'].save(self.create_participant(participant_phone))
+                self.collections['participants'].save(
+                    self.create_participant(participant_phone),
+                    safe=True)
             for dialogue in self.get_active_dialogues({'auto-enrollment':'all'}):
                 self.run_action(participant_phone,
                                 EnrollingAction(**{'enroll': dialogue['dialogue-id']}))            
@@ -610,13 +609,19 @@ class DialogueWorker(ApplicationWorker):
             schedule_time = schedule.get_schedule_time()
             delta = schedule_time - self.get_local_time()
             if delta < timedelta():
-                return 0
+                return 1
             if delta < timedelta(seconds=60):
                 return delta.total_seconds() + 1
             else:
                 return 60
         except:
             return 60
+
+    def update_time_next_daemon_iteration(self):
+        secondsLater = self.get_time_next_daemon_iteration()
+        if secondsLater != 60:
+            self.log("reschedule daemon in %s" % secondsLater)
+            self.sender.reset(secondsLater)
 
     def load_data(self):
         program_settings = self.collections['program_settings'].find()
@@ -694,6 +699,7 @@ class DialogueWorker(ApplicationWorker):
             schedule = schedule_generator(**schedule)
             schedule['date-time'] = unattach['fixed-time']
         self.collections['schedules'].save(schedule.get_as_dict())
+        self.update_time_next_daemon_iteration()
 
     def schedule_participants_dialogue(self, participants, dialogue):
         for participant in participants:
@@ -732,7 +738,7 @@ class DialogueWorker(ApplicationWorker):
                         interaction['at-time'])
                 elif (interaction['type-schedule'] == 'offset-time'):
                     enrolled = self.get_enrollment_time(participant, dialogue)
-                    sendingDateTime = time_from_vusion_format(enrolled['date-time']) + timedelta(minutes=int(interaction['minutes']))
+                    sendingDateTime = time_from_vusion_format(enrolled['date-time']) + interaction.get_offset_time_delta()
                 elif (interaction['type-schedule'] == 'fixed-time'):
                     sendingDateTime = time_from_vusion_format(interaction['date-time'])
                 elif (interaction['type-schedule'] == 'offset-condition'):
@@ -781,6 +787,7 @@ class DialogueWorker(ApplicationWorker):
                 self.save_schedule(**schedule)
                 if interaction.has_reminder():
                     self.schedule_participant_reminders(participant, dialogue, interaction, sendingDateTime)
+            self.update_time_next_daemon_iteration()
         except:
             self.log("Scheduling dialogue exception: %s" % dialogue['dialogue-id'])
             exc_type, exc_value, exc_traceback = sys.exc_info()

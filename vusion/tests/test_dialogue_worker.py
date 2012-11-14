@@ -610,7 +610,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         schedule = self.mkobj_schedule(date_time=time_to_vusion_format(dPast))
         self.collections['schedules'].save(schedule)
         self.assertEqual(
-            0,
+            1,
             self.worker.get_time_next_daemon_iteration())
 
     @inlineCallbacks

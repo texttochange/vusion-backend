@@ -2,6 +2,8 @@
 
 from twisted.trial.unittest import TestCase
 
+from datetime import timedelta
+
 from vusion.error import FailingModelUpgrade
 from vusion.persist import Interaction
 from vusion.action import Actions
@@ -111,3 +113,21 @@ class TestInteraction(TestCase, ObjectMaker):
             actions)
         self.assertEqual(1, len(actions))
         self.assertEqual('profiling', actions[0].get_type())
+
+    def test_get_offset_time_delta(self):
+        dialogue = self.mkobj_dialogue_announcement_offset_time()
+        interaction = Interaction(**dialogue['interactions'][0])
+        
+        self.assertEqual(
+            timedelta(seconds=10),
+            interaction.get_offset_time_delta())
+        
+        interaction['minutes'] = "10:10"
+        self.assertEqual(
+                    timedelta(minutes=10, seconds=10),
+                    interaction.get_offset_time_delta())
+
+        interaction['minutes'] = "10"
+        self.assertEqual(
+            timedelta(minutes=10),
+            interaction.get_offset_time_delta())
