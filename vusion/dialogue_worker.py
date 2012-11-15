@@ -885,7 +885,11 @@ class DialogueWorker(ApplicationWorker):
     @inlineCallbacks
     def send_schedule(self, schedule):
         try:            
+            local_time = self.get_local_time()
+
             if schedule.get_type() == 'action-schedule':
+                if schedule.is_expired(local_time):
+                    return
                 self.run_action(
                     schedule['participant-phone'], 
                     action_generator(**schedule['action']),
@@ -925,8 +929,7 @@ class DialogueWorker(ApplicationWorker):
                 schedule['participant-phone'],
                 message_content)
 
-            if (time_from_vusion_format(schedule['date-time']) <
-                    (local_time - timedelta(minutes=15))):
+            if schedule.is_expired(local_time):
                 history = {
                     'object-type': 'datepassed-marker-history',
                     'participant-phone': schedule['participant-phone'],

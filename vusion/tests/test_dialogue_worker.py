@@ -399,6 +399,33 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertTrue(saved_participant)
 
     @inlineCallbacks
+    def test05_send_scheduled_run_action_expired(self):
+          for program_setting in self.mkobj_program_settings():
+              self.collections['program_settings'].save(program_setting)
+          self.worker.load_data()
+  
+          dNow = self.worker.get_local_time()
+          dPast = dNow - timedelta(minutes=15)
+  
+          dialogue = self.mkobj_dialogue_open_question()
+          participant = self.mkobj_participant('06')
+          self.collections['dialogues'].save(dialogue)
+          self.collections['participants'].save(participant)
+          schedule = schedule_generator(**{
+              'participant-phone': '06',
+              'date-time': dPast.strftime(self.time_format),
+              'object-type': 'action-schedule',
+              'action': {'type-action': 'enrolling',
+                         'enroll': '04'},
+              'context': {'request-id': '1'}})
+          self.collections['schedules'].save(schedule.get_as_dict())
+          yield self.worker.send_scheduled()
+  
+          saved_participant = self.collections['participants'].find_one({
+              'enrolled.dialogue-id': '04'})
+          self.assertTrue(saved_participant is None)
+
+    @inlineCallbacks
     def test05_send_scheduled_question_multi_keyword(self):
         mytimezone = self.program_settings[2]['value']
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))

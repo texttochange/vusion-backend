@@ -1,4 +1,5 @@
 import re
+from datetime import timedelta
 
 from vusion.error import VusionError, InvalidField
 from vusion.action import action_generator
@@ -27,7 +28,9 @@ class Schedule(VusionModel):
 
     def get_schedule_time(self):
         return time_from_vusion_format(self['date-time'])
-        
+
+    def is_expired(self, local_time):
+        return time_from_vusion_format(self['date-time']) < (local_time - timedelta(minutes=15))
 
     def upgrade(self, **kwargs):
         if kwargs['model-version'] == '1':
