@@ -61,7 +61,7 @@ class Participant(VusionModel):
                     raise InvalidField(field)        
 
     def upgrade(self, **kwargs):
-        if kwargs['model-version'] == '1':
+        if kwargs['model-version'] in ['1', 1]:
             for label in kwargs['profile']:
                 if not 'raw' in label:
                     label.update({'raw': None})

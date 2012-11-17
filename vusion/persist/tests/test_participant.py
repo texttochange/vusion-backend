@@ -8,7 +8,31 @@ from tests.utils import ObjectMaker
 
 
 class TestParticipant(TestCase, ObjectMaker):
-    
+
+    def test_upgrade(self):
+        participant1 = { 
+             "enrolled":[{"date-time" : "2012-11-07T11:53:46",
+                          "dialogue-id" : "506c0fb487776" },
+                         {"date-time" : "2012-11-07T11:53:47",
+                          "dialogue-id" : "506e826a3fd44"}, 
+                         { "date-time" : "2012-11-07T11:59:17",
+                           "dialogue-id" : "506bece239b45" },
+                         { "date-time" : "2012-11-07T12:04:02",
+                           "dialogue-id" : "506e76b8bba86" },
+                         { "date-time" : "2012-11-09T09:00:14",
+                           "dialogue-id" : "506e88aeea51f" },
+                         { "date-time" : "2012-11-14T01:00:01",
+                           "dialogue-id" : "506e8280aa5f0" } ],
+             "last-optin-date" : "2012-11-07T11:53:46",
+             "model-version" : 1, 
+             "phone" : "+255713840370", 
+             "profile" : [ { "value" : "A", "label" : "type" } ], 
+             "session-id" : "022fba874b664b7f87265be805cfaa50", 
+             "tags" : [ "Mother updated week 5" ] }
+        p = Participant(**participant1)
+        self.assertEqual('2', p['model-version'])
+
+
     def test_validation_fail(self):
         participant= Participant(**self.mkobj_participant(profile=[{'label': 'gender',
                                                        'value': 'Female'}]))        
