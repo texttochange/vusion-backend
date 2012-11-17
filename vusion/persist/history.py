@@ -128,13 +128,29 @@ class DatePassedMarkerHistory(History):
     MODEL_VERSION = '1'
 
     fields = ['dialogue-id',
-              'interaction-id']
+              'interaction-id',
+              'scheduled-date-time']
 
     def is_message(self):
         return False
 
     def validate_fields(self):
         super(DatePassedMarkerHistory, self).validate_fields()
+
+
+class DatePassedActionMarkerHistory(History):
+    
+    MODEL_TYPE = 'datepassed-action-marker-history'
+    MODEL_VERSION = '1'
+
+    fields = ['action-type',
+              'scheduled-date-time']
+
+    def is_message(self):
+        return False
+
+    def validate_fields(self):
+        super(DatePassedActionMarkerHistory, self).validate_fields()    
 
 
 def history_generator(**kwargs):
@@ -158,5 +174,7 @@ def history_generator(**kwargs):
         return OnewayMarkerHistory(**kwargs)
     elif kwargs['object-type'] == 'datepassed-marker-history':
         return DatePassedMarkerHistory(**kwargs)
+    elif kwargs['object-type'] == 'datepassed-action-marker-history':
+        return DatePassedActionMarkerHistory(**kwargs)    
 
     raise VusionError("%s not supported" % kwargs['object-type'])

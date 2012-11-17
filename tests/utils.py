@@ -411,7 +411,7 @@ class ObjectMaker:
         dialogue = deepcopy(self.dialogue_question)
         dialogue['interactions'][0]['model-version'] = '2'
         dialogue['interactions'][0]['object-type'] = 'interaction'
-        dialogue['interactions'][0]['set-max-unmatching-answers'] = 'max-unamatching-answers'
+        dialogue['interactions'][0]['set-max-unmatching-answers'] = 'max-unmatching-answers'
         dialogue['interactions'][0]['max-unmatching-answer-number'] = '5'
         dialogue['interactions'][0]['max-unmatching-answer-actions'] = [{'type-action':'feedback', 'content': 'You reached the limit'}]
         dialogue['interactions'][0]['type-unmatching-feedback'] = 'program-unmatching-feedback'

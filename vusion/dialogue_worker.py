@@ -769,7 +769,8 @@ class DialogueWorker(ApplicationWorker):
                         'participant-phone': participant['phone'],
                         'participant-session-id': participant['session-id'],
                         'dialogue-id': dialogue['dialogue-id'],
-                        'interaction-id': interaction['interaction-id']} 
+                        'interaction-id': interaction['interaction-id'],
+                        'scheduled-date-time': time_to_vusion_format(sendingDateTime)}
                     self.save_history(**history)
                     if (schedule):
                         self.collections['schedules'].remove(schedule['_id'])
@@ -889,6 +890,14 @@ class DialogueWorker(ApplicationWorker):
 
             if schedule.get_type() == 'action-schedule':
                 if schedule.is_expired(local_time):
+                    action = action_generator(**schedule['action'])
+                    history = {
+                        'object-type': 'datepassed-action-marker-history',
+                        'participant-phone': schedule['participant-phone'],
+                        'participant-session-id': schedule['participant-session-id'],
+                        'action-type': action.get_type(),
+                        'scheduled-date-time': schedule['date-time']}
+                    self.save_history(**history)
                     return
                 self.run_action(
                     schedule['participant-phone'], 
@@ -934,7 +943,7 @@ class DialogueWorker(ApplicationWorker):
                     'object-type': 'datepassed-marker-history',
                     'participant-phone': schedule['participant-phone'],
                     'participant-session-id': schedule['participant-session-id'],
-                    'failure-reason': "Message should have been sent at %s" % (schedule['date-time'],)}
+                    'scheduled-date-time': schedule['date-time']}
                 history.update(message_ref.get_dict_for_history())
                 self.save_history(**history)
                 return

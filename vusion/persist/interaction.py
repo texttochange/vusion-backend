@@ -47,8 +47,8 @@ class Interaction(VusionModel):
             'set-use-template': lambda v: True,
             'type-question': lambda v: True,
             'type-unmatching-feedback': lambda v: v in Interaction.UNMATCHING_FEEDBACK_TYPE,
-            'set-max-unmatching-answers': lambda v: True,
-            'set-reminder': lambda v: True},
+            'set-max-unmatching-answers': lambda v: v in [None, '', 'max-unmatching-answers'],
+            'set-reminder': lambda v: v in [None, '', 'reminder']},
         'question-answer-keyword': {
             'content': lambda v: v is not None,
             'label-for-participant-profiling': lambda v: v is not None,
@@ -213,12 +213,12 @@ class Interaction(VusionModel):
     def has_reminder(self):
         if 'set-reminder' not in self.payload:
             return False
-        return self.payload['set-reminder'] is not None
+        return self.payload['set-reminder'] == 'reminder'
     
     def has_max_unmatching_answers(self):
         if 'set-max-unmatching-answers' not in self.payload:
             return False
-        return self.payload['set-max-unmatching-answers'] is not None
+        return self.payload['set-max-unmatching-answers'] == 'max-unmatching-answers'
 
     def get_unmatching_action(self, answer, actions):
         # case of question-answer-keyword
@@ -274,13 +274,13 @@ class Interaction(VusionModel):
                 'dialogue-id': dialogue_id,
                 'interaction-id': self.payload['interaction-id']}))
         if ('label-for-participant-profiling' in self.payload 
-                and self.payload['label-for-participant-profiling'] is not None):
+                and not self.payload['label-for-participant-profiling'] in [None, '']):
             action = ProfilingAction(**{
                 'label': self.payload['label-for-participant-profiling'],
                 'value': matching_value})
             actions.append(action)
         elif ('answer-label' in self.payload 
-                and self.payload['answer-label'] is not None):
+                and not self.payload['answer-label'] in [None, '']):
             action = ProfilingAction(**{
                 'label': self.payload['answer-label'],
                 'value': matching_value})

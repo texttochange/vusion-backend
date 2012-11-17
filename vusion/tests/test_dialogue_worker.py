@@ -424,6 +424,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
           saved_participant = self.collections['participants'].find_one({
               'enrolled.dialogue-id': '04'})
           self.assertTrue(saved_participant is None)
+          self.assertEqual(1, self.collections['history'].count())
 
     @inlineCallbacks
     def test05_send_scheduled_question_multi_keyword(self):
