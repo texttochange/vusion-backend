@@ -622,7 +622,13 @@ class DialogueWorker(ApplicationWorker):
         secondsLater = self.get_time_next_daemon_iteration()
         if secondsLater != 60:
             self.log("reschedule daemon in %s" % secondsLater)
-            self.sender.reset(secondsLater)
+            if self.sender.active():
+                self.sender.reset(secondsLater)
+            else:
+                self.log("Call later not active anymore, schedule a new one")
+                reactor.callLater(
+                    secondsLater,
+                    self.daemon_process)                
 
     def load_data(self):
         program_settings = self.collections['program_settings'].find()

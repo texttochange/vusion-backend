@@ -32,6 +32,18 @@ class TestParticipant(TestCase, ObjectMaker):
         p = Participant(**participant1)
         self.assertEqual('2', p['model-version'])
 
+    def test_upgrade_cake(self):
+        participant_cake = {
+            "model-version" : "2", 
+            "object-type" : "participant", 
+            "phone" : "+255654033486", 
+            "session-id" : "ee29e5a2321f426cb52f19e1371cb32e", 
+            "last-optin-date" : "2012-11-20T13:30:56",
+            "enrolled" : [ ],
+            "tags" : [ ],
+            "profile" : [ ]}
+        p = Participant(**participant_cake)
+        self.assertEqual('2', p['model-version']) 
 
     def test_validation_fail(self):
         participant= Participant(**self.mkobj_participant(profile=[{'label': 'gender',
