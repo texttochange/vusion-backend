@@ -594,13 +594,13 @@ class DialogueWorker(ApplicationWorker):
 
     def daemon_process(self):
         self.load_settings()
-        if not self.is_ready():
-            return
-        self.send_scheduled()
+        if self.is_ready():
+            self.send_scheduled()
         next_iteration = self.get_time_next_daemon_iteration()
-        self.sender = reactor.callLater(
-            next_iteration,
-            self.daemon_process)
+        if not self.sender.active():
+            self.sender = reactor.callLater(
+                next_iteration,
+                self.daemon_process)
 
     def get_time_next_daemon_iteration(self):
         try:
