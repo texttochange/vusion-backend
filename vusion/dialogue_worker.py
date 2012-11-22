@@ -222,6 +222,9 @@ class DialogueWorker(ApplicationWorker):
             'program_settings': None,
             'unattached_messages': None,
             'requests': None})
+        self.collections['history'].ensure_index([('interaction-id', 1),
+                                                  ('participant-session-id',1)],
+                                                 sparce = True)
 
         self.db = connection[self.vusion_database_name]
         self.setup_collections({'templates': None})
