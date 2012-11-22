@@ -78,7 +78,7 @@ class DialogueWorkerTestCase(TestCase, MessageMaker,
     def tearDown(self):
         self.broker.dispatched = {}
         self.drop_collections()
-        yield self.worker.stopWorker()
+        yield self.worker.stopService()
 
     @inlineCallbacks
     def send(self, msg, routing_suffix='control'):
