@@ -270,8 +270,10 @@ class DialogueWorker(ApplicationWorker):
 
     def dispatch_event(self, message):
         self.log("Event message received %s" % (message,))
+        time_from = self.get_local_time() - timedelta(days=1)
         history = self.collections['history'].find_one({
-            'message-id': message['user_message_id']
+            'message-id': message['user_message_id'],
+            'timestamp': {'$gt' : time_to_vusion_format(time_from)}
         })
         if (not history):
             self.log('No reference of this event in history, nothing stored.')

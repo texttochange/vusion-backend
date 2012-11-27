@@ -8,6 +8,8 @@ transport_names:
         - push-255-15001
         - push-255-15012
         - push-255-15014
+        - push-254-4127
+        - yo-254-4127-in
 transport_mappings:
         '256-8282': yo-256-8282
         '256-8181': yo-256-8181
@@ -16,6 +18,8 @@ transport_mappings:
         '255-15001': push-255-15001
         '255-15012': push-255-15012
         '255-15014': push-255-15014
+        '254-4127': push-254-4127
+#        '254-4127-in': yo-254-4127-in
 exposed_names: 
         - garbage
 fallback_application: garbage

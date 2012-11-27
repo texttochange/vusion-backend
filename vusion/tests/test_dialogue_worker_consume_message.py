@@ -338,12 +338,21 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test_receive_delivery(self):
-        event = self.mkmsg_delivery_for_send()
+        for program_setting in self.mkobj_program_settings():
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        past = self.worker.get_local_time() - timedelta(hours=6)        
+    
+        event = self.mkmsg_delivery_for_send(user_message_id='1')
 
-        self.collections['history'].save({
-            'message-id': event['user_message_id'],
-            'message-direction': 'outgoing',
-            'message-status': 'pending'})
+        history = self.mkobj_history_unattach(
+            '4',
+            time_to_vusion_format(past), 
+            message_direction='outgoing',
+            message_status='pending',
+            message_id='1')
+        
+        self.collections['history'].save(history)
 
         yield self.send(event, 'event')
 
@@ -365,15 +374,26 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test_receive_delivery_failure(self):
-        event = self.mkmsg_delivery_for_send(delivery_status='failed',
-                                             failure_code='404',
-                                             failure_level='http',
-                                             failure_reason='some reason')
+        for program_setting in self.mkobj_program_settings():
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        past = self.worker.get_local_time() - timedelta(hours=6)
+                            
+        event = self.mkmsg_delivery_for_send(
+            delivery_status='failed',
+            failure_code='404',
+            failure_level='http',
+            failure_reason='some reason',
+            user_message_id='1')
 
-        self.collections['history'].save({
-            'message-id': event['user_message_id'],
-            'message-direction': 'outgoing',
-            'message-status': 'pending'})
+        history = self.mkobj_history_unattach(
+            '4',
+            time_to_vusion_format(past), 
+            message_direction='outgoing',
+            message_status='pending',
+            message_id='1')
+       
+        self.collections['history'].save(history)
 
         yield self.send(event, 'event')
 
@@ -386,13 +406,22 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test_receive_ack(self):
+        for program_setting in self.mkobj_program_settings():
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        past = self.worker.get_local_time() - timedelta(hours=6)
+        
         event = self.mkmsg_delivery_for_send(event_type='ack',
-                                             user_message_id='2')
+                                             user_message_id='1')
 
-        self.collections['history'].save({
-            'message-id': event['user_message_id'],
-            'message-direction': 'outgoing',
-            'message-status': 'pending'})
+        history = self.mkobj_history_unattach(
+            '4',
+            time_to_vusion_format(past), 
+            message_direction='outgoing',
+            message_status='pending',
+            message_id='1')
+
+        self.collections['history'].save(history)
 
         yield self.send(event, 'event')
 

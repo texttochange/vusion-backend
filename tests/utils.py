@@ -747,14 +747,17 @@ class ObjectMaker:
 
     def mkobj_history_unattach(self, unattach_id, timestamp,
                                participant_phone='06',
-                               participant_session_id="1"):
+                               participant_session_id="1", 
+                               message_direction='outgoing',
+                               message_status='delivered',
+                               message_id='1'):
         return history_generator(**{
             'timestamp': timestamp,
             'participant-phone': participant_phone,
             'participant-session-id': participant_session_id,
-            'message-direction': 'outgoing',
-            'message-status': 'delivered',
-            'message-id': '1',
+            'message-direction': message_direction,
+            'message-status': message_status,
+            'message-id': message_id,
             'message-content': 'A message',
             'unattach-id': unattach_id}).get_as_dict()
 
