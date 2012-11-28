@@ -1,4 +1,5 @@
 import redis
+from time import sleep
 
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks
@@ -21,7 +22,7 @@ from vumi.transports.tests.test_base import TransportTestCase
 
 from transports.push_tz_smpp import PushTzSmppTransport
 
-
+import redis
 class RedisTestEsmeTransceiver(EsmeTransceiver):
 
     def send_pdu(self, pdu):
@@ -133,6 +134,16 @@ class EsmeToSmscTestCasePlus(TransportTestCase):
             mk_expected_pdu("inbound", 555, "deliver_sm_resp"),
         ]
 
+        # 4444444444444444444444444444444444444444444444444444444
+        expected_pdus_4 = [
+            # a sms delivered by the smsc
+            #mk_expected_pdu("inbound", 4, "submit_sm"),
+            #mk_expected_pdu("outbound", 4, "submit_sm_resp"),
+            # the delivery report
+            mk_expected_pdu("outbound", 666, "deliver_sm", **{'optional_parameters': {'tag': 'network_error_code', 'value': '04000'}}),
+            mk_expected_pdu("inbound", 666, "deliver_sm_resp"),
+        ]        
+
         ## Startup
         yield self.startTransport()
         yield self.transport._block_till_bind
@@ -210,6 +221,8 @@ class EsmeToSmscTestCasePlus(TransportTestCase):
         dispatched_failures = self.get_dispatched_failures()
         self.assertEqual(dispatched_failures, [])
         
+        self.clear_dispatched_messages()
+        ## + adding
         pdu = DeliverSM(555,
                 short_message="SMS from server",
                 destination_addr="2772222222",
@@ -228,6 +241,71 @@ class EsmeToSmscTestCasePlus(TransportTestCase):
         self.assertEqual(mess['transport_name'], self.transport_name)
         self.assertEqual(mess['content'], "SMS from server")
         self.assertEqual(mess['from_addr'], "+2772000000")
+
+        dispatched_failures = self.get_dispatched_failures()
+        self.assertEqual(dispatched_failures, [])
+        
+        self.clear_dispatched_messages()        
+        ## handle delivery error message from push
+        #msg = TransportUserMessage(
+            #to_addr="+++2772222222",
+            #from_addr="2772000000",
+            #content='This message will never arrived',
+            #transport_name=self.transport_name,
+            #transport_type='smpp',
+            #transport_metadata={},
+            #rkey='%s.outbound' % self.transport_name,
+            #timestamp='0',
+        #)
+        #yield self.dispatch(msg)
+    
+        #for expected_message in expected_pdus_4:
+            #actual_message = yield pdu_queue.get()
+            #self.assert_server_pdu(expected_message, actual_message)
+            
+        ## We need the user_message_id to check the ack
+        #user_message_id = msg.payload["message_id"]
+    
+        #dispatched_events = self.get_dispatched_events()
+        ##self.assertEqual(2, len(dispatched_events))
+        #ack = dispatched_events[2].payload
+        #delv = dispatched_events[3].payload
+        
+        #self.assertEqual(ack['message_type'], 'event')
+        #self.assertEqual(ack['event_type'], 'ack')
+        #self.assertEqual(ack['transport_name'], self.transport_name)
+        #self.assertEqual(ack['user_message_id'], user_message_id)
+        
+        ## We need the sent_message_id to check the delivery_report
+        #sent_message_id = ack['sent_message_id']
+        
+        #self.assertEqual(delv['message_type'], 'event')
+        #self.assertEqual(delv['event_type'], 'delivery_report')
+        #self.assertEqual(delv['transport_name'], self.transport_name)
+        #self.assertEqual(delv['user_message_id'], user_message_id)
+        #self.assertEqual(delv['delivery_status'],
+                         #self.expected_delivery_status)        
+        
+        
+        pdu = DeliverSM(666,
+                short_message=None,
+                destination_addr="2772222222",
+                source_addr="2772000000",
+                )
+        pdu._PDU__add_optional_parameter('network_error_code', '040000')
+        self.service.factory.smsc.send_pdu(pdu)
+
+        for expected_message in expected_pdus_4:
+            actual_message = yield pdu_queue.get()
+            self.assert_server_pdu(expected_message, actual_message)
+
+        dispatched_messages = self.get_dispatched_messages()
+        self.assertEqual(0, len(dispatched_messages))
+
+        #self.assertEqual(mess['message_type'], 'user_message')
+        #self.assertEqual(mess['transport_name'], self.transport_name)
+        #self.assertEqual(mess['content'], "SMS from server")
+        #self.assertEqual(mess['from_addr'], "+2772000000")
 
         dispatched_failures = self.get_dispatched_failures()
         self.assertEqual(dispatched_failures, [])        
