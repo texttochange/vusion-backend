@@ -888,7 +888,6 @@ class DialogueWorker(ApplicationWorker):
             for due_schedule in due_schedules:
                 self.collections['schedules'].remove(
                     {'_id': due_schedule['_id']})
-                message_content = None
                 yield self.send_schedule(schedule_generator(**due_schedule))
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()

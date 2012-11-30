@@ -265,7 +265,6 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.worker.get_matching_request_actions('ww', Actions(), context)
         self.assertTrue(context == {})
 
-    @inlineCallbacks
     def test05_send_scheduled_messages(self):
         dialogue = self.mkobj_dialogue_announcement_2()
         participant = self.mkobj_participant('09')
@@ -316,7 +315,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
                 context={'dialogue-id': '2', 'interaction-id': '1'}))
         self.worker.load_data()
 
-        yield self.worker.send_scheduled()
+        self.worker.send_scheduled()
 
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 3)
