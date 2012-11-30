@@ -1,5 +1,6 @@
 # -*- tst-case-name tests.test_ttc_dispatcher
 
+import sys, traceback
 import redis
 import functools
 
