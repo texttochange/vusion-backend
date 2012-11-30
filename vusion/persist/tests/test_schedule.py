@@ -17,7 +17,7 @@ class TestSchedule(TestCase, ObjectMaker):
             date_time=time_to_vusion_format(now)))
         self.assertFalse(schedule.is_expired(now))
         
-        past = now - timedelta(minutes=15)        
+        past = now - timedelta(minutes=61)        
         schedule = schedule_generator(**self.mkobj_schedule(
             date_time=time_to_vusion_format(past)))        
         self.assertTrue(schedule.is_expired(now))

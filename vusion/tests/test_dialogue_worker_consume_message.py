@@ -341,7 +341,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
-        past = self.worker.get_local_time() - timedelta(hours=6)        
+        past = self.worker.get_local_time() - timedelta(hours=5)        
     
         event = self.mkmsg_delivery_for_send(user_message_id='1')
 
@@ -377,7 +377,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
-        past = self.worker.get_local_time() - timedelta(hours=6)
+        past = self.worker.get_local_time() - timedelta(hours=5)
                             
         event = self.mkmsg_delivery_for_send(
             delivery_status='failed',
@@ -409,7 +409,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
-        past = self.worker.get_local_time() - timedelta(hours=6)
+        past = self.worker.get_local_time() - timedelta(hours=5)
         
         event = self.mkmsg_delivery_for_send(event_type='ack',
                                              user_message_id='1')

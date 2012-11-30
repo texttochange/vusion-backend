@@ -30,7 +30,7 @@ class Schedule(VusionModel):
         return time_from_vusion_format(self['date-time'])
 
     def is_expired(self, local_time):
-        return time_from_vusion_format(self['date-time']) < (local_time - timedelta(minutes=15))
+        return time_from_vusion_format(self['date-time']) < (local_time - timedelta(hours=1))
 
     def upgrade(self, **kwargs):
         if kwargs['model-version'] == '1':

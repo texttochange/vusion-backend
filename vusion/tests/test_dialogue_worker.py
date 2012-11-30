@@ -272,7 +272,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         mytimezone = self.program_settings[2]['value']
         dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
         dNow = dNow - timedelta(minutes=2)
-        dPast = dNow - timedelta(minutes=30)
+        dPast = dNow - timedelta(minutes=61)
         dFuture = dNow + timedelta(minutes=30)
 
         self.collections['dialogues'].save(dialogue)
@@ -405,7 +405,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
           self.worker.load_data()
   
           dNow = self.worker.get_local_time()
-          dPast = dNow - timedelta(minutes=15)
+          dPast = dNow - timedelta(minutes=61)
   
           dialogue = self.mkobj_dialogue_open_question()
           participant = self.mkobj_participant('06')

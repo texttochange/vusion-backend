@@ -271,7 +271,7 @@ class DialogueWorker(ApplicationWorker):
 
     def dispatch_event(self, message):
         self.log("Event message received %s" % (message,))
-        time_from = self.get_local_time() - timedelta(days=1)
+        time_from = self.get_local_time() - timedelta(hours=6)
         history = self.collections['history'].find_one({
             'message-id': message['user_message_id'],
             'timestamp': {'$gt' : time_to_vusion_format(time_from)}
@@ -884,7 +884,7 @@ class DialogueWorker(ApplicationWorker):
             local_time = self.get_local_time()
             due_schedules = self.collections['schedules'].find(
                 spec={'date-time': {'$lt': time_to_vusion_format(local_time)}},
-                sort=[('date-time', 1)])
+                sort=[('date-time', 1)], limit=100)
             for due_schedule in due_schedules:
                 self.collections['schedules'].remove(
                     {'_id': due_schedule['_id']})
