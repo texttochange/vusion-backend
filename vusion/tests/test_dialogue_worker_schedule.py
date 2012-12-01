@@ -294,6 +294,68 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         #assert last reminder is deadline-schedule
         self.assertEqual(schedules[2]['object-type'], 'deadline-schedule')
 
+
+    def test_reschedule_reminders_after_question_history(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        
+        dNow = self.worker.get_local_time()
+        dPast = dNow - timedelta(minutes=6)
+        dFuture = dNow + timedelta(minutes=20)
+        dMoreFuture = dFuture + timedelta(minutes=30)
+        
+        dialogue = Dialogue(**self.mkobj_dialogue_open_question_reminder_offset_time())
+        participant = self.mkobj_participant('06', last_optin_date=time_to_vusion_format(dPast))
+        
+        interaction = dialogue.interactions[0]
+        interaction_id = interaction['interaction-id']
+        
+        interaction['reminder-minutes'] = '100'
+        
+        history = self.mkobj_history_dialogue(
+            dialogue_id=dialogue['dialogue-id'],
+            interaction_id=interaction_id,
+            timestamp=time_to_vusion_format(dPast))
+        self.collections['history'].save(history)
+    
+        reminder_schedule = self.mkobj_schedule(
+            dialogue_id=dialogue['dialogue-id'],
+            interaction_id=interaction_id,
+            date_time=time_to_vusion_format(dFuture),
+            object_type='reminder-schedule')
+        self.collections['schedules'].save(reminder_schedule)
+        
+        deadline_schedule = self.mkobj_schedule(
+            dialogue_id=dialogue['dialogue-id'],
+            interaction_id=interaction_id,
+            date_time=time_to_vusion_format(dFuture),
+            object_type='deadline-schedule')
+        self.collections['schedules'].save(deadline_schedule)        
+        
+        self.worker.schedule_participant_dialogue(participant, dialogue)
+
+        schedules_count = self.collections['schedules'].count()
+        self.assertEqual(schedules_count, 3)
+
+        schedules = self.collections['schedules'].find()
+        #assert time calculation
+        self.assertEqual(
+            schedules[0]['date-time'],
+            time_to_vusion_format(dPast + timedelta(minutes=100)))
+        self.assertEqual(
+            schedules[1]['date-time'],
+            time_to_vusion_format(dPast + timedelta(minutes=200)))
+        self.assertEqual(
+            schedules[2]['date-time'],
+            time_to_vusion_format(dPast + timedelta(minutes=300)))
+
+        #assert that first schedules are reminder-schedules
+        self.assertEqual(schedules[0]['object-type'], 'reminder-schedule')
+        self.assertEqual(schedules[1]['object-type'], 'reminder-schedule')
+        #assert last reminder is deadline-schedule
+        self.assertEqual(schedules[2]['object-type'], 'deadline-schedule')
+
     def test_schedule_unattach_message(self):
         participants = [self.mkobj_participant('06', session_id = None),
                         self.mkobj_participant('07', session_id = '1')]

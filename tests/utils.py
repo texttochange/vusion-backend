@@ -544,7 +544,7 @@ class ObjectMaker:
 
     def mkobj_dialogue_open_question_reminder_offset_time(self):
         dialogue = Dialogue(**deepcopy(self.dialogue_open_question_with_reminder_offset_time))
-        return dialogue.get_as_dict()
+        return dialogue.get_as_dict()  
 
     def mkobj_dialogue_open_question_offset_conditional(self):
         dialogue = deepcopy(self.dialogue_open_question)

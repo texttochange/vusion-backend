@@ -740,6 +740,8 @@ class DialogueWorker(ApplicationWorker):
 
                 if history:
                     previousSendDateTime = time_from_vusion_format(history["timestamp"])
+                    if interaction.has_reminder():
+                        self.schedule_participant_reminders(participant, dialogue, interaction, previousSendDateTime)
                     previousSendDay = previousSendDateTime.date()
                     continue
 
