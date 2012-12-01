@@ -538,7 +538,7 @@ class DialogueWorker(ApplicationWorker):
                 return True
         return False
 
-    def has_already_valid_answer(self, participant, dialogue_id, interaction_id):
+    def has_already_valid_answer(self, participant, dialogue_id, interaction_id, number=1):
         query = {'participant-phone': participant['phone'],
                  'participant-session-id':participant['session-id'],
                  'message-direction': 'incoming',
@@ -546,7 +546,7 @@ class DialogueWorker(ApplicationWorker):
                  'dialogue-id': dialogue_id,
                  'interaction-id': interaction_id}
         history = self.collections['history'].find(query)
-        if history is None or history.count() <= 1:
+        if history is None or history.count() <= number:
             return False
         return True        
     
@@ -742,7 +742,7 @@ class DialogueWorker(ApplicationWorker):
                     previousSendDateTime = time_from_vusion_format(history["timestamp"])
                     if (interaction.has_reminder() 
                         and not self.has_already_valid_answer(
-                            participant, dialogue['dialogue-id'], interaction['interaction-id'])):
+                            participant, dialogue['dialogue-id'], interaction['interaction-id'], 0)):
                         self.schedule_participant_reminders(participant, dialogue, interaction, previousSendDateTime)
                     previousSendDay = previousSendDateTime.date()
                     continue

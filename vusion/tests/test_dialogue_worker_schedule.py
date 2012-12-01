@@ -294,7 +294,6 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         #assert last reminder is deadline-schedule
         self.assertEqual(schedules[2]['object-type'], 'deadline-schedule')
 
-
     def test_reschedule_reminders_after_question_history(self):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
@@ -355,6 +354,45 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         self.assertEqual(schedules[1]['object-type'], 'reminder-schedule')
         #assert last reminder is deadline-schedule
         self.assertEqual(schedules[2]['object-type'], 'deadline-schedule')
+
+    def test_reschedule_reminders_after_question_history_already_answer(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        
+        dNow = self.worker.get_local_time()
+        dPast = dNow - timedelta(minutes=6)
+        dFuture = dNow + timedelta(minutes=20)
+        dMoreFuture = dFuture + timedelta(minutes=30)
+        
+        dialogue = Dialogue(**self.mkobj_dialogue_open_question_reminder_offset_time())
+        participant = self.mkobj_participant(
+            '06', 
+            last_optin_date=time_to_vusion_format(dPast))
+        
+        interaction = dialogue.interactions[0]
+        interaction_id = interaction['interaction-id']
+        
+        interaction['reminder-minutes'] = '100'
+        
+        question_history = self.mkobj_history_dialogue(
+            dialogue_id=dialogue['dialogue-id'],
+            interaction_id=interaction_id,
+            timestamp=time_to_vusion_format(dPast))
+        self.collections['history'].save(question_history)
+
+        answer_history = self.mkobj_history_dialogue(
+            dialogue_id=dialogue['dialogue-id'],
+            interaction_id=interaction_id,
+            timestamp=time_to_vusion_format(dPast),
+            direction='incoming',
+            matching_answer='something')
+        self.collections['history'].save(answer_history)
+          
+        self.worker.schedule_participant_dialogue(participant, dialogue)
+
+        schedules_count = self.collections['schedules'].count()
+        self.assertEqual(schedules_count, 0)
 
     def test_schedule_unattach_message(self):
         participants = [self.mkobj_participant('06', session_id = None),
