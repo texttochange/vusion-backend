@@ -14,6 +14,13 @@ class TrimingMiddlewareTestCase(TestCase, MessageMaker):
         self.mw = TrimingMiddleware('mw1', {}, dummy_worker)
         self.mw.setup_middleware()
 
+    def test_handle_inbound_empty(self):
+        msg = self.mkmsg_in(content=None)
+        msg = self.mw.handle_inbound(msg , 'dummy_endpoint')
+        self.assertEqual(
+            msg['content'],
+            '')    
+
     def test_handle_inbound_space(self):
         msg = self.mkmsg_in(content=' to be trimed ')
         msg = self.mw.handle_inbound(msg , 'dummy_endpoint')
