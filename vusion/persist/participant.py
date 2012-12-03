@@ -6,7 +6,7 @@ from vusion.error import InvalidField, MissingField
 class Participant(VusionModel):
 
     MODEL_TYPE = 'participant'
-    MODEL_VERSION = '2'
+    MODEL_VERSION = '3'
 
     REGEX_RAW = re.compile('.*_raw$')
 
@@ -14,6 +14,7 @@ class Participant(VusionModel):
         'phone',
         'session-id', 
         'last-optin-date',
+        'last-optout-date',
         'tags',
         'enrolled',
         'profile']
@@ -22,6 +23,7 @@ class Participant(VusionModel):
         'phone': lambda v: v is not None,
         'session-id': lambda v: True,
         'last-optin-date': lambda v: True,
+        'last-optout-date': lambda v: True,
         'tags': lambda v: isinstance(v, list),
         'enrolled': lambda v: isinstance(v, list),
         'profile': lambda v: isinstance(v, list)}
@@ -66,6 +68,10 @@ class Participant(VusionModel):
                 if not 'raw' in label:
                     label.update({'raw': None})
             kwargs['model-version'] = '2'
+            return self.upgrade(**kwargs)
+        elif kwargs['model-version'] in '2':
+            kwargs['last-optout-date'] = kwargs['last-optout-date'] if 'last-optout-date' in kwargs else None
+            kwargs['model-version'] = '3'
         return kwargs        
     
 

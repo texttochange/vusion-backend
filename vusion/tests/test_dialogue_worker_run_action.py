@@ -240,6 +240,8 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             EnrollingAction(**{'enroll': '01'}))
 
     def test_run_action_optin_optout(self):
+        regex_time = RegexMatcher(r'^(\d{4})-0?(\d+)-0?(\d+)[T ]0?(\d+):0?(\d+):0?(\d+)$')
+        
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -251,7 +253,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertTrue('session-id' in participant)
         self.assertEqual(participant['session-id'], RegexMatcher(r'^[0-9a-fA-F]{32}$'))
         self.assertTrue('last-optin-date' in participant)
-        self.assertEqual(participant['last-optin-date'], RegexMatcher(r'^(\d{4})-0?(\d+)-0?(\d+)[T ]0?(\d+):0?(\d+):0?(\d+)$'))
+        self.assertEqual(participant['last-optin-date'], regex_time)
         self.assertTrue('tags' in participant)
         self.assertTrue('profile' in participant)
         self.assertTrue('enrolled' in participant)
@@ -263,7 +265,8 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(1, self.collections['participants'].count())
         participant_optout = self.collections['participants'].find_one()
         self.assertTrue(participant_optout['session-id'] is None)
-        self.assertTrue(participant_optout['last-optin-date'] is None)
+        self.assertEqual(participant_optout['last-optin-date'], regex_time)
+        self.assertEqual(participant_optout['last-optout-date'], regex_time)
         self.assertEqual(1, self.collections['schedules'].count())
         
         ## Participant can optin again
@@ -271,7 +274,8 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(1, self.collections['participants'].count())
         participant = self.collections['participants'].find_one()
         self.assertEqual(participant['session-id'], RegexMatcher(r'^[0-9a-fA-F]{32}$'))
-        self.assertEqual(participant['last-optin-date'], RegexMatcher(r'^(\d{4})-0?(\d+)-0?(\d+)[T ]0?(\d+):0?(\d+):0?(\d+)$'))
+        self.assertEqual(participant['last-optin-date'], regex_time)
+        self.assertEqual(participant['last-optout-date'], None)
 
         ## Participant cannot optin while they are aleardy optin
         self.worker.run_action("08", OptinAction())
@@ -279,6 +283,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         participant_reoptin = self.collections['participants'].find_one()
         self.assertEqual(participant['session-id'], participant_reoptin['session-id'])
         self.assertEqual(participant['last-optin-date'], participant_reoptin['last-optin-date'])
+        self.assertEqual(participant['last-optout-date'], None)
         
         ## Participant profile is cleared by optin
         self.collections['participants'].save(self.mkobj_participant(

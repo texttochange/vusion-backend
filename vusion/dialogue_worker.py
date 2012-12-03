@@ -334,6 +334,7 @@ class DialogueWorker(ApplicationWorker):
                     {'phone': participant_phone},
                     {'$set': {'session-id': uuid4().get_hex(), 
                               'last-optin-date': time_to_vusion_format(self.get_local_time()),
+                              'last-optout-date': None,
                               'tags': [],
                               'enrolled': [],
                               'profile': [] }})
@@ -349,7 +350,7 @@ class DialogueWorker(ApplicationWorker):
             self.collections['participants'].update(
                 {'phone': participant_phone},
                 {'$set': {'session-id': None,
-                          'last-optin-date': None}})
+                          'last-optout-date': time_to_vusion_format(self.get_local_time())}})
             self.collections['schedules'].remove({
                 'participant-phone': participant_phone,
                 'object-type': {'$ne': 'feedback-schedule'}})
