@@ -313,10 +313,11 @@ class DialogueWorker(ApplicationWorker):
 
     def create_participant(self, participant_phone):
         return Participant(**{
-            'model-version': '2',
+            'model-version': '3',
             'phone': participant_phone,
             'session-id': uuid4().get_hex(), 
             'last-optin-date': time_to_vusion_format(self.get_local_time()),
+            'last-optout-date': None,
             'tags': [],
             'enrolled':[],
             'profile':[]}).get_as_dict()

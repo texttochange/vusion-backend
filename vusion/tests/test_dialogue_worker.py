@@ -21,7 +21,7 @@ from vusion.action import (UnMatchingAnswerAction, EnrollingAction,
                            OffsetConditionAction, RemoveRemindersAction,
                            ResetAction, RemoveDeadlineAction,
                            DelayedEnrollingAction, action_generator, Actions)
-from vusion.persist import Dialogue, schedule_generator
+from vusion.persist import Dialogue, schedule_generator, Participant
 
 #from transports import YoUgHttpTransport
 
@@ -223,6 +223,15 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
                          id_active_dialogue_one)
         self.assertEqual(dialogues[1]['_id'],
                          id_active_dialogue_two)
+
+    def test04_create_participant(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        
+        participant = self.worker.create_participant('06')
+        
+        self.assertEqual(participant['model-version'], Participant.MODEL_VERSION)
 
     def test03_get_current_dialogue(self):
         dialogue = self.mkobj_dialogue_annoucement()
