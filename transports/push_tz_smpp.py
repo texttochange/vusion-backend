@@ -3,6 +3,7 @@ import uuid
 import json
 
 from twisted.python import log
+from twisted.internet.defer import inlineCallbacks, returnValue
 from smpp.pdu_builder import (BindTransceiver,
                                 BindTransmitter,
                                 BindReceiver,
@@ -20,7 +21,7 @@ from smpp.pdu_inspector import (MultipartMessage,
 
 from vumi.transports.smpp import SmppTransport
 from vumi.transports.smpp.clientserver.client import EsmeTransceiver, EsmeTransceiverFactory
-
+from vumi.middleware import MiddlewareStack, setup_middlewares_from_config
 
 class PushTzSmppTransport(SmppTransport):
     
@@ -39,6 +40,11 @@ class PushTzSmppTransport(SmppTransport):
         if (not re.match(self.regex_plus, kwargs.get('source_addr'))):
             kwargs.update({'source_addr': ('+%s' % kwargs.get('source_addr'))})        
         super(PushTzSmppTransport, self).deliver_sm(*args, **kwargs)
+
+    @inlineCallbacks    
+    def setup_middleware(self):
+        middlewares = yield setup_middlewares_from_config(self, self.config)
+        self._middlewares = CustomMiddlewareStack(middlewares)
 
 
 class PushTzEsmeTransceiverFactory(EsmeTransceiverFactory):
@@ -118,4 +124,17 @@ class PushTzEsmeTransceiver(EsmeTransceiver):
                         source_addr=pdu_params['source_addr'],
                         short_message=decoded_msg,
                         message_id=message_id,
-                        )        
+                        )
+
+
+class CustomMiddlewareStack(MiddlewareStack):
+
+    @inlineCallbacks
+    def _handle(self, middlewares, handler_name, message, endpoint):
+        method_name = 'handle_%s' % (handler_name,)
+        for middleware in middlewares:
+            handler = getattr(middleware, method_name)
+            message = yield handler(message, endpoint)
+            if message is None:
+                continue
+        returnValue(message)    
