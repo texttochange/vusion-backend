@@ -430,6 +430,53 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         schedules = self.collections['schedules'].find()
         self.assertEqual(schedules[0]['participant-phone'], '07')
 
+    def test_schedule_unattach_message_selector(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()        
+     
+        dNow = self.worker.get_local_time()
+        dFuture = dNow + timedelta(minutes=30)
+        dPast = dNow - timedelta(minutes=30)
+
+        participant_06 = self.mkobj_participant(
+            '06', 
+            tags=['geek'],
+            profile=[{'label': 'city', 'value': 'jinja', 'raw': None},
+                     {'label': 'born', 'value': 'kampala', 'raw': None}]
+        )
+        participant_07 = self.mkobj_participant(
+            '07',
+            profile=[{'label': 'city', 'value': 'kampala', 'raw': None}])
+        self.collections['participants'].save(participant_06)
+        self.collections['participants'].save(participant_07)
+        
+        unattach_msg_1 = self.mkobj_unattach_message_2(
+            content='Hello',
+            recipient=['geek'],
+            fixed_time=time_to_vusion_format(dFuture))
+        unattach_msg_2 = self.mkobj_unattach_message_2(
+            content='Hello again',
+            recipient=['city:kampala'],
+            fixed_time=time_to_vusion_format(dFuture))
+
+        unattach_msg_id_1 = self.collections['unattached_messages'].save(unattach_msg_1)
+        unattach_msg_id_2 = self.collections['unattached_messages'].save(unattach_msg_2)
+
+        self.worker.schedule_unattach(unattach_msg_id_1)        
+
+        schedules_count = self.collections['schedules'].count()
+        self.assertEqual(schedules_count, 1)
+        schedules = self.collections['schedules'].find()
+        self.assertEqual(schedules[0]['participant-phone'], '06')
+        
+        self.worker.schedule_unattach(unattach_msg_id_2)
+        
+        schedules_count = self.collections['schedules'].count()
+        self.assertEqual(schedules_count, 2)
+        schedule = self.collections['schedules'].find_one({'unattach-id': str(unattach_msg_id_2)})
+        self.assertEqual(schedule['participant-phone'], '07')
+
     def test_schedule_participant(self):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
@@ -441,10 +488,13 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         dialogue_2 = self.mkobj_dialogue_announcement_2()
         self.collections['dialogues'].save(dialogue_1)
         self.collections['dialogues'].save(dialogue_2)
-        unattach = self.mkobj_unattach_message()
+        unattach = self.mkobj_unattach_message_2(recipient=['geek'])
         self.collections['unattached_messages'].save(unattach)
+        unattach = self.mkobj_unattach_message_2(recipient=['cool'])
+        self.collections['unattached_messages'].save(unattach)        
         participant = self.mkobj_participant(
             '06', 
+            tags=['geek'],
             enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dNow)}])
         self.collections['participants'].save(participant)
         
