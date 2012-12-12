@@ -15,7 +15,7 @@ class UnattachMessage(VusionModel):
         'to': lambda v: isinstance(v, list),
         'content': lambda v: v is not None,
         'type-schedule': lambda v: v in ['fixed-time', 'immediately'],
-        'fixed-time': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)T0?(\d+):0?(\d+)$'), v)
+        'fixed-time': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)T0?(\d+):0?(\d+)(:0?(\d+))$'), v)
     }
     
     def validate_fields(self):

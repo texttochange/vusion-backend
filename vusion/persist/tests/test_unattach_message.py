@@ -12,7 +12,7 @@ class TestUnattachMessage(TestCase, ObjectMaker):
             'to': 'all participants',
             'content': 'a message',
             'type-schedule': 'fixed-time',
-            'fixed-time': '2012-01-01T12:12'}
+            'fixed-time': '2012-01-01T12:12:00'}
         
         unattach = UnattachMessage(**unattach_raw)
 
@@ -31,7 +31,7 @@ class TestUnattachMessage(TestCase, ObjectMaker):
             'to': 'all participants',
             'content': 'a message',
             'type-schedule': 'fixed-time',
-            'fixed-time': '2012-01-01T12:12'}
+            'fixed-time': '2012-01-01T12:12:00'}
         
         unattach = UnattachMessage(**unattach_raw)
 
