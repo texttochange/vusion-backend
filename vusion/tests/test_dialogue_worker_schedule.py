@@ -463,19 +463,31 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         unattach_msg_id_1 = self.collections['unattached_messages'].save(unattach_msg_1)
         unattach_msg_id_2 = self.collections['unattached_messages'].save(unattach_msg_2)
 
-        self.worker.schedule_unattach(unattach_msg_id_1)        
+        self.worker.schedule_unattach(str(unattach_msg_id_1))
 
         schedules_count = self.collections['schedules'].count()
         self.assertEqual(schedules_count, 1)
         schedules = self.collections['schedules'].find()
         self.assertEqual(schedules[0]['participant-phone'], '06')
         
-        self.worker.schedule_unattach(unattach_msg_id_2)
+        self.worker.schedule_unattach(str(unattach_msg_id_2))
         
         schedules_count = self.collections['schedules'].count()
         self.assertEqual(schedules_count, 2)
         schedule = self.collections['schedules'].find_one({'unattach-id': str(unattach_msg_id_2)})
         self.assertEqual(schedule['participant-phone'], '07')
+        
+        #rescheduling is removing non selected participant
+        unattach_msg_2 = self.collections['unattached_messages'].find_one(
+            {'_id': ObjectId(unattach_msg_id_2)})
+        unattach_msg_2['to'] = ['geek']
+        self.collections['unattached_messages'].save(unattach_msg_2)
+        
+        self.worker.schedule_unattach(str(unattach_msg_id_2))
+        schedules_count = self.collections['schedules'].count()
+        self.assertEqual(schedules_count, 2)
+        schedule = self.collections['schedules'].find_one({'unattach-id': str(unattach_msg_id_2)})
+        self.assertEqual(schedule['participant-phone'], '06')
 
     def test_schedule_participant(self):
         for program_setting in self.program_settings:

@@ -40,6 +40,17 @@ class TestUnattachMessage(TestCase, ObjectMaker):
             UnattachMessage.MODEL_VERSION,
             unattach['model-version'])
 
+    def test_upgrade_none(self):        
+        unattach = UnattachMessage(**{
+            'object-type': None, 
+            'name': 'Test 3', 
+            'fixed-time': u'2012-12-14T00:00:00', 
+            'model-version': None, 
+            'content': u'something',
+            'to': ['all-participants'], 
+            'type-schedule': 'fixed-time'})
+        self.assertTrue(unattach is not None)        
+
     def test_get_query(self):
         unattach = UnattachMessage(**self.mkobj_unattach_message_2(
             recipient=['all-participants']))

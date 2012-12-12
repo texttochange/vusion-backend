@@ -28,7 +28,7 @@ class UnattachMessage(VusionModel):
                 raise InvalidField(field)
     
     def upgrade(self, **kwargs):
-        if kwargs['model-version'] == '1':
+        if kwargs['model-version'] in ['1', None]:
             kwargs['to'] = ['all-participants']
             kwargs['model-version'] = '2'
         return kwargs

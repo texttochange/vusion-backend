@@ -652,7 +652,6 @@ class DialogueWorker(ApplicationWorker):
         if previous_shortcode != self.properties['shortcode']:
             self.register_keywords_in_dispatcher()
 
-
     def is_ready(self):
         if not 'shortcode' in self.properties:
             self.log('Shortcode not defined')
@@ -705,6 +704,8 @@ class DialogueWorker(ApplicationWorker):
             return None
         
     def schedule_unattach(self, unattach_id):
+        #clear all schedule
+        self.collections['schedules'].remove({'unattach-id': unattach_id})
         unattach = self.get_unattach_message(unattach_id)
         if unattach is None:
             return
