@@ -1,8 +1,6 @@
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.trial.unittest import TestCase
 
-from vumi.middleware.tests.test_base import MiddlewareStack
-
 from middlewares.triming_middleware import TrimingMiddleware
 from tests.utils import MessageMaker
 
@@ -19,7 +17,7 @@ class TrimingMiddlewareTestCase(TestCase, MessageMaker):
         msg = self.mw.handle_inbound(msg , 'dummy_endpoint')
         self.assertEqual(
             msg['content'],
-            '')    
+            '')
 
     def test_handle_inbound_space(self):
         msg = self.mkmsg_in(content=' to be trimed ')
