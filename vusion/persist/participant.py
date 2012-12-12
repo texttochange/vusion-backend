@@ -102,3 +102,9 @@ class Participant(VusionModel):
 
     def is_optin(self):
         return self.payload['session-id'] is not None
+    
+    def has_profile(self, label, value):
+        for item in self['profile']:
+            if label == item['label'] and value == item['value']:
+                return True
+        return False

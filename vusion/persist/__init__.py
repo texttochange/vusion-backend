@@ -9,10 +9,12 @@ from schedule import (FeedbackSchedule, DeadlineSchedule, ReminderSchedule,
                       DialogueSchedule, UnattachSchedule, ActionSchedule,
                       schedule_generator)
 from participant import Participant
+from unattach_message import UnattachMessage
 
 __all__ = ["Request", "WorkerConfig", "Dialogue", "Interaction",
            "DialogueHistory", "RequestHistory", "UnattachHistory",
            "OnewayMarkerHistory", "DatePassedActionMarkerHistory",
            "history_generator", "schedule_generator", "FeedbackSchedule",
            "DeadlineSchedule","ReminderSchedule", "DialogueSchedule",
-           "UnattachSchedule", "ActionSchedule", "Participant"]
+           "UnattachSchedule", "ActionSchedule", "Participant",
+           "UnattachMessage"]

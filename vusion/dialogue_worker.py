@@ -25,7 +25,7 @@ from vumi import log
 from vumi.utils import get_first_word
 
 from vusion.persist import (Dialogue, FeedbackSchedule, UnattachSchedule,
-                            schedule_generator, Participant)
+                            schedule_generator, Participant, UnattachMessage)
 from vusion.utils import (time_to_vusion_format, get_local_time,
                           get_local_time_as_timestamp, time_from_vusion_format,
                           get_shortcode_value, get_offset_date_time,
@@ -135,6 +135,9 @@ class DialogueWorker(ApplicationWorker):
             if only_optin:
                 query.update({'session-id':{'$ne': None}})
             return Participant(**self.collections['participants'].find_one(query))
+        except TypeError:
+            self.log("Participant %s is not in collection." % participant_phone)
+            return None
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log(
@@ -670,12 +673,21 @@ class DialogueWorker(ApplicationWorker):
                 self.schedule_participant_dialogue(participant, dialogue)
         future_unattachs = self.get_future_unattachs()
         for unattach in future_unattachs:
-            self.schedule_participant_unattach(participant, unattach)
+            if unattach.is_selectable(participant):
+                self.schedule_participant_unattach(participant, unattach)
 
     def get_future_unattachs(self):
-        return self.collections['unattached_messages'].find({
-            'fixed-time': {
-                '$gt': time_to_vusion_format(self.get_local_time())}})
+        query = {'fixed-time': {
+            '$gt': time_to_vusion_format(self.get_local_time())}}
+        unattachs = []
+        for unattach in self.collections['unattached_messages'].find(query):
+            try:
+                unattachs.append(UnattachMessage(**unattach))
+            except:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                self.log("Error while retriving participant %r" %
+                         traceback.format_exception(exc_type, exc_value, exc_traceback))
+        return unattachs
 
     def schedule_dialogue(self, dialogue_id):
         dialogue = self.get_current_dialogue(dialogue_id)
@@ -684,10 +696,22 @@ class DialogueWorker(ApplicationWorker):
              'session-id': {'$ne': None}})
         self.schedule_participants_dialogue(participants, dialogue)
 
+    def get_unattach_message(self, unattach_id):
+        try:
+            return UnattachMessage(**self.collections['unattached_messages'].find_one({
+                '_id': ObjectId(unattach_id)}))
+        except TypeError:
+            self.log("Error unattach message %s cannot be found" % unattach_id)
+            return None
+        
     def schedule_unattach(self, unattach_id):
-        unattach = self.collections['unattached_messages'].find_one({
-            '_id': ObjectId(unattach_id)})
-        participants = self.get_participants({'session-id': {'$ne': None}})
+        unattach = self.get_unattach_message(unattach_id)
+        if unattach is None:
+            return
+        selectors = unattach.get_selector_as_query()
+        query = {'session-id': {'$ne': None}}
+        query.update(selectors)
+        participants = self.get_participants(query)
         self.schedule_participants_unattach(participants, unattach)
 
     def schedule_participants_unattach(self, participants, unattach):
