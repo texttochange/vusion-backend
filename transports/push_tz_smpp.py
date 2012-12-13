@@ -3,7 +3,7 @@ import uuid
 import json
 
 from twisted.python import log
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import inlineCallbacks, returnValue, maybeDeferred
 from smpp.pdu_builder import (BindTransceiver,
                                 BindTransmitter,
                                 BindReceiver,
@@ -18,7 +18,7 @@ from smpp.pdu_inspector import (MultipartMessage,
                                 detect_multipart,
                                 multipart_key,
                                 )
-
+from vumi.message import TransportUserMessage
 from vumi.transports.smpp import SmppTransport
 from vumi.transports.smpp.clientserver.client import EsmeTransceiver, EsmeTransceiverFactory
 from vumi.middleware import MiddlewareStack, setup_middlewares_from_config
@@ -45,6 +45,21 @@ class PushTzSmppTransport(SmppTransport):
     def setup_middleware(self):
         middlewares = yield setup_middlewares_from_config(self, self.config)
         self._middlewares = CustomMiddlewareStack(middlewares)
+ 
+    def _process_message(self, message):
+        def _send_failure(f):
+            self.send_failure(message, f.value, f.getTraceback())
+            log.err(f)
+            if self.SUPPRESS_FAILURE_EXCEPTIONS:
+                return None
+            return f
+        
+        d = self._middlewares.apply_consume("outbound", message,
+                                            self.transport_name)
+        d.addCallback(self.handle_outbound_message)
+        d.addErrback(self._middlewares.process_control_flag)        
+        d.addErrback(_send_failure)
+        return d    
 
 
 class PushTzEsmeTransceiverFactory(EsmeTransceiverFactory):
@@ -126,15 +141,56 @@ class PushTzEsmeTransceiver(EsmeTransceiver):
                         message_id=message_id,
                         )
 
+class MiddlewareControlFlag(Exception):
+    pass
+
+
+class StopPropagation(MiddlewareControlFlag):
+    pass
+
 
 class CustomMiddlewareStack(MiddlewareStack):
 
+    def _get_middleware_index(self, middleware):
+        return self.middlewares.index(middleware)
+
     @inlineCallbacks
-    def _handle(self, middlewares, handler_name, message, endpoint):
+    def resume_handling(self, mw, handle_name, message, endpoint):
+        mw_index = self._get_middleware_index(mw)
+        #In case there are no other middleware after this one
+        if mw_index + 1 == len(self.middlewares):
+            returnValue(message)
+        message = yield self._handle(self.middlewares, handle_name, message, endpoint, mw_index + 1)
+        returnValue(message)
+
+    @inlineCallbacks
+    def _handle(self, middlewares, handler_name, message, endpoint, from_index=0):
         method_name = 'handle_%s' % (handler_name,)
-        for middleware in middlewares:
+        middlewares = list(middlewares)
+        if len(middlewares) == 0:
+            returnValue(message)
+        for index, middleware in enumerate(middlewares[from_index:]):
             handler = getattr(middleware, method_name)
-            message = yield handler(message, endpoint)
+            message = yield self._handle_middleware(handler, message, endpoint, index)
             if message is None:
-                continue
-        returnValue(message)    
+                raise MiddlewareError('Returned value of %s.%s should never ' \
+                                'be None' % (middleware, method_name,))
+        returnValue(message)
+
+    def _handle_middleware(self, handler, message, endpoint, index):        
+        def _handle_control_flag(f):
+            if not isinstance(f.value, MiddlewareControlFlag):
+                raise f
+            if isinstance(f.value, StopPropagation):
+                raise f
+            raise MiddlewareError('Unknown Middleware Control Flag: %s'
+                                  % (f.value,))                
+        
+        d = maybeDeferred(handler, message, endpoint)
+        d.addErrback(_handle_control_flag)
+        return d
+
+    def process_control_flag(self, f):
+        f.trap(StopPropagation)
+        if isinstance(f.value, StopPropagation):
+            return None

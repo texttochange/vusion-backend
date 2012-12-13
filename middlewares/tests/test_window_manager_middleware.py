@@ -3,6 +3,7 @@ from twisted.trial.unittest import TestCase
 from twisted.internet.defer import setDebugging
 from twisted.internet import reactor
 
+from transports.push_tz_smpp import CustomMiddlewareStack, StopPropagation
 from middlewares.window_manager_middleware import WindowManagerMiddleware
 from components.tests.test_window_manager import FakeRedis
 from tests.utils import MessageMaker
@@ -28,6 +29,7 @@ class WindowManagerTestCase(TestCase, MessageMaker):
                   'monitor_loop': 0.5}
         self.mw = WindowManagerMiddleware('mw1', config, toy_worker)
         yield self.mw.setup_middleware(FakeRedis())
+        toy_worker._middlewares = CustomMiddlewareStack([self.mw])
 
     def tearDown(self):
         self.mw.teardown_middleware()
@@ -35,16 +37,22 @@ class WindowManagerTestCase(TestCase, MessageMaker):
     @inlineCallbacks
     def test_handle_outbound(self):
         msg_1 = self.mkmsg_out(message_id='1')
-        self.mw.handle_outbound(msg_1, self.transport_name)
-        self.assertEqual(1, self.mw.wm.count_waiting(self.transport_name))
+        yield self.assertFailure(
+            self.mw.handle_outbound(msg_1, self.transport_name),
+            StopPropagation)
 
         msg_2 = self.mkmsg_out(message_id='2')
-        self.mw.handle_outbound(msg_2, self.transport_name)
-        self.assertEqual(2, self.mw.wm.count_waiting(self.transport_name))
+        yield self.assertFailure(
+            self.mw.handle_outbound(msg_2, self.transport_name),
+            StopPropagation)
 
         msg_3 = self.mkmsg_out(message_id='3')
-        self.mw.handle_outbound(msg_3, self.transport_name)
-        self.assertEqual(3, self.mw.wm.count_waiting(self.transport_name))
+        yield self.assertFailure(
+            self.mw.handle_outbound(msg_3, self.transport_name),
+            StopPropagation)
+
+        count_waiting = yield self.mw.wm.count_waiting(self.transport_name)
+        self.assertEqual(3, count_waiting)        
 
         yield self.mw.wm._monitor_windows(self.mw.send_outbound)
         self.assertEqual(1, self.mw.wm.count_waiting(self.transport_name))

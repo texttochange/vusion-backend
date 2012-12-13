@@ -6,6 +6,7 @@ from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.task import LoopingCall
 
+from vumi.log import log
 
 class WindowException(Exception):
     pass
@@ -19,7 +20,7 @@ class WindowManager(object):
     MAP_KEY = 'keymap'
 
     def __init__(self, redis, window_size=100, flight_lifetime=None,
-                gc_interval=10):
+                gc_interval=10, window_key=None):
         self.window_size = window_size
         self.flight_lifetime = flight_lifetime or (gc_interval * window_size)
         self.redis = redis
@@ -27,6 +28,8 @@ class WindowManager(object):
         self.gc = LoopingCall(self.clear_expired_flight_keys)
         self.gc.clock = self.clock
         self.gc.start(gc_interval)
+        if window_key is not None:
+            self.WINDOW_KEY = window_key
         self._monitor = None
 
     def noop(self, *args, **kwargs):
@@ -94,7 +97,6 @@ class WindowManager(object):
 
     @inlineCallbacks
     def get_next_key(self, window_id):
-
         window_key = self.window_key(window_id)
         inflight_key = self.flight_key(window_id)
 
@@ -171,6 +173,8 @@ class WindowManager(object):
     def monitor(self, key_callback, interval=10, cleanup=True,
                 cleanup_callback=None):
 
+        #log.msg("Window manager initialised")
+        
         if self._monitor is not None:
             raise WindowException('Monitor already started')
 
@@ -184,6 +188,10 @@ class WindowManager(object):
                          cleanup_callback=None):
         windows = yield self.get_windows()
         for window_id in windows:
+            log.msg("Monitor process on %s waiting=%s flighing=%s" % 
+                    (window_id,
+                     (yield self.count_waiting(window_id)),
+                     (yield self.count_in_flight(window_id))))
             key = (yield self.get_next_key(window_id))
             while key:
                 yield key_callback(window_id, key)
