@@ -19,12 +19,18 @@ from vumi.transports.base import Transport
 from vumi.utils import http_request_full, normalize_msisdn, SimplishReceiver
 
 from transports.yo_ug_http import YoReceiveSMSResource
-
+from transports.push_tz_smpp import CustomMiddlewareStack
+from vumi.middleware import setup_middlewares_from_config
 
 ##This transport is supposed to send and receive sms in 2 different ways.
 ##To send sms we use the PUSH TZ API (xmlrpc)
 ##To receive sms we use the YO Interface to forward the sms
 class PushYoTransport(Transport):
+
+    @inlineCallbacks
+    def setup_middleware(self):
+        middlewares = yield setup_middlewares_from_config(self, self.config)
+        self._middlewares = CustomMiddlewareStack(middlewares)
 
     def mkres(self, cls, publish_func, path_key):
         resource = cls(self.config, publish_func)
