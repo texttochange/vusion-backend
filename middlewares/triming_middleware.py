@@ -1,4 +1,3 @@
-#from twisted.internet.defer import inlineCallbacks, returnValue
 from vumi.middleware import BaseMiddleware
 from vumi.log import log
 

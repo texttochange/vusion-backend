@@ -14,7 +14,8 @@ from vumi.tests.utils import RegexMatcher, UTCNearNow
 from vusion.message import DispatcherControl, WorkerControl
 
 from vusion.persist import (Dialogue, DialogueHistory, UnattachHistory,
-                            history_generator, schedule_generator, Participant)
+                            history_generator, schedule_generator, Participant,
+                            UnattachMessage)
 
 
 class DataLayerUtils:
@@ -724,11 +725,25 @@ class ObjectMaker:
                                content='Hello everyone',
                                type_schedule='fixed-time',
                                fixed_time='2100-03-12T12:30:00'):
-        return {
+        return UnattachMessage(**{
+            'name': 'test',
             'to': recipient,
             'content': content,
             'type-schedule': type_schedule,
-            'fixed-time': fixed_time}
+            'fixed-time': fixed_time}).get_as_dict()
+    
+    def mkobj_unattach_message_2(self, recipient=['all-participants'],
+                                 content='Hello everyone',
+                                 type_schedule='fixed-time',
+                                 fixed_time='2100-03-12T12:30:00'):
+        return UnattachMessage(**{
+            'object-type': 'unattached-message',
+            'model-version': '2',
+            'name': 'test',
+            'to': recipient,
+            'content': content,
+            'type-schedule': type_schedule,
+            'fixed-time': fixed_time}).get_as_dict()    
 
     template_closed_question = {
         'name': 'my template',
