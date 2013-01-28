@@ -42,7 +42,7 @@ This creates the virtual enviroment where your porject is going to run
 	$ pip install -r requirements.pip
 
 Running
--------
+--------
 
 Update `etc/config/*.yaml` with your aggregator account details and run the following when still in the backend directory:
 
