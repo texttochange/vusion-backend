@@ -14,16 +14,27 @@ You will need the python-dev package
 	$ sudo aptitude install python-dev
 
 -> Add the following line to your /etc/apt/sources.list:
-   deb http://www.rabbitmq.com/debian/ testing main
--> then:
+   **deb http://www.rabbitmq.com/debian/ testing main**
+-> then
+::
 	$ wget http://www.rabbitmq.com/rabbitmq-signing-key-public.asc
 	$ sudo apt-key add rabbitmq-signing-key-public.asc
 	$ sudo apt-get update
-	$ sudo apt-get install rabbitmq-server  
+	$ sudo apt-get install rabbitmq-server 
+
+
+Rabbitmq-server configure
+-------------------------
+Here you add a user and set password for the user,you add a vhost and set permissions.but all of this is done in root user mode
+::
+	$ rabbitmqctl add_usr vumi vumi
+	$ rabbitmqctl add_vhost /develop
+	$ rabbitmqctl set_permission -p /develop vumi ".*"".*"".*"
 
 Installation
 ------------
-
+The command below are ran in the backend directory of our project where we have the ** requirements.pip **
+This creates the virtual enviroment where your porject is going to run
 ::
 
 	$ virtualenv ve
@@ -31,9 +42,9 @@ Installation
 	$ pip install -r requirements.pip
 
 Running
--------
+--------
 
-Update `etc/config/*.yaml` with your aggregator account details and run the following:
+Update `etc/config/*.yaml` with your aggregator account details and run the following when still in the backend directory:
 
 ::
 
@@ -41,8 +52,12 @@ Update `etc/config/*.yaml` with your aggregator account details and run the foll
 	$ supervisord -c etc/supervisord.vusion.conf
 
 if it fails try this:
-	$ supervisord -c etc/supervisord.vusion.conf
+::
+	$ mkdir logs
+	$ mkdir tmp
+	$mkdir tmp/pids
 
+test if it is working by using **http://localhost:9010**
 
 Tests
 -----
