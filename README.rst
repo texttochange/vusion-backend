@@ -27,9 +27,9 @@ Rabbitmq-server configure
 -------------------------
 Here you add a user and set password for the user,you add a vhost and set permissions.but all of this is done in root user mode
 ::
-	$ rabbitmqctl add_usr vumi vumi
+	$ rabbitmqctl add_user vumi vumi
 	$ rabbitmqctl add_vhost /develop
-	$ rabbitmqctl set_permission -p /develop vumi ".*"".*"".*"
+	$ rabbitmqctl set_permissions -p /develop vumi ".*" ".*" ".*"
 
 Installation
 ------------
