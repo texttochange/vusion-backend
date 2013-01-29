@@ -65,7 +65,7 @@ Tests
 ::
 
 	$ source ve/bin/activate
-	$ trial tests
+	$ trial vusion/
 
 Dev Environment
 ----------------
