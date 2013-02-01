@@ -766,7 +766,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         yield self.send(event, 'control')
         self.assertEqual(5, self.collections['schedules'].count())
 
-        unattach = self.mkobj_unattach_message()
+        unattach = self.mkobj_unattach_message_1()
         unattach_id = self.collections['unattached_messages'].save(unattach)
 
         event = self.mkmsg_dialogueworker_control(**{

@@ -404,9 +404,9 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         dPast = dNow - timedelta(minutes=30)
 
         unattach_messages = [
-            self.mkobj_unattach_message(
+            self.mkobj_unattach_message_1(
                 fixed_time=time_to_vusion_format(dFuture)),
-            self.mkobj_unattach_message(
+            self.mkobj_unattach_message_1(
                 content='Hello again',
                 fixed_time=time_to_vusion_format(dPast))]
 
@@ -451,13 +451,17 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         self.collections['participants'].save(participant_06)
         self.collections['participants'].save(participant_07)
         
-        unattach_msg_1 = self.mkobj_unattach_message_2(
+        unattach_msg_1 = self.mkobj_unattach_message(
             content='Hello',
-            recipient=['geek'],
+            send_to_type='match',
+            send_to_match_operator='all',
+            send_to_match_conditions=['geek'],
             fixed_time=time_to_vusion_format(dFuture))
-        unattach_msg_2 = self.mkobj_unattach_message_2(
+        unattach_msg_2 = self.mkobj_unattach_message(
             content='Hello again',
-            recipient=['city:kampala'],
+            send_to_type='match',
+            send_to_match_operator='all',
+            send_to_match_conditions=['city:kampala'],
             fixed_time=time_to_vusion_format(dFuture))
 
         unattach_msg_id_1 = self.collections['unattached_messages'].save(unattach_msg_1)
@@ -480,7 +484,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         #rescheduling is removing non selected participant
         unattach_msg_2 = self.collections['unattached_messages'].find_one(
             {'_id': ObjectId(unattach_msg_id_2)})
-        unattach_msg_2['to'] = ['geek']
+        unattach_msg_2['send-to-match-conditions'] = ['geek']
         self.collections['unattached_messages'].save(unattach_msg_2)
         
         self.worker.schedule_unattach(str(unattach_msg_id_2))

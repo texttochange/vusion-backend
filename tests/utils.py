@@ -721,7 +721,7 @@ class ObjectMaker:
     def mkobj_request_leave(self):
         return deepcopy(self.request_leave)
 
-    def mkobj_unattach_message(self, recipient='all participants',
+    def mkobj_unattach_message_1(self, recipient='all participants',
                                content='Hello everyone',
                                type_schedule='fixed-time',
                                fixed_time='2100-03-12T12:30:00'):
@@ -743,7 +743,29 @@ class ObjectMaker:
             'to': recipient,
             'content': content,
             'type-schedule': type_schedule,
-            'fixed-time': fixed_time}).get_as_dict()    
+            'fixed-time': fixed_time}).get_as_dict()
+    
+    def mkobj_unattach_message(self,
+                               send_to_type='all',
+                               send_to_match_operator=None,
+                               send_to_match_conditions=None,                               
+                               content='Hello everyone',
+                               type_schedule='fixed-time',
+                               fixed_time='2100-03-12T12:30:00'):
+        unattach_message = {
+                'object-type': 'unattached-message',
+                'model-version': '3',
+                'name': 'test',
+                'send-to-type': send_to_type,
+                'content': content,
+                'type-schedule': type_schedule,
+                'fixed-time': fixed_time}
+        if (send_to_type=='match'):
+            unattach_message.update({
+                'send-to-match-operator': send_to_match_operator,
+                'send-to-match-conditions': send_to_match_conditions,
+            })
+        return UnattachMessage(**unattach_message).get_as_dict()    
 
     template_closed_question = {
         'name': 'my template',

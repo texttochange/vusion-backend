@@ -17,13 +17,16 @@ class History(VusionModel):
     SPECIFIC_DIRECTION_FIELDS = {
         'outgoing': {
             'message-id': lambda v: True,
-            'message-status': lambda v: v in ['failed', 'pending', 'delivered']},
+            'message-status': lambda v: v in ['failed', 'pending', 'delivered', 'ack', 'nack']},
         'incoming': {}}
 
     SPECIFIC_STATUS_FIELDS = {
         'failed': {'failure-reason': lambda v: v is not None},
         'pending': {},
-        'delivered': {}}
+        'delivered': {},
+        'ack': {},
+        'nack': {}
+    }
 
     def is_message(self):
         pass
