@@ -59,6 +59,12 @@ if it fails try this:
 
 test if it is working by using **http://localhost:9010**
 
+You will need redis-server package
+
+::
+
+	$ sudo apt-get install redis-server
+
 Tests
 -----
 
