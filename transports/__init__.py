@@ -4,10 +4,12 @@ from cm_nl_http import CmTransport
 from push_tz_yo_ug_http import PushYoTransport
 from push_tz_http import PushTransport
 from push_tz_smpp import PushTzSmppTransport
+from mobivate_http import MobivateHttpTransport
 
 __all__ = ["YoUgHttpTransport",
            "CmYoTransport",
            "CmTransport",
            "PushYoTransport",
            "PushTransport",
-           "PushTzSmppTransport"]
+           "PushTzSmppTransport",
+           "MobivateHttpTransport"]
