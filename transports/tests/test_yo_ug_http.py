@@ -75,8 +75,7 @@ class YoUgHttpTransportTestCase(MessageMaker, TransportTestCase):
         self.assertEqual(
             self.mkmsg_delivery(
                 transport_name=self.transport_name,
-                user_message_id='1',
-                sent_message_id='1'),
+                user_message_id='1'),
             TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks
@@ -93,7 +92,6 @@ class YoUgHttpTransportTestCase(MessageMaker, TransportTestCase):
             self.mkmsg_delivery(
                 transport_name=self.transport_name,
                 user_message_id='1',
-                sent_message_id='1',
                 delivery_status='failed',
                 failure_level='http',
                 failure_code=http.REQUEST_TIMEOUT,
@@ -115,7 +113,6 @@ class YoUgHttpTransportTestCase(MessageMaker, TransportTestCase):
             self.mkmsg_delivery(
                 transport_name=self.transport_name,
                 user_message_id='1',
-                sent_message_id='1',
                 delivery_status='failed',
                 failure_level='service',
                 failure_code='ERROR',

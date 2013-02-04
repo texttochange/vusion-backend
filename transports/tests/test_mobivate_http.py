@@ -45,22 +45,75 @@ class MobivateHttpTransportTestCase(MessageMaker, TransportTestCase):
             (self.send_path, TestResource, ( response, code, send_id))])
         self._workers.append(w)
         return w.startWorker()
+
+    def get_dispatched(self, rkey):
+        return self._amqp.get_dispatched('vumi', rkey)
     
     @inlineCallbacks
     def test_sending_one_sms_ok(self):
-        mocked_message = "ybs_autocreate_status%3DOK"
+        mocked_message = "0"
+        yield self.make_resource_worker(mocked_message)
+        yield self.dispatch(self.mkmsg_out())
+        [smsg] = self.get_dispatched('mobivate.event')
+        self.assertEqual(
+            self.mkmsg_ack(
+                user_message_id='1',
+                sent_message_id='1'),
+            TransportMessage.from_json(smsg.body))
+
+    @inlineCallbacks
+    def test_sending_one_sms_fail(self):
+        mocked_message = "500\nSome internal issue"
         yield self.make_resource_worker(mocked_message)
         yield self.dispatch(self.mkmsg_out())
         [smsg] = self.get_dispatched('mobivate.event')
         self.assertEqual(
             self.mkmsg_delivery(
                 transport_name=self.transport_name,
+                delivery_status='failed',
+                failure_level='service',
+                failure_code="500",
+                failure_reason="Some internal issue",
                 user_message_id='1',
                 sent_message_id='1'),
             TransportMessage.from_json(smsg.body))
 
-    def get_dispatched(self, rkey):
-        return self._amqp.get_dispatched('vumi', rkey)
+    @inlineCallbacks
+    def test_receiving_sms(self):
+        params = ("ORIGINATOR=61412345678&RECIPIENT=1987654&PROVIDER=telstra"
+                  "&MESSAGE_TEXT=Hello%20There!")
+        url = ("http://localhost:%s%s/SMSfromMobiles?%s" %
+               (self.config['receive_port'], self.config['receive_path'], params))
+
+        response = yield http_request_full(url, method='GET')
+        self.assertEqual(response.code, http.OK)
+        
+        [smsg] = self.get_dispatched('mobivate.inbound')
+        sms_in = TransportMessage.from_json(smsg.body)
+        self.assertEqual(self.transport_name, sms_in['transport_name'])
+        self.assertEqual("Hello There!", sms_in['content'])
+        self.assertEqual("61412345678", sms_in['from_addr'])
+        self.assertEqual("1987654", sms_in['to_addr'])
+
+    @inlineCallbacks
+    def test_receiving_delivery_report(self):
+        params = ("ORIGINATOR=61412345678&RECIPIENT=1987654&PROVIDER=telstra"
+                  "&MESSAGE_TEXT=Hello%20There!&ID=939ec52e333fbf124a87845d3a5d72e1"
+                  "&REFERENCE=ABC123&RESULT=1")
+        url = ("http://localhost:%s%s/DeliveryReciept?%s" %
+               (self.config['receive_port'], self.config['receive_path'], params))
+
+        response = yield http_request_full(url, method='GET')
+        self.assertEqual(response.code, http.OK)
+        
+        [smsg] = self.get_dispatched('mobivate.event')
+        sms_delivery = TransportMessage.from_json(smsg.body)        
+        self.assertEqual(
+            self.mkmsg_delivery(
+                transport_name=self.transport_name,
+                delivery_status='delivered',
+                user_message_id='ABC123'),
+            sms_delivery)
 
 
 class TestResource(Resource):
@@ -80,7 +133,8 @@ class TestResource(Resource):
                 not ('user_name' in request.args) or
                 not ('password' in request.args) or
                 not ('message_text' in request.args) or
+                not ('reference' in request.args) or
                 (self.send_id is not None and self.send_id != request.args['originator'][0])):
-            return "ERROR"
+            return "0"
         else:
             return self.response

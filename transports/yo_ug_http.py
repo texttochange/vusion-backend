@@ -64,7 +64,6 @@ class YoUgHttpTransport(Transport):
                         % (response.code, response.delivered_body))
                 yield self.publish_delivery_report(
                     user_message_id=message['message_id'],
-                    sent_message_id=message['message_id'],
                     delivery_status='failed',
                     failure_level='http',
                     failure_code=response.code,
@@ -79,7 +78,6 @@ class YoUgHttpTransport(Transport):
                                              response.delivered_body))
                 yield self.publish_delivery_report(
                     user_message_id=message['message_id'],
-                    sent_message_id=message['message_id'],
                     delivery_status='failed',
                     failure_level='service',
                     failure_code=ybs_status,
@@ -89,7 +87,6 @@ class YoUgHttpTransport(Transport):
 
             yield self.publish_delivery_report(
                 user_message_id=message['message_id'],
-                sent_message_id=message['message_id'],
                 delivery_status='delivered'
             )
         except Exception as ex:
