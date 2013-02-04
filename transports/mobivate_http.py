@@ -20,7 +20,7 @@ class MobivateHttpTransport(Transport):
     def mkres(self, cls, publish_func, path_key):
         resource = cls(self.config, publish_func)
         self._resources.append(resource)
-        return (resource, self.config['receive_path'])
+        return (resource, "%s/%s" % (self.config['receive_path'], path_key))
     
     def phone_format_to_mobivate(self, phone):
         regex = re.compile('^\+')
@@ -30,9 +30,14 @@ class MobivateHttpTransport(Transport):
     def setup_transport(self):
         self._resources = []
         log.msg("Setup mobivate transport %s" % self.config)
-        resources = [self.mkres(MobivateReceiveSMSResource,
-                                self.publish_message,
-                                self.config['receive_path'])]
+        resources = [
+            self.mkres(MobivateReceiveSMSResource,
+                       self.publish_message,
+                       "SMSfromMobiles"),
+            self.mkres(MobivateReceiveReciept,
+                       self.publish_delivery_report,
+                       "DeliveryReciept")
+        ]
         self.receipt_resource = yield self.start_web_resources(
             resources, self.config['receive_port'])
         
@@ -47,6 +52,7 @@ class MobivateHttpTransport(Transport):
                 'originator': origin,
                 'message_text': message['content'],
                 'recipient': self.phone_format_to_mobivate(message['to_addr']),
+                'reference': message['message_id']
             }
             log.msg('Hitting %s with %s' % (self.config['url'], urlencode(params)))
 
@@ -69,27 +75,22 @@ class MobivateHttpTransport(Transport):
                     failure_reason=response.delivered_body)
                 return
 
-            response_attr = parse_qs(unquote(response.delivered_body))
-            [ybs_status] = response_attr['ybs_autocreate_status']
-            ybs_msg = response_attr['ybs_autocreate_message'][0] if 'ybs_autocreate_message' in response_attr else None
-            if (ybs_status == 'ERROR'):
-                log.msg("Mobivate Error %s: %s" % (response.code,
-                                             response.delivered_body))
+            response_content = response.delivered_body.split("\n")
+            response_status = response_content[0]
+            if (not response_status in ['0', '1']):
+                log.msg("Mobivate Error %s: %s" %
+                        (response_status, response_content[1]))
                 yield self.publish_delivery_report(
                     user_message_id=message['message_id'],
-                    sent_message_id=message['message_id'],
                     delivery_status='failed',
                     failure_level='service',
-                    failure_code=ybs_status,
-                    failure_reason=ybs_msg
-                )
+                    failure_code=response_status,
+                    failure_reason=response_content[1])
                 return
 
-            yield self.publish_delivery_report(
+            yield self.publish_ack(
                 user_message_id=message['message_id'],
-                sent_message_id=message['message_id'],
-                delivery_status='delivered'
-            )
+                sent_message_id=message['message_id'])
         except Exception as ex:
             log.msg("Unexpected error %s" % repr(ex))
 
@@ -107,15 +108,6 @@ class MobivateReceiveSMSResource(Resource):
         self.publish_func = publish_func
         self.transport_name = self.config['transport_name']
 
-    '''
-    def phone_format_from_yo(self, phone):
-        regex = re.compile('^[(00)(\+)]')
-        regex_single = re.compile('^0')
-        phone = re.sub(regex, '', phone)
-        phone = re.sub(regex_single, '', phone)
-        return ('+%s' % phone)
-    '''
-
     @inlineCallbacks
     def do_render(self, request):
         log.msg('got hit with %s' % request.args)
@@ -125,11 +117,38 @@ class MobivateReceiveSMSResource(Resource):
             yield self.publish_func(
                 transport_name=self.transport_name,
                 transport_type='sms',
-                to_addr=(request.args['code'][0] if request.args['code'][0]!='' else self.config['default_origin']),
-                from_addr=request.args['sender'][0],
-                content=request.args['message'][0],
-                transport_metadata={}
-            )
+                to_addr=request.args['RECIPIENT'][0],
+                from_addr=request.args['ORIGINATOR'][0],
+                content=request.args['MESSAGE_TEXT'][0],
+                transport_metadata={})
+        except Exception, e:
+            request.setResponseCode(http.INTERNAL_SERVER_ERROR)
+            log.msg("Error processing the request: %s" % (request,))
+        request.finish()
+
+    def render(self, request):
+        self.do_render(request)
+        return NOT_DONE_YET
+
+
+class MobivateReceiveReciept(Resource):
+    isLeaf = True
+    
+    def __init__(self, config, publish_func):
+        log.msg("Init ReceiveSMSResource %s" % (config))
+        self.config = config
+        self.publish_func = publish_func
+        self.transport_name = self.config['transport_name']
+
+    @inlineCallbacks
+    def do_render(self, request):
+        log.msg('got hit with %s' % request.args)
+        request.setResponseCode(http.OK)
+        request.setHeader('Content-Type', 'text/plain')
+        try:
+            yield self.publish_func(
+                user_message_id=request.args['REFERENCE'][0],
+                delivery_status='delivered')
         except Exception, e:
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
             log.msg("Error processing the request: %s" % (request,))

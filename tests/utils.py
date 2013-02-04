@@ -50,7 +50,7 @@ class MessageMaker:
                 event_type='ack',
                 user_message_id=user_message_id,
                 sent_message_id=sent_message_id,
-                timestamp=datetime.now(),
+                timestamp=UTCNearNow(),
                 transport_name=self.transport_name,
                 transport_metadata=transport_metadata,
             )
@@ -84,7 +84,7 @@ class MessageMaker:
             timestamp=UTCNearNow(),
             event_type=event_type,
             user_message_id=user_message_id,
-            sent_message_id=sent_message_id,
+#            sent_message_id=sent_message_id,
             delivery_status=delivery_status,
             transport_name=transport_name,
             transport_metadata=transport_metadata,
