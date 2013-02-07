@@ -2,7 +2,7 @@ from urllib import urlencode, unquote
 from urlparse import parse_qs
 import re
 
-from twisted.python import log
+from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet.error import ConnectionRefusedError
 from twisted.web import http
@@ -11,9 +11,7 @@ from twisted.web.server import NOT_DONE_YET
 
 from vumi.transports.base import Transport
 from vumi.utils import http_request_full, normalize_msisdn
-from twisted.internet import defer
-#defer.setDebugging(True)
-
+from vumi import log
 
 class MobivateHttpTransport(Transport):
     
@@ -92,6 +90,7 @@ class MobivateHttpTransport(Transport):
                 user_message_id=message['message_id'],
                 sent_message_id=message['message_id'])
         except Exception as ex:
+            #add Nack or failure
             log.msg("Unexpected error %s" % repr(ex))
 
     def stopWorker(self):
