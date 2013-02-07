@@ -16,7 +16,7 @@ from vumi.message import TransportMessage
 
 from tests.utils import MessageMaker
 from transports.push_tz_http import PushTransport, PushXMLParser
-from transports.utils import xml_compare, Reporter
+from transports.tests.utils import xml_compare, Reporter
 
 class PushRequestMaker:
 

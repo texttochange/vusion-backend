@@ -16,7 +16,7 @@ from tests.utils import MessageMaker
 
 from transports import MovilgateHttpTransport
 from transports.movilgate_http import MovilgateXMLParser
-from transports.utils import xml_compare, Reporter
+from transports.tests.utils import xml_compare, Reporter
 
 class MovilgateRequestMaker:
 
