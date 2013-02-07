@@ -5,6 +5,7 @@ from push_tz_yo_ug_http import PushYoTransport
 from push_tz_http import PushTransport
 from push_tz_smpp import PushTzSmppTransport
 from mobivate_http import MobivateHttpTransport
+from movilgate_http import MovilgateHttpTransport
 
 __all__ = ["YoUgHttpTransport",
            "CmYoTransport",
@@ -12,4 +13,5 @@ __all__ = ["YoUgHttpTransport",
            "PushYoTransport",
            "PushTransport",
            "PushTzSmppTransport",
-           "MobivateHttpTransport"]
+           "MobivateHttpTransport",
+           "MovilgateHttpTransport"]
