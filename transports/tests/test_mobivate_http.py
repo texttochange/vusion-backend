@@ -1,7 +1,4 @@
-from uuid import uuid4
-from datetime import datetime
 import re
-from string import Template
 
 from twisted.internet.defer import inlineCallbacks
 from twisted.web import http
@@ -37,7 +34,6 @@ class MobivateHttpTransportTestCase(MessageMaker, TransportTestCase):
             'receive_path': '/mobivate',
             'receive_port': 9998}
         self.worker = yield self.get_transport(self.config)
-        self.today = datetime.utcnow().date()
         
     def make_resource_worker(self, response, code=http.OK, send_id=None):
         w = get_stubbed_worker(TestResourceWorker, {})
