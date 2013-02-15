@@ -18,4 +18,5 @@ class VusionAddressMiddleware(BaseMiddleware):
 
     def handle_outbound(self, msg, endpoint):
         msg['from_addr'] = get_shortcode_value(msg['from_addr'])
+        msg['to_addr'] = re.sub(self.regex_plus, '', msg['to_addr'])
         return msg

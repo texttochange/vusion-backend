@@ -61,7 +61,7 @@ class MobivateHttpTransportTestCase(MessageMaker, TransportTestCase):
     def test_sending_one_sms_fail(self):
         mocked_message = "500\nSome internal issue"
         yield self.make_resource_worker(mocked_message)
-        yield self.dispatch(self.mkmsg_out())
+        yield self.dispatch(self.mkmsg_out(to_addr="256"))
         [smsg] = self.get_dispatched('mobivate.event')
         self.assertEqual(
             self.mkmsg_delivery(

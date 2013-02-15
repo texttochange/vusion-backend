@@ -19,11 +19,7 @@ class MobivateHttpTransport(Transport):
         resource = cls(self.config, publish_func)
         self._resources.append(resource)
         return (resource, "%s/%s" % (self.config['receive_path'], path_key))
-    
-    def phone_format_to_mobivate(self, phone):
-        regex = re.compile('^\+')
-        return re.sub(regex, '', phone)
-    
+        
     @inlineCallbacks
     def setup_transport(self):
         self._resources = []
@@ -43,13 +39,12 @@ class MobivateHttpTransport(Transport):
     def handle_outbound_message(self, message):
         log.msg("Outbound message to be processed %s" % repr(message))
         try:
-            origin = (self.config['default_origin'] if not "customized_id" in message['transport_metadata'] else message['transport_metadata']['customized_id'])
             params = {
                 'user_name': self.config['user_name'],
                 'password': self.config['password'],
-                'originator': origin,
+                'originator': message['from_addr'],
                 'message_text': message['content'],
-                'recipient': self.phone_format_to_mobivate(message['to_addr']),
+                'recipient': message['to_addr'],
                 'reference': message['message_id']
             }
             log.msg('Hitting %s with %s' % (self.config['url'], urlencode(params)))
