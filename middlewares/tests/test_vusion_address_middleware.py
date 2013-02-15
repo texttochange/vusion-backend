@@ -26,9 +26,10 @@ class VusionAddressTestCase(TestCase, MessageMaker):
         self.assertEqual(msg_3['from_addr'], '+254888')
 
     def test_handle_outbound(self):
-        msg_1 = self.mkmsg_out(from_addr="254-8888")
+        msg_1 = self.mkmsg_out(from_addr="254-8888", to_addr="+256")
         msg_1 = self.mw.handle_outbound(msg_1 , 'dummy_endpoint')
         self.assertEqual(msg_1['from_addr'], '8888')
+        self.assertEqual(msg_1['to_addr'], '+256')
 
         msg_2 = self.mkmsg_out(from_addr="+318888")
         msg_2 = self.mw.handle_outbound(msg_2 , 'dummy_endpoint')
@@ -41,7 +42,7 @@ class VusionAddressRemovePlusTestCase(TestCase, MessageMaker):
         dummy_worker = object()
         self.mw = VusionAddressMiddleware(
             'mw1',
-            {'remove_outbound_plus'},
+            {'trim_plus_outbound': True},
             dummy_worker)
         self.mw.setup_middleware()
 

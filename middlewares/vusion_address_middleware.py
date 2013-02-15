@@ -10,6 +10,9 @@ class VusionAddressMiddleware(BaseMiddleware):
     regex_plus = re.compile("^\+")
     regex_zeros = re.compile("^00")
     
+    def setup_middleware(self):
+        self.trim_plus_outbound = self.config.get('trim_plus_outbound', False)    
+    
     def handle_inbound(self, msg, endpoint):
         msg['from_addr'] = re.sub(self.regex_zeros, "", msg['from_addr'])
         if (not re.match(self.regex_plus, msg['from_addr'])):
@@ -18,5 +21,6 @@ class VusionAddressMiddleware(BaseMiddleware):
 
     def handle_outbound(self, msg, endpoint):
         msg['from_addr'] = get_shortcode_value(msg['from_addr'])
-        msg['to_addr'] = re.sub(self.regex_plus, '', msg['to_addr'])
+        if self.trim_plus_outbound:
+            msg['to_addr'] = re.sub(self.regex_plus, '', msg['to_addr'])
         return msg
