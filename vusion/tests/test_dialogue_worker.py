@@ -339,6 +339,9 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         histories = self.collections['history'].find()
         for history in histories:
             self.assertTrue(history['participant-session-id'] is not None)
+            
+    def test05_send_scheduled_messages_with_priority(self):
+        pass
 
     @inlineCallbacks
     def test05_send_scheduled_deadline(self):

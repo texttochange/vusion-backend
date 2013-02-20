@@ -34,7 +34,7 @@ class TestInteraction(TestCase, ObjectMaker):
         interaction = Interaction(**dialogue['interactions'][0])
         self.assertTrue(interaction is not None)
 
-    def test_upgrade_question_1_to_2(self):
+    def test_upgrade_question_1_to_current(self):
         interaction = {
             'activated': 1,
             'interaction-id': '01-01',
@@ -51,6 +51,7 @@ class TestInteraction(TestCase, ObjectMaker):
         interaction = Interaction(**interaction)
 
         self.assertTrue(interaction is not None)
+        self.assertEqual(Interaction.MODEL_VERSION, interaction['model-version'])
 
     def test_get_actions_from_matching_answer_multi_keyword(self):
         dialogue = self.mkobj_dialogue_question_multi_keyword()
