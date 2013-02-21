@@ -325,3 +325,30 @@ class TestDialogue(TestCase, ObjectMaker):
             actions[3],
             ProfilingAction(**{'value': 'John',
                                'label': 'name'}))
+        
+    def test_upgrade_dialogue_to_current(self):
+        dialogue = {
+        'name': 'test dialogue',
+        'activated': 1,
+        'auto-enrollment': 'all',
+        'dialogue-id': '0',
+        'interactions': [
+            {'activated': 0,
+             'type-interaction': 'announcement',
+             'interaction-id': '0',
+             'content': 'Hello',
+             'type-schedule': 'offset-days',
+             'days': '1',
+             'at-time': '22:30'},
+            {'activated': 0,
+             'type-interaction': 'announcement',
+             'interaction-id': '1',
+             'content': 'How are you',
+             'type-schedule': 'offset-days',
+             'days': '2',
+             'at-time': '22:30'}]}
+        
+        dialogue = Dialogue(**dialogue)
+        
+        self.assertTrue(dialogue is not None)
+        self.assertEqual(Dialogue.MODEL_VERSION, dialogue['model-version'])
