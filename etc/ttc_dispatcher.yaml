@@ -1,21 +1,28 @@
 dispatcher_name: dispatcher
-router_class: vumi.dispatchers.ContentKeywordRouter
+#router_class: vumi.dispatchers.ContentKeywordRouter
+router_class: dispatchers.PriorityContentKeywordRouter
 transport_names: 
         - yo-256-8181
         - yo-256-8282
         - cm-31-3669
         - cm-31-642500021
         - push-255-15001
+#	- push-255-15001-bulk
         - push-255-15012
         - push-255-15014
         - push-254-4127
         - yo-254-4127-in
 transport_mappings:
         '256-8282': yo-256-8282
-        '256-8181': yo-256-8181
+        '256-8181':
+		'default': yo-256-8181
+		'1': yo-256-8282
         '31-3669': cm-31-3669
         '31-642500021': cm-31-642500021
         '255-15001': push-255-15001
+#	'255-15001':
+#		'default': push-255-15001-bulk
+#		'1': push-255-15001
         '255-15012': push-255-15012
         '255-15014': push-255-15014
         '254-4127': push-254-4127

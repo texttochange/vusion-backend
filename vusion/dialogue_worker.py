@@ -1001,6 +1001,10 @@ class DialogueWorker(ApplicationWorker):
                     and self.properties['customized-id'] is not None):
                 message['transport_metadata']['customized_id'] = self.properties['customized-id']
                 
+            if ('prioritized' in interaction
+                    and interaction['prioritized'] is not None):
+                message['transport_metadata']['priority'] = interaction['prioritized']
+                
             yield self.transport_publisher.publish_message(message)
             self.log("Message has been sent to %s '%s'" % 
                      (message['to_addr'], message['content']))

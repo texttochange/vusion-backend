@@ -357,6 +357,12 @@ class ObjectMaker:
 
     def mkobj_dialogue_announcement_2(self):
         return Dialogue(**self.dialogue_annoucement_2).get_as_dict()
+    
+    def mkobj_dialogue_announcement_prioritized(self):
+        dialogue = deepcopy(self.dialogue_annoucement_2)
+        dialogue['interactions'][0]['prioritized'] = '1'
+        dialogue['interactions'][1]['prioritized'] = '1'
+        return Dialogue(**dialogue).get_as_dict()
 
     dialogue_question = {
         'name': 'test dialogue',
