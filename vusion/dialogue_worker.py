@@ -1004,7 +1004,15 @@ class DialogueWorker(ApplicationWorker):
             if ('prioritized' in interaction
                     and interaction['prioritized'] is not None):
                 message['transport_metadata']['priority'] = interaction['prioritized']
-                
+            
+            '''  TODO:Finish this  
+            if schedule.get_type() == 'feedback-schedule':
+                message['transport_metadata']['priority'] = interaction['prioritized']
+            elif (schedule.get_type() == 'dialogue-schedule'
+                    and 'request-id' in schedule.get_context()):
+                message['transport_metadata']['priority'] = interaction['prioritized']
+            '''
+                    
             yield self.transport_publisher.publish_message(message)
             self.log("Message has been sent to %s '%s'" % 
                      (message['to_addr'], message['content']))
