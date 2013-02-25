@@ -351,7 +351,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)
-        for program_setting in self.program_settings:
+        for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         
         self.collections['schedules'].save(
@@ -372,20 +372,31 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
                 dialogue_id='2',
                 interaction_id='2',
                 participant_phone='10'))
+        self.collections['schedules'].save(
+            self.mkobj_schedule_feedback(
+                date_time=time_to_vusion_format(dNow),
+                content='Thank you',
+                participant_phone='10',
+                context={'dialogue-id': '2', 'interaction-id': '1'}))
         
         self.worker.load_data()
 
         self.worker.send_scheduled()
 
         messages = self.broker.get_messages('vumi', 'test.outbound')
-        self.assertEqual(len(messages), 3)
+        self.assertEqual(len(messages), 4)
         self.assertTrue('priority' in messages[0]['transport_metadata'])
         self.assertTrue('priority' in messages[1]['transport_metadata'])
+        self.assertTrue('priority' in messages[3]['transport_metadata'])
+        
         self.assertFalse('priority' in messages[2]['transport_metadata'])
+        
         self.assertEqual(messages[0]['transport_metadata']['priority'],
             dialogue['interactions'][0]['prioritized'])
         self.assertEqual(messages[1]['transport_metadata']['priority'],
             dialogue['interactions'][1]['prioritized'])
+        self.assertEqual(messages[3]['transport_metadata']['priority'],
+            self.program_settings[4]['value'])
 
     @inlineCallbacks
     def test05_send_scheduled_deadline(self):

@@ -244,7 +244,9 @@ class ObjectMaker:
         {'key': 'timezone',
          'value': 'Africa/Kampala'},
         {'key': 'customized-id',
-         'value': 'myid'}]
+         'value': 'myid'},
+        {'key': 'request-and-feedback-prioritized',
+         'value': '1'}]
 
     def mkobj_program_settings(self):
         program_settings = deepcopy(self.program_settings)
