@@ -20,7 +20,7 @@ class TestPriorityContentKeywordRouter(DispatcherTestCase):
                 'shortcode1': 'transport1',
                 'shortcode2': {
                     'default': 'transport2',
-                    '1': 'transport2-priority'}},
+                    'prioritized': 'transport2-priority'}},
             'exposed_names': ['app1', 'app2', 'app3', 'fallback_app'],
             'rules': [{'app': 'app1',
                        'keyword': 'KEYWORD1',
@@ -78,7 +78,7 @@ class TestPriorityContentKeywordRouter(DispatcherTestCase):
         msg = self.mkmsg_out(content="hello outbound msg",
                              from_addr='shortcode2',
                              transport_name='app2',
-                             transport_metadata={'priority':'1'}) #priority 1 is defined
+                             transport_metadata={'priority':'prioritized'}) #priority 'prioritized' is defined
         
         yield self.dispatch(msg,
                             transport_name='app2',

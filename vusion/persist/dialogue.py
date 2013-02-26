@@ -20,7 +20,7 @@ class Dialogue(VusionModel):
               'auto-enrollment',
               'interactions',
               'activated',
-              'prioritized']
+              'set-prioritized']
 
     def validate_fields(self):
         super(Dialogue, self).validate_fields()
@@ -35,7 +35,7 @@ class Dialogue(VusionModel):
 
     def upgrade(self, **kwargs):
         if kwargs['model-version'] == '1':
-            kwargs['prioritized'] = kwargs['prioritized'] if 'prioritized' in kwargs else None
+            kwargs['set-prioritized'] = kwargs['set-prioritized'] if 'set-prioritized' in kwargs else None
             kwargs['model-version'] = '2'
         return kwargs
     

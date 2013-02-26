@@ -246,7 +246,7 @@ class ObjectMaker:
         {'key': 'customized-id',
          'value': 'myid'},
         {'key': 'request-and-feedback-prioritized',
-         'value': '1'}]
+         'value': 'prioritized'}]
 
     def mkobj_program_settings(self):
         program_settings = deepcopy(self.program_settings)
