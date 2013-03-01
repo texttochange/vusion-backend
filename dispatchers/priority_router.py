@@ -1,6 +1,7 @@
 from twisted.internet.defer import inlineCallbacks
 
 from vumi.dispatchers.base import ContentKeywordRouter
+from vumi import log
 
 class PriorityContentKeywordRouter(ContentKeywordRouter):
     
@@ -16,7 +17,7 @@ class PriorityContentKeywordRouter(ContentKeywordRouter):
         yield self.r_server.expire(message_key,
                                    self.expire_routing_timeout)
             
-    def get_transport_name(self, msg):
+    def get_transport_name(self, msg):        
         transport_name = self.transport_mappings.get(msg['from_addr'])
         if transport_name is None:
             return None
