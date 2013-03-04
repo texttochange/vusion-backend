@@ -14,13 +14,14 @@ from vusion.action import (action_generator, FeedbackAction,
 class Interaction(VusionModel):
     
     MODEL_TYPE = 'interaction'
-    MODEL_VERSION = '2'
+    MODEL_VERSION = '3'
     
     fields = [
         'interaction-id',
         'type-schedule',
         'type-interaction',
-        'activated']
+        'activated',
+        'prioritized']
               
     SCHEDULE_TYPES = {
         'fixed-time': {
@@ -208,6 +209,10 @@ class Interaction(VusionModel):
                         answer['feedbacks'] = answer['feedbacks'] if 'feedbacks' in answer else None
                         answer['answer-actions'] = answer['answer-actions'] if 'answer-actions' in answer else None
             kwargs['model-version'] = '2'
+            return self.upgrade(**kwargs)
+        elif kwargs['model-version'] == '2':
+            kwargs['prioritized'] = kwargs['prioritized'] if 'prioritized' in kwargs else None
+            kwargs['model-version'] = '3'
         return kwargs
 
     def has_reminder(self):

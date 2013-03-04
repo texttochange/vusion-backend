@@ -61,7 +61,8 @@ class DialogueWorker(ApplicationWorker):
             'unmatching-answer-remove-reminder': 0, 
             'customized-id': None,
             'double-matching-answer-feedback': None,
-            'double-optin-error-feedback': None}
+            'double-optin-error-feedback': None,
+            'request-and-feedback-prioritized': None}
         self.sender = None
         self.r_prefix = None
         self.r_config = {}
@@ -1001,6 +1002,15 @@ class DialogueWorker(ApplicationWorker):
                     and self.properties['customized-id'] is not None):
                 message['transport_metadata']['customized_id'] = self.properties['customized-id']
                 
+            if ('prioritized' in interaction
+                    and interaction['prioritized'] is not None):
+                message['transport_metadata']['priority'] = interaction['prioritized']
+                
+            if schedule.get_type() == 'feedback-schedule':
+                if ('request-and-feedback-prioritized' in self.properties 
+                        and self.properties['request-and-feedback-prioritized'] is not None):
+                    message['transport_metadata']['priority'] = self.properties['request-and-feedback-prioritized']
+                
             yield self.transport_publisher.publish_message(message)
             self.log("Message has been sent to %s '%s'" % 
                      (message['to_addr'], message['content']))
@@ -1033,7 +1043,7 @@ class DialogueWorker(ApplicationWorker):
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log("Error send schedule: %r" %
                      traceback.format_exception(exc_type, exc_value, exc_traceback))
-
+            
     @inlineCallbacks
     def send_all_messages(self, dialogue, phone_number):
         for interaction in dialogue['interactions']:

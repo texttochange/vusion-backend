@@ -13,13 +13,14 @@ from vusion.persist.interaction import Interaction
 class Dialogue(VusionModel):
 
     MODEL_TYPE = 'dialogue'
-    MODEL_VERSION = '1'
+    MODEL_VERSION = '2'
 
     fields = ['name',
               'dialogue-id',
               'auto-enrollment',
               'interactions',
-              'activated']
+              'activated',
+              'set-prioritized']
 
     def validate_fields(self):
         super(Dialogue, self).validate_fields()
@@ -32,6 +33,12 @@ class Dialogue(VusionModel):
         for interaction in self.interactions:
             self.payload['interactions'].append(interaction.get_as_dict())
 
+    def upgrade(self, **kwargs):
+        if kwargs['model-version'] == '1':
+            kwargs['set-prioritized'] = kwargs['set-prioritized'] if 'set-prioritized' in kwargs else None
+            kwargs['model-version'] = '2'
+        return kwargs
+    
     def get_reply(self, content, delimiter=' '):
         return (content or '').partition(delimiter)[2]
 
