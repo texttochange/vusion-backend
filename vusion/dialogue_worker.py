@@ -555,6 +555,18 @@ class DialogueWorker(ApplicationWorker):
         if history is None or history.count() <= number:
             return False
         return True        
+
+    def has_one_way_marker(self, participant, dialogue_id, interaction_id):
+        query = {
+            'object-type': 'oneway-marker-history',
+            'participant-phone': participant['phone'],
+            'participant-session-id':participant['session-id'],
+            'dialogue-id': dialogue_id,
+            'interaction-id': interaction_id}
+        history = self.collections['history'].find_one(query)
+        if history is None:
+            return False
+        return True
     
     def participant_has_max_unmatching_answers(self, participant, dialogue_id, interaction):
         if (not interaction.has_max_unmatching_answers()):
@@ -768,10 +780,10 @@ class DialogueWorker(ApplicationWorker):
 
                 if history:
                     previousSendDateTime = time_from_vusion_format(history["timestamp"])
-                    if (interaction.has_reminder() 
-                        and not self.has_already_valid_answer(
-                            participant, dialogue['dialogue-id'], interaction['interaction-id'], 0)):
-                        self.schedule_participant_reminders(participant, dialogue, interaction, previousSendDateTime)
+                    if (interaction.has_reminder() and 
+                        not self.has_one_way_marker(participant, dialogue['dialogue-id'], interaction['interaction-id'])):
+                        if not self.has_already_valid_answer(participant, dialogue['dialogue-id'], interaction['interaction-id'], 0):
+                            self.schedule_participant_reminders(participant, dialogue, interaction, previousSendDateTime)
                     previousSendDay = previousSendDateTime.date()
                     continue
 

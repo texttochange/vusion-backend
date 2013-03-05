@@ -554,6 +554,22 @@ class ObjectMaker:
     def mkobj_dialogue_open_question_reminder_offset_time(self):
         dialogue = Dialogue(**deepcopy(self.dialogue_open_question_with_reminder_offset_time))
         return dialogue.get_as_dict()  
+    
+    def mkobj_dialogue_open_question_reminder(self):
+        dialogue_raw = self.dialogue_open_question_with_reminder_offset_time
+        interaction = {'type-schedule': 'offset-time',
+                       'minutes': '3',
+                       'set-reminder': 'reminder',
+                       'reminder-number': '1',
+                       'type-schedule-reminder': 'reminder-offset-time',
+                       'reminder-minutes': '3',
+                       'reminder-actions': [
+                           {'type-action': 'feedback',
+                            'content': 'You are going to be optout.'},
+                           {'type-action': 'optout'}]}
+        dialogue_raw['interactions'][0].update(interaction)
+        dialogue = Dialogue(**deepcopy(dialogue_raw))
+        return dialogue.get_as_dict()    
 
     def mkobj_dialogue_open_question_offset_conditional(self):
         dialogue = deepcopy(self.dialogue_open_question)
@@ -821,6 +837,16 @@ class ObjectMaker:
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id,
             'matching-answer': matching_answer}).get_as_dict()
+
+    def mkobj_history_one_way_marker(self, dialogue_id, interaction_id, timestamp,
+                                     participant_phone='06', participant_session_id='1'):
+        return history_generator(**{
+            'object-type': 'oneway-marker-history',
+            'participant-phone': participant_phone,
+            'participant-session-id':participant_session_id,
+            'dialogue-id': dialogue_id,
+            'interaction-id': interaction_id,
+            'timestamp': timestamp}).get_as_dict()
 
     def mkobj_history_dialogue_open_question(self, dialogue_id, interaction_id,
                                timestamp, participant_phone='06',
