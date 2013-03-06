@@ -244,13 +244,15 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         self.assertEquals(schedule_datetime.minute, dFuture.minute)
 
     def test_schedule_participant_reminders(self):
-        config = self.simple_config
-        dialogue = self.mkobj_dialogue_open_question_reminder_offset_time()
-        mytimezone = self.program_settings[2]['value']
-        dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
+        dNow = self.worker.get_local_time()
         dNow = dNow.replace(tzinfo=None)
         dPast = dNow - timedelta(minutes=30)
 
+        dialogue = self.mkobj_dialogue_open_question_reminder_offset_time()
         participant = self.mkobj_participant('06', last_optin_date=time_to_vusion_format(dPast))
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
@@ -294,7 +296,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         #assert last reminder is deadline-schedule
         self.assertEqual(schedules[2]['object-type'], 'deadline-schedule')
 
-    def test_reschedule_reminders_after_question_history(self):
+    def test_reschedule_reminders_after_question_in_history(self):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -334,8 +336,8 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         
         self.worker.schedule_participant_dialogue(participant, dialogue)
 
-        schedules_count = self.collections['schedules'].count()
-        self.assertEqual(schedules_count, 3)
+        self.assertEqual(3, self.collections['schedules'].count())
+        self.assertEqual(1, self.collections['history'].count())
 
         schedules = self.collections['schedules'].find()
         #assert time calculation
@@ -355,7 +357,49 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         #assert last reminder is deadline-schedule
         self.assertEqual(schedules[2]['object-type'], 'deadline-schedule')
 
-    def test_reschedule_reminders_after_question_history_already_answer(self):
+    def test_reschedule_reminder_after_reminder_in_history(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+
+        d_now = self.worker.get_local_time()
+        d_enrolled = d_now - timedelta(minutes=7)
+        d_interaction_send = d_enrolled + timedelta(minutes=3)
+        d_interaction_reminder_send = d_interaction_send + timedelta(minutes=3)
+        d_interaction_deadline = d_interaction_reminder_send + timedelta(minutes=3)
+
+        dialogue = Dialogue(**self.mkobj_dialogue_open_question_reminder())
+        interaction = dialogue['interactions'][0]
+        participant = self.mkobj_participant(
+            participant_phone='06',
+            enrolled=[{'dialogue-id': dialogue['dialogue-id'],
+                       'date-time': time_to_vusion_format(d_enrolled)}])
+        
+        history_send = self.mkobj_history_dialogue(
+            dialogue_id=dialogue['dialogue-id'], 
+            interaction_id=interaction['interaction-id'],
+            timestamp=time_to_vusion_format(d_interaction_send))
+        self.collections['history'].save(history_send)
+        
+        history_reminder_send = self.mkobj_history_dialogue(
+            dialogue_id=dialogue['dialogue-id'], 
+            interaction_id=interaction['interaction-id'],
+            timestamp=time_to_vusion_format(d_interaction_reminder_send))
+        self.collections['history'].save(history_reminder_send)
+
+        deadline_schedule = self.mkobj_schedule(
+            dialogue_id=dialogue['dialogue-id'],
+            interaction_id=interaction['interaction-id'],
+            date_time=time_to_vusion_format(d_interaction_deadline),
+            object_type='deadline-schedule')
+        self.collections['schedules'].save(deadline_schedule)    
+
+        self.worker.schedule_participant_dialogue(participant, dialogue)
+        
+        self.assertEqual(1, self.collections['schedules'].count())
+        self.assertEqual(2, self.collections['history'].count())
+
+    def test_reschedule_reminders_after_already_answer(self):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -391,8 +435,47 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
           
         self.worker.schedule_participant_dialogue(participant, dialogue)
 
-        schedules_count = self.collections['schedules'].count()
-        self.assertEqual(schedules_count, 0)
+        self.assertEqual(0, self.collections['schedules'].count())
+
+    def test_reschedule_reminder_after_one_way_marker(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        self.broker.dispatched = {}
+        d_now = self.worker.get_local_time()
+        d_enrolled = d_now - timedelta(minutes=60)
+        d_interaction_send = d_enrolled + timedelta(minutes=3)
+        d_interaction_reminder_send = d_interaction_send + timedelta(minutes=3)
+        d_interaction_deadline = d_interaction_reminder_send + timedelta(minutes=3)
+
+        dialogue = Dialogue(**self.mkobj_dialogue_open_question_reminder())
+        participant = self.mkobj_participant(
+            participant_phone='06',
+            enrolled=[{'dialogue-id': '04',
+                       'date-time': time_to_vusion_format(d_enrolled)}])
+        
+        history_send = self.mkobj_history_dialogue(
+            dialogue_id='04', 
+            interaction_id='01-01',
+            timestamp=time_to_vusion_format(d_interaction_send))
+        self.collections['history'].save(history_send)
+        
+        history_reminder_send = self.mkobj_history_dialogue(
+            dialogue_id='04', 
+            interaction_id='01-01',
+            timestamp=time_to_vusion_format(d_interaction_reminder_send))
+        self.collections['history'].save(history_reminder_send)
+        
+        history_feedback_send = self.mkobj_history_one_way_marker(
+            dialogue_id='04', 
+            interaction_id='01-01',
+            timestamp=time_to_vusion_format(d_interaction_deadline))
+        self.collections['history'].save(history_feedback_send)
+        
+        self.worker.schedule_participant_dialogue(participant, dialogue)
+        
+        self.assertEqual(0, self.collections['schedules'].count())
+        self.assertEqual(3, self.collections['history'].count())
 
     def test_schedule_unattach_message(self):
         participants = [self.mkobj_participant('06', session_id = None),

@@ -780,10 +780,8 @@ class DialogueWorker(ApplicationWorker):
 
                 if history:
                     previousSendDateTime = time_from_vusion_format(history["timestamp"])
-                    if (interaction.has_reminder() and 
-                        not self.has_one_way_marker(participant, dialogue['dialogue-id'], interaction['interaction-id'])):
-                        if not self.has_already_valid_answer(participant, dialogue['dialogue-id'], interaction['interaction-id'], 0):
-                            self.schedule_participant_reminders(participant, dialogue, interaction, previousSendDateTime)
+                    if interaction.has_reminder():
+                        self.schedule_participant_reminders(participant, dialogue, interaction, previousSendDateTime)
                     previousSendDay = previousSendDateTime.date()
                     continue
 
@@ -853,15 +851,35 @@ class DialogueWorker(ApplicationWorker):
                 "Error during schedule message: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
 
-    def schedule_participant_reminders(self,participant,dialogue,interaction,initialSendDateTime):        
+    def schedule_participant_reminders(self, participant, dialogue, interaction,
+                                       initialSendDateTime):
+
+        #Do not schedule reminder in case of valide answer or one way marker
+        if self.has_one_way_marker(participant, dialogue['dialogue-id'], interaction['interaction-id']):
+            return
+        if self.has_already_valid_answer(participant, dialogue['dialogue-id'], interaction['interaction-id'], 0):
+            return
+        
         schedules = self.collections['schedules'].find({
             "participant-phone": participant['phone'],
             "$or":[{"object-type":'reminder-schedule'},
                    {"object-type": 'deadline-schedule'}],
             "dialogue-id": dialogue["dialogue-id"],
             "interaction-id": interaction["interaction-id"]})
+        
+        #remove all reminder(s)/deadline for this interaction
         for reminder_schedule_to_be_deleted in schedules:
             self.collections['schedules'].remove(reminder_schedule_to_be_deleted['_id'])
+        
+        #get number for already send reminders
+        interaction_histories = self.collections['history'].find({
+            'participant-phone': participant['phone'],
+            'participant-session-id': participant['session-id'],
+            'message-direction': 'outgoing',
+            'dialogue-id': dialogue['dialogue-id'],
+            'interaction-id': interaction['interaction-id']})
+        
+        already_send_reminder_count = interaction_histories.count() - 1 if interaction_histories.count() > 0 else 0
         
         if (interaction['type-schedule-reminder'] == 'reminder-offset-days'):
             sendingDay = initialSendDateTime
@@ -869,7 +887,8 @@ class DialogueWorker(ApplicationWorker):
             sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
         elif (interaction['type-schedule-reminder'] == 'reminder-offset-time'):
             sendingDateTime = initialSendDateTime
-        for number in range(int(interaction['reminder-number'])+1):                
+
+        for number in range(int(interaction['reminder-number']) + 1 - already_send_reminder_count):
             if (interaction['type-schedule-reminder'] == 'reminder-offset-time'):
                 sendingDateTime += timedelta(minutes=int(interaction['reminder-minutes']))
             elif (interaction['type-schedule-reminder'] == 'reminder-offset-days'):

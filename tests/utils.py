@@ -556,7 +556,7 @@ class ObjectMaker:
         return dialogue.get_as_dict()  
     
     def mkobj_dialogue_open_question_reminder(self):
-        dialogue_raw = self.dialogue_open_question_with_reminder_offset_time
+        dialogue_raw = deepcopy(self.dialogue_open_question_with_reminder_offset_time)
         interaction = {'type-schedule': 'offset-time',
                        'minutes': '3',
                        'set-reminder': 'reminder',
