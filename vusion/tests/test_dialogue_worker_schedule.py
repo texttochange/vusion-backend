@@ -398,6 +398,9 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         
         self.assertEqual(1, self.collections['schedules'].count())
         self.assertEqual(2, self.collections['history'].count())
+        
+        schedule = self.collections['schedules'].find_one()
+        self.assertEqual('deadline-schedule', schedule['object-type'])
 
     def test_reschedule_reminders_after_already_answer(self):
         for program_setting in self.program_settings:

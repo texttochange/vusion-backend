@@ -888,7 +888,7 @@ class DialogueWorker(ApplicationWorker):
         elif (interaction['type-schedule-reminder'] == 'reminder-offset-time'):
             sendingDateTime = initialSendDateTime
 
-        for number in range(int(interaction['reminder-number']) + 1 - already_send_reminder_count):
+        for number in range(already_send_reminder_count, int(interaction['reminder-number']) + 1):
             if (interaction['type-schedule-reminder'] == 'reminder-offset-time'):
                 sendingDateTime += timedelta(minutes=int(interaction['reminder-minutes']))
             elif (interaction['type-schedule-reminder'] == 'reminder-offset-days'):
