@@ -553,14 +553,24 @@ class ObjectMaker:
 
     def mkobj_dialogue_open_question_reminder_offset_time(self):
         dialogue = Dialogue(**deepcopy(self.dialogue_open_question_with_reminder_offset_time))
-        return dialogue.get_as_dict()  
+        return dialogue.get_as_dict()
     
+    def mkobj_dialogue_open_question_reminder_offset_days(self):
+        dialogue_raw = deepcopy(self.dialogue_open_question_with_reminder_offset_time)
+        interaction = {
+            'type-schedule-reminder': 'reminder-offset-days',
+            'reminder-days': '2',
+            'reminder-at-time': '09:00'}
+        dialogue_raw['interactions'][0].update(interaction)
+        dialogue = Dialogue(**deepcopy(dialogue_raw))
+        return dialogue.get_as_dict()
+   
     def mkobj_dialogue_open_question_reminder(self):
         dialogue_raw = deepcopy(self.dialogue_open_question_with_reminder_offset_time)
         interaction = {'type-schedule': 'offset-time',
                        'minutes': '3',
                        'set-reminder': 'reminder',
-                       'reminder-number': '1',
+                       'reminder-number': '2',
                        'type-schedule-reminder': 'reminder-offset-time',
                        'reminder-minutes': '3',
                        'reminder-actions': [

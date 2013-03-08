@@ -7,6 +7,7 @@ from datetime import timedelta
 from vusion.error import FailingModelUpgrade
 from vusion.persist import Interaction
 from vusion.action import Actions
+from vusion.utils import time_from_vusion_format
 
 from tests.utils import ObjectMaker
 
@@ -132,3 +133,44 @@ class TestInteraction(TestCase, ObjectMaker):
         self.assertEqual(
             timedelta(minutes=10),
             interaction.get_offset_time_delta())
+
+    def test_get_reminder_times_offset_time(self):
+        dialogue = self.mkobj_dialogue_open_question_reminder_offset_time()
+        interaction_offset_time = Interaction(**dialogue['interactions'][0])
+        interaction_time = time_from_vusion_format('2012-04-04T09:00:00')
+        
+        reminder_times = interaction_offset_time.get_reminder_times(interaction_time)
+        
+        self.assertEqual(2, len(reminder_times))
+        self.assertEqual(time_from_vusion_format('2012-04-04T09:30:00'), reminder_times[0])
+        self.assertEqual(time_from_vusion_format('2012-04-04T10:00:00'), reminder_times[1])
+
+    def test_get_reminder_times_offset_days(self):
+        dialogue = self.mkobj_dialogue_open_question_reminder_offset_days()
+        interaction_offset_time = Interaction(**dialogue['interactions'][0])
+        interaction_time = time_from_vusion_format('2012-04-04T09:00:00')
+        
+        reminder_times = interaction_offset_time.get_reminder_times(interaction_time)
+        
+        self.assertEqual(2, len(reminder_times))
+        self.assertEqual(time_from_vusion_format('2012-04-06T09:00:00'), reminder_times[0])
+        self.assertEqual(time_from_vusion_format('2012-04-08T09:00:00'), reminder_times[1])
+
+    def test_get_deadline_time_offset_time(self):
+        dialogue = self.mkobj_dialogue_open_question_reminder_offset_time()
+        interaction_offset_time = Interaction(**dialogue['interactions'][0])
+        interaction_time = time_from_vusion_format('2012-04-04T09:00:00')
+        
+        deadline_time = interaction_offset_time.get_deadline_time(interaction_time)
+        
+        self.assertEqual(time_from_vusion_format('2012-04-04T10:30:00'), deadline_time)
+
+    def test_get_deadline_time_offset_days(self):
+        dialogue = self.mkobj_dialogue_open_question_reminder_offset_days()
+        interaction_offset_time = Interaction(**dialogue['interactions'][0])
+        interaction_time = time_from_vusion_format('2012-04-04T09:00:00')
+        
+        deadline_time = interaction_offset_time.get_deadline_time(interaction_time)
+        
+        self.assertEqual(time_from_vusion_format('2012-04-10T09:00:00'), deadline_time)
+        
