@@ -778,24 +778,25 @@ class DialogueWorker(ApplicationWorker):
                               "matching-answer": {"$ne":None}}]},
                     sort=[("timestamp", pymongo.ASCENDING)])
 
+		#The iteraction has aleardy been sent.
                 if history:
-                    previousSendDateTime = time_from_vusion_format(history["timestamp"])
-                    if interaction.has_reminder():
-                        self.schedule_participant_reminders(participant, dialogue, interaction, previousSendDateTime)
-                    previousSendDay = previousSendDateTime.date()
+                    previous_sending_date_time = time_from_vusion_format(history["timestamp"])
+		    self.schedule_participant_reminders(
+		        participant, dialogue, interaction, previous_sending_date_time, True)
+                    previous_sending_day = previous_sending_date_time.date()
                     continue
 
                 if (interaction['type-schedule'] == 'offset-days'):
                     enrolled = self.get_enrollment_time(participant, dialogue)
-                    sendingDateTime = get_offset_date_time(
+                    sending_date_time = get_offset_date_time(
                         time_from_vusion_format(enrolled['date-time']),
                         interaction['days'],
                         interaction['at-time'])
                 elif (interaction['type-schedule'] == 'offset-time'):
                     enrolled = self.get_enrollment_time(participant, dialogue)
-                    sendingDateTime = time_from_vusion_format(enrolled['date-time']) + interaction.get_offset_time_delta()
+                    sending_date_time = time_from_vusion_format(enrolled['date-time']) + interaction.get_offset_time_delta()
                 elif (interaction['type-schedule'] == 'fixed-time'):
-                    sendingDateTime = time_from_vusion_format(interaction['date-time'])
+                    sending_date_time = time_from_vusion_format(interaction['date-time'])
                 elif (interaction['type-schedule'] == 'offset-condition'):
                     previous = self.collections['history'].find_one(
                         {"participant-phone": participant['phone'],
@@ -808,7 +809,7 @@ class DialogueWorker(ApplicationWorker):
                     # if the answer 
                     if  previous is None:
                         continue
-                    sendingDateTime = self.get_local_time()
+                    sending_date_time = self.get_local_time()
 
                 schedule = self.collections['schedules'].find_one({
                     "participant-phone": participant['phone'],
@@ -817,14 +818,14 @@ class DialogueWorker(ApplicationWorker):
                     "interaction-id": interaction["interaction-id"]})        
                 
                 #Scheduling a date already in the past is forbidden.
-                if (sendingDateTime + timedelta(minutes=5) < self.get_local_time()):
+                if (sending_date_time + timedelta(minutes=5) < self.get_local_time()):
                     history = {
                         'object-type': 'datepassed-marker-history',
                         'participant-phone': participant['phone'],
                         'participant-session-id': participant['session-id'],
                         'dialogue-id': dialogue['dialogue-id'],
                         'interaction-id': interaction['interaction-id'],
-                        'scheduled-date-time': time_to_vusion_format(sendingDateTime)}
+                        'scheduled-date-time': time_to_vusion_format(sending_date_time)}
                     self.save_history(**history)
                     if (schedule):
                         self.collections['schedules'].remove(schedule['_id'])
@@ -839,10 +840,9 @@ class DialogueWorker(ApplicationWorker):
                         'dialogue-id': dialogue['dialogue-id'],
                         'interaction-id': interaction["interaction-id"]}
                 schedule.update(
-                    {'date-time': sendingDateTime})
+                    {'date-time': sending_date_time})
                 self.save_schedule(**schedule)
-                if interaction.has_reminder():
-                    self.schedule_participant_reminders(participant, dialogue, interaction, sendingDateTime)
+		self.schedule_participant_reminders(participant, dialogue, interaction, sending_date_time)
             self.update_time_next_daemon_iteration()
         except:
             self.log("Scheduling dialogue exception: %s" % dialogue['dialogue-id'])
@@ -852,7 +852,7 @@ class DialogueWorker(ApplicationWorker):
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
 
     def schedule_participant_reminders(self, participant, dialogue, interaction,
-                                       initialSendDateTime):
+                                       interaction_date_time, is_interaction_history=False):
 
         #Do not schedule reminder in case of valide answer or one way marker
         if self.has_one_way_marker(participant, dialogue['dialogue-id'], interaction['interaction-id']):
@@ -868,8 +868,15 @@ class DialogueWorker(ApplicationWorker):
             "interaction-id": interaction["interaction-id"]})
         
         #remove all reminder(s)/deadline for this interaction
+	has_active_reminders = False
         for reminder_schedule_to_be_deleted in schedules:
+	    has_active_reminders = True
             self.collections['schedules'].remove(reminder_schedule_to_be_deleted['_id'])
+        
+	if not interaction.has_reminder():
+	    return
+	if  not has_active_reminders and is_interaction_history:
+	    return
         
         #get number for already send reminders
         interaction_histories = self.collections['history'].find({
@@ -880,30 +887,35 @@ class DialogueWorker(ApplicationWorker):
             'interaction-id': interaction['interaction-id']})
         
         already_send_reminder_count = interaction_histories.count() - 1 if interaction_histories.count() > 0 else 0
-        
-        if (interaction['type-schedule-reminder'] == 'reminder-offset-days'):
-            sendingDay = initialSendDateTime
-            timeOfSending = interaction['reminder-at-time'].split(':', 1)
-            sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
-        elif (interaction['type-schedule-reminder'] == 'reminder-offset-time'):
-            sendingDateTime = initialSendDateTime
 
-        for number in range(int(interaction['reminder-number']) + 1 - already_send_reminder_count):
-            if (interaction['type-schedule-reminder'] == 'reminder-offset-time'):
-                sendingDateTime += timedelta(minutes=int(interaction['reminder-minutes']))
-            elif (interaction['type-schedule-reminder'] == 'reminder-offset-days'):
-                sendingDay += timedelta(days=int(interaction['reminder-days']))
-                sendingDateTime = datetime.combine(sendingDay, time(int(timeOfSending[0]), int(timeOfSending[1])))
-            schedule = {
-                'object-type': 'reminder-schedule' if number < int(interaction['reminder-number']) else 'deadline-schedule',
+	#adding reminders
+	reminder_times = interaction.get_reminder_times(interaction_date_time)
+        for reminder_time in reminder_times[already_send_reminder_count:]:
+            reminder = {
+                'object-type': 'reminder-schedule',
                 'model-version': '2',
                 'participant-phone': participant['phone'],
                 'participant-session-id': participant['session-id'],
-                'date-time': sendingDateTime,
+                'date-time': reminder_time,
                 'dialogue-id': dialogue['dialogue-id'],
                 'interaction-id': interaction['interaction-id']}                                                                               
-            self.save_schedule(**schedule)
-            
+            self.save_schedule(**reminder)
+	    
+	#adding deadline
+	deadline_time = interaction.get_deadline_time(interaction_date_time)
+	#We don't schedule deadline in the past
+	if deadline_time < self.get_local_time():
+	    deadline_time = self.get_local_time()
+	deadline = {
+            'object-type': 'deadline-schedule',
+            'model-version': '2',
+            'participant-phone': participant['phone'],
+            'participant-session-id': participant['session-id'],
+            'date-time': interaction.get_deadline_time(interaction_date_time),
+            'dialogue-id': dialogue['dialogue-id'],
+            'interaction-id': interaction['interaction-id']}                                                                               
+	self.save_schedule(**deadline)
+	    
     def get_local_time(self):
         try:
             return datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(

@@ -1,6 +1,6 @@
 import re
 from copy import copy
-from datetime import timedelta
+from datetime import timedelta, datetime, time
 
 from vumi.utils import get_first_word
 
@@ -10,6 +10,7 @@ from vusion.action import (action_generator, FeedbackAction,
                            UnMatchingAnswerAction, ProfilingAction,
                            RemoveDeadlineAction, RemoveQuestionAction,
                            RemoveRemindersAction)
+from vusion.utils import time_from_vusion_format, time_to_vusion_format
 
 class Interaction(VusionModel):
     
@@ -219,6 +220,33 @@ class Interaction(VusionModel):
         if 'set-reminder' not in self.payload:
             return False
         return self.payload['set-reminder'] == 'reminder'
+
+    def generate_reminder_times(self, interaction_date_time):
+        if not self.has_reminder:
+            return None
+        generate_times = []
+        generate_number = int(self['reminder-number']) + 1
+        if (self['type-schedule-reminder'] == 'reminder-offset-time'):
+            running_date_time = interaction_date_time
+            for number in range(0, generate_number):            
+                running_date_time += timedelta(minutes=int(self['reminder-minutes']))
+                generate_times.append(running_date_time)
+        elif (self['type-schedule-reminder'] == 'reminder-offset-days'):
+            sending_day = interaction_date_time
+            sending_time = self['reminder-at-time'].split(':', 1)                            
+            for number in range(0, generate_number):                        
+                sending_day += timedelta(days=int(self['reminder-days']))
+                sending_date_time = datetime.combine(sending_day, time(int(sending_time[0]), int(sending_time[1])))
+                generate_times.append(sending_date_time)
+        return generate_times
+
+    def get_reminder_times(self, interaction_date_time):
+        times = self.generate_reminder_times(interaction_date_time)
+        return times[:-1] if times is not None else None
+    
+    def get_deadline_time(self, interaction_date_time):
+        times = self.generate_reminder_times(interaction_date_time)
+        return times[-1] if times is not None else None
     
     def has_max_unmatching_answers(self):
         if 'set-max-unmatching-answers' not in self.payload:

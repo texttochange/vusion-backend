@@ -20,6 +20,7 @@ from vusion.action import (UnMatchingAnswerAction, EnrollingAction,
                            ResetAction, RemoveDeadlineAction,
                            DelayedEnrollingAction, action_generator, Actions)
 from vusion.context import Context
+from vusion.persist import Dialogue
 
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 from vusion.tests.test_dialogue_worker import DialogueWorkerTestCase
@@ -408,10 +409,10 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         dNow = self.worker.get_local_time()
         dPast = dNow - timedelta(minutes=30)
        
-        dialogue = self.mkobj_dialogue_open_question_reminder_offset_time()
+        dialogue = Dialogue(**self.mkobj_dialogue_open_question_reminder_offset_time())
         participant = self.mkobj_participant('06')
         
-        interaction = dialogue['interactions'][0]
+        interaction = dialogue.interactions[0]
         interaction['date-time'] = time_to_vusion_format(dPast)
         self.worker.schedule_participant_reminders(
             participant, dialogue, interaction, time_from_vusion_format(interaction['date-time']))
