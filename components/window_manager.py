@@ -181,7 +181,7 @@ class WindowManager(object):
         self._monitor = LoopingCall(lambda: self._monitor_windows(
             key_callback, cleanup, cleanup_callback))
         self._monitor.clock = self.get_clock()
-        self._monitor.start(interval)
+        self._monitor.start(interval, False)
 
     @inlineCallbacks
     def _monitor_windows(self, key_callback, cleanup=True,
