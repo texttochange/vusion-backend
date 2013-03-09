@@ -781,7 +781,8 @@ class DialogueWorker(ApplicationWorker):
 		#The iteraction has aleardy been sent.
                 if history:
                     previous_sending_date_time = time_from_vusion_format(history["timestamp"])
-		    self.schedule_participant_reminders(participant, dialogue, interaction, previous_sending_date_time)
+		    self.schedule_participant_reminders(
+		        participant, dialogue, interaction, previous_sending_date_time, True)
                     previous_sending_day = previous_sending_date_time.date()
                     continue
 
@@ -851,7 +852,7 @@ class DialogueWorker(ApplicationWorker):
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
 
     def schedule_participant_reminders(self, participant, dialogue, interaction,
-                                       interaction_date_time):
+                                       interaction_date_time, is_interaction_history=False):
 
         #Do not schedule reminder in case of valide answer or one way marker
         if self.has_one_way_marker(participant, dialogue['dialogue-id'], interaction['interaction-id']):
@@ -867,10 +868,14 @@ class DialogueWorker(ApplicationWorker):
             "interaction-id": interaction["interaction-id"]})
         
         #remove all reminder(s)/deadline for this interaction
+	has_active_reminders = False
         for reminder_schedule_to_be_deleted in schedules:
+	    has_active_reminders = True
             self.collections['schedules'].remove(reminder_schedule_to_be_deleted['_id'])
         
 	if not interaction.has_reminder():
+	    return
+	if  not has_active_reminders and is_interaction_history:
 	    return
         
         #get number for already send reminders
