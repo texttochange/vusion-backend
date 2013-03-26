@@ -326,6 +326,12 @@ class DialogueWorker(ApplicationWorker):
             'enrolled':[],
             'profile':[]}).get_as_dict()
 
+    def update_participant_transport_metadata(self, message):
+	if message['transport_metadata'] is not {}:
+	    self.collections['participants'].update(
+	        {'phone': message['from_addr']},
+	        {'$set': {'transport_metadata': message['transport_metadata']}})
+
     def run_action(self, participant_phone, action, context=Context(),
                    participant_session_id=None):
         regex_ANSWER = re.compile('ANSWER')
@@ -489,6 +495,7 @@ class DialogueWorker(ApplicationWorker):
                 'message-direction': 'incoming'})
             history.update(context.get_dict_for_history())
             self.save_history(**history)
+	    self.update_participant_transport_metadata(message)
             if (context.is_matching() and participant is not None):
                 if ('interaction' in context):
                     if self.has_oneway_marker(participant['phone'], participant['session-id'], context):

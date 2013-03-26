@@ -14,6 +14,8 @@ from vumi import log
 
 class MovilgateHttpTransport(Transport):
     
+    mandatory_metadata_fields = ['ServicioId', 'IdTran']
+    
     def mkres(self, cls, publish_func, path_key = None):
         resource = cls(self.config, publish_func)
         self._resources.append(resource)
@@ -38,19 +40,33 @@ class MovilgateHttpTransport(Transport):
         if hasattr(self, 'receipt_resource'):
             return self.receipt_resource.stopListening()
 
+    def validate_transport_metadata(self, message):
+        for field in self.mandatory_metadata_fields:
+            if not field in message['transport_metadata']:
+                self.publish_delivery_report(
+                    user_message_id=message['message_id'],
+                    delivery_status='failed',
+                    failure_level='service',
+                    failure_code='0',
+                    failure_reason='Missing %s metadata for sending to Movilgate' % field)
+                return False
+        return True                
+
     @inlineCallbacks
     def handle_outbound_message(self, message):
         log.msg("Outbound message to be processed %s" % repr(message))
         try:
+            if not self.validate_transport_metadata(message):
+                return
             movilgate_parser = MovilgateXMLParser()
             mobilgate_msg = movilgate_parser.build({
             'proveedor': {
                 'id': self.config['proveedor_id'],
                 'password': self.config['proveedor_password']},
-            'servicio': {'id': self.config['servicio_id']},
+            'servicio': {'id': message['transport_metadata']['ServicioId']},
             'telephono': {
                 'msisdn': message['to_addr'],
-                'id_tran': '123'},
+                'id_tran': message['transport_metadata']['IdTran']},
             'contenido': message['content']})
             
             response = yield http_request_full(
@@ -113,13 +129,15 @@ class MovilgateReceiveSMSResource(Resource):
             log.msg('got hit with %s' % raw_body)
             mo_request = ElementTree.fromstring(raw_body)
             contenido = mo_request.find('Contenido').text
+            servicio_id = mo_request.find('Servicio').attrib['Id']
             from_add = mo_request.find('Telefono').attrib['msisdn']
+            id_tran = mo_request.find('Telefono').attrib['IdTran']
             yield self.publish_func(
                 transport_type='sms',
                 to_addr=self.config['default_origin'],
                 from_addr=from_add,
                 content=contenido,
-                transport_metadata={})            
+                transport_metadata={'IdTran': id_tran, 'ServicioId': servicio_id})
             request.setResponseCode(http.OK)
             request.setHeader('Content-Type', 'text/plain')
         except Exception, e:

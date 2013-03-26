@@ -6,7 +6,7 @@ from vusion.error import InvalidField, MissingField
 class Participant(VusionModel):
 
     MODEL_TYPE = 'participant'
-    MODEL_VERSION = '3'
+    MODEL_VERSION = '4'
 
     REGEX_RAW = re.compile('.*_raw$')
 
@@ -17,7 +17,8 @@ class Participant(VusionModel):
         'last-optout-date',
         'tags',
         'enrolled',
-        'profile']
+        'profile',
+        'transport_metadata']
 
     PARTICIPANT_FIELDS = {
         'phone': lambda v: v is not None,
@@ -26,7 +27,8 @@ class Participant(VusionModel):
         'last-optout-date': lambda v: True,
         'tags': lambda v: isinstance(v, list),
         'enrolled': lambda v: isinstance(v, list),
-        'profile': lambda v: isinstance(v, list)}
+        'profile': lambda v: isinstance(v, list),
+        'transport_metadata': lambda v: isinstance(v, dict)}
 
     ENROLLED_FIELDS = {
         'dialogue-id': lambda v: v is not None,
@@ -72,8 +74,11 @@ class Participant(VusionModel):
         elif kwargs['model-version'] in '2':
             kwargs['last-optout-date'] = kwargs['last-optout-date'] if 'last-optout-date' in kwargs else None
             kwargs['model-version'] = '3'
-        return kwargs        
-    
+            return self.upgrade(**kwargs)
+        elif kwargs['model-version'] in '3':
+            kwargs['transport_metadata'] = kwargs['transport_metadata'] if 'transport_metadata' in kwargs else {}
+            kwargs['model-version'] = '4'            
+        return kwargs
 
     def modify_field_that_should_be_array(self, field):
         if field in self.FIELDS_THAT_SHOULD_BE_ARRAY and self[field] is None:
@@ -108,3 +113,6 @@ class Participant(VusionModel):
             if label == item['label'] and value == item['value']:
                 return True
         return False
+
+    def get_transport_metadata(self):
+        return self['transport_metadata']
