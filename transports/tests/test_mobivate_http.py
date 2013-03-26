@@ -121,16 +121,16 @@ class TestResource(Resource):
         self.send_id = send_id
         
     def render_GET(self, request):
-        regex = re.compile('^(\+|00|0)')
+        regex = re.compile('^(\+|00|0)[0-9]*')
         request.setResponseCode(self.code)
-        if (not ('recipient' in request.args) or
-                regex.match(request.args['recipient'][0]) or
-                not ('originator' in request.args) or
-                not ('user_name' in request.args) or
-                not ('password' in request.args) or
-                not ('message_text' in request.args) or
-                not ('reference' in request.args) or
+        if (not ('RECIPIENT' in request.args) or
+                regex.match(request.args['RECIPIENT'][0]) or
+                not ('ORIGINATOR' in request.args) or
+                not ('USER_NAME' in request.args) or
+                not ('PASSWORD' in request.args) or
+                not ('MESSAGE_TEXT' in request.args) or
+                not ('REFERENCE' in request.args) or
                 (self.send_id is not None and self.send_id != request.args['originator'][0])):
-            return "0"
+            return "501"
         else:
             return self.response

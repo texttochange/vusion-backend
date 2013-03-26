@@ -34,18 +34,22 @@ class MobivateHttpTransport(Transport):
         ]
         self.receipt_resource = yield self.start_web_resources(
             resources, self.config['receive_port'])
-        
+
+    def phone_format(self, phone):
+            regex = re.compile('^\+')
+            return re.sub(regex, '', phone)
+ 
     @inlineCallbacks
     def handle_outbound_message(self, message):
         log.msg("Outbound message to be processed %s" % repr(message))
         try:
             params = {
-                'user_name': self.config['user_name'],
-                'password': self.config['password'],
-                'originator': message['from_addr'],
-                'message_text': message['content'],
-                'recipient': message['to_addr'],
-                'reference': message['message_id']
+                'USER_NAME': self.config['user_name'],
+                'PASSWORD': self.config['password'],
+                'ORIGINATOR': message['from_addr'],
+                'MESSAGE_TEXT': message['content'],
+                'RECIPIENT': self.phone_format(message['to_addr']),
+                'REFERENCE': message['message_id']
             }
             log.msg('Hitting %s with %s' % (self.config['url'], urlencode(params)))
 
