@@ -105,11 +105,13 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
         
+        self.collections['participants'].save(self.mkobj_participant())
+        
         context = Context()
         context.update({'request-id': '1'})
         
         self.worker.run_action(
-            '08', 
+            '06', 
             FeedbackAction(**{'content': 'message'}),
             context,
             '1')
@@ -118,7 +120,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(self.collections['history'].count(), 1)
         history = self.collections['history'].find_one()
         self.assertEqual(history['participant-session-id'], '1')
-        self.assertEqual(history['participant-phone'], '08')
+        self.assertEqual(history['participant-phone'], '06')
 
     def test_run_action_enroll(self):
         for program_setting in self.program_settings:

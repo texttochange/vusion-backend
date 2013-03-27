@@ -272,6 +272,46 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual(len(messages), 3)
         self.assertEqual(messages[2]['content'], 'you have already optin')
 
+
+    @inlineCallbacks
+    def test_receive_inbound_with_transport_metadata(self):
+        program_settings = self.mkobj_program_settings()
+        for program_setting in program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()        
+
+        #First test with not optin
+        transport_metadata = {'some_key': 'some_value'}
+        inbound_msg_matching_request = self.mkmsg_in(
+            from_addr='07',
+            content='www',
+            transport_metadata=transport_metadata)
+
+        yield self.send(inbound_msg_matching_request, 'inbound')
+        
+        participant = self.collections['participants'].find_one()
+        self.assertTrue(participant is None)
+
+        #Second test with a optin request
+        request_id = self.collections['requests'].save(self.mkobj_request_join())
+
+        yield self.send(inbound_msg_matching_request, 'inbound')
+ 
+        participant = self.collections['participants'].find_one()
+        self.assertEqual(transport_metadata, participant['transport_metadata'])
+
+        #Third updating the metadata
+        transport_metadata = {'some_key': 'other_value'}
+        inbound_msg_matching_request = self.mkmsg_in(
+            from_addr='07',
+            content='www',
+            transport_metadata=transport_metadata)
+        
+        yield self.send(inbound_msg_matching_request, 'inbound')
+ 
+        participant = self.collections['participants'].find_one()
+        self.assertEqual(transport_metadata, participant['transport_metadata'])        
+
     @inlineCallbacks
     def test_receive_inbound_message_request_optin(self):
         request_id = self.collections['requests'].save(self.mkobj_request_join())

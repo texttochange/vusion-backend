@@ -30,7 +30,7 @@ class TestParticipant(TestCase, ObjectMaker):
              "session-id" : "022fba874b664b7f87265be805cfaa50", 
              "tags" : [ "Mother updated week 5" ] }
         p = Participant(**participant1)
-        self.assertEqual('3', p['model-version'])
+        self.assertEqual(Participant.MODEL_VERSION, p['model-version'])
         self.assertEqual(None, p['last-optout-date'])
 
     def test_upgrade_version_2(self):
@@ -56,7 +56,7 @@ class TestParticipant(TestCase, ObjectMaker):
             "session-id" : "d4d67fba1fb04f38b8196eadd38da2fb",
             "tags" : [ ]}
         p = Participant(**participant_cake)
-        self.assertEqual('3', p['model-version'])
+        self.assertEqual(Participant.MODEL_VERSION, p['model-version'])
 
     def test_upgrade_version_2_with_optout_date(self):
         participant_cake = {
@@ -70,8 +70,25 @@ class TestParticipant(TestCase, ObjectMaker):
             "tags" : [ ],
             "profile" : [ ]}
         p = Participant(**participant_cake)
-        self.assertEqual('3', p['model-version'])
-        self.assertEqual('2012-11-20T14:00:00', p['last-optout-date'])        
+        self.assertEqual(Participant.MODEL_VERSION, p['model-version'])
+        self.assertEqual('2012-11-20T14:00:00', p['last-optout-date'])
+
+    def test_upgrade_version_2_with_transport_metadata(self):
+        participant_cake = {
+            "model-version" : "2", 
+            "object-type" : "participant", 
+            "phone" : "+255654033486", 
+            "session-id" : "ee29e5a2321f426cb52f19e1371cb32e", 
+            "last-optin-date" : "2012-11-20T13:30:56",
+            "last-optout-date" : "2012-11-20T14:00:00",
+            "enrolled" : [ ],
+            "tags" : [ ],
+            "profile" : [ ],
+            "transport_metadata": {"SomeKey": "SomeValue"}}
+        p = Participant(**participant_cake)
+        self.assertEqual(Participant.MODEL_VERSION, p['model-version'])
+        self.assertEqual('2012-11-20T14:00:00', p['last-optout-date'])
+        self.assertEqual({"SomeKey": "SomeValue"}, p['transport_metadata'])
 
     def test_validation_fail(self):
         participant= Participant(**self.mkobj_participant(profile=[{'label': 'gender',
