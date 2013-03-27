@@ -96,7 +96,6 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
             'proveedor_id': 'mylogin',
             'proveedor_password': 'mypassword',
             'servicio_id': 'myservicio', 
-            'default_origin': '9292',
             'receive_path': '/movilgate',
             'receive_port': 9998}
         self.worker = yield self.get_transport(self.config)
@@ -178,7 +177,7 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
         msg_in = TransportMessage.from_json(smsg.body)
         self.assertEqual('hello world', msg_in['content'])
         self.assertEqual('41791234567', msg_in['from_addr'])
-        self.assertEqual('9292', msg_in['to_addr'])
+        self.assertEqual('2229', msg_in['to_addr'])
         self.assertEqual('12345678', msg_in['transport_metadata']['telefono_id_tran'])
         self.assertEqual('2229.tigo.bo', msg_in['transport_metadata']['servicio_id'])
         

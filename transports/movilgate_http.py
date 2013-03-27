@@ -132,17 +132,22 @@ class MovilgateReceiveSMSResource(Resource):
             servicio_id = mo_request.find('Servicio').attrib['Id']
             from_add = mo_request.find('Telefono').attrib['msisdn']
             id_tran = mo_request.find('Telefono').attrib['IdTran']
+            to_addr = servicio_id.split('.')[0]
             yield self.publish_func(
                 transport_type='sms',
-                to_addr=self.config['default_origin'],
+                to_addr=to_addr,
                 from_addr=from_add,
                 content=contenido,
                 transport_metadata={'telefono_id_tran': id_tran, 'servicio_id': servicio_id})
             request.setResponseCode(http.OK)
             request.setHeader('Content-Type', 'text/plain')
-        except Exception, e:
+        except:
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
             log.msg("Error processing the request: %s" % (request,))
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            log.error(
+                "Error during consume user message: %r" %
+                traceback.format_exception(exc_type, exc_value, exc_traceback))            
         request.finish()
 
     def render(self, request):
