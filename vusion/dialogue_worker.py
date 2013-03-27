@@ -1047,7 +1047,8 @@ class DialogueWorker(ApplicationWorker):
                 'transport_name': self.transport_name,
                 'transport_type': self.transport_type,
                 'content': message_content})
-                
+
+	    #transport_metadata set up
             if ('customized-id' in self.properties 
                     and self.properties['customized-id'] is not None):
                 message['transport_metadata']['customized_id'] = self.properties['customized-id']
@@ -1055,7 +1056,11 @@ class DialogueWorker(ApplicationWorker):
             if ('prioritized' in interaction
                     and interaction['prioritized'] is not None):
                 message['transport_metadata']['priority'] = interaction['prioritized']
-                
+
+	    participant = self.get_participant(schedule['participant-phone'])
+	    if (participant['transport_metadata'] is not {}):
+		message['transport_metadata'].update(participant['transport_metadata'])
+
             if schedule.get_type() == 'feedback-schedule':
                 if ('request-and-feedback-prioritized' in self.properties 
                         and self.properties['request-and-feedback-prioritized'] is not None):

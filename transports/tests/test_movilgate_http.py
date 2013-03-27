@@ -114,7 +114,7 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
     @inlineCallbacks
     def test_sending_one_sms_ok(self):
         yield self.make_resource_worker(self.mk_mt_response_ok())
-        transport_metadata = {'IdTran': '12345678', 'ServicioId': '2229.tigo.bo'}
+        transport_metadata = {'telefono_id_tran': '12345678', 'servicio_id': '2229.tigo.bo'}
         yield self.dispatch(self.mkmsg_out(transport_metadata=transport_metadata))
         [smsg] = self.get_dispatched('movilgate.event')
         self.assertEqual(
@@ -133,12 +133,12 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
                 delivery_status='failed',
                 failure_level='service',
                 failure_code='0',
-                failure_reason='Missing ServicioId metadata for sending to Movilgate'),
+                failure_reason='Missing servicio_id metadata for sending to Movilgate'),
             TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks
     def test_sending_one_sms_fail_missing_idtran(self):
-        transport_metadata = {'ServicioId': '2229.tigo.bo'}
+        transport_metadata = {'servicio_id': '2229.tigo.bo'}
         yield self.dispatch(self.mkmsg_out(transport_metadata=transport_metadata))
         [smsg] = self.get_dispatched('movilgate.event')
         self.assertEqual(
@@ -148,13 +148,13 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
                 delivery_status='failed',
                 failure_level='service',
                 failure_code='0',
-                failure_reason='Missing IdTran metadata for sending to Movilgate'),
+                failure_reason='Missing telefono_id_tran metadata for sending to Movilgate'),
             TransportMessage.from_json(smsg.body))
         
     @inlineCallbacks
     def test_sending_one_sms_fail(self):
         yield self.make_resource_worker(self.mk_mt_response_fail())
-        transport_metadata = {'IdTran': '12345678', 'ServicioId': '2229.tigo.bo'}        
+        transport_metadata = {'telefono_id_tran': '12345678', 'servicio_id': '2229.tigo.bo'}        
         yield self.dispatch(self.mkmsg_out(transport_metadata=transport_metadata))
         [smsg] = self.get_dispatched('movilgate.event')
         self.assertEqual(
@@ -179,8 +179,8 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
         self.assertEqual('hello world', msg_in['content'])
         self.assertEqual('41791234567', msg_in['from_addr'])
         self.assertEqual('9292', msg_in['to_addr'])
-        self.assertEqual('12345678', msg_in['transport_metadata']['IdTran'])
-        self.assertEqual('2229.tigo.bo', msg_in['transport_metadata']['ServicioId'])
+        self.assertEqual('12345678', msg_in['transport_metadata']['telefono_id_tran'])
+        self.assertEqual('2229.tigo.bo', msg_in['transport_metadata']['servicio_id'])
         
 
 class TestResource(Resource):

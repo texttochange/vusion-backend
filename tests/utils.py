@@ -872,14 +872,16 @@ class ObjectMaker:
 
     def mkobj_participant(self, participant_phone='06',
                           last_optin_date='2012-02-01T18:30', session_id='1',
-                          enrolled=[], tags=[], profile=[]):
+                          enrolled=[], tags=[], profile=[],
+                          transport_metadata={}):
         return Participant(**{ 
             'phone': participant_phone,
             'session-id': session_id,
             'last-optin-date': last_optin_date,            
             'enrolled': enrolled,
             'tags': tags,
-            'profile': profile}).get_as_dict()
+            'profile': profile,
+            'transport_metadata': transport_metadata}).get_as_dict()
     
     def mkobj_participant_v2(self, participant_phone='06',
                           last_optin_date='2012-02-01T18:30', session_id='1',

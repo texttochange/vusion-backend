@@ -63,7 +63,8 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
 
     @inlineCallbacks
     def test_receive_user_message_with_one_error_template_matching_to_addr(self):
-        msg = self.mkmsg_in(content='Gen 2', to_addr='8181')
+        participant_transport_metadata = {'some_key': 'some_value'}
+        msg = self.mkmsg_in(content='Gen 2', to_addr='8181', transport_metadata=participant_transport_metadata)
         template_id = self.templates_collection.save(
             self.mkobj_template_unmatching_keyword()
         )
@@ -78,6 +79,7 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
                          'Gen does not match any keyword.')
         self.assertEqual(messages[0]['to_addr'], msg['from_addr'])
         self.assertEqual(messages[0]['from_addr'], '256-8181')
+        self.assertEqual(messages[0]['transport_metadata'], participant_transport_metadata)
 
     @inlineCallbacks
     def test_receive_user_message_with_two_error_template_matching_to_addr(self):

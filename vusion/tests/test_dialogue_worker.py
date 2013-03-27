@@ -275,18 +275,22 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertTrue(context == {})
 
     def test05_send_scheduled_messages(self):
-        dialogue = self.mkobj_dialogue_announcement_2()
-        participant = self.mkobj_participant('09')
-        mytimezone = self.program_settings[2]['value']
-        dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()        
+        #mytimezone = self.program_settings[2]['value']
+        dNow = self.worker.get_local_time()
         dNow = dNow - timedelta(minutes=2)
         dPast = dNow - timedelta(minutes=61)
         dFuture = dNow + timedelta(minutes=30)
 
+        dialogue = self.mkobj_dialogue_announcement_2()
+        participant_transport_metadata = {'some_key': 'some_value'}
+        participant = self.mkobj_participant('09', transport_metadata=participant_transport_metadata)
+
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
+       
         unattached_message = self.collections['unattached_messages'].save({
             'date-time': time_to_vusion_format(dNow),
             'content': 'Hello unattached',
@@ -322,15 +326,19 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
                 content='Thank you',
                 participant_phone='09',
                 context={'dialogue-id': '2', 'interaction-id': '1'}))
-        self.worker.load_data()
 
         self.worker.send_scheduled()
 
+        participant_transport_metadata.update({'customized_id': 'myid'})
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 3)
         self.assertEqual(messages[0]['content'], 'Today will be sunny')
+        self.assertEqual(messages[0]['transport_metadata'], participant_transport_metadata)
         self.assertEqual(messages[1]['content'], 'Hello unattached')
+        self.assertEqual(messages[1]['transport_metadata'], participant_transport_metadata)        
         self.assertEqual(messages[2]['content'], 'Thank you')
+        participant_transport_metadata.update({'priority': 'prioritized'})        
+        self.assertEqual(messages[2]['transport_metadata'], participant_transport_metadata) 
         for message in messages:
             self.assertTrue('customized_id' in message['transport_metadata'])
 

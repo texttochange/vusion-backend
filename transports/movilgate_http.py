@@ -14,7 +14,7 @@ from vumi import log
 
 class MovilgateHttpTransport(Transport):
     
-    mandatory_metadata_fields = ['ServicioId', 'IdTran']
+    mandatory_metadata_fields = ['servicio_id', 'telefono_id_tran']
     
     def mkres(self, cls, publish_func, path_key = None):
         resource = cls(self.config, publish_func)
@@ -63,10 +63,10 @@ class MovilgateHttpTransport(Transport):
             'proveedor': {
                 'id': self.config['proveedor_id'],
                 'password': self.config['proveedor_password']},
-            'servicio': {'id': message['transport_metadata']['ServicioId']},
+            'servicio': {'id': message['transport_metadata']['servicio_id']},
             'telephono': {
                 'msisdn': message['to_addr'],
-                'id_tran': message['transport_metadata']['IdTran']},
+                'id_tran': message['transport_metadata']['telefono_id_tran']},
             'contenido': message['content']})
             
             response = yield http_request_full(
@@ -137,7 +137,7 @@ class MovilgateReceiveSMSResource(Resource):
                 to_addr=self.config['default_origin'],
                 from_addr=from_add,
                 content=contenido,
-                transport_metadata={'IdTran': id_tran, 'ServicioId': servicio_id})
+                transport_metadata={'telefono_id_tran': id_tran, 'servicio_id': servicio_id})
             request.setResponseCode(http.OK)
             request.setHeader('Content-Type', 'text/plain')
         except Exception, e:
