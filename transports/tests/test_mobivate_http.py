@@ -83,6 +83,7 @@ class MobivateHttpTransportTestCase(MessageMaker, TransportTestCase):
 
         response = yield http_request_full(url, method='GET')
         self.assertEqual(response.code, http.OK)
+        self.assertEqual(response.delivered_body, '0')
         
         [smsg] = self.get_dispatched('mobivate.inbound')
         sms_in = TransportMessage.from_json(smsg.body)
@@ -101,6 +102,7 @@ class MobivateHttpTransportTestCase(MessageMaker, TransportTestCase):
 
         response = yield http_request_full(url, method='GET')
         self.assertEqual(response.code, http.OK)
+        self.assertEqual(response.delivered_body, '0')        
         
         [smsg] = self.get_dispatched('mobivate.event')
         sms_delivery = TransportMessage.from_json(smsg.body)        

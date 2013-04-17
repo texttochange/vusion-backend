@@ -119,6 +119,7 @@ class MobivateReceiveSMSResource(Resource):
                 from_addr=request.args['ORIGINATOR'][0],
                 content=request.args['MESSAGE_TEXT'][0],
                 transport_metadata={})
+            request.write('0')
         except Exception, e:
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
             log.msg("Error processing the request: %s" % (request,))
@@ -147,6 +148,7 @@ class MobivateReceiveReciept(Resource):
             yield self.publish_func(
                 user_message_id=request.args['REFERENCE'][0],
                 delivery_status='delivered')
+            request.write('0')
         except Exception, e:
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
             log.msg("Error processing the request: %s" % (request,))
