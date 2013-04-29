@@ -12,7 +12,7 @@ class UnattachMessage(VusionModel):
     
     UNATTACH_MESSAGE_FIELDS = {
         'name' : lambda v: v is not None,
-        'send-to-type': lambda v: v in ['all', 'match'],
+        'send-to-type': lambda v: v in ['all', 'match', 'phone'],
         'content': lambda v: v is not None,
         'type-schedule': lambda v: v in ['fixed-time', 'immediately'],
         'fixed-time': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)T0?(\d+):0?(\d+)(:0?(\d+))$'), v)
@@ -27,6 +27,9 @@ class UnattachMessage(VusionModel):
             'send-to-match-operator': lambda v: v in ['all', 'any'],
             'send-to-match-conditions': lambda v: isinstance(v, list)
             },
+        'phone': {
+            'send-to-phone': lambda v: isinstance(v, list)
+            }
         }
     
     OPERATORS = {
@@ -79,28 +82,34 @@ class UnattachMessage(VusionModel):
                         query[operator].append(tmp_query)
                     else:
                         query = {operator: [query, tmp_query]}
+        elif self['send-to-type'] == 'phone':
+            return {'phone': {'$in': self['send-to-phone']}}
         return query
 
     def is_selectable(self, participant):
-        if 'all' in self['send-to-type']:
+        if self['send-to-type'] == 'all':
             return True
-        if self['send-to-match-operator'] == 'any': 
-            for selector in self['send-to-match-conditions']:
-                if re.match(self.tag_regex, selector):
-                    if selector in participant['tags']:
-                        return True
-                elif re.match(self.label_regex, selector):
-                    profile = selector.split(':')
-                    if participant.has_profile(profile[0], profile[1]):
-                        return True
-        elif self['send-to-match-operator'] == 'all':
-            for selector in self['send-to-match-conditions']:
-                if re.match(self.tag_regex, selector):
-                    if not selector in participant['tags']:
-                        return False
-                elif re.match(self.label_regex, selector):
-                    profile = selector.split(':')
-                    if not participant.has_profile(profile[0], profile[1]):
-                        return False
-            return True
+        elif self['send-to-type'] == 'match':
+            if self['send-to-match-operator'] == 'any': 
+                for selector in self['send-to-match-conditions']:
+                    if re.match(self.tag_regex, selector):
+                        if selector in participant['tags']:
+                            return True
+                    elif re.match(self.label_regex, selector):
+                        profile = selector.split(':')
+                        if participant.has_profile(profile[0], profile[1]):
+                            return True
+            elif self['send-to-match-operator'] == 'all':
+                for selector in self['send-to-match-conditions']:
+                    if re.match(self.tag_regex, selector):
+                        if not selector in participant['tags']:
+                            return False
+                    elif re.match(self.label_regex, selector):
+                        profile = selector.split(':')
+                        if not participant.has_profile(profile[0], profile[1]):
+                            return False
+                return True
+        elif self['send-to-type'] == 'phone':
+            if participant['phone'] in self['send-to-phone']:
+                return True
         return False

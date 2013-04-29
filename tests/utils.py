@@ -782,7 +782,8 @@ class ObjectMaker:
     def mkobj_unattach_message(self,
                                send_to_type='all',
                                send_to_match_operator=None,
-                               send_to_match_conditions=None,                               
+                               send_to_match_conditions=None,
+                               send_to_phone=None,
                                content='Hello everyone',
                                type_schedule='fixed-time',
                                fixed_time='2100-03-12T12:30:00'):
@@ -798,6 +799,10 @@ class ObjectMaker:
             unattach_message.update({
                 'send-to-match-operator': send_to_match_operator,
                 'send-to-match-conditions': send_to_match_conditions,
+            })
+        elif (send_to_type=='phone'):
+            unattach_message.update({
+                'send-to-phone': send_to_phone
             })
         return UnattachMessage(**unattach_message).get_as_dict()    
 
