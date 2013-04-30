@@ -97,7 +97,7 @@ class EsmeToSmscTestCaseCustomizedId(TransportTestCase):
                 transport_name=self.transport_name,
                 transport_type='smpp',
                 transport_metadata={
-                    'customized-id': 'ttc'},
+                    'customized_id': 'ttc'},
                 rkey='%s.outbound' % self.transport_name,
                 timestamp='0',
                 )

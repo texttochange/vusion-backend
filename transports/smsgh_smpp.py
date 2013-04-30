@@ -19,11 +19,11 @@ class SmsghSmppTransport(SmppTransport):
                 self.config.get('COUNTRY_CODE', ''),
                 self.config.get('OPERATOR_PREFIX', {}),
                 self.config.get('OPERATOR_NUMBER', {})) or from_addr
-        if 'customized-id' in message['transport_metadata']:
+        if 'customized_id' in message['transport_metadata']:
             sequence_number = self.esme_client.submit_sm(
                 short_message=text.encode('utf-8'),
                 destination_addr=str(to_addr),
-                source_addr=message['transport_metadata']['customized-id'],
+                source_addr=message['transport_metadata']['customized_id'],
                 source_addr_ton=2,
                 source_addr_npi=0)
         else:
