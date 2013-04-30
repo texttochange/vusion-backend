@@ -6,7 +6,7 @@ from vusion_model import VusionModel
 class UnattachMessage(VusionModel):
     
     MODEL_TYPE = 'unattach_message'
-    MODEL_VERSION = '3'
+    MODEL_VERSION = '4'
     
     fields = []
     
@@ -58,6 +58,10 @@ class UnattachMessage(VusionModel):
                 kwargs['send-to-match-conditions'] = kwargs['to']
             kwargs.pop('to')
             kwargs['model-version'] = '3'
+            return self.upgrade(**kwargs)
+        elif kwargs['model-version'] == '3':
+            kwargs['created-by'] = kwargs['created-by'] if 'created-by' in kwargs else None
+            kwargs['model-version'] = '4' 
         return kwargs
 
     def get_selector_as_query(self):
