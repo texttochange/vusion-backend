@@ -62,6 +62,7 @@ class TestUnattachMessage(TestCase, ObjectMaker):
         self.assertEqual(unattach['send-to-match-operator'], 'any')
         self.assertTrue('send-to-match-conditions' in unattach)
         self.assertEqual(unattach['send-to-match-conditions'], ['a tag'])
+        self.assertTrue('created-by' in unattach)
         
 
     def test_upgrade_none(self):        
