@@ -3,18 +3,19 @@ from twisted.trial.unittest import TestCase
 from twisted.internet.defer import setDebugging
 from twisted.internet import reactor
 
-from transports.push_tz_smpp import CustomMiddlewareStack, StopPropagation
+from middlewares.custom_middleware_stack import CustomMiddlewareStack, StopPropagation
 from middlewares.window_manager_middleware import WindowManagerMiddleware
 from components.tests.test_window_manager import FakeRedis
 from tests.utils import MessageMaker
 
+from middlewares.tests.test_custom_middleware_stack import DummyTransport
 
 class ToyWorker(object):
     
     transport_name = 'transport'
     messages = []
-
-    def handle_outbound_message(self, msg):
+        
+    def _process_message(self, msg, from_middleware):
         self.messages.append(msg)
 
 

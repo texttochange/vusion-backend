@@ -9,7 +9,7 @@ from vumi.log import log
 
 from components.window_manager import WindowManager
 
-from transports.push_tz_smpp import StopPropagation
+from middlewares.custom_middleware_stack import StopPropagation
 
 try:
     import txredis.client as txrc
@@ -156,10 +156,4 @@ class WindowManagerMiddleware(BaseMiddleware):
     def send_outbound(self, window_id, key):
         data = yield self.wm.get_data(window_id, key)
         msg = TransportUserMessage.from_json(data)
-        # TODO store the endpoint in the stored data
-        self.resume_handling('outbound', msg, self.transport_name)
-        self.worker.handle_outbound_message(msg)
-
-    def resume_handling(self, handle_name, message, endpoint):
-        return self.worker._middlewares.resume_handling(
-            self, handle_name, message, endpoint)
+        self.worker._process_message(msg, self)
