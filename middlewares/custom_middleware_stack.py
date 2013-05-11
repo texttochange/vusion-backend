@@ -1,5 +1,7 @@
 from twisted.internet.defer import inlineCallbacks, returnValue, maybeDeferred
 
+from vumi.message import TransportUserMessage
+from vumi.transports import Transport
 from vumi.middleware import MiddlewareStack, setup_middlewares_from_config
 
 
@@ -13,6 +15,11 @@ class StopPropagation(MiddlewareControlFlag):
 
 class CustomMiddlewareStack(MiddlewareStack):
 
+    #def __init__(self, middlewares):
+        #super(CustomMiddlewareStack, self).__init__(middlewares)
+        #transport._publish_message = self._transport_publish_message
+        #transport.publish_message = self.transport_publish_message
+    
     def _get_middleware_index(self, middlewares, middleware):
         return middlewares.index(middleware)
 
@@ -71,3 +78,44 @@ class CustomMiddlewareStack(MiddlewareStack):
     def apply_publish(self, handler_name, message, endpoint, from_middleware=None):
         return self._handle(
             reversed(self.middlewares), handler_name, message, endpoint, from_middleware)
+
+
+def useCustomMiddleware(klass):
+  
+    @inlineCallbacks
+    def setup_middleware(self):
+        middlewares = yield setup_middlewares_from_config(self, self.config)
+        self._middlewares = CustomMiddlewareStack(middlewares)
+    klass.setup_middleware = setup_middleware
+  
+    def _process_message(self, message, from_middleware=None):
+        def _send_failure(f):
+            self.send_failure(message, f.value, f.getTraceback())
+            log.err(f)
+            if self.SUPPRESS_FAILURE_EXCEPTIONS:
+                return None
+            return f
+        d = self._middlewares.apply_consume(
+            "outbound", message, self.transport_name, from_middleware)
+        d.addCallback(self.handle_outbound_message)
+        d.addErrback(self._middlewares.process_control_flag)
+        d.addErrback(_send_failure)
+        return d
+    klass._process_message = _process_message    
+
+    def _publish_message(self, message, from_middleware=None):
+        d = self._middlewares.apply_publish(
+            "inbound", message, self.transport_name, from_middleware)
+        d.addCallback(self.message_publisher.publish_message)
+        d.addErrback(self._middlewares.process_control_flag)        
+        return d
+    klass._publish_message = _publish_message
+
+    def publish_message(self, **kw):
+        kw.setdefault('transport_name', self.transport_name)
+        kw.setdefault('transport_metadata', {})
+        msg = TransportUserMessage(**kw)
+        return self._publish_message(msg)
+    klass.publish_message = publish_message
+    
+    return klass

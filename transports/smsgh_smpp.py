@@ -5,31 +5,10 @@ from vumi.log import log
 from vumi.utils import get_operator_number
 from vumi.middleware import setup_middlewares_from_config
 
-from middlewares.custom_middleware_stack import CustomMiddlewareStack
+from middlewares.custom_middleware_stack import CustomMiddlewareStack, useCustomMiddleware
 
-
+@useCustomMiddleware
 class SmsghSmppTransport(SmppTransport):
-    
-    @inlineCallbacks    
-    def setup_middleware(self):
-        middlewares = yield setup_middlewares_from_config(self, self.config)
-        self._middlewares = CustomMiddlewareStack(middlewares)
-
-    # Overwriting the methode for middleware hook
-    def _process_message(self, message):
-           def _send_failure(f):
-               self.send_failure(message, f.value, f.getTraceback())
-               log.err(f)
-               if self.SUPPRESS_FAILURE_EXCEPTIONS:
-                   return None
-               return f
-           
-           d = self._middlewares.apply_consume("outbound", message,
-                                               self.transport_name)
-           d.addCallback(self.handle_outbound_message)
-           d.addErrback(self._middlewares.process_control_flag)        
-           d.addErrback(_send_failure)
-           return d
 
     def send_smpp(self, message):
         log.msg("Sending SMPP message: %s" % (message))

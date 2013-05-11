@@ -23,8 +23,10 @@ from vumi.transports.smpp import SmppTransport
 from vumi.transports.smpp.clientserver.client import EsmeTransceiver, EsmeTransceiverFactory
 from vumi.middleware import MiddlewareStack, setup_middlewares_from_config
 
-from middlewares.custom_middleware_stack import CustomMiddlewareStack
+from middlewares.custom_middleware_stack import CustomMiddlewareStack, useCustomMiddleware
 
+
+@useCustomMiddleware
 class PushTzSmppTransport(SmppTransport):
     
     regex_plus = re.compile("^\+")
@@ -42,26 +44,6 @@ class PushTzSmppTransport(SmppTransport):
         if (not re.match(self.regex_plus, kwargs.get('source_addr'))):
             kwargs.update({'source_addr': ('+%s' % kwargs.get('source_addr'))})        
         super(PushTzSmppTransport, self).deliver_sm(*args, **kwargs)
-
-    @inlineCallbacks    
-    def setup_middleware(self):
-        middlewares = yield setup_middlewares_from_config(self, self.config)
-        self._middlewares = CustomMiddlewareStack(middlewares)
- 
-    def _process_message(self, message):
-        def _send_failure(f):
-            self.send_failure(message, f.value, f.getTraceback())
-            log.err(f)
-            if self.SUPPRESS_FAILURE_EXCEPTIONS:
-                return None
-            return f
-        
-        d = self._middlewares.apply_consume("outbound", message,
-                                            self.transport_name)
-        d.addCallback(self.handle_outbound_message)
-        d.addErrback(self._middlewares.process_control_flag)        
-        d.addErrback(_send_failure)
-        return d    
 
 
 class PushTzEsmeTransceiverFactory(EsmeTransceiverFactory):
