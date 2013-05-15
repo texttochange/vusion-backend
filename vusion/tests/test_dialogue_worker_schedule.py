@@ -748,7 +748,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         schedules = self.collections['schedules'].find()
         self.assertEqual(schedules[0]['participant-phone'], '07')
 
-    def test_schedule_unattach_message_selector(self):
+    def test_schedule_unattach_message_match(self):
         for program_setting in self.program_settings:
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()        

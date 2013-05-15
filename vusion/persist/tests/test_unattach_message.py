@@ -62,6 +62,7 @@ class TestUnattachMessage(TestCase, ObjectMaker):
         self.assertEqual(unattach['send-to-match-operator'], 'any')
         self.assertTrue('send-to-match-conditions' in unattach)
         self.assertEqual(unattach['send-to-match-conditions'], ['a tag'])
+        self.assertTrue('created-by' in unattach)
         
 
     def test_upgrade_none(self):        
@@ -127,6 +128,27 @@ class TestUnattachMessage(TestCase, ObjectMaker):
                 {'profile': {'$elemMatch' : {'label': 'city', 'value': 'kampala'}}},
                 {'profile': {'$elemMatch' : {'label': 'born', 'value': 'jinja'}}}]},
             unattach.get_selector_as_query())       
+
+    def test_get_query_phone(self):
+            unattach = UnattachMessage(
+                **self.mkobj_unattach_message(send_to_type='phone',
+                                              send_to_phone=['+256788601462']))
+            self.assertEqual(
+                {'phone': {'$in': ['+256788601462']}},
+                unattach.get_selector_as_query())
+
+    def test_is_selectable_phone(self):
+        selectable_participant = Participant(**self.mkobj_participant_v2(
+            participant_phone='+06'))
+        not_selectable_participant = Participant(**self.mkobj_participant_v2(
+            participant_phone='+07'))
+        
+        unattach = UnattachMessage(
+            **self.mkobj_unattach_message(send_to_type='phone',
+                                          send_to_phone=['+06']))
+
+        self.assertTrue(unattach.is_selectable(selectable_participant))        
+        self.assertFalse(unattach.is_selectable(not_selectable_participant))
 
     def test_is_selectable_all(self):
         participant = Participant(
