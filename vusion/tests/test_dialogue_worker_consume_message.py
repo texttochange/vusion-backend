@@ -445,6 +445,34 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
                          status['failure-reason'])
 
     @inlineCallbacks
+    def test_receive_delivery_failure_no_details(self):
+        for program_setting in self.mkobj_program_settings():
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        past = self.worker.get_local_time() - timedelta(hours=5)
+                            
+        event = self.mkmsg_delivery_for_send(
+            delivery_status='failed',
+            user_message_id='1')
+
+        history = self.mkobj_history_unattach(
+            '4',
+            time_to_vusion_format(past), 
+            message_direction='outgoing',
+            message_status='pending',
+            message_id='1')
+       
+        self.collections['history'].save(history)
+
+        yield self.send(event, 'event')
+
+        history = self.collections['history'].find_one({
+            'message-id': event['user_message_id']})
+
+        self.assertEqual('failed', history['message-status'])
+        self.assertEqual('Code:unknown Level:unknown Message:unknown', history['failure-reason'])
+
+    @inlineCallbacks
     def test_receive_ack(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
