@@ -289,9 +289,9 @@ class DialogueWorker(ApplicationWorker):
             history['message-status'] = message['delivery_status']
             if (message['delivery_status'] == 'failed'):
                 history['failure-reason'] = ("Code:%s Level:%s Message:%s" % (
-                    message['failure_code'],
-                    message['failure_level'],
-                    message['failure_reason']))
+                    message.get('failure_code', 'unknown'),
+                    message.get('failure_level', 'unknown'),
+                    message.get('failure_reason', 'unknown')))
         self.collections['history'].save(history)
 
     def get_matching_request_actions(self, content, actions, context):

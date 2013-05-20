@@ -23,6 +23,8 @@ from vumi.transports.tests.test_base import TransportTestCase
 from transports.push_tz_smpp import PushTzSmppTransport
 
 import redis
+
+
 class RedisTestEsmeTransceiver(EsmeTransceiver):
 
     def send_pdu(self, pdu):
