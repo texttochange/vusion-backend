@@ -101,7 +101,7 @@ class DialogueWorker(ApplicationWorker):
         self.control_consumer = yield self.consume(
             '%(control_name)s.control' % self.config,
             self.consume_control,
-            message_class=WorkerControl)
+            message_class=Message)
         self._consumers.append(self.control_consumer)
 
         self.sender = reactor.callLater(2, self.daemon_process)
@@ -250,7 +250,9 @@ class DialogueWorker(ApplicationWorker):
     def consume_control(self, message):
         try:
             self.log("Control message received to %r" % (message,))
-            self.load_settings()
+	    message = WorkerControl(**message.payload)
+	    if message['action'] == 'reload_program_settings':
+		self.load_settings()
             if (not self.is_ready()):
                 self.log("Worker is not ready, cannot performe the action.")
                 return

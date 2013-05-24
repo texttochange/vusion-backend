@@ -1,5 +1,7 @@
 from twisted.internet.defer import inlineCallbacks
 
+from vumi.message import Message
+
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from vusion.tests.test_dialogue_worker import DialogueWorkerTestCase
 
@@ -117,3 +119,18 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
     
         self.assertEqual(self.worker.properties['timezone'], 'Europe/Paris')
     
+
+    @inlineCallbacks
+    def test_consume_control_badly_formated(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+    
+        program_setting = self.collections['program_settings'].find_one({'key': 'timezone'})
+        program_setting['value'] = 'Europe/Paris'
+        self.collections['program_settings'].save(program_setting)
+    
+        event = Message(**{'action': 'reload-program_settings'})
+        yield self.send(event, 'control')
+        self.assertEqual(self.worker.properties['timezone'], 'Africa/Kampala')
+        
