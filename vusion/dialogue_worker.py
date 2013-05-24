@@ -23,6 +23,7 @@ from vumi.message import Message, TransportUserMessage, TransportEvent
 from vumi.application import SessionManager
 from vumi import log
 from vumi.utils import get_first_word
+from vumi.errors import VumiError
 
 from vusion.persist import (Dialogue, FeedbackSchedule, UnattachSchedule,
                             schedule_generator, Participant, UnattachMessage)
@@ -269,10 +270,12 @@ class DialogueWorker(ApplicationWorker):
                 self.send_all_messages(dialogue, message['phone_number'])
             elif message['action'] == 'update_registered_keywords':
                 self.register_keywords_in_dispatcher()
+	except (VusionError, VumiError) as e:
+	    self.log('ERROR: %s(%s)' % (e.__class__.__name__, e.message), level='error')
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log(
-                "Error during consume control message: %r" %
+                "UNKNOWN ERROR during consume control message: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
 
     def dispatch_event(self, message):
