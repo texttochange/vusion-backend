@@ -1,15 +1,56 @@
-from vusion.error import MissingField, VusionError
+from vusion.error import MissingField, VusionError, InvalidField
+from vusion.persist.vusion_model import VusionModel
 
+class Action(VusionModel):
 
-class Action(object):
-
+    MODEL_TYPE = 'action'
+    MODEL_VERSION = '2'
+    
     ACTION_TYPE = None
 
-    def __init__(self, _process_fields=True, **kwargs):
-        if _process_fields:
-            kwargs = self.process_fields(kwargs)
-        self.payload = kwargs
-        self.validate_fields()
+    fields = {
+        'subconditions': {
+            'required': False,
+            'valid_conditions': lambda v: getattr(v, 'valid_conditions')(),
+            },
+        'condition-operator': {
+            'required': False,
+            'valid_value': lambda v: v['condition-operator'] in ['all', 'any']
+            },
+        'set-condition': {
+            'required': True,
+            'valid_value': lambda v: v['set-condition'] in [None, 'condition'],
+            'required_subfield': lambda v: getattr(v, 'required_subfields')(v['set-condition'],
+                                                   {'condition':['subconditions', 'condition-operator']}),
+            },        
+        'type-action': {
+            'required': True,
+            'valid_value': lambda v: v['type-action'] in [
+                'optin', 
+                'optout',
+                'tagging',
+                'delayed-enrolling']
+            },
+        }
+
+    condition_fields = {
+        'condition-field': {
+            'valid_value': lambda v: re.match(re.compile('^[\w-]*$'), v)
+            },
+        'condition-operator': {
+            'valid_value': lambda v: v in ['in', 'not-in']
+            },
+        'condition-parameter': {
+            'valid_value': lambda v: True
+        }
+    }
+
+    def upgrade(self, **kwargs):
+        if kwargs['model-version'] is '1':
+            kwargs['set-condition'] = None
+            kwargs['model-version'] = '2'
+            return self.upgrade(**kwargs)
+        return kwargs
 
     def __eq__(self, other):
         if isinstance(other, Action):
@@ -32,7 +73,35 @@ class Action(object):
         return fields
 
     def validate_fields(self):
-        pass
+        for field, rules in self.fields.items():
+            for name, rule in rules.items():
+                if name is 'required':
+                    if not rule and not field in self:
+                        break
+                    else:
+                        continue
+                if not rule(self):
+                    raise InvalidField("%s=%s is not %s" % (field, self[field], name))
+
+    def valid_conditions(self):
+        if not 'conditions' in self:
+            return True
+        for condition in conditions:
+            for field, rules in cls.condition_fields:
+                if field not in condition:
+                    MissingField(field)
+                for rule in rules:
+                    if not rule(condition[field]):
+                        raise InvalidField(field)
+        return True
+
+    def required_subfields(self, field, subfields):
+        if field is None:
+            return True
+        for subfield in subfields[field]:
+            if not subfield in self:
+                raise MissingField(subfield)
+        return True
 
     def get_type(self):
         return self.ACTION_TYPE
@@ -41,6 +110,11 @@ class Action(object):
         for field in fields:
             if field not in self.payload:
                 raise MissingField(field)
+
+    def assert_subfield_present(self, field, *subfields):
+        for subfield in subfields:
+            if subfield not in self[field]:
+                raise MissingField(subfield)
 
     def get_as_dict(self):
         action_dict = {'type-action': self.get_type()}
@@ -54,7 +128,7 @@ class OptinAction(Action):
     ACTION_TYPE = 'optin'
 
     def validate_fields(self):
-        pass
+        super(OptinAction, self).validate_fields()        
 
 
 class OptoutAction(Action):
@@ -62,7 +136,7 @@ class OptoutAction(Action):
     ACTION_TYPE = 'optout'
 
     def validate_fields(self):
-        pass
+        super(OptoutAction, self).validate_fields()
 
 
 class ResetAction(Action):
@@ -70,7 +144,7 @@ class ResetAction(Action):
     ACTION_TYPE = 'reset'
 
     def validate_fields(self):
-        pass
+        super(ResetAction, self).validate_fields()        
 
 
 class FeedbackAction(Action):
@@ -78,6 +152,7 @@ class FeedbackAction(Action):
     ACTION_TYPE = 'feedback'
 
     def validate_fields(self):
+        super(FeedbackAction, self).validate_fields()        
         self.assert_field_present('content')
 
 
@@ -86,6 +161,7 @@ class UnMatchingAnswerAction(Action):
     ACTION_TYPE = 'unmatching-answer'
 
     def validate_fields(self):
+        super(UnMatchingAnswerAction, self).validate_fields()        
         self.assert_field_present('answer')
 
 
@@ -94,6 +170,7 @@ class TaggingAction(Action):
     ACTION_TYPE = 'tagging'
 
     def validate_fields(self):
+        super(TaggingAction, self).validate_fields()        
         self.assert_field_present('tag')
 
 
@@ -102,6 +179,7 @@ class EnrollingAction(Action):
     ACTION_TYPE = 'enrolling'
 
     def validate_fields(self):
+        super(EnrollingAction, self).validate_fields()        
         self.assert_field_present('enroll')
 
 
@@ -110,9 +188,14 @@ class DelayedEnrollingAction(Action):
     ACTION_TYPE = 'delayed-enrolling'
 
     def validate_fields(self):
+        super(DelayedEnrollingAction, self).validate_fields()        
         self.assert_field_present(
             'enroll',
             'offset-days')
+        self.assert_subfield_present(
+            'offset-days',
+            'days',
+            'at-time')
 
 
 class ProfilingAction(Action):
@@ -120,6 +203,7 @@ class ProfilingAction(Action):
     ACTION_TYPE = 'profiling'
 
     def validate_fields(self):
+        super(ProfilingAction, self).validate_fields()        
         self.assert_field_present('label', 'value')
     
 
@@ -128,6 +212,7 @@ class RemoveQuestionAction(Action):
     ACTION_TYPE = 'remove-question'
 
     def validate_fields(self):
+        super(RemoveQuestionAction, self).validate_fields()        
         self.assert_field_present('dialogue-id', 'interaction-id')
 
 
@@ -136,6 +221,7 @@ class RemoveRemindersAction(Action):
     ACTION_TYPE = 'remove-reminders'
 
     def validate_fields(self):
+        super(RemoveRemindersAction, self).validate_fields()        
         self.assert_field_present('dialogue-id', 'interaction-id')
 
 
@@ -144,6 +230,7 @@ class RemoveDeadlineAction(Action):
     ACTION_TYPE = 'remove-deadline'
 
     def validate_fields(self):
+        super(RemoveDeadlineAction, self).validate_fields()        
         self.assert_field_present('dialogue-id', 'interaction-id')
 
 
@@ -152,6 +239,7 @@ class OffsetConditionAction(Action):
     ACTION_TYPE = 'offset-conditioning'
 
     def validate_fields(self):
+        super(OffsetConditionAction, self).validate_fields()        
         self.assert_field_present('interaction-id', 'dialogue-id')
 
 
@@ -183,7 +271,7 @@ def action_generator(**kwargs):
         return RemoveDeadlineAction(**kwargs)
     elif kwargs['type-action'] == 'offset-conditioning':
         return OffsetConditionAction(**kwargs)
-    raise VusionError("%s not supported" % kwargs['type-answer-action'])
+    raise VusionError("%r not supported" % kwargs)
 
 
 class Actions():
