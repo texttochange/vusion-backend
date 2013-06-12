@@ -339,7 +339,6 @@ class DialogueWorker(ApplicationWorker):
 
     def run_action(self, participant_phone, action, context=Context(),
                    participant_session_id=None):
-        regex_ANSWER = re.compile('ANSWER')
         self.log(("Run action for %s %s" % (participant_phone, action,)))
         if (action.get_type() == 'optin'):
             participant = self.get_participant(participant_phone)
@@ -388,6 +387,7 @@ class DialogueWorker(ApplicationWorker):
                 '_id': ObjectId(setting['value'])})
             if template is None:
                 return
+	    regex_ANSWER = re.compile('ANSWER')	    
             error_message = re.sub(regex_ANSWER,
                                    action['answer'],
                                    template['template'])
