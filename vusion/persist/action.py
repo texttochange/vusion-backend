@@ -115,7 +115,6 @@ class Action(VusionModel):
         parameter_regex = re.compile(operators[subconditon['subcondition-operator']])
         if not parameter_regex.match(subconditon['subcondition-parameter']):
             raise InvalidField("%s=%s is not valid" % ('subcondition-parameter', subconditon['subcondition-parameter']))
-            
         
     def required_subfields(self, field, subfields):
         if field is None:
@@ -182,7 +181,18 @@ class Action(VusionModel):
                 return {'$and': query}
             elif self['condition-operator'] == 'any':
                 return {'$or': query}
-                
+        
+    def get_condition_mongodb_for(self, phone, session_id):
+        query = self.get_condition_mongodb()
+        if '$and' in query:
+            query['$and'].insert(0, {'phone': phone, 'session_id': session_id})
+        elif '$or' in query:
+            query = {'$and': [{'phone': phone,'session_id': session_id},
+                              query]}
+        else:
+            query.update({'phone': phone,
+                          'session_id': session_id})
+        return query
 
 
 class OptinAction(Action):

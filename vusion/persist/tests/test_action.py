@@ -138,3 +138,67 @@ class TestAction(TestCase, ObjectMaker):
                 a.get_condition_mongodb(),
                 {'profile': {'$elemMatch': {'label': 'gender',
                                             'value': 'male'}}})
+
+
+    def test_get_condition_mongodb_for(self):
+        action = {
+            'model-type': 'action',
+            'model-version': '2',
+            'set-condition': 'condition',
+            'condition-operator': 'all',
+            'subconditions': [{
+                'subcondition-field': 'tagged',
+                'subcondition-operator': 'in',
+                'subcondition-parameter': 'geek',}],
+            'type-action': 'tagging',
+            'tag': 'mytag'}
+        a = action_generator(**action)
+        self.assertEqual(
+            a.get_condition_mongodb_for('08', '1'),
+            {'phone': '08',
+             'session_id': '1',
+             'tags': {'$in': 'geek'}})
+        
+    def test_get_condition_mongodb_for_all(self):
+        action = {
+            'model-type': 'action',
+            'model-version': '2',
+            'set-condition': 'condition',
+            'condition-operator': 'all',
+            'subconditions': [
+                {'subcondition-field': 'tagged',
+                 'subcondition-operator': 'in',
+                 'subcondition-parameter': 'geek'},
+                {'subcondition-field': 'tagged',
+                 'subcondition-operator': 'in',
+                 'subcondition-parameter': 'cool'}],
+            'type-action': 'tagging',
+            'tag': 'mytag'}
+        a = action_generator(**action)
+        self.assertEqual(
+            a.get_condition_mongodb_for('08', '1'),
+            {'$and': [{'phone': '08','session_id': '1'},
+                      {'tags': {'$in': 'geek'}},
+                      {'tags': {'$in': 'cool'}}]})
+
+    def test_get_condition_mongodb_for_any(self):
+        action = {
+            'model-type': 'action',
+            'model-version': '2',
+            'set-condition': 'condition',
+            'condition-operator': 'any',
+            'subconditions': [
+                {'subcondition-field': 'tagged',
+                 'subcondition-operator': 'in',
+                 'subcondition-parameter': 'geek'},
+                {'subcondition-field': 'tagged',
+                 'subcondition-operator': 'in',
+                 'subcondition-parameter': 'cool'}],
+            'type-action': 'tagging',
+            'tag': 'mytag'}
+        a = action_generator(**action)
+        self.assertEqual(
+            a.get_condition_mongodb_for('08', '1'),
+            {'$and': [{'phone': '08','session_id': '1'},
+                      {'$or': [{'tags': {'$in': 'geek'}},
+                               {'tags': {'$in': 'cool'}}]}]})
