@@ -1,3 +1,5 @@
+import re
+
 from vusion.error import MissingField, VusionError, InvalidField
 from vusion.persist.vusion_model import VusionModel
 
@@ -20,8 +22,9 @@ class Action(VusionModel):
         'set-condition': {
             'required': True,
             'valid_value': lambda v: v['set-condition'] in [None, 'condition'],
-            'required_subfield': lambda v: getattr(v, 'required_subfields')(v['set-condition'],
-                                                   {'condition':['subconditions', 'condition-operator']}),
+            'required_subfield': lambda v: getattr(v, 'required_subfields')(
+                v['set-condition'],
+                {'condition':['subconditions', 'condition-operator']}),
             },        
         'type-action': {
             'required': True,
@@ -33,16 +36,25 @@ class Action(VusionModel):
             },
         }
 
-    condition_fields = {
-        'condition-field': {
-            'valid_value': lambda v: re.match(re.compile('^[\w-]*$'), v)
+    subcondition_fields = {
+        'subcondition-field': {
+            'required': True,
             },
-        'condition-operator': {
-            'valid_value': lambda v: v in ['in', 'not-in']
+        'subcondition-operator': {
+            'required': True,
             },
-        'condition-parameter': {
-            'valid_value': lambda v: True
+        'subcondition-parameter': {
+            'required': True,
         }
+    }
+        
+    subcondition_values = {
+        'tagged':{
+            'in': '.*',
+            'not-in': '.*'},
+        'labelled':{
+            'in': '.*:.*',
+            'not-in': '.*:.*'},
     }
 
     def upgrade(self, **kwargs):
@@ -73,28 +85,38 @@ class Action(VusionModel):
         return fields
 
     def validate_fields(self):
-        for field, rules in self.fields.items():
-            for name, rule in rules.items():
-                if name is 'required':
-                    if not rule and not field in self:
-                        break
-                    else:
-                        continue
-                if not rule(self):
-                    raise InvalidField("%s=%s is not %s" % (field, self[field], name))
+        self._validate(self, self.fields)
 
     def valid_conditions(self):
-        if not 'conditions' in self:
+        if not 'subconditions' in self:
             return True
-        for condition in conditions:
-            for field, rules in cls.condition_fields:
-                if field not in condition:
-                    MissingField(field)
-                for rule in rules:
-                    if not rule(condition[field]):
-                        raise InvalidField(field)
+        for subcondition in self['subconditions']:
+            self._validate(subcondition, self.subcondition_fields)
+            self.valid_subcondition_value(subcondition)
         return True
+    
+    def _validate(self, data, field_rules):
+        for field, rules in field_rules.items():
+            for rule_name, rule in rules.items():
+                if rule_name is 'required':
+                    if not rule and not field in data:
+                        break
+                    else: 
+                        continue
+                if not rule(data):
+                    raise InvalidField("%s=%s is not %s" % (field, data[field], rule_name))        
 
+    def valid_subcondition_value(self, subconditon):
+        if not subconditon['subcondition-field'] in self.subcondition_values:
+            raise InvalidField("%s=%s is not valid" % ('subcondition-field', subconditon['subcondition-field']))
+        operators = self.subcondition_values[subconditon['subcondition-field']]
+        if not subconditon['subcondition-operator'] in operators:
+            raise InvalidField("%s=%s is not valid" % ('subcondition-operator', subconditon['subcondition-operator']))
+        parameter_regex = re.compile(operators[subconditon['subcondition-operator']])
+        if not parameter_regex.match(subconditon['subcondition-parameter']):
+            raise InvalidField("%s=%s is not valid" % ('subcondition-parameter', subconditon['subcondition-parameter']))
+            
+        
     def required_subfields(self, field, subfields):
         if field is None:
             return True
@@ -121,6 +143,46 @@ class Action(VusionModel):
         for key in self.payload:
             action_dict[key] = self.payload[key]
         return action_dict
+
+    def has_condition(self):
+        return self['set-condition'] == 'condition'
+
+    def get_condition_mongodb(self):
+        if not self.has_condition():
+            return {}
+        query = []
+        for subcondition in self['subconditions']:
+            if subcondition['subcondition-field'] == 'tagged':
+                if subcondition['subcondition-operator'] == 'in':
+                    query.append({
+                        'tags': {'$in': subcondition['subcondition-parameter']}
+                    })
+                elif subcondition['subcondition-operator'] == 'not-in':
+                    query.append({
+                        'tags': {'$in': {'$ne': subcondition['subcondition-parameter']}}
+                    })
+            elif subcondition['subcondition-field'] == 'labelled':
+                profile = subcondition['subcondition-parameter'].split(':')
+                if subcondition['subcondition-operator'] == 'in':
+                    query.append({
+                        'profile': {'$elemMatch': {'label': profile[0],
+                                                    'value': profile[1]}}})
+                elif subcondition['subcondition-parameter'] == 'not-in':
+                    query.append({
+                        'profile': {
+                            '$elemMatch': {
+                                '$or': [{'label': {'$ne': profile[0]},
+                                         'value': {'$ne': profile[1]}}]}}})
+        if len(query) == 0:
+            return {}
+        elif len(query) == 1:
+            return query.pop()
+        elif len(query) > 1:
+            if self['condition-operator'] == 'all':
+                return {'$and': query}
+            elif self['condition-operator'] == 'any':
+                return {'$or': query}
+                
 
 
 class OptinAction(Action):
