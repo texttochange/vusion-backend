@@ -31,8 +31,17 @@ class Action(VusionModel):
             'valid_value': lambda v: v['type-action'] in [
                 'optin', 
                 'optout',
+                'reset',
+                'feedback',
+                'unmatching-answer',
                 'tagging',
-                'delayed-enrolling']
+                'enrolling',
+                'profiling',
+                'delayed-enrolling',
+                'remove-question',
+                'remove-reminders',
+                'remove-deadline',
+                'offset-conditioning']
             },
         }
 
@@ -56,6 +65,10 @@ class Action(VusionModel):
             'in': '.*:.*',
             'not-in': '.*:.*'},
     }
+
+    def __init__(self, **kwargs):
+        kwargs.update({'type-action':self.ACTION_TYPE})
+        super(Action, self).__init__(**kwargs)
 
     def upgrade(self, **kwargs):
         if kwargs['model-version'] is '1':

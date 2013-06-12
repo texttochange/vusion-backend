@@ -34,9 +34,9 @@ from vusion.utils import (time_to_vusion_format, get_local_time,
 from vusion.error import (MissingData, SendingDatePassed, VusionError,
                           MissingTemplate)
 from vusion.message import DispatcherControl, WorkerControl
-from vusion.action import (Actions, action_generator,FeedbackAction,
-                           EnrollingAction, OptinAction, OptoutAction,
-                           RemoveRemindersAction)
+from vusion.persist.action import (Actions, action_generator,FeedbackAction,
+                                   EnrollingAction, OptinAction, OptoutAction,
+                                   RemoveRemindersAction)
 from vusion.context import Context
 from vusion.persist import Request, history_generator, schedule_generator
 
@@ -339,7 +339,12 @@ class DialogueWorker(ApplicationWorker):
 
     def run_action(self, participant_phone, action, context=Context(),
                    participant_session_id=None):
-        self.log(("Run action for %s %s" % (participant_phone, action,)))
+	if action.has_condition():
+	    query = action.get_condition_mongodb_for(participant_phone, participant_session_id)
+	    if not self.collections['participants'].find(query).limit(1):
+		self.log(("Participant %s doesn't satify the condition for action for %s" % (participant_phone, action,)))
+		return
+	self.log(("Run action for %s %s" % (participant_phone, action,)))	    
         if (action.get_type() == 'optin'):
             participant = self.get_participant(participant_phone)
             if participant:

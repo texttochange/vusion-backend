@@ -6,10 +6,10 @@ from vumi.utils import get_first_word
 
 from vusion.persist.vusion_model import VusionModel
 from vusion.error import InvalidField, MissingField
-from vusion.action import (action_generator, FeedbackAction,
-                           UnMatchingAnswerAction, ProfilingAction,
-                           RemoveDeadlineAction, RemoveQuestionAction,
-                           RemoveRemindersAction)
+from vusion.persist.action import (action_generator, FeedbackAction,
+                                   UnMatchingAnswerAction, ProfilingAction,
+                                   RemoveDeadlineAction, RemoveQuestionAction,
+                                   RemoveRemindersAction)
 from vusion.utils import time_from_vusion_format, time_to_vusion_format
 
 class Interaction(VusionModel):

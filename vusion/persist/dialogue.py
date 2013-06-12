@@ -2,10 +2,10 @@ from copy import copy
 
 from vumi import log
 from vumi.utils import get_first_word
-from vusion.action import (UnMatchingAnswerAction, FeedbackAction,
-                           action_generator, ProfilingAction,
-                           OffsetConditionAction, RemoveRemindersAction,
-                           RemoveDeadlineAction, RemoveQuestionAction)
+from vusion.persist.action import (UnMatchingAnswerAction, FeedbackAction,
+                                   action_generator, ProfilingAction,
+                                   OffsetConditionAction, RemoveRemindersAction,
+                                   RemoveDeadlineAction, RemoveQuestionAction)
 from vusion.persist.vusion_model import VusionModel
 from vusion.persist.interaction import Interaction
 

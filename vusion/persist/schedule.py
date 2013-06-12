@@ -2,7 +2,7 @@ import re
 from datetime import timedelta
 
 from vusion.error import VusionError, InvalidField
-from vusion.action import action_generator
+from vusion.persist.action import action_generator
 from vusion.persist.vusion_model import VusionModel
 from vusion.context import Context
 from vusion.utils import time_from_vusion_format

@@ -1,10 +1,10 @@
 from twisted.trial.unittest import TestCase
 
 from vusion.persist import Dialogue
-from vusion.action import (FeedbackAction, UnMatchingAnswerAction,
-                           ProfilingAction, OffsetConditionAction,
-                           RemoveRemindersAction, RemoveDeadlineAction,
-                           RemoveQuestionAction, Actions)
+from vusion.persist.action import (FeedbackAction, UnMatchingAnswerAction,
+                                   ProfilingAction, OffsetConditionAction,
+                                   RemoveRemindersAction, RemoveDeadlineAction,
+                                   RemoveQuestionAction, Actions)
 from vusion.context import Context
 
 from tests.utils import ObjectMaker

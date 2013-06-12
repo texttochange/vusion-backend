@@ -13,12 +13,12 @@ from vumi.tests.utils import get_stubbed_worker, UTCNearNow, RegexMatcher
 from vusion.dialogue_worker import DialogueWorker
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from vusion.error import MissingData, MissingTemplate
-from vusion.action import (UnMatchingAnswerAction, EnrollingAction,
-                           FeedbackAction, OptinAction, OptoutAction,
-                           TaggingAction, ProfilingAction,
-                           OffsetConditionAction, RemoveRemindersAction,
-                           ResetAction, RemoveDeadlineAction,
-                           DelayedEnrollingAction, action_generator, Actions)
+from vusion.persist.action import (UnMatchingAnswerAction, EnrollingAction,
+                                   FeedbackAction, OptinAction, OptoutAction,
+                                   TaggingAction, ProfilingAction,
+                                   OffsetConditionAction, RemoveRemindersAction,
+                                   ResetAction, RemoveDeadlineAction,
+                                   DelayedEnrollingAction, action_generator, Actions)
 from vusion.context import Context
 from vusion.persist import Dialogue
 

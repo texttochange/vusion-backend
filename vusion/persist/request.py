@@ -1,5 +1,5 @@
 from vusion.persist.vusion_model import VusionModel
-from vusion.action import Actions, action_generator, FeedbackAction
+from vusion.persist.action import Actions, action_generator, FeedbackAction
 
 
 class Request(VusionModel):

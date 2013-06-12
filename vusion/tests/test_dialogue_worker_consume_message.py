@@ -19,7 +19,7 @@ from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 from vusion.tests.test_dialogue_worker import DialogueWorkerTestCase
 
 from vusion.persist import Dialogue, history_generator
-from vusion.action import Actions
+from vusion.persist.action import Actions
 
 
 class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
