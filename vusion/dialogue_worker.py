@@ -357,7 +357,8 @@ class DialogueWorker(ApplicationWorker):
                               'last-optout-date': None,
                               'tags': [],
                               'enrolled': [],
-                              'profile': [] }})
+                              'profile': [] }},
+		    safe=True)
             else:
                 self.collections['participants'].save(
                     self.create_participant(participant_phone),
@@ -370,7 +371,8 @@ class DialogueWorker(ApplicationWorker):
             self.collections['participants'].update(
                 {'phone': participant_phone},
                 {'$set': {'session-id': None,
-                          'last-optout-date': time_to_vusion_format(self.get_local_time())}})
+                          'last-optout-date': time_to_vusion_format(self.get_local_time())}},
+	        safe=True)
             self.collections['schedules'].remove({
                 'participant-phone': participant_phone,
                 'object-type': {'$ne': 'feedback-schedule'}})
@@ -409,14 +411,16 @@ class DialogueWorker(ApplicationWorker):
                 {'phone': participant_phone,
                  'session-id': {'$ne': None},
                  'tags': {'$ne': action['tag']}},
-                {'$push': {'tags': action['tag']}})
+                {'$push': {'tags': action['tag']}},
+	        safe=True)
         elif (action.get_type() == 'enrolling'):
             self.run_action(participant_phone, OptinAction())
             self.collections['participants'].update(
                 {'phone': participant_phone,
                  'enrolled.dialogue-id': {'$ne': action['enroll']}},
                 {'$push': {'enrolled': {'dialogue-id': action['enroll'],
-                                        'date-time': time_to_vusion_format(self.get_local_time())}}})
+                                        'date-time': time_to_vusion_format(self.get_local_time())}}},
+	        safe=True)
             dialogue = self.get_current_dialogue(action['enroll'])
             if dialogue is None:
                 self.log(("Enrolling error: Missing Dialogue %s" % action['enroll']))
@@ -443,7 +447,8 @@ class DialogueWorker(ApplicationWorker):
                  'session-id': {'$ne': None}},
                 {'$push': {'profile': {'label': action['label'],
                                         'value': action['value'],
-                                        'raw': context['message']}}})
+                                        'raw': context['message']}}},
+	        safe=True)
         elif (action.get_type() == 'offset-conditioning'):
             participant = self.get_participant(participant_phone, True)
             if participant is None:
