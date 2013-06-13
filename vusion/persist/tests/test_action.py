@@ -77,7 +77,7 @@ class TestAction(TestCase, ObjectMaker):
         a = action_generator(**action)
         self.assertEqual(
             a.get_condition_mongodb(),
-            {'tags': {'$in': 'geek'}})
+            {'tags': 'geek'})
     
     def test_get_condition_mongodb_twosubcondition_all(self):
         action = {
@@ -97,8 +97,8 @@ class TestAction(TestCase, ObjectMaker):
         a = action_generator(**action)
         self.assertEqual(
             a.get_condition_mongodb(),
-            {'$and': [{'tags': {'$in': 'geek'}},
-                      {'tags': {'$in': {'$ne': 'french'}}}]})
+            {'$and': [{'tags': 'geek'},
+                      {'tags': {'$ne': 'french'}}]})
 
     def test_get_condition_mongodb_twosubcondition_any(self):
         action = {
@@ -118,8 +118,8 @@ class TestAction(TestCase, ObjectMaker):
         a = action_generator(**action)
         self.assertEqual(
             a.get_condition_mongodb(),
-            {'$or': [{'tags': {'$in': 'geek'}},
-                      {'tags': {'$in': {'$ne': 'french'}}}]})
+            {'$or': [{'tags': 'geek'},
+                      {'tags': {'$ne': 'french'}}]})
 
     def test_get_condition_mongodb_onesubconditionLabel(self):
             action = {
@@ -156,8 +156,8 @@ class TestAction(TestCase, ObjectMaker):
         self.assertEqual(
             a.get_condition_mongodb_for('08', '1'),
             {'phone': '08',
-             'session_id': '1',
-             'tags': {'$in': 'geek'}})
+             'session-id': '1',
+             'tags': 'geek'})
         
     def test_get_condition_mongodb_for_all(self):
         action = {
@@ -177,9 +177,9 @@ class TestAction(TestCase, ObjectMaker):
         a = action_generator(**action)
         self.assertEqual(
             a.get_condition_mongodb_for('08', '1'),
-            {'$and': [{'phone': '08','session_id': '1'},
-                      {'tags': {'$in': 'geek'}},
-                      {'tags': {'$in': 'cool'}}]})
+            {'$and': [{'phone': '08','session-id': '1'},
+                      {'tags': 'geek'},
+                      {'tags': 'cool'}]})
 
     def test_get_condition_mongodb_for_any(self):
         action = {
@@ -199,6 +199,6 @@ class TestAction(TestCase, ObjectMaker):
         a = action_generator(**action)
         self.assertEqual(
             a.get_condition_mongodb_for('08', '1'),
-            {'$and': [{'phone': '08','session_id': '1'},
-                      {'$or': [{'tags': {'$in': 'geek'}},
-                               {'tags': {'$in': 'cool'}}]}]})
+            {'$and': [{'phone': '08','session-id': '1'},
+                      {'$or': [{'tags': 'geek'},
+                               {'tags': 'cool'}]}]})

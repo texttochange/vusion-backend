@@ -167,11 +167,11 @@ class Action(VusionModel):
             if subcondition['subcondition-field'] == 'tagged':
                 if subcondition['subcondition-operator'] == 'in':
                     query.append({
-                        'tags': {'$in': subcondition['subcondition-parameter']}
+                        'tags': subcondition['subcondition-parameter']
                     })
                 elif subcondition['subcondition-operator'] == 'not-in':
                     query.append({
-                        'tags': {'$in': {'$ne': subcondition['subcondition-parameter']}}
+                        'tags': {'$ne': subcondition['subcondition-parameter']}
                     })
             elif subcondition['subcondition-field'] == 'labelled':
                 profile = subcondition['subcondition-parameter'].split(':')
@@ -179,7 +179,7 @@ class Action(VusionModel):
                     query.append({
                         'profile': {'$elemMatch': {'label': profile[0],
                                                     'value': profile[1]}}})
-                elif subcondition['subcondition-parameter'] == 'not-in':
+                elif subcondition['subcondition-operator'] == 'not-in':
                     query.append({
                         'profile': {
                             '$elemMatch': {
@@ -198,13 +198,13 @@ class Action(VusionModel):
     def get_condition_mongodb_for(self, phone, session_id):
         query = self.get_condition_mongodb()
         if '$and' in query:
-            query['$and'].insert(0, {'phone': phone, 'session_id': session_id})
+            query['$and'].insert(0, {'phone': phone, 'session-id': session_id})
         elif '$or' in query:
-            query = {'$and': [{'phone': phone,'session_id': session_id},
+            query = {'$and': [{'phone': phone,'session-id': session_id},
                               query]}
         else:
             query.update({'phone': phone,
-                          'session_id': session_id})
+                          'session-id': session_id})
         return query
 
 

@@ -451,3 +451,61 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         reset_participant = self.collections['participants'].find_one({'phone':'06'})
         
         self.assertEqual(reset_participant['profile'], [])
+
+    def test_run_conditional_action(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        
+        self.collections['participants'].save(self.mkobj_participant(
+            '08',
+            session_id='01',
+            tags=['geek'],
+            profile=[{'label': 'name',
+                     'value': 'Oliv'}]))
+
+        ## Simple Condition
+        self.worker.run_action("08", TaggingAction(**{
+            'model-version': '2',
+            'set-condition': 'condition',
+            'condition-operator': 'all',
+            'subconditions':[{
+                'subcondition-field': 'labelled',
+                'subcondition-operator': 'not-in',
+                'subcondition-parameter': 'name:Oliv'
+            }],
+            'tag': 'my tag'}),
+            participant_session_id='01')
+        participant = self.collections['participants'].find_one({'phone':'08'})
+        self.assertEqual(
+            ['geek'],
+            participant['tags'])
+        
+        ## Simple Condition
+        self.worker.run_action(
+            "08", 
+            TaggingAction(**{
+                'model-version': '2',
+                'set-condition': 'condition',
+                'condition-operator': 'any',
+                'subconditions':[
+                    {'subcondition-field': 'labelled',
+                     'subcondition-operator': 'not-in',
+                     'subcondition-parameter': 'name:Oliv'},
+                    {'subcondition-field': 'tagged',
+                     'subcondition-operator': 'in',
+                     'subcondition-parameter': 'geek'},                
+                    ],
+                'tag': 'my second tag'}),
+            participant_session_id='01')
+        participant = self.collections['participants'].find_one({'phone':'08'})
+        self.assertEqual(
+            ['geek', 'my second tag'],
+            participant['tags'])        
+        
+        #self.worker.run_action("08", TaggingAction(**{'tag': 'my second tag'}))
+        #self.assertTrue(self.collections['participants'].find_one({'tags': 'my tag'}))
+        #self.worker.run_action("08", TaggingAction(**{'tag': 'my tag'}))
+        #self.assertEqual(
+            #['geek', 'my tag', 'my second tag'],
+        #self.collections['participants'].find_one({'tags': 'my tag'})['tags'])

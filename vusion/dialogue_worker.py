@@ -341,7 +341,7 @@ class DialogueWorker(ApplicationWorker):
                    participant_session_id=None):
 	if action.has_condition():
 	    query = action.get_condition_mongodb_for(participant_phone, participant_session_id)
-	    if not self.collections['participants'].find(query).limit(1):
+	    if self.collections['participants'].find(query).limit(1).count()==0:
 		self.log(("Participant %s doesn't satify the condition for action for %s" % (participant_phone, action,)))
 		return
 	self.log(("Run action for %s %s" % (participant_phone, action,)))	    
