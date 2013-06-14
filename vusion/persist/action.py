@@ -59,11 +59,11 @@ class Action(VusionModel):
         
     subcondition_values = {
         'tagged':{
-            'in': '.*',
-            'not-in': '.*'},
+            'with': '.*',
+            'not-with': '.*'},
         'labelled':{
-            'in': '.*:.*',
-            'not-in': '.*:.*'},
+            'with': '.*:.*',
+            'not-with': '.*:.*'},
     }
 
     def __init__(self, **kwargs):
@@ -165,21 +165,21 @@ class Action(VusionModel):
         query = []
         for subcondition in self['subconditions']:
             if subcondition['subcondition-field'] == 'tagged':
-                if subcondition['subcondition-operator'] == 'in':
+                if subcondition['subcondition-operator'] == 'with':
                     query.append({
                         'tags': subcondition['subcondition-parameter']
                     })
-                elif subcondition['subcondition-operator'] == 'not-in':
+                elif subcondition['subcondition-operator'] == 'not-with':
                     query.append({
                         'tags': {'$ne': subcondition['subcondition-parameter']}
                     })
             elif subcondition['subcondition-field'] == 'labelled':
                 profile = subcondition['subcondition-parameter'].split(':')
-                if subcondition['subcondition-operator'] == 'in':
+                if subcondition['subcondition-operator'] == 'with':
                     query.append({
                         'profile': {'$elemMatch': {'label': profile[0],
                                                     'value': profile[1]}}})
-                elif subcondition['subcondition-operator'] == 'not-in':
+                elif subcondition['subcondition-operator'] == 'not-with':
                     query.append({
                         'profile': {
                             '$elemMatch': {

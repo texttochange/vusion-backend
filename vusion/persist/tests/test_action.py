@@ -46,7 +46,7 @@ class TestAction(TestCase, ObjectMaker):
             'condition-operator': 'all',
             'subconditions': [{
                 'subcondition-field': 'labelled',
-                'subcondition-operator': 'in',
+                'subcondition-operator': 'with',
                 'subcondition-parameter': 'type:geek',}],
             'type-action': 'tagging',
             'tag': 'mytag'}
@@ -70,7 +70,7 @@ class TestAction(TestCase, ObjectMaker):
             'condition-operator': 'all',
             'subconditions': [{
                 'subcondition-field': 'tagged',
-                'subcondition-operator': 'in',
+                'subcondition-operator': 'with',
                 'subcondition-parameter': 'geek',}],
             'type-action': 'tagging',
             'tag': 'mytag'}
@@ -87,10 +87,10 @@ class TestAction(TestCase, ObjectMaker):
             'condition-operator': 'all',
             'subconditions': [
                 {'subcondition-field': 'tagged',
-                 'subcondition-operator': 'in',
+                 'subcondition-operator': 'with',
                  'subcondition-parameter': 'geek'},
                 {'subcondition-field': 'tagged',
-                 'subcondition-operator': 'not-in',
+                 'subcondition-operator': 'not-with',
                  'subcondition-parameter': 'french'}],
             'type-action': 'tagging',
             'tag': 'mytag'}
@@ -108,10 +108,10 @@ class TestAction(TestCase, ObjectMaker):
             'condition-operator': 'any',
             'subconditions': [
                 {'subcondition-field': 'tagged',
-                 'subcondition-operator': 'in',
+                 'subcondition-operator': 'with',
                  'subcondition-parameter': 'geek'},
                 {'subcondition-field': 'tagged',
-                 'subcondition-operator': 'not-in',
+                 'subcondition-operator': 'not-with',
                  'subcondition-parameter': 'french'}],
             'type-action': 'tagging',
             'tag': 'mytag'}
@@ -129,7 +129,7 @@ class TestAction(TestCase, ObjectMaker):
                 'condition-operator': 'all',
                 'subconditions': [{
                     'subcondition-field': 'labelled',
-                    'subcondition-operator': 'in',
+                    'subcondition-operator': 'with',
                     'subcondition-parameter': 'gender:male',}],
                 'type-action': 'tagging',
                 'tag': 'mytag'}
@@ -148,7 +148,7 @@ class TestAction(TestCase, ObjectMaker):
             'condition-operator': 'all',
             'subconditions': [{
                 'subcondition-field': 'tagged',
-                'subcondition-operator': 'in',
+                'subcondition-operator': 'with',
                 'subcondition-parameter': 'geek',}],
             'type-action': 'tagging',
             'tag': 'mytag'}
@@ -167,10 +167,10 @@ class TestAction(TestCase, ObjectMaker):
             'condition-operator': 'all',
             'subconditions': [
                 {'subcondition-field': 'tagged',
-                 'subcondition-operator': 'in',
+                 'subcondition-operator': 'with',
                  'subcondition-parameter': 'geek'},
                 {'subcondition-field': 'tagged',
-                 'subcondition-operator': 'in',
+                 'subcondition-operator': 'with',
                  'subcondition-parameter': 'cool'}],
             'type-action': 'tagging',
             'tag': 'mytag'}
@@ -189,10 +189,10 @@ class TestAction(TestCase, ObjectMaker):
             'condition-operator': 'any',
             'subconditions': [
                 {'subcondition-field': 'tagged',
-                 'subcondition-operator': 'in',
+                 'subcondition-operator': 'with',
                  'subcondition-parameter': 'geek'},
                 {'subcondition-field': 'tagged',
-                 'subcondition-operator': 'in',
+                 'subcondition-operator': 'with',
                  'subcondition-parameter': 'cool'}],
             'type-action': 'tagging',
             'tag': 'mytag'}

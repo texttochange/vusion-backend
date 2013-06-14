@@ -471,7 +471,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             'condition-operator': 'all',
             'subconditions':[{
                 'subcondition-field': 'labelled',
-                'subcondition-operator': 'not-in',
+                'subcondition-operator': 'not-with',
                 'subcondition-parameter': 'name:Oliv'
             }],
             'tag': 'my tag'}),
@@ -490,10 +490,10 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
                 'condition-operator': 'any',
                 'subconditions':[
                     {'subcondition-field': 'labelled',
-                     'subcondition-operator': 'not-in',
+                     'subcondition-operator': 'not-with',
                      'subcondition-parameter': 'name:Oliv'},
                     {'subcondition-field': 'tagged',
-                     'subcondition-operator': 'in',
+                     'subcondition-operator': 'with',
                      'subcondition-parameter': 'geek'},                
                     ],
                 'tag': 'my second tag'}),
