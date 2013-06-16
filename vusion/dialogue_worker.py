@@ -138,7 +138,7 @@ class DialogueWorker(ApplicationWorker):
                 query.update({'session-id':{'$ne': None}})
             return Participant(**self.collections['participants'].find_one(query))
         except TypeError:
-            self.log("Participant %s is not in collection." % participant_phone)
+            self.log("Participant %s is either not optin or not in collection." % participant_phone)
             return None
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -161,7 +161,7 @@ class DialogueWorker(ApplicationWorker):
         return participants
 
     def get_participant_session_id(self, participant_phone):
-        participant = self.get_participant(participant_phone)
+        participant = self.get_participant(participant_phone, only_optin=True)
         if participant is None:
             return None
         else:
@@ -502,7 +502,7 @@ class DialogueWorker(ApplicationWorker):
             if (self.get_participant_session_id(message['from_addr']) is None 
                     and (actions.contains('optin') or actions.contains('enrolling'))):
                 self.run_action(message['from_addr'], actions.get_priority_action())
-            participant = self.get_participant(message['from_addr'])
+            participant = self.get_participant(message['from_addr'], only_optin=True)
             history.update({
                 'message-content': message['content'],
                 'participant-phone': message['from_addr'],

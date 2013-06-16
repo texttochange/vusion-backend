@@ -233,11 +233,27 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual(participant['profile'], [])
 
     @inlineCallbacks
-    def test_receive_inbound_request_not_optin(self):
+    def test_receive_inbound_request_not_opted_in(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()        
         request_id = self.collections['requests'].save(self.mkobj_request_response())
+
+        inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
+                                                     content='wWw info')
+        yield self.send(inbound_msg_matching_request, 'inbound')
+
+        self.assertEqual(1, self.collections['history'].count())
+        self.assertEqual(0, self.collections['schedules'].count())
+
+    @inlineCallbacks
+    def test_receive_inbound_request_opted_out_participant(self):
+        for program_setting in self.mkobj_program_settings():
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()        
+        request_id = self.collections['requests'].save(self.mkobj_request_response())
+        self.collections['participants'].save(self.mkobj_participant(
+                   '07', session_id=None))
 
         inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
                                                      content='wWw info')
@@ -374,7 +390,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         yield self.send(inbound_msg_matching, 'inbound')
         self.assertEqual(None, self.collections['participants'].find_one({'tags':'onetag'}))
         self.assertEqual(0, self.collections['schedules'].count())
-        self.assertEqual(7, self.collections['history'].count())
+        self.assertEqual(6, self.collections['history'].count())
 
     @inlineCallbacks
     def test_receive_delivery(self):

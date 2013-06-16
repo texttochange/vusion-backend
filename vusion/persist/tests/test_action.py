@@ -8,11 +8,23 @@ from tests.utils import ObjectMaker
 
 class TestAction(TestCase, ObjectMaker):
     
-    def test_validation_action(self):
+    def test_upgrade_action_noversion_to_current(self):
         action = {'type-action': 'optin'}
         a = action_generator(**action)
-        self.assertEqual(a.get_type(),'optin')        
-        self.assertEqual(Action.MODEL_VERSION, a['model-version'])    
+        self.assertEqual(a.get_type(),'optin')
+        self.assertEqual(Action.MODEL_VERSION, a['model-version'])
+
+
+    def test_upgrade_action_version_1_to_current(self):
+        action = {
+            'content': 'As we are not able to recognize your pregnancy month, you will be register as 3 month pregnant.',
+            'object-type': u'action',
+            'type-action': 'feedback',
+            'model-version': '1'}
+        a = action_generator(**action)
+        self.assertEqual(a.get_type(),'feedback')
+        self.assertEqual(Action.MODEL_VERSION, a['model-version'])
+
 
     def test_validation_action_fail(self):
         action = {
@@ -43,7 +55,7 @@ class TestAction(TestCase, ObjectMaker):
             'model-type': 'action',
             'model-version': '2',            
             'set-condition': 'condition',
-            'condition-operator': 'all',
+            'condition-operator': 'all-subconditions',
             'subconditions': [{
                 'subcondition-field': 'labelled',
                 'subcondition-operator': 'with',
@@ -67,7 +79,7 @@ class TestAction(TestCase, ObjectMaker):
             'model-type': 'action',
             'model-version': '2',            
             'set-condition': 'condition',
-            'condition-operator': 'all',
+            'condition-operator': 'all-subconditions',
             'subconditions': [{
                 'subcondition-field': 'tagged',
                 'subcondition-operator': 'with',
@@ -84,7 +96,7 @@ class TestAction(TestCase, ObjectMaker):
             'model-type': 'action',
             'model-version': '2',            
             'set-condition': 'condition',
-            'condition-operator': 'all',
+            'condition-operator': 'all-subconditions',
             'subconditions': [
                 {'subcondition-field': 'tagged',
                  'subcondition-operator': 'with',
@@ -105,7 +117,7 @@ class TestAction(TestCase, ObjectMaker):
             'model-type': 'action',
             'model-version': '2',
             'set-condition': 'condition',
-            'condition-operator': 'any',
+            'condition-operator': 'any-subconditions',
             'subconditions': [
                 {'subcondition-field': 'tagged',
                  'subcondition-operator': 'with',
@@ -126,7 +138,7 @@ class TestAction(TestCase, ObjectMaker):
                 'model-type': 'action',
                 'model-version': '2',            
                 'set-condition': 'condition',
-                'condition-operator': 'all',
+                'condition-operator': 'all-subconditions',
                 'subconditions': [{
                     'subcondition-field': 'labelled',
                     'subcondition-operator': 'with',
@@ -145,7 +157,7 @@ class TestAction(TestCase, ObjectMaker):
             'model-type': 'action',
             'model-version': '2',
             'set-condition': 'condition',
-            'condition-operator': 'all',
+            'condition-operator': 'all-subconditions',
             'subconditions': [{
                 'subcondition-field': 'tagged',
                 'subcondition-operator': 'with',
@@ -164,7 +176,7 @@ class TestAction(TestCase, ObjectMaker):
             'model-type': 'action',
             'model-version': '2',
             'set-condition': 'condition',
-            'condition-operator': 'all',
+            'condition-operator': 'all-subconditions',
             'subconditions': [
                 {'subcondition-field': 'tagged',
                  'subcondition-operator': 'with',
@@ -186,7 +198,7 @@ class TestAction(TestCase, ObjectMaker):
             'model-type': 'action',
             'model-version': '2',
             'set-condition': 'condition',
-            'condition-operator': 'any',
+            'condition-operator': 'any-subconditions',
             'subconditions': [
                 {'subcondition-field': 'tagged',
                  'subcondition-operator': 'with',

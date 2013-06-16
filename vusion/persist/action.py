@@ -2,6 +2,7 @@ import re
 
 from vusion.error import MissingField, VusionError, InvalidField
 from vusion.persist.vusion_model import VusionModel
+from vumi.log import log
 
 class Action(VusionModel):
 
@@ -17,7 +18,7 @@ class Action(VusionModel):
             },
         'condition-operator': {
             'required': False,
-            'valid_value': lambda v: v['condition-operator'] in ['all', 'any']
+            'valid_value': lambda v: v['condition-operator'] in ['all-subconditions', 'any-subconditions']
             },
         'set-condition': {
             'required': True,
@@ -71,10 +72,9 @@ class Action(VusionModel):
         super(Action, self).__init__(**kwargs)
 
     def upgrade(self, **kwargs):
-        if kwargs['model-version'] is '1':
+        if kwargs['model-version'] == '1':
             kwargs['set-condition'] = None
             kwargs['model-version'] = '2'
-            return self.upgrade(**kwargs)
         return kwargs
 
     def __eq__(self, other):
@@ -190,9 +190,9 @@ class Action(VusionModel):
         elif len(query) == 1:
             return query.pop()
         elif len(query) > 1:
-            if self['condition-operator'] == 'all':
+            if self['condition-operator'] == 'all-subconditions':
                 return {'$and': query}
-            elif self['condition-operator'] == 'any':
+            elif self['condition-operator'] == 'any-subconditions':
                 return {'$or': query}
         
     def get_condition_mongodb_for(self, phone, session_id):

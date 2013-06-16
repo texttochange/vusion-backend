@@ -16,7 +16,7 @@ class VusionModel(object):
         if kwargs['model-version'] != self.MODEL_VERSION:
             kwargs = self.upgrade(**kwargs)
             if kwargs['model-version'] != self.MODEL_VERSION:
-                raise FailingModelUpgrade()
+                raise FailingModelUpgrade(kwargs)
         for key in kwargs:
             kwargs[key] = self.process_field(key, kwargs[key])
         self.payload = kwargs

@@ -468,7 +468,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.worker.run_action("08", TaggingAction(**{
             'model-version': '2',
             'set-condition': 'condition',
-            'condition-operator': 'all',
+            'condition-operator': 'all-subconditions',
             'subconditions':[{
                 'subcondition-field': 'labelled',
                 'subcondition-operator': 'not-with',
@@ -487,7 +487,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             TaggingAction(**{
                 'model-version': '2',
                 'set-condition': 'condition',
-                'condition-operator': 'any',
+                'condition-operator': 'any-subconditions',
                 'subconditions':[
                     {'subcondition-field': 'labelled',
                      'subcondition-operator': 'not-with',
@@ -502,10 +502,3 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(
             ['geek', 'my second tag'],
             participant['tags'])        
-        
-        #self.worker.run_action("08", TaggingAction(**{'tag': 'my second tag'}))
-        #self.assertTrue(self.collections['participants'].find_one({'tags': 'my tag'}))
-        #self.worker.run_action("08", TaggingAction(**{'tag': 'my tag'}))
-        #self.assertEqual(
-            #['geek', 'my tag', 'my second tag'],
-        #self.collections['participants'].find_one({'tags': 'my tag'})['tags'])
