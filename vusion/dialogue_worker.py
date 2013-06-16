@@ -477,6 +477,10 @@ class DialogueWorker(ApplicationWorker):
         elif (action.get_type() == 'reset'):
             self.run_action(participant_phone, OptoutAction())
             self.run_action(participant_phone, OptinAction())
+	elif (action.get_type() == 'proportional-tagging'):
+	    for tag in action.get_tags():
+		action.set_tag_count(tag['tag'], self.collections['participants'].find({'tags': tag['tag']}).count())
+	    self.run_action(participant_phone, action.get_tagging_action())
         else:
             self.log("The action is not supported %s" % action.get_type())
 

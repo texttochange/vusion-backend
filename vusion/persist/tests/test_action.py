@@ -1,6 +1,7 @@
 from twisted.trial.unittest import TestCase
 
-from vusion.persist.action import Action, action_generator
+from vusion.persist.action import (Action, action_generator,
+                                   ProportionalTagging, TaggingAction)
 from vusion.error import MissingField, InvalidField
 
 from tests.utils import ObjectMaker
@@ -214,3 +215,56 @@ class TestAction(TestCase, ObjectMaker):
             {'$and': [{'phone': '08','session-id': '1'},
                       {'$or': [{'tags': 'geek'},
                                {'tags': 'cool'}]}]})
+
+
+class TestProportionalTaggingAction(TestCase):
+
+    def test_set_tag_count(self):
+        action = {
+            'type-action': 'proportional-tagging',
+            'proportional-tags': [
+                {'tag': 'group 1',
+                 'weight': '2'},
+                {'tag': 'group 2',
+                 'weight': '1'}]
+            }
+        a = ProportionalTagging(**action)
+        a.set_tag_count('group 1', 300)
+        self.assertEqual(
+            a['proportional-tags'][0],
+            {'tag': 'group 1',
+             'weight': '2',
+             'count': 300})
+        
+    def test_get_tagging_action(self):
+        action = {
+            'type-action': 'proportional-tagging',
+            'proportional-tags': [
+                {'tag': 'group 1',
+                 'weight': '2'},
+                {'tag': 'group 2',
+                 'weight': '1'}]
+        }
+        a = ProportionalTagging(**action)
+        a.set_tag_count('group 1', 10)
+        a.set_tag_count('group 2', 4)
+        self.assertEqual(
+            a.get_tagging_action(),
+            TaggingAction(**{'tag': 'group 2'}))
+
+    def test_get_tagging_action_2(self):
+        action = {
+            'type-action': 'proportional-tagging',
+            'proportional-tags': [
+                {'tag': 'group 1',
+                 'weight': '2'},
+                {'tag': 'group 2',
+                 'weight': '1'}]
+        }
+        a = ProportionalTagging(**action)
+        a.set_tag_count('group 1', 10)
+        a.set_tag_count('group 2', 5)
+        self.assertEqual(
+            a.get_tagging_action(),
+               TaggingAction(**{'tag': 'group 1'}))
+        

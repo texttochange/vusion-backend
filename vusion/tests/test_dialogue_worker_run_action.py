@@ -18,7 +18,8 @@ from vusion.persist.action import (UnMatchingAnswerAction, EnrollingAction,
                                    TaggingAction, ProfilingAction,
                                    OffsetConditionAction, RemoveRemindersAction,
                                    ResetAction, RemoveDeadlineAction,
-                                   DelayedEnrollingAction, action_generator, Actions)
+                                   DelayedEnrollingAction, ProportionalTagging,
+                                   action_generator, Actions)
 from vusion.context import Context
 from vusion.persist import Dialogue
 
@@ -502,3 +503,20 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(
             ['geek', 'my second tag'],
             participant['tags'])        
+
+    def test_run_action_proportional_tagging(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        
+        self.collections['participants'].save(self.mkobj_participant(
+            '08',
+            tags=['geek'],
+            profile=[{'label': 'name',
+                     'value': 'Oliv'}]))
+
+        proportional_tagging = ProportionalTagging(**{
+            'proportional-tags': [{'tag': 'Group A', 'weight': '1'}]})
+        ## Tagging
+        self.worker.run_action("08", proportional_tagging)
+        self.assertTrue(self.collections['participants'].find_one({'tags': 'Group A'}))
