@@ -481,8 +481,24 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(
             ['geek'],
             participant['tags'])
+                
+        self.worker.run_action("08", TaggingAction(**{
+            'model-version': '2',
+            'set-condition': 'condition',
+            'condition-operator': 'all-subconditions',
+            'subconditions':[{
+                'subcondition-field': 'tagged',
+                'subcondition-operator': 'with',
+                'subcondition-parameter': 'imported'
+            }],
+            'tag': 'marker'}),
+            participant_session_id='01')
+        participant = self.collections['participants'].find_one({'phone':'08'})
+        self.assertEqual(
+            ['geek'],
+            participant['tags'])        
         
-        ## Simple Condition
+        ## Complex Condition
         self.worker.run_action(
             "08", 
             TaggingAction(**{
