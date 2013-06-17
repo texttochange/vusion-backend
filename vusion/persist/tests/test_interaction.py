@@ -6,7 +6,7 @@ from datetime import timedelta
 
 from vusion.error import FailingModelUpgrade
 from vusion.persist import Interaction
-from vusion.action import Actions
+from vusion.persist.action import Actions
 from vusion.utils import time_from_vusion_format
 
 from tests.utils import ObjectMaker

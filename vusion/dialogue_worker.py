@@ -34,9 +34,9 @@ from vusion.utils import (time_to_vusion_format, get_local_time,
 from vusion.error import (MissingData, SendingDatePassed, VusionError,
                           MissingTemplate)
 from vusion.message import DispatcherControl, WorkerControl
-from vusion.action import (Actions, action_generator,FeedbackAction,
-                           EnrollingAction, OptinAction, OptoutAction,
-                           RemoveRemindersAction)
+from vusion.persist.action import (Actions, action_generator,FeedbackAction,
+                                   EnrollingAction, OptinAction, OptoutAction,
+                                   RemoveRemindersAction)
 from vusion.context import Context
 from vusion.persist import Request, history_generator, schedule_generator
 
@@ -138,7 +138,7 @@ class DialogueWorker(ApplicationWorker):
                 query.update({'session-id':{'$ne': None}})
             return Participant(**self.collections['participants'].find_one(query))
         except TypeError:
-            self.log("Participant %s is not in collection." % participant_phone)
+            self.log("Participant %s is either not optin or not in collection." % participant_phone)
             return None
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -161,7 +161,7 @@ class DialogueWorker(ApplicationWorker):
         return participants
 
     def get_participant_session_id(self, participant_phone):
-        participant = self.get_participant(participant_phone)
+        participant = self.get_participant(participant_phone, only_optin=True)
         if participant is None:
             return None
         else:
@@ -339,8 +339,12 @@ class DialogueWorker(ApplicationWorker):
 
     def run_action(self, participant_phone, action, context=Context(),
                    participant_session_id=None):
-        regex_ANSWER = re.compile('ANSWER')
-        self.log(("Run action for %s %s" % (participant_phone, action,)))
+	if action.has_condition():
+	    query = action.get_condition_mongodb_for(participant_phone, participant_session_id)
+	    if self.collections['participants'].find(query).limit(1).count()==0:
+		self.log(("Participant %s doesn't satify the condition for action for %s" % (participant_phone, action,)))
+		return
+	self.log(("Run action for %s %s" % (participant_phone, action,)))	    
         if (action.get_type() == 'optin'):
             participant = self.get_participant(participant_phone)
             if participant:
@@ -353,7 +357,8 @@ class DialogueWorker(ApplicationWorker):
                               'last-optout-date': None,
                               'tags': [],
                               'enrolled': [],
-                              'profile': [] }})
+                              'profile': [] }},
+		    safe=True)
             else:
                 self.collections['participants'].save(
                     self.create_participant(participant_phone),
@@ -366,7 +371,8 @@ class DialogueWorker(ApplicationWorker):
             self.collections['participants'].update(
                 {'phone': participant_phone},
                 {'$set': {'session-id': None,
-                          'last-optout-date': time_to_vusion_format(self.get_local_time())}})
+                          'last-optout-date': time_to_vusion_format(self.get_local_time())}},
+	        safe=True)
             self.collections['schedules'].remove({
                 'participant-phone': participant_phone,
                 'object-type': {'$ne': 'feedback-schedule'}})
@@ -388,6 +394,7 @@ class DialogueWorker(ApplicationWorker):
                 '_id': ObjectId(setting['value'])})
             if template is None:
                 return
+	    regex_ANSWER = re.compile('ANSWER')	    
             error_message = re.sub(regex_ANSWER,
                                    action['answer'],
                                    template['template'])
@@ -404,14 +411,16 @@ class DialogueWorker(ApplicationWorker):
                 {'phone': participant_phone,
                  'session-id': {'$ne': None},
                  'tags': {'$ne': action['tag']}},
-                {'$push': {'tags': action['tag']}})
+                {'$push': {'tags': action['tag']}},
+	        safe=True)
         elif (action.get_type() == 'enrolling'):
             self.run_action(participant_phone, OptinAction())
             self.collections['participants'].update(
                 {'phone': participant_phone,
                  'enrolled.dialogue-id': {'$ne': action['enroll']}},
                 {'$push': {'enrolled': {'dialogue-id': action['enroll'],
-                                        'date-time': time_to_vusion_format(self.get_local_time())}}})
+                                        'date-time': time_to_vusion_format(self.get_local_time())}}},
+	        safe=True)
             dialogue = self.get_current_dialogue(action['enroll'])
             if dialogue is None:
                 self.log(("Enrolling error: Missing Dialogue %s" % action['enroll']))
@@ -438,7 +447,8 @@ class DialogueWorker(ApplicationWorker):
                  'session-id': {'$ne': None}},
                 {'$push': {'profile': {'label': action['label'],
                                         'value': action['value'],
-                                        'raw': context['message']}}})
+                                        'raw': context['message']}}},
+	        safe=True)
         elif (action.get_type() == 'offset-conditioning'):
             participant = self.get_participant(participant_phone, True)
             if participant is None:
@@ -492,7 +502,7 @@ class DialogueWorker(ApplicationWorker):
             if (self.get_participant_session_id(message['from_addr']) is None 
                     and (actions.contains('optin') or actions.contains('enrolling'))):
                 self.run_action(message['from_addr'], actions.get_priority_action())
-            participant = self.get_participant(message['from_addr'])
+            participant = self.get_participant(message['from_addr'], only_optin=True)
             history.update({
                 'message-content': message['content'],
                 'participant-phone': message['from_addr'],

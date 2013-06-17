@@ -13,12 +13,12 @@ from vumi.tests.utils import get_stubbed_worker, UTCNearNow, RegexMatcher
 from vusion.dialogue_worker import DialogueWorker
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from vusion.error import MissingData, MissingTemplate
-from vusion.action import (UnMatchingAnswerAction, EnrollingAction,
-                           FeedbackAction, OptinAction, OptoutAction,
-                           TaggingAction, ProfilingAction,
-                           OffsetConditionAction, RemoveRemindersAction,
-                           ResetAction, RemoveDeadlineAction,
-                           DelayedEnrollingAction, action_generator, Actions)
+from vusion.persist.action import (UnMatchingAnswerAction, EnrollingAction,
+                                   FeedbackAction, OptinAction, OptoutAction,
+                                   TaggingAction, ProfilingAction,
+                                   OffsetConditionAction, RemoveRemindersAction,
+                                   ResetAction, RemoveDeadlineAction,
+                                   DelayedEnrollingAction, action_generator, Actions)
 from vusion.context import Context
 from vusion.persist import Dialogue
 
@@ -451,3 +451,70 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         reset_participant = self.collections['participants'].find_one({'phone':'06'})
         
         self.assertEqual(reset_participant['profile'], [])
+
+    def test_run_conditional_action(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        
+        self.collections['participants'].save(self.mkobj_participant(
+            '08',
+            session_id='01',
+            tags=['geek'],
+            profile=[{'label': 'name',
+                     'value': 'Oliv'}]))
+
+        ## Simple Condition
+        self.worker.run_action("08", TaggingAction(**{
+            'model-version': '2',
+            'set-condition': 'condition',
+            'condition-operator': 'all-subconditions',
+            'subconditions':[{
+                'subcondition-field': 'labelled',
+                'subcondition-operator': 'not-with',
+                'subcondition-parameter': 'name:Oliv'
+            }],
+            'tag': 'my tag'}),
+            participant_session_id='01')
+        participant = self.collections['participants'].find_one({'phone':'08'})
+        self.assertEqual(
+            ['geek'],
+            participant['tags'])
+                
+        self.worker.run_action("08", TaggingAction(**{
+            'model-version': '2',
+            'set-condition': 'condition',
+            'condition-operator': 'all-subconditions',
+            'subconditions':[{
+                'subcondition-field': 'tagged',
+                'subcondition-operator': 'with',
+                'subcondition-parameter': 'imported'
+            }],
+            'tag': 'marker'}),
+            participant_session_id='01')
+        participant = self.collections['participants'].find_one({'phone':'08'})
+        self.assertEqual(
+            ['geek'],
+            participant['tags'])        
+        
+        ## Complex Condition
+        self.worker.run_action(
+            "08", 
+            TaggingAction(**{
+                'model-version': '2',
+                'set-condition': 'condition',
+                'condition-operator': 'any-subconditions',
+                'subconditions':[
+                    {'subcondition-field': 'labelled',
+                     'subcondition-operator': 'not-with',
+                     'subcondition-parameter': 'name:Oliv'},
+                    {'subcondition-field': 'tagged',
+                     'subcondition-operator': 'with',
+                     'subcondition-parameter': 'geek'},                
+                    ],
+                'tag': 'my second tag'}),
+            participant_session_id='01')
+        participant = self.collections['participants'].find_one({'phone':'08'})
+        self.assertEqual(
+            ['geek', 'my second tag'],
+            participant['tags'])        
