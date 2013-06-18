@@ -1,5 +1,6 @@
 from datetime import datetime, time, date, timedelta
 import pytz
+from copy import deepcopy
 
 import json
 import pymongo
@@ -323,6 +324,41 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(participant['enrolled'], [
             {'dialogue-id':'1', 
              'date-time': '2012-11-01T10:30:20'}])
+
+    def test_run_action_optin_double_option_no_setting(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+            
+        self.collections['participants'].save(self.mkobj_participant())           
+        
+        self.worker.run_action('06', OptinAction())
+        
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 0)
+        self.assertEqual(self.collections['history'].count(), 0)
+        
+    def test_run_action_optin_double_option_error_message_in_setting(self):
+        program_settings = deepcopy(self.program_settings)
+        program_settings.append({'key': 'double-optin-error-feedback',
+                                 'value': 'You are double optin'})
+        for program_setting in program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()        
+        
+        self.collections['participants'].save(
+            self.mkobj_participant(participant_phone='06', session_id='1'))        
+        
+        self.worker.run_action('06', OptinAction(),  Context(**{'request-id': '22'}), '1')
+        
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(self.collections['history'].count(), 1)
+        
+        history = self.collections['history'].find_one()
+        self.assertEqual(history['participant-session-id'], '1')
+        self.assertEqual(history['participant-phone'], '06')
+
 
     def test_run_action_offset_condition(self):
         for program_setting in self.program_settings:
