@@ -543,7 +543,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             'interaction': dialogue.get_interaction('01-01'),
             'matching-answer': None}
         
-        self.worker.get_program_dialogue_actions(participant, context, actions)
+        self.worker.get_program_actions(participant, context, actions)
         
         self.assertEqual(1, len(actions))
 

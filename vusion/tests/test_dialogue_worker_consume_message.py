@@ -25,7 +25,7 @@ from vusion.persist.action import Actions
 class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
-    def test_receive_inbound_message_matching(self):
+    def test_inbound_message_matching_dialogue(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -70,7 +70,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual(0, self.collections['schedules'].count())
 
     @inlineCallbacks
-    def test_receive_inbound_message_matching_offset_condition(self):
+    def test_inbound_message_matching_dialogue_offset_condition(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -96,7 +96,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual(1, self.collections['schedules'].count())
 
     @inlineCallbacks
-    def test_receive_inbound_message_matching_with_reminder(self):
+    def test_inbound_message_matching_dialogue_with_reminder(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -147,7 +147,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual(0, self.collections['schedules'].count())   
 
     @inlineCallbacks
-    def test_receive_inbound_message_double_matching_answer(self):
+    def test_inbound_message_matching_dialogue_double_matching_answer(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.collections['program_settings'].save({
@@ -188,7 +188,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual('you have already answer this message', history['message-content'])
 
     @inlineCallbacks
-    def test_receive_inbound_message_no_repeat_dialogue_enroll(self):
+    def test_inbound_message_no_repeat_dialogue_enroll(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -220,7 +220,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual(1, len(participant['enrolled']))
 
     @inlineCallbacks
-    def test_receive_inbound_message_only_enrolled(self):
+    def test_inbound_message_matching_dialogue_not_enrolled(self):
         self.collections['dialogues'].save(self.mkobj_dialogue_open_question())
         self.collections['participants'].save(self.mkobj_participant('06'))
 
@@ -233,7 +233,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual(participant['profile'], [])
 
     @inlineCallbacks
-    def test_receive_inbound_request_not_opted_in(self):
+    def test_inbound_message_matching_request_not_opted_in(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()        
@@ -247,7 +247,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual(0, self.collections['schedules'].count())
 
     @inlineCallbacks
-    def test_receive_inbound_request_opted_out_participant(self):
+    def test_inbound_message_matching_request_opted_out_participant(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()        
@@ -263,7 +263,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual(0, self.collections['schedules'].count())
 
     @inlineCallbacks
-    def test_receive_inbound_request_double_optin_error(self):
+    def test_inbound_message_matching_request_double_optin_error(self):
         program_settings = self.mkobj_program_settings()
         program_settings.append({'key': 'double-optin-error-feedback',
                                  'value': 'you have already optin'})
@@ -278,6 +278,10 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
  
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 2)
+        self.assertEqual(messages[0]['content'], 'thankyou of joining')
+        self.assertEqual(messages[1]['content'], 'soon more is coming')
+        ## in history 1 incoming and 2 outgoing
+        self.assertEqual(3, self.collections['history'].count())
         self.assertEqual(0, self.collections['schedules'].count())
         self.assertFalse(self.collections['participants'].find_one({'phone': '07'}) is None)
 
@@ -285,12 +289,15 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
                                                      content='www')
         yield self.send(inbound_msg_matching_request, 'inbound')
         messages = self.broker.get_messages('vumi', 'test.outbound')
-        self.assertEqual(len(messages), 3)
+        self.assertEqual(len(messages), 5)
         self.assertEqual(messages[2]['content'], 'you have already optin')
-
+        self.assertEqual(messages[3]['content'], 'thankyou of joining')
+        self.assertEqual(messages[4]['content'], 'soon more is coming')
+        ## in history 2 incoming and 5 outgoing
+        self.assertEqual(7, self.collections['history'].count())
 
     @inlineCallbacks
-    def test_receive_inbound_with_transport_metadata(self):
+    def test_inbound_message_with_transport_metadata(self):
         program_settings = self.mkobj_program_settings()
         for program_setting in program_settings:
             self.collections['program_settings'].save(program_setting)
@@ -329,7 +336,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual(transport_metadata, participant['transport_metadata'])        
 
     @inlineCallbacks
-    def test_receive_inbound_message_request_optin(self):
+    def test_inbound_message_matching_request_optin(self):
         request_id = self.collections['requests'].save(self.mkobj_request_join())
 
         inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
@@ -356,7 +363,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
             self.assertEqual(participant['session-id'], history['participant-session-id'])
 
     @inlineCallbacks
-    def test_receive_inbound_message_from_non_participant(self):
+    def test_inbound_message_matching_request_from_non_participant(self):
         self.collections['requests'].save(self.mkobj_request_join())
         self.collections['requests'].save(self.mkobj_request_tag())
         self.collections['requests'].save(self.mkobj_request_leave())
@@ -393,7 +400,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual(6, self.collections['history'].count())
 
     @inlineCallbacks
-    def test_receive_delivery(self):
+    def test_delivery(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -418,7 +425,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual('delivered', status['message-status'])
 
     @inlineCallbacks
-    def test_receive_delivery_no_reference(self):
+    def test_delivery_no_reference(self):
         event = self.mkmsg_delivery_for_send()
 
         yield self.send(event, 'event')
@@ -429,7 +436,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertNot(status)
 
     @inlineCallbacks
-    def test_receive_delivery_failure(self):
+    def test_delivery_failure(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -461,7 +468,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
                          status['failure-reason'])
 
     @inlineCallbacks
-    def test_receive_delivery_failure_no_details(self):
+    def test_delivery_failure_no_details(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -489,7 +496,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual('Code:unknown Level:unknown Message:unknown', history['failure-reason'])
 
     @inlineCallbacks
-    def test_receive_ack(self):
+    def test_ack(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
@@ -515,7 +522,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.assertEqual('ack', status['message-status'])
 
     @inlineCallbacks
-    def test_limit_max_unmatching_answers(self):
+    def test_inbound_message_matching_dialogue_limit_max_unmatching_answers(self):
         for program_setting in self.mkobj_program_settings():
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()

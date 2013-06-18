@@ -347,22 +347,34 @@ class DialogueWorker(ApplicationWorker):
 	self.log(("Run action for %s %s" % (participant_phone, action,)))	    
         if (action.get_type() == 'optin'):
             participant = self.get_participant(participant_phone)
-            if participant:
-                if (participant['session-id'] != None):
-                    return
-                self.collections['participants'].update(
-                    {'phone': participant_phone},
-                    {'$set': {'session-id': uuid4().get_hex(), 
-                              'last-optin-date': time_to_vusion_format(self.get_local_time()),
-                              'last-optout-date': None,
-                              'tags': [],
-                              'enrolled': [],
-                              'profile': [] }},
+            if not participant:                            
+		## This is the first optin
+		self.collections['participants'].save(
+		    self.create_participant(participant_phone),
 		    safe=True)
-            else:
-                self.collections['participants'].save(
-                    self.create_participant(participant_phone),
-                    safe=True)
+	    else:
+		## This is a second optin
+                if (participant['session-id'] != None):    
+		    ## Participant still optin
+		    if self.properties['double-optin-error-feedback'] is not None:
+			self.run_action(
+			    participant_phone, 
+			    FeedbackAction(**{'content': self.properties['double-optin-error-feedback']}),
+			    context,
+			    participant_session_id)
+		    return
+		else:
+		    ## Participant is re optin
+		    self.collections['participants'].update(
+		        {'phone': participant_phone},
+		        {'$set': {'session-id': uuid4().get_hex(), 
+		                  'last-optin-date': time_to_vusion_format(self.get_local_time()),
+		                  'last-optout-date': None,
+		                  'tags': [],
+		                  'enrolled': [],
+		                  'profile': [] }},
+		        safe=True)
+	    ## finialise the optin by enrolling and schedulling
             for dialogue in self.get_active_dialogues({'auto-enrollment':'all'}):
                 self.run_action(participant_phone,
                                 EnrollingAction(**{'enroll': dialogue['dialogue-id']}))
@@ -414,7 +426,12 @@ class DialogueWorker(ApplicationWorker):
                 {'$push': {'tags': action['tag']}},
 	        safe=True)
         elif (action.get_type() == 'enrolling'):
-            self.run_action(participant_phone, OptinAction())
+	    if not self.is_optin(participant_phone):
+		self.run_action(
+		    participant_phone, 
+		    OptinAction(), 
+		    context, 
+		    participant_session_id)
             self.collections['participants'].update(
                 {'phone': participant_phone,
                  'enrolled.dialogue-id': {'$ne': action['enroll']}},
@@ -507,7 +524,7 @@ class DialogueWorker(ApplicationWorker):
             # High priority to run an optin or enrolling action to get sessionId 
             if (self.get_participant_session_id(message['from_addr']) is None 
                     and (actions.contains('optin') or actions.contains('enrolling'))):
-                self.run_action(message['from_addr'], actions.get_priority_action())
+                self.run_action(message['from_addr'], actions.get_priority_action(), context)
             participant = self.get_participant(message['from_addr'], only_optin=True)
             history.update({
                 'message-content': message['content'],
@@ -522,12 +539,12 @@ class DialogueWorker(ApplicationWorker):
                     if self.has_oneway_marker(participant['phone'], participant['session-id'], context):
                         actions.clear_all()
                     else:
-                        self.get_program_dialogue_actions(participant, context, actions)
+                        self.get_program_actions(participant, context, actions)
                         if self.participant_has_max_unmatching_answers(participant, context['dialogue-id'], context['interaction']):
                             self.add_oneway_marker(participant['phone'], participant['session-id'], context)
                             context['interaction'].get_max_unmatching_action(context['dialogue-id'], actions)
                 elif ('request-id' in context):
-                    self.get_program_dialogue_actions(participant, context, actions)                    
+                    self.get_program_actions(participant, context, actions)                    
                 self.run_actions(participant, context, actions)
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -546,7 +563,7 @@ class DialogueWorker(ApplicationWorker):
                             context,
                             participant['session-id'])
 
-    def get_program_dialogue_actions(self, participant, context, actions):
+    def get_program_actions(self, participant, context, actions):
         if self.properties['unmatching-answer-remove-reminder']==1:
             if ('interaction' in context 
                 and context['interaction'].has_reminder()
@@ -559,12 +576,12 @@ class DialogueWorker(ApplicationWorker):
             actions.clear_all()
             if self.properties['double-matching-answer-feedback'] is not None:
                 actions.append(FeedbackAction(**{'content': self.properties['double-matching-answer-feedback']}))
-        if (actions.contains('optin')
-            and participant['session-id'] is not None):
-            actions.clear_all()
-            if self.properties['double-optin-error-feedback'] is not None:
-                actions.append(FeedbackAction(**{
-                    'content': self.properties['double-optin-error-feedback']}))
+        #if (actions.contains('optin')
+            #and participant['session-id'] is not None):
+            #actions.clear_all()
+            #if self.properties['double-optin-error-feedback'] is not None:
+                #actions.append(FeedbackAction(**{
+                    #'content': self.properties['double-optin-error-feedback']}))
 
     def is_tagged(self, participant_phone, tags):
 	query = {'phone':participant_phone,
@@ -577,6 +594,11 @@ class DialogueWorker(ApplicationWorker):
             if enrolled['dialogue-id']==dialogue_id:
                 return True
         return False
+
+    def is_optin(self, participant_phone):
+	query = {'phone':participant_phone,
+	         'session-id': {'$ne': None}}
+	return (0 != self.collections['participants'].find(query).limit(1).count())
 
     def has_already_valid_answer(self, participant, dialogue_id, interaction_id, number=1):
         query = {'participant-phone': participant['phone'],
