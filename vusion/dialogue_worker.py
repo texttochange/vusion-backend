@@ -494,6 +494,12 @@ class DialogueWorker(ApplicationWorker):
         elif (action.get_type() == 'reset'):
             self.run_action(participant_phone, OptoutAction())
             self.run_action(participant_phone, OptinAction())
+	elif (action.get_type() == 'proportional-tagging'):
+	    if self.is_tagged(participant_phone, action.get_tags()):
+		return
+	    for tag in action.get_tags():
+		action.set_tag_count(tag, self.collections['participants'].find({'tags': tag}).count())
+	    self.run_action(participant_phone, action.get_tagging_action())
         else:
             self.log("The action is not supported %s" % action.get_type())
 
@@ -576,6 +582,12 @@ class DialogueWorker(ApplicationWorker):
             #if self.properties['double-optin-error-feedback'] is not None:
                 #actions.append(FeedbackAction(**{
                     #'content': self.properties['double-optin-error-feedback']}))
+
+    def is_tagged(self, participant_phone, tags):
+	query = {'phone':participant_phone,
+	         'tags': {'$in': tags}}
+	result = self.collections['participants'].find(query).limit(1).count()
+	return 0 < self.collections['participants'].find(query).limit(1).count()
 
     def is_enrolled(self, participant, dialogue_id):
         for enrolled in participant['enrolled']:

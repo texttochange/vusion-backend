@@ -1,4 +1,5 @@
 import re
+from math import ceil
 
 from vusion.error import MissingField, VusionError, InvalidField
 from vusion.persist.vusion_model import VusionModel
@@ -39,11 +40,11 @@ class Action(VusionModel):
                 'enrolling',
                 'profiling',
                 'delayed-enrolling',
+                'proportional-tagging',
                 'remove-question',
                 'remove-reminders',
                 'remove-deadline',
-                'offset-conditioning']
-            },
+                'offset-conditioning']},
         }
 
     subcondition_fields = {
@@ -149,6 +150,12 @@ class Action(VusionModel):
         for subfield in subfields:
             if subfield not in self[field]:
                 raise MissingField(subfield)
+
+    def assert_list_field_present(self, elements, *fields):
+        for element in elements:
+            for field in fields:
+                if field not in element:
+                    raise MissingField(field)
 
     def get_as_dict(self):
         action_dict = {'type-action': self.get_type()}
@@ -328,6 +335,50 @@ class OffsetConditionAction(Action):
         self.assert_field_present('interaction-id', 'dialogue-id')
 
 
+class ProportionalTagging(Action):
+    
+    ACTION_TYPE = 'proportional-tagging'
+    
+    def validate_fields(self):
+        super(ProportionalTagging, self).validate_fields()
+        self.assert_field_present('proportional-tags')
+        self.assert_list_field_present(self['proportional-tags'], *['tag', 'weight'])
+
+    def get_proportional_tags(self):
+        return self['proportional-tags']
+    
+    def set_tag_count(self, tag, count):
+        for i, proportional_tag in enumerate(self['proportional-tags']):
+            if proportional_tag['tag'] == tag:
+                proportional_tag.update({'count': count})
+                self['proportional-tags'][i] = proportional_tag
+                break
+    
+    def get_tags(self):
+        tags = []
+        for proportional_tag in self['proportional-tags']:
+            tags.append(proportional_tag['tag'])
+        return tags
+    
+    def get_totals(self):
+        weight_total = 0
+        count_total =0
+        for proportional_tag in self['proportional-tags']:
+            weight_total = weight_total + (int(proportional_tag['weight']) or 0)
+            count_total = count_total + (proportional_tag['count'] if 'count' in proportional_tag else 0)
+        return weight_total, count_total
+    
+    def get_tagging_action(self):
+        weight_total, count_total = self.get_totals()
+        for proportional_tag in self['proportional-tags']:
+            weight_tag = int(proportional_tag['weight'])
+            count_expected = ceil(count_total * weight_tag / weight_total)
+            count_tag = (proportional_tag['count'] if 'count' in proportional_tag else 0)
+            if count_expected >= count_tag:
+                return TaggingAction(**{'tag': proportional_tag['tag']})
+        return TaggingAction(**{'tag': self['proportional-tags'][0]['tag']})
+            
+
 def action_generator(**kwargs):
     # Condition to be removed when Dialogue structure freezed
     if 'type-action' not in kwargs:
@@ -356,6 +407,8 @@ def action_generator(**kwargs):
         return RemoveDeadlineAction(**kwargs)
     elif kwargs['type-action'] == 'offset-conditioning':
         return OffsetConditionAction(**kwargs)
+    elif kwargs['type-action'] == 'proportional-tagging':
+        return ProportionalTagging(**kwargs)
     raise VusionError("%r not supported" % kwargs)
 
 
