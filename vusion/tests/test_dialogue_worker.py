@@ -778,3 +778,20 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertEqual(messages[0]['to_addr'], "06")
         self.assertEqual(messages[1]['content'], "How are you")
         self.assertEqual(messages[1]['to_addr'], "06")
+
+
+    def test24_is_tagged(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+            
+        participant = self.mkobj_participant(
+            '06',
+            tags=['geek', 'male'])
+        
+        self.collections['participants'].save(participant)
+        
+        self.assertTrue(self.worker.is_tagged('06', ['geek']))
+        self.assertTrue(self.worker.is_tagged('06', ['geek', 'sometag']))        
+        self.assertFalse(self.worker.is_tagged('06', ['sometag']))
+        

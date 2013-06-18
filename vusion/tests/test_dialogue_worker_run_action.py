@@ -536,3 +536,23 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         ## Tagging
         self.worker.run_action("08", proportional_tagging)
         self.assertTrue(self.collections['participants'].find_one({'tags': 'Group A'}))
+
+
+    def test_run_action_proportional_tagging_double(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        
+        self.collections['participants'].save(self.mkobj_participant(
+            '08',
+            tags=['geek', 'GroupB'],
+            profile=[{'label': 'name',
+                     'value': 'Oliv'}]))
+
+        proportional_tagging = ProportionalTagging(**{
+            'proportional-tags': [{'tag': 'GroupA', 'weight': '1'},
+                                  {'tag': 'GroupB', 'weight': '1'}]})
+        ## Tagging
+        self.worker.run_action("08", proportional_tagging)
+        participant = self.collections['participants'].find_one()
+        self.assertEqual(participant['tags'], ['geek', 'GroupB'])

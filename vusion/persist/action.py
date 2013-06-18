@@ -344,7 +344,7 @@ class ProportionalTagging(Action):
         self.assert_field_present('proportional-tags')
         self.assert_list_field_present(self['proportional-tags'], *['tag', 'weight'])
 
-    def get_tags(self):
+    def get_proportional_tags(self):
         return self['proportional-tags']
     
     def set_tag_count(self, tag, count):
@@ -353,6 +353,12 @@ class ProportionalTagging(Action):
                 proportional_tag.update({'count': count})
                 self['proportional-tags'][i] = proportional_tag
                 break
+    
+    def get_tags(self):
+        tags = []
+        for proportional_tag in self['proportional-tags']:
+            tags.append(proportional_tag['tag'])
+        return tags
     
     def get_totals(self):
         weight_total = 0
