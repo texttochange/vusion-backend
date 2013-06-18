@@ -278,6 +278,10 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
  
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 2)
+        self.assertEqual(messages[0]['content'], 'thankyou of joining')
+        self.assertEqual(messages[1]['content'], 'soon more is coming')
+        ## in history 1 incoming and 2 outgoing
+        self.assertEqual(3, self.collections['history'].count())
         self.assertEqual(0, self.collections['schedules'].count())
         self.assertFalse(self.collections['participants'].find_one({'phone': '07'}) is None)
 
@@ -285,9 +289,12 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
                                                      content='www')
         yield self.send(inbound_msg_matching_request, 'inbound')
         messages = self.broker.get_messages('vumi', 'test.outbound')
-        self.assertEqual(len(messages), 3)
+        self.assertEqual(len(messages), 5)
         self.assertEqual(messages[2]['content'], 'you have already optin')
-
+        self.assertEqual(messages[3]['content'], 'thankyou of joining')
+        self.assertEqual(messages[4]['content'], 'soon more is coming')
+        ## in history 2 incoming and 5 outgoing
+        self.assertEqual(7, self.collections['history'].count())
 
     @inlineCallbacks
     def test_receive_inbound_with_transport_metadata(self):
