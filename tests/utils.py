@@ -826,7 +826,8 @@ class ObjectMaker:
                                participant_session_id="1", 
                                message_direction='outgoing',
                                message_status='delivered',
-                               message_id='1'):
+                               message_id='1',
+                               message_credits=1):
         return history_generator(**{
             'timestamp': timestamp,
             'participant-phone': participant_phone,
@@ -835,12 +836,34 @@ class ObjectMaker:
             'message-status': message_status,
             'message-id': message_id,
             'message-content': 'A message',
+            'message-credits': message_credits,
             'unattach-id': unattach_id}).get_as_dict()
+
+    def mkobj_history_request(self, 
+                              request_id, 
+                              timestamp,
+                              participant_phone='06',
+                              participant_session_id="1", 
+                              message_direction='outgoing',
+                              message_status='delivered',
+                              message_id='1',
+                              message_credits=1):
+        return history_generator(**{
+            'timestamp': timestamp,
+            'participant-phone': participant_phone,
+            'participant-session-id': participant_session_id,
+            'message-direction': message_direction,
+            'message-status': message_status,
+            'message-id': message_id,
+            'message-content': 'A message',
+            'message-credits': message_credits,
+            'request-id': request_id}).get_as_dict()    
 
     def mkobj_history_dialogue(self, dialogue_id, interaction_id,
                                timestamp, participant_phone='06',
                                participant_session_id="1", direction='outgoing',
-                               matching_answer=None, message_content=''):
+                               matching_answer=None, message_content='', 
+                               message_credits=1):
         return history_generator(**{
             'timestamp': timestamp,
             'participant-phone': participant_phone,
@@ -849,6 +872,7 @@ class ObjectMaker:
             'message-direction': direction,
             'message-status': 'delivered',
             'message-content': message_content,
+            'message-credits': message_credits,
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id,
             'matching-answer': matching_answer}).get_as_dict()
