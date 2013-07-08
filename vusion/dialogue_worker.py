@@ -6,8 +6,8 @@ import re
 
 from uuid import uuid4
 
-from twisted.internet.defer import (inlineCallbacks, Deferred, returnValue)
-from twisted.enterprise import adbapi
+from twisted.internet.defer import inlineCallbacks, Deferred, returnValue
+#from twisted.enterprise import adbapi
 from twisted.internet import task, reactor
 
 import pymongo
@@ -32,14 +32,15 @@ from vusion.utils import (time_to_vusion_format, get_local_time,
                           get_shortcode_value, get_offset_date_time,
                           split_keywords)
 from vusion.error import (MissingData, SendingDatePassed, VusionError,
-                          MissingTemplate)
+                          MissingTemplate, MissingProperty)
 from vusion.message import DispatcherControl, WorkerControl
 from vusion.persist.action import (Actions, action_generator,FeedbackAction,
                                    EnrollingAction, OptinAction, OptoutAction,
                                    RemoveRemindersAction)
 from vusion.context import Context
 from vusion.persist import Request, history_generator, schedule_generator
-
+from vusion.component import DialogueWorkerPropertyHelper, SmsLimitManager
+	
 
 class DialogueWorker(ApplicationWorker):
     
@@ -52,18 +53,6 @@ class DialogueWorker(ApplicationWorker):
     def startService(self):
         self._d = Deferred()
         self._consumers = []
-        self.properties = {
-            'shortcode':None,
-            'timezone': None,
-            'international-prefix': None,
-            'default-template-closed-question': None,
-            'default-template-open-question': None,
-            'default-template-unmatching-answer': None,
-            'unmatching-answer-remove-reminder': 0, 
-            'customized-id': None,
-            'double-matching-answer-feedback': None,
-            'double-optin-error-feedback': None,
-            'request-and-feedback-prioritized': None}
         self.sender = None
         self.r_prefix = None
         self.r_config = {}
@@ -93,10 +82,16 @@ class DialogueWorker(ApplicationWorker):
         self.collections = {}
         self.init_program_db(self.config['database_name'],
                              self.config['vusion_database_name'])
-
+	
         #Set up dispatcher publisher
         self.dispatcher_publisher = yield self.publish_to(
             '%(dispatcher_name)s.control' % self.config)
+	
+	self.properties = DialogueWorkerPropertyHelper(
+	    self.collections['program_settings'],
+	    self.collections['shortcodes'])
+	#Will need the dispatcher publisher
+	self.load_properties(if_needed_register_keywords=True)
 
         #Set up control consumer
         self.control_consumer = yield self.consume(
@@ -234,6 +229,7 @@ class DialogueWorker(ApplicationWorker):
                                                     ('interaction-id', 1)])
         self.db = connection[self.vusion_database_name]
         self.setup_collections({'templates': None})
+	self.setup_collections({'shortcodes': 'shortcode'})
 
     def setup_collections(self, names):
         for name, index in names.items():
@@ -253,7 +249,7 @@ class DialogueWorker(ApplicationWorker):
             self.log("Control message received to %r" % (message,))
 	    message = WorkerControl(**message.payload)
 	    if message['action'] == 'reload_program_settings':
-		self.load_settings()
+		self.load_properties()
             if (not self.is_ready()):
                 self.log("Worker is not ready, cannot performe the action.")
                 return
@@ -673,7 +669,7 @@ class DialogueWorker(ApplicationWorker):
         return None
 
     def daemon_process(self):
-        self.load_settings()
+        self.load_properties()
         if self.is_ready():
             self.send_scheduled()
         next_iteration = self.get_time_next_daemon_iteration()
@@ -708,28 +704,23 @@ class DialogueWorker(ApplicationWorker):
                 self.log("Call later not active anymore, schedule a new one")
                 reactor.callLater(
                     secondsLater,
-                    self.daemon_process)                
+                    self.daemon_process)
 
-    def load_data(self):
-        program_settings = self.collections['program_settings'].find()
-        for program_setting in program_settings:
-            self.properties[program_setting['key']] = program_setting['value']
-
-    def load_settings(self):
-        previous_shortcode = self.properties['shortcode']
-        self.load_data()
-        if previous_shortcode != self.properties['shortcode']:
-            self.register_keywords_in_dispatcher()
+    def load_properties(self, if_needed_register_keywords=True):
+	try:
+	    was_ready = self.properties.is_ready()
+	    callbacks = {}
+	    if if_needed_register_keywords == True:
+		callbacks = {'shortcode': self.register_keywords_in_dispatcher}
+	    self.properties.load(callbacks)
+	except MissingProperty as e:
+	    self.log("Missing Mandatory Property: %s" % e.message)
+	    if was_ready:
+		self.log("Worker is unregistering all keyword from dispatcher")
+		self.unregister_from_dispatcher()
 
     def is_ready(self):
-        if not 'shortcode' in self.properties:
-            self.log('Shortcode not defined')
-            return False
-        if ((not 'timezone' in self.properties)
-                or (not self.properties['timezone'] in pytz.all_timezones)):
-            self.log('Timezone not defined or not supported')
-            return False
-        return True
+	return self.properties.is_ready()
 
     def schedule_participant(self, participant_phone):
         participant = self.get_participant(participant_phone, True)
