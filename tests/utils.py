@@ -210,19 +210,22 @@ class ObjectMaker:
         'error-template': None,
         'support-customized-id': 0,
         'supported-internationally': 0,
+        'max-character-per-sms': 140
     }
 
-    def mkobj_shortcode(self, error_template=None, code='8181'):
+    def mkobj_shortcode(self, code='8181', international_prefix='256',
+                        error_template=None):
         shortcode = deepcopy(self.shortcodes)
-        shortcode['error-template'] = error_template
         shortcode['shortcode'] = code
+        shortcode['international-prefix'] = international_prefix
+        shortcode['error-template'] = error_template        
         return shortcode
 
-    def mkobj_shortcode_international(self):
+    def mkobj_shortcode_international(self, code='+318181'):
         shortcode = deepcopy(self.shortcodes)
         shortcode['country'] = 'Netherlands'
         shortcode['international-prefix'] = '31'
-        shortcode['shortcode'] = '+318181'
+        shortcode['shortcode'] = code
         shortcode['supported-internationally'] = 1
         return shortcode
 
@@ -236,28 +239,41 @@ class ObjectMaker:
         'dispatcher': 'dispatcher',
         'transport_name': 'app'}
 
-    program_settings = [
-        {'key': 'shortcode',
-         'value': '256-8181'},
-        {'key': 'international-prefix',
-         'value': '256'},
-        {'key': 'timezone',
-         'value': 'Africa/Kampala'},
-        {'key': 'customized-id',
-         'value': 'myid'},
-        {'key': 'request-and-feedback-prioritized',
-         'value': 'prioritized'}]
+    settings = {
+        'shortcode': '256-8181',
+        'international-prefix': '256',
+        'timezone': 'Africa/Kampala',
+        'customized-id': 'myid',
+        'request-and-feedback-prioritized': 'prioritized'}
+    
 
-    def mkobj_program_settings(self):
-        program_settings = deepcopy(self.program_settings)
+    def mk_program_settings(self, shortcode='256-8181',
+                            default_template_open_question= None,
+                            default_template_closed_question=None,
+                            double_matching_answer_feedback=None,
+                            double_optin_error_feedback=None):
+        settings = deepcopy(self.settings)
+        settings['shortcode'] = shortcode
+        settings['default-template-open-question'] = default_template_open_question
+        settings['default-template-closed-question'] = default_template_closed_question
+        settings['double-matching-answer-feedback'] = double_matching_answer_feedback
+        settings['double-optin-error-feedback'] = double_optin_error_feedback
+        program_settings = []
+        for key, value in settings.iteritems():
+            program_settings.append({'key': key, 'value': value})
         return program_settings
 
-    def mkobj_program_settings_international_shortcode(self):
-        program_settings = deepcopy(self.program_settings)
-        program_settings[2] = {'key': 'shortcode',
-                               'value': '+318181'}
-        program_settings[1] = {'key': 'international-prefix',
-                               'value': 'all'}
+    def mk_program_settings_international_shortcode(self, shortcode='+318181',
+                                                    default_template_open_question=None,
+                                                    default_template_closed_question=None):
+        settings = deepcopy(self.settings)
+        settings['shortcode'] = shortcode
+        settings['international-prefix'] = 'all'
+        settings['default-template-open-question'] = default_template_open_question
+        settings['default-template-closed-question'] = default_template_closed_question
+        program_settings = []
+        for key, value in settings.iteritems():
+            program_settings.append({'key': key, 'value': value})
         return program_settings
 
     dialogue_announcement = {
