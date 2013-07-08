@@ -18,7 +18,7 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
         self.database_name = 'test_program_db'
         c = pymongo.Connection()
         db = c.test_program_db
-        self.history = db.history
+        self.history_collection = db.history
 
         self.clearData()
 
@@ -29,7 +29,7 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
         self.limit_to_date = None
         
         self.slm = SmsLimitManager(self.slm_redis_key, self.redis,
-                                   self.history, self.limit_type, 
+                                   self.history_collection, self.limit_type, 
                                    self.limit_number, self.limit_from_date,
                                    self.limit_to_date)
 
@@ -37,12 +37,12 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
         self.clearData()
 
     def clearData(self):
-        self.history.drop()
+        self.history_collection.drop()
         self.redis.delete("test:slm:smslimit:count")        
 
     def test_no_limit(self):
         now = datetime.now()
-        self.history.save(self.mkobj_history_dialogue(
+        self.history_collection.save(self.mkobj_history_dialogue(
             dialogue_id=1, interaction_id=1, timestamp=time_to_vusion_format(now)))
         self.slm.set_limit('none')
         self.assertTrue(self.slm.is_allowed('test'))
@@ -52,7 +52,7 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
         past = now - timedelta(days=1)
         future = now + timedelta(days=1)
 
-        self.history.save(self.mkobj_history_dialogue(
+        self.history_collection.save(self.mkobj_history_dialogue(
             dialogue_id=1, interaction_id=1, timestamp=time_to_vusion_format(now)))
 
         self.slm.set_limit(
@@ -88,14 +88,14 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
             to_date=time_to_vusion_format(future))        
    
         ## Count dialogue history
-        self.history.save(self.mkobj_history_dialogue(
+        self.history_collection.save(self.mkobj_history_dialogue(
             dialogue_id=1,
             interaction_id=1,
             direction='outgoing',
             timestamp=time_to_vusion_format(now)))
         self.assertEqual(self.slm.sync_data(), 1)
    
-        self.history.save(self.mkobj_history_dialogue(
+        self.history_collection.save(self.mkobj_history_dialogue(
             dialogue_id=1,
             interaction_id=1,
             direction='outgoing',
@@ -103,7 +103,7 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
             message_credits=2))        
         self.assertEqual(self.slm.sync_data(), 3)
         
-        self.history.save(self.mkobj_history_dialogue(
+        self.history_collection.save(self.mkobj_history_dialogue(
             dialogue_id=1, 
             interaction_id=1, 
             direction="incoming", 
@@ -112,21 +112,21 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
         self.assertEqual(self.slm.sync_data(), 3)        
         
         ## Count unattached
-        self.history.save(self.mkobj_history_unattach(
+        self.history_collection.save(self.mkobj_history_unattach(
             unattach_id=1,
             timestamp=time_to_vusion_format(now),
             message_credits=2))
         self.assertEqual(self.slm.sync_data(), 5)
 
         ## Count request
-        self.history.save(self.mkobj_history_request(
+        self.history_collection.save(self.mkobj_history_request(
             request_id=1,
             message_direction='outgoing',
             timestamp=time_to_vusion_format(now),
             message_credits=2))
         self.assertEqual(self.slm.sync_data(), 7)
         
-        self.history.save(self.mkobj_history_request(
+        self.history_collection.save(self.mkobj_history_request(
             request_id=1,
             message_direction='incoming',
             timestamp=time_to_vusion_format(now),
@@ -134,7 +134,7 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
         self.assertEqual(self.slm.sync_data(), 7)
 
         ## Do not count marker
-        self.history.save(self.mkobj_history_one_way_marker(
+        self.history_collection.save(self.mkobj_history_one_way_marker(
             dialogue_id=1,
             interaction_id=1,
             timestamp=time_to_vusion_format(now)))
@@ -152,14 +152,14 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
             to_date=time_to_vusion_format(future))        
         
         ## Count dialogue history
-        self.history.save(self.mkobj_history_dialogue(
+        self.history_collection.save(self.mkobj_history_dialogue(
             dialogue_id=1,
             interaction_id=1,
             direction='outgoing',
             timestamp=time_to_vusion_format(now)))
         self.assertEqual(self.slm.sync_data(), 1)
                    
-        self.history.save(self.mkobj_history_dialogue(
+        self.history_collection.save(self.mkobj_history_dialogue(
             dialogue_id=1, 
             interaction_id=1, 
             direction="incoming", 
@@ -168,14 +168,14 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
         self.assertEqual(self.slm.sync_data(), 3)        
                     
         ## Count request
-        self.history.save(self.mkobj_history_request(
+        self.history_collection.save(self.mkobj_history_request(
             request_id=1,
             message_direction='outgoing',
             timestamp=time_to_vusion_format(now),
             message_credits=2))
         self.assertEqual(self.slm.sync_data(), 5)
             
-        self.history.save(self.mkobj_history_request(
+        self.history_collection.save(self.mkobj_history_request(
             request_id=1,
             message_direction='incoming',
             timestamp=time_to_vusion_format(now),
@@ -183,7 +183,7 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
         self.assertEqual(self.slm.sync_data(), 7)
         
         ## Do not count marker
-        self.history.save(self.mkobj_history_one_way_marker(
+        self.history_collection.save(self.mkobj_history_one_way_marker(
             dialogue_id=1,
             interaction_id=1,
             timestamp=time_to_vusion_format(now)))

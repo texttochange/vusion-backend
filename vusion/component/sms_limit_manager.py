@@ -12,7 +12,7 @@ class SmsLimitManager(object):
     def __init__(self, prefix_key, redis, history,
                 limit_type, limit_number, from_date, to_data):
         self.prefix_key = prefix_key
-        self.history = history
+        self.history_collection = history
         self.redis = redis
         self.limit_type = limit_type
         self.limit_number = limit_number
@@ -85,7 +85,7 @@ class SmsLimitManager(object):
                      "object-type": {"$in": ["dialogue-history", "unattach-history", "request-history"]}}
         if self.limit_type == 'outgoing-only':
             condition.update({'message-direction': 'outgoing'})
-        result = self.history.group(None, condition, {"count":0}, reducer)
+        result = self.history_collection.group(None, condition, {"count":0}, reducer)
         if len(result) != 0:
             count = int(float(result[0]['count']))
         else:
