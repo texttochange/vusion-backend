@@ -1,4 +1,3 @@
-import pytz
 from datetime import datetime, time, date, timedelta
 
 from twisted.internet.defer import inlineCallbacks
@@ -13,6 +12,7 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
 
     def test_send_scheduled_messages(self):
         self.initialize_properties()
+        
         dNow = self.worker.get_local_time()
         dNow = dNow - timedelta(minutes=2)
         dPast = dNow - timedelta(minutes=61)
@@ -84,12 +84,12 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
             
     def test_send_scheduled_messages_with_priority(self):
         self.initialize_properties()
-        mytimezone = self.worker.properties['timezone']
                 
+        dNow = self.worker.get_local_time()
+        dNow = dNow - timedelta(minutes=2)
+       
         dialogue = self.mkobj_dialogue_announcement_prioritized()
         participant = self.mkobj_participant('10')
-        dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
-        dNow = dNow - timedelta(minutes=2)
         
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)
@@ -174,7 +174,6 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
         self.assertEqual(history['participant-session-id'], '1')
         self.assertEqual(history['message-content'], 'Bye')
 
-
     @inlineCallbacks
     def test_send_scheduled_run_action(self):
         self.initialize_properties()
@@ -218,6 +217,7 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
             'action': {'type-action': 'enrolling',
                        'enroll': '04'},
             'context': {'request-id': '1'}})
+
         self.collections['schedules'].save(schedule.get_as_dict())
         yield self.worker.send_scheduled()
   
@@ -230,8 +230,7 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
     def test_send_scheduled_question_multi_keyword(self):
         self.initialize_properties()
 
-        mytimezone = self.worker.properties['timezone'] #program_settings[2]['value']
-        dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
+        dNow = self.worker.get_local_time()
         dPast = dNow - timedelta(minutes=2)
 
         dialogue = self.mkobj_dialogue_question_multi_keyword()

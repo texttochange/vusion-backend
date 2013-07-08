@@ -38,6 +38,19 @@ class Schedule(VusionModel):
             kwargs['model-version'] = '2'
         return kwargs
 
+    def get_history_type(self):
+        if self.get_type() in ['dialogue-schedule', 'reminder-schedule']:
+            return 'dialogue-history'
+        elif self.get_type() == 'unattach-schedule':
+            return 'unattach-history'
+        elif self.get_type() == 'feedback-schedule':
+            message_ref = self.get_context()
+            if 'dialogue-id' in message_ref:
+                return 'dialogue-history'
+            elif 'request-id' in message_ref:
+                return 'request-history'
+        return None
+        
 
 class DialogueSchedule(Schedule):
 

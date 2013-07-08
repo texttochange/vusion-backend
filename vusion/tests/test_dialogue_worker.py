@@ -44,8 +44,9 @@ class DialogueWorkerTestCase(TestCase, MessageMaker,
         self.broker.queue_bind("%s.outbound" % self.transport_name,
                                "vumi",
                                "%s.outbound" % self.transport_name)
-        #Database#
+        #Database to be run in safe mode to guaranty write / edit / delete#
         connection = pymongo.Connection("localhost", 27017)
+        connection.safe = True
         self.db = connection[self.config['database_name']]
 
         self.collections = {}

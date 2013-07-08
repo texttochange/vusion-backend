@@ -42,15 +42,22 @@ class Context(object):
     def get_message(self):
         return (self.payload['message'] if message in self.payload else None)
 
-    def get_dict_for_history(self):
+    def get_dict_for_history(self, schedule=None):
+        dict_for_history = {}
+        if schedule is not None:
+            dict_for_history.update({
+                'object-type': schedule.get_history_type(),
+                'participant-session-id': schedule['participant-session-id'],
+            })
         if 'dialogue-id' in self.payload:
-            result = {'dialogue-id': self.payload['dialogue-id'],
-                    'interaction-id': self.payload['interaction-id']}
+            dict_for_history.update({
+                'dialogue-id': self.payload['dialogue-id'],
+                'interaction-id': self.payload['interaction-id']})
             if 'matching-answer' in self.payload:
-                result.update({'matching-answer': self.payload['matching-answer']})
-            return result
+                dict_for_history.update({
+                    'matching-answer': self.payload['matching-answer']})
         if 'request-id' in self.payload:
-            return {'request-id': self.payload['request-id']}
+            dict_for_history.update({'request-id': self.payload['request-id']})
         if 'unattach-id' in self.payload:
-            return {'unattach-id': self.payload['unattach-id']}
-        return {}
+            dict_for_history.update({'unattach-id': self.payload['unattach-id']})
+        return dict_for_history

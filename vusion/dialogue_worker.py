@@ -7,7 +7,6 @@ import re
 from uuid import uuid4
 
 from twisted.internet.defer import inlineCallbacks, Deferred, returnValue
-#from twisted.enterprise import adbapi
 from twisted.internet import task, reactor
 
 import pymongo
@@ -990,7 +989,7 @@ class DialogueWorker(ApplicationWorker):
             interaction = {
                 'content': schedule['content'],
                 'type-interaction': 'feedback'}
-            context = Context()
+            context = schedule.get_context()
         else:
             self.log("Error schedule object not supported: %s"
                      % (schedule))
@@ -1021,6 +1020,7 @@ class DialogueWorker(ApplicationWorker):
         try:            
             local_time = self.get_local_time()
 
+	    ## Delayed action are always run even if there original interaction has been deleted
             if schedule.get_type() == 'action-schedule':
                 if schedule.is_expired(local_time):
                     action = action_generator(**schedule['action'])
@@ -1038,17 +1038,15 @@ class DialogueWorker(ApplicationWorker):
                     schedule.get_context(),
                     schedule['participant-session-id'])
                 return
+
+	    ## Get source unattached, interaction or request
+            interaction, context = self.from_schedule_to_message(schedule)
             
-            local_time = self.get_local_time()
-            message_content = None
-            #participant = self.collections['participants'].find_one({'phone': schedule['participant-phone']})
-            interaction, message_ref = self.from_schedule_to_message(schedule)
-            
-            # delayed action are always run even if there original interaction has been deleted
             if not interaction:
                 self.log("Sender failure, cannot build process %r" % schedule)
                 return
-                
+
+	    ## Run the Deadline
             if schedule.get_type() == 'deadline-schedule':
                 actions = Actions()
                 if interaction.has_reminder():
@@ -1057,27 +1055,29 @@ class DialogueWorker(ApplicationWorker):
                     self.add_oneway_marker(
                         schedule['participant-phone'],
                         schedule['participant-session-id'],
-                        message_ref.get_dict_for_history())
+                        context.get_dict_for_history())
                 for action in actions.items():
                     self.run_action(
                         schedule['participant-phone'],
                         action,
-                        message_ref,
+                        context,
                         schedule['participant-session-id'])
                 return
 
+	    ## Reaching this line can only be message to be send
             message_content = self.generate_message(interaction)
             message_content = self.customize_message(
                 schedule['participant-phone'],
                 message_content)
 
+	    ## Do not run expired schedule
             if schedule.is_expired(local_time):
                 history = {
                     'object-type': 'datepassed-marker-history',
                     'participant-phone': schedule['participant-phone'],
                     'participant-session-id': schedule['participant-session-id'],
                     'scheduled-date-time': schedule['date-time']}
-                history.update(message_ref.get_dict_for_history())
+                history.update(context.get_dict_for_history())
                 self.save_history(**history)
                 return
                 
@@ -1088,52 +1088,35 @@ class DialogueWorker(ApplicationWorker):
                 'transport_type': self.transport_type,
                 'content': message_content})
 
-	    #transport_metadata set up
-            if ('customized-id' in self.properties 
-                    and self.properties['customized-id'] is not None):
-                message['transport_metadata']['customized_id'] = self.properties['customized-id']
-                
-            if ('prioritized' in interaction
-                    and interaction['prioritized'] is not None):
-                message['transport_metadata']['priority'] = interaction['prioritized']
+	    ## Apply program settings
+	    if (self.properties['customized-id'] is not None):
+		message['transport_metadata']['customized_id'] = self.properties['customized-id']
 
+	    ## Check for program properties
+	    if (schedule.get_type() == 'feedback-schedule'
+	        and self.properties['request-and-feedback-prioritized'] is not None):
+		message['transport_metadata']['priority'] = self.properties['request-and-feedback-prioritized']
+	    elif ('prioritized' in interaction 
+	          and interaction['prioritized'] is not None):
+		message['transport_metadata']['priority'] = interaction['prioritized']
+
+	    ## Necessary for some transport that require tocken to be reuse for MT message
+	    #TODO only fetch when participant has transport metadata...
 	    participant = self.get_participant(schedule['participant-phone'])
 	    if (participant['transport_metadata'] is not {}):
 		message['transport_metadata'].update(participant['transport_metadata'])
-
-            if schedule.get_type() == 'feedback-schedule':
-                if ('request-and-feedback-prioritized' in self.properties 
-                        and self.properties['request-and-feedback-prioritized'] is not None):
-                    message['transport_metadata']['priority'] = self.properties['request-and-feedback-prioritized']
                 
             yield self.transport_publisher.publish_message(message)
-            self.log("Message has been sent to %s '%s'" % 
-                     (message['to_addr'], message['content']))
-
-            if schedule.get_type() in ['dialogue-schedule', 'reminder-schedule']:
-                object_type = 'dialogue-history'
-            elif schedule.get_type() == 'unattach-schedule':
-                object_type = 'unattach-history'
-            elif schedule.get_type() == 'feedback-schedule':
-                message_ref = schedule.get_context()
-                if 'dialogue-id' in message_ref:
-                    object_type = 'dialogue-history'
-                elif 'request-id' in message_ref:
-                    object_type = 'request-history'
-            else:
-                raise VusionError("%s is not supported" % schedule.get_type())
+            self.log("Message has been sent to %s '%s'" % (message['to_addr'], message['content']))
 
             history = {
-                'object-type': object_type,
                 'message-content': message['content'],
                 'participant-phone': message['to_addr'],
-                'participant-session-id': schedule['participant-session-id'],
                 'message-direction': 'outgoing',
                 'message-status': 'pending',
                 'message-id': message['message_id']}
-            history.update(message_ref.get_dict_for_history())
+            history.update(context.get_dict_for_history(schedule))
             self.save_history(**history)
-            return
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log("Error send schedule: %r" %
