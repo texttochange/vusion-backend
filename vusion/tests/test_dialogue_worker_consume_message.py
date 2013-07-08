@@ -26,9 +26,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test_inbound_message_matching_dialogue(self):
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
         dNow = self.worker.get_local_time()
         self.collections['dialogues'].save(self.mkobj_dialogue_question_offset_days())
         self.collections['participants'].save(self.mkobj_participant(
@@ -71,9 +69,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test_inbound_message_matching_dialogue_offset_condition(self):
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
         dNow = self.worker.get_local_time()
         self.collections['dialogues'].save(self.mkobj_dialogue_open_question_offset_conditional())
         self.collections['participants'].save(self.mkobj_participant(
@@ -97,9 +93,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test_inbound_message_matching_dialogue_with_reminder(self):
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
 
         dNow = self.worker.get_local_time()
         dPast = dNow - timedelta(minutes=4)
@@ -148,12 +142,9 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test_inbound_message_matching_dialogue_double_matching_answer(self):
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        self.collections['program_settings'].save({
-            'key': 'double-matching-answer-feedback',
-            'value': 'you have already answer this message'})
-        self.worker.load_data()
+        settings = self.mk_program_settings(
+            double_matching_answer_feedback='you have already answer this message')
+        self.initialize_properties(settings)
 
         dNow = self.worker.get_local_time()
 
@@ -189,9 +180,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test_inbound_message_no_repeat_dialogue_enroll(self):
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
 
         dNow = self.worker.get_local_time()
 
@@ -234,9 +223,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test_inbound_message_matching_request_not_opted_in(self):
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()        
+        self.initialize_properties()
         request_id = self.collections['requests'].save(self.mkobj_request_response())
 
         inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
@@ -248,9 +235,10 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test_inbound_message_matching_request_opted_out_participant(self):
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()        
+        #for program_setting in self.mkobj_program_settings():
+            #self.collections['program_settings'].save(program_setting)
+        #self.worker.load_properties()
+        self.initialize_properties()
         request_id = self.collections['requests'].save(self.mkobj_request_response())
         self.collections['participants'].save(self.mkobj_participant(
                    '07', session_id=None))
@@ -264,12 +252,10 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test_inbound_message_matching_request_double_optin_error(self):
-        program_settings = self.mkobj_program_settings()
-        program_settings.append({'key': 'double-optin-error-feedback',
-                                 'value': 'you have already optin'})
-        for program_setting in program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()        
+        settings = self.mk_program_settings(
+            double_optin_error_feedback='you have already optin')
+        self.initialize_properties(settings)
+
         request_id = self.collections['requests'].save(self.mkobj_request_join())
 
         inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
@@ -298,10 +284,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test_inbound_message_with_transport_metadata(self):
-        program_settings = self.mkobj_program_settings()
-        for program_setting in program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()        
+        self.initialize_properties()
 
         #First test with not optin
         transport_metadata = {'some_key': 'some_value'}
@@ -401,13 +384,10 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test_delivery(self):
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
+        
         past = self.worker.get_local_time() - timedelta(hours=5)        
-    
         event = self.mkmsg_delivery_for_send(user_message_id='1')
-
         history = self.mkobj_history_unattach(
             '4',
             time_to_vusion_format(past), 
@@ -437,11 +417,9 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test_delivery_failure(self):
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-        past = self.worker.get_local_time() - timedelta(hours=5)
-                            
+        self.initialize_properties()
+        
+        past = self.worker.get_local_time() - timedelta(hours=5)                    
         event = self.mkmsg_delivery_for_send(
             delivery_status='failed',
             failure_code='404',
@@ -469,9 +447,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test_delivery_failure_no_details(self):
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
         past = self.worker.get_local_time() - timedelta(hours=5)
                             
         event = self.mkmsg_delivery_for_send(
@@ -497,9 +473,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test_ack(self):
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
         past = self.worker.get_local_time() - timedelta(hours=5)
         
         event = self.mkmsg_delivery_for_send(event_type='ack',
@@ -523,9 +497,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test_inbound_message_matching_dialogue_limit_max_unmatching_answers(self):
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
 
         dNow = self.worker.get_local_time()
         dFuture = dNow + timedelta(minutes=10)
@@ -533,7 +505,6 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         dialogue = self.mkobj_dialogue_question_max_unmatching()
         self.collections['dialogues'].save(dialogue)
 
-        #dialogue_helper = Dialogue(**dialogue)
         participant = self.mkobj_participant(
             '06',
             enrolled=[{'dialogue-id': dialogue['dialogue-id'],

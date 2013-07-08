@@ -13,9 +13,10 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
     #TODO: reduce the scope of the update-schedule
     @inlineCallbacks
     def test_consume_control_update_schedule(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        #for program_setting in self.program_settings:
+            #self.collections['program_settings'].save(program_setting)
+        #self.worker.load_properties()
+        self.initialize_properties()
         self.broker.dispatched = {}
         dNow = self.worker.get_local_time()
     
@@ -73,12 +74,13 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
     
     @inlineCallbacks
     def test_consume_control_test_send_all_messages(self):
+        self.initialize_properties()
         dialogue_id = self.collections['dialogues'].save(
             self.mkobj_dialogue_annoucement())
         self.collections['participants'].save(self.mkobj_participant('08'))
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        #for program_setting in self.program_settings:
+            #self.collections['program_settings'].save(program_setting)
+        #self.worker.load_properties()
     
         event = self.mkmsg_dialogueworker_control(**{
             'action': 'test_send_all_messages',
@@ -91,9 +93,10 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
     
     @inlineCallbacks
     def test_consume_control_update_keywords(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        #for program_setting in self.program_settings:
+            #self.collections['program_settings'].save(program_setting)
+        #self.worker.load_properties()
+        self.initialize_properties()
         self.broker.dispatched = {}
     
         event = self.mkmsg_dialogueworker_control(**{
@@ -105,9 +108,10 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
     
     @inlineCallbacks
     def test_consume_control_reload_program_settings(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        #for program_setting in self.program_settings:
+            #self.collections['program_settings'].save(program_setting)
+        #self.worker.load_properties()
+        self.initialize_properties()
     
         program_setting = self.collections['program_settings'].find_one({'key': 'timezone'})
         program_setting['value'] = 'Europe/Paris'
@@ -119,12 +123,9 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
     
         self.assertEqual(self.worker.properties['timezone'], 'Europe/Paris')
     
-
     @inlineCallbacks
     def test_consume_control_badly_formated(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
     
         program_setting = self.collections['program_settings'].find_one({'key': 'timezone'})
         program_setting['value'] = 'Europe/Paris'
