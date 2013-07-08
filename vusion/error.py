@@ -24,3 +24,11 @@ class InvalidField(VusionError):
 
 class FailingModelUpgrade(VusionError):
     pass
+
+
+class MissingProperty(VusionError):
+    pass
+
+
+class MissingCode(MissingProperty):
+    pass
