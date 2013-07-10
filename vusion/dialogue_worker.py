@@ -208,7 +208,20 @@ class DialogueWorker(ApplicationWorker):
         dialogue = self.collections['dialogues'].find_one(
             {'_id': ObjectId(dialogue_obj_id)})
         return dialogue
-    
+
+    def get_requests(self):
+	requests = []
+	for request in self.collections['requests'].find():
+	    try:
+		requests.append(Request(**request))
+	    except:
+		exc_type, exc_value, exc_traceback = sys.exc_info()
+		self.log(
+		    "Error while applying request model %s: %r" %
+		    (request['keyword'],
+		     traceback.format_exception(exc_type, exc_value, exc_traceback)))
+	return requests
+  
     def init_program_db(self, database_name, vusion_database_name):
         self.log("Initialization of the program")
         self.database_name = database_name
@@ -1186,17 +1199,19 @@ class DialogueWorker(ApplicationWorker):
         else:
             log.error('[%s] %s' % (self.control_name, msg))
 
-    @inlineCallbacks
-    def register_keywords_in_dispatcher(self):
-        self.log('Synchronizing with dispatcher')
+    def get_keywords(self):
         keywords = []
         for dialogue in self.get_active_dialogues():
             keywords += dialogue.get_all_keywords()
-        for request in self.collections['requests'].find():
-            keyphrases = request['keyword'].split(', ')
-            for keyphrase in keyphrases:
-                if not (keyphrase.split(' ')[0]) in keywords:
-                    keywords.append(keyphrase.split(' ')[0].lower())
+        for request in self.get_requests():
+	    keywords += request.get_keywords()
+	## remove potential duplicate due to request exact matching
+	return sorted(set(keywords))
+	
+    @inlineCallbacks
+    def register_keywords_in_dispatcher(self):
+        self.log('Synchronizing with dispatcher')
+	keywords = self.get_keywords()
         to_addr = get_shortcode_value(self.properties['shortcode'])
         rules = []
         self.log("Registering the keywords: %r" % keywords)
@@ -1206,8 +1221,7 @@ class DialogueWorker(ApplicationWorker):
                           'to_addr': ("%s" % to_addr)})
         if (not self.properties['international-prefix'] == 'all'):
             for rule in rules:
-                rule['prefix'] = ("+%s" % self.properties['international-prefix'])
-       
+                rule['prefix'] = ("+%s" % self.properties['international-prefix'])       
         msg = DispatcherControl(
             action='add_exposed',
             exposed_name=self.transport_name,

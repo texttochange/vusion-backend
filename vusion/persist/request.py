@@ -31,3 +31,12 @@ class Request(VusionModel):
         for response in self.payload['responses']:
             actions.append(FeedbackAction(**{'content': response['content']}))
         return actions
+
+    def get_keywords(self):
+        keyphrases = self['keyword'].split(',')
+        keywords = []
+        for keyphrase in keyphrases:
+            keyphrase = keyphrase.strip()
+            if not (keyphrase.split(' ')[0]) in keywords:
+                keywords.append(keyphrase.split(' ')[0].lower())
+        return keywords

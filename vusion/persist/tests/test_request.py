@@ -27,3 +27,38 @@ class TestRequest(TestCase, ObjectMaker):
                        'actions': []}
 
         self.assertRaises(FailingModelUpgrade, Request, **request_raw)
+
+    def test_get_keywords_no_space(self):
+        request = Request(**self.mkobj_request_response("keyword1,keyword2"))
+        
+        self.assertEqual(
+            ["keyword1", "keyword2"],
+            request.get_keywords())
+    
+    def test_get_keywords_space(self):
+        request = Request(**self.mkobj_request_response("keyword1, keyword2"))
+        
+        self.assertEqual(
+            ["keyword1", "keyword2"],
+            request.get_keywords())
+
+    def test_get_keywords_from_keyphrase(self):
+        request = Request(**self.mkobj_request_response("keyword1 something, keyword2 somethingelse"))
+        
+        self.assertEqual(
+            ["keyword1", "keyword2"],
+            request.get_keywords())
+
+    def test_get_keywords_uppercase(self):
+        request = Request(**self.mkobj_request_response("keyWord1"))
+        
+        self.assertEqual(
+            ["keyword1"],
+            request.get_keywords())
+
+    def test_get_keywords_from_keyphrase_samekeyword(self):
+        request = Request(**self.mkobj_request_response("keyword1 something, keyword1 somethingelse"))
+        
+        self.assertEqual(
+            ["keyword1"],
+            request.get_keywords())

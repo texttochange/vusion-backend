@@ -731,9 +731,9 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertEqual([
             {'app': 'test', 'keyword': 'feel', 'to_addr': '8181', 'prefix': '+256'},
             {'app': 'test', 'keyword': 'fel', 'to_addr': '8181', 'prefix': '+256'},
-            {'app': 'test', 'keyword': 'www', 'to_addr': '8181', 'prefix': '+256'},
             {'app': 'test', 'keyword': 'quit', 'to_addr': '8181', 'prefix': '+256'},
-            {'app': 'test', 'keyword': 'quitnow', 'to_addr': '8181', 'prefix': '+256'}],
+            {'app': 'test', 'keyword': 'quitnow', 'to_addr': '8181', 'prefix': '+256'},
+            {'app': 'test', 'keyword': 'www', 'to_addr': '8181', 'prefix': '+256'}],
             messages[0]['rules'])
 
     @inlineCallbacks

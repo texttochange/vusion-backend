@@ -15,7 +15,7 @@ from vusion.message import DispatcherControl, WorkerControl
 
 from vusion.persist import (Dialogue, DialogueHistory, UnattachHistory,
                             history_generator, schedule_generator, Participant,
-                            UnattachMessage)
+                            UnattachMessage, Request)
 
 
 class DataLayerUtils:
@@ -736,13 +736,13 @@ class ObjectMaker:
         return request
 
     def mkobj_request_response(self, keyword='www info'):
-        return {
+        return Request(**{
             'keyword': keyword,
             'responses': [
                 {'content': 'a response'}],
             'actions': [],
             'object-type': 'request',
-            'model-version': '1'}
+            'model-version': '1'}).get_as_dict()
 
     request_leave = {
         'keyword': 'www quit, Quit, quit now, quitnow',
