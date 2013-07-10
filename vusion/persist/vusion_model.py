@@ -93,3 +93,11 @@ class VusionModel(object):
                         continue
                 if not rule(data):
                     raise InvalidField("%s=%s is not %s" % (field, data[field], rule_name))        
+
+    def required_subfields(self, field, subfields):
+        if field is None:
+            return True
+        for subfield in subfields[field]:
+            if not subfield in self:
+                raise MissingField(subfield)
+        return True

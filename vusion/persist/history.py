@@ -5,68 +5,112 @@ import re
 
 class History(VusionModel):
 
-    HISTORY_FIELDS = {
-        'timestamp': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)T0?(\d+):0?(\d+):0?(\d+)$'), v),
-        'participant-phone': lambda v: v is not None,
-        'participant-session-id': lambda v: True}
-
-    MESSAGE_FIELDS = {
-        'message-content': lambda v: v is not None,
-        'message-direction': lambda v: v in ['incoming', 'outgoing'],
-        'message-credits' : lambda v: isinstance(v, int),
+    fields = {
+        'timestamp': {
+            'required': True,
+            'valid_value': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)T0?(\d+):0?(\d+):0?(\d+)$'), v['timestamp'])
+            },
+        'participant-phone': {
+            'required': True,
+            'valid_value': lambda v: v['participant-phone'] is not None
+            },
+        'participant-session-id': {
+            'required': True
+            },
         }
-    
-    SPECIFIC_DIRECTION_FIELDS = {
-        'outgoing': {
-            'message-id': lambda v: True,
-            'message-status': lambda v: v in ['failed', 'pending', 'delivered', 'ack', 'nack']},
-        'incoming': {}}
+        
+    def is_message(self):
+        return False
 
-    SPECIFIC_STATUS_FIELDS = {
-        'failed': {'failure-reason': lambda v: v is not None},
-        'pending': {},
-        'delivered': {},
-        'ack': {},
-        'nack': {}
+    def validate_fields(self):
+        self._validate(self, History.fields)
+
+    #def validate_fields(self):
+        #super(History, self).validate_fields()
+        #for field, check in self.HISTORY_FIELDS.items():
+            #self.assert_field_present(field)
+            #if not check(self[field]):
+                #raise InvalidField(field)
+        #if self.is_message():
+            #for field, check in self.MESSAGE_FIELDS.items():
+                #self.assert_field_present(field)
+                #if not check(self[field]):
+                    #raise InvalidField(field)
+            #for field, check in self.SPECIFIC_DIRECTION_FIELDS[self['message-direction']].items():
+                #self.assert_field_present(field)
+                #if not check(self[field]):
+                    #raise InvalidField(field)
+            #if self['message-direction'] == 'outgoing':
+                #for field, check in self.SPECIFIC_STATUS_FIELDS[self['message-status']].items():
+                    #self.assert_field_present(field)
+                    #if not check(self[field]):
+                        #raise InvalidField(field)
+
+
+class MessageHistory(History):
+
+    fields = {
+        'message-content': {
+            'required': True,
+            'valid_value': lambda v: v['message-content'] is not None
+            },
+        'message-direction': {
+            'required': True,
+            'valid_value': lambda v: v['message-direction'] in ['incoming', 'outgoing'],
+            'required_subfield': lambda v: getattr(v, 'required_subfields')(
+                v['message-direction'],
+                {'outgoing':['message-id', 'message-status'],
+                 'incoming': []})
+            },
+        'message-id':{
+            'required': False,
+            'valid_value': lambda v: True
+            },
+        'message-status':{
+            'required': False,
+            'valid_value': lambda v: v['message-status'] in ['failed', 'pending', 'delivered', 'ack', 'nack', 'no-credit'],
+            'required_subfield': lambda v: getattr(v, 'required_subfields') (
+                v['message-status'],
+                {'failed': ['failure-reason'],
+                 'pending': [],
+                 'delivered': [],
+                 'ack': [],
+                 'nack': [],
+                 'no-credit': []})
+            },
+        'failure-reason': {
+            'required': False,
+            'valid_value': lambda v: v['failure-reason'] is not None
+            },
+        'message-credits':{
+            'required': True,
+            'valid_value': lambda v: isinstance(v['message-credits'], int)
+        }
     }
 
     def is_message(self):
-        pass
-
-    def validate_fields(self):
-        super(History, self).validate_fields()
-        for field, check in self.HISTORY_FIELDS.items():
-            self.assert_field_present(field)
-            if not check(self[field]):
-                raise InvalidField(field)
-        if self.is_message():
-            for field, check in self.MESSAGE_FIELDS.items():
-                self.assert_field_present(field)
-                if not check(self[field]):
-                    raise InvalidField(field)
-            for field, check in self.SPECIFIC_DIRECTION_FIELDS[self['message-direction']].items():
-                self.assert_field_present(field)
-                if not check(self[field]):
-                    raise InvalidField(field)
-            if self['message-direction'] == 'outgoing':
-                for field, check in self.SPECIFIC_STATUS_FIELDS[self['message-status']].items():
-                    self.assert_field_present(field)
-                    if not check(self[field]):
-                        raise InvalidField(field)
-
+        return True
         
+    def validate_fields(self):
+        super(MessageHistory, self).validate_fields()        
+        self._validate(self, MessageHistory.fields)
 
 
-class DialogueHistory(History):
+class DialogueHistory(MessageHistory):
 
     MODEL_TYPE = 'dialogue-history'
     MODEL_VERSION = '2'
 
-    fields = ['dialogue-id',
-              'interaction-id']
-
-    def is_message(self):
-        return True
+    fields = {
+        'dialogue-id':{
+            'required': True,
+            'valid_value': lambda v: v['dialogue-id'] is not None
+            },
+        'interaction-id':{
+            'required': True,
+            'valid_value': lambda v: v['interaction-id'] is not None            
+            }
+        }
 
     def validate_fields(self):
         super(DialogueHistory, self).validate_fields()
@@ -78,18 +122,21 @@ class DialogueHistory(History):
         return kwargs
 
 
-class RequestHistory(History):
+class RequestHistory(MessageHistory):
 
     MODEL_TYPE = 'request-history'
     MODEL_VERSION = '2'
 
-    fields = ['request-id']
-
-    def is_message(self):
-        return True
+    fields = {
+        'request-id':{
+            'required': True,
+            'valid_value': lambda v: v['request-id'] is not None
+        }
+    }
 
     def validate_fields(self):
         super(RequestHistory, self).validate_fields()
+        self._validate(self, RequestHistory.fields)
 
     def upgrade(self, **kwargs):
         if kwargs['model-version'] == '1':
@@ -98,18 +145,21 @@ class RequestHistory(History):
         return kwargs
 
 
-class UnattachHistory(History):
+class UnattachHistory(MessageHistory):
 
     MODEL_TYPE = 'unattach-history'
     MODEL_VERSION = '2'
 
-    fields = ['unattach-id']
-
-    def is_message(self):
-        return True
+    fields = {
+        'unattach-id':{
+            'required': True,
+            'valid_value': lambda v: v['unattach-id'] is not None
+        }
+    }
 
     def validate_fields(self):
         super(UnattachHistory, self).validate_fields()
+        self._validate(self, UnattachHistory.fields)
 
     def upgrade(self, **kwargs):
         if kwargs['model-version'] == '1':
@@ -118,12 +168,12 @@ class UnattachHistory(History):
         return kwargs
 
 
-class UnmatchingHistory(History):
+class UnmatchingHistory(MessageHistory):
 
     MODEL_TYPE = 'unmatching-history'
     MODEL_VERSION = '2'
 
-    fields = []
+    fields = {}
 
     def is_message(self):
         return True
