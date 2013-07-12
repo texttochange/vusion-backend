@@ -49,7 +49,7 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
         self.history_collection.save(self.mkobj_history_dialogue(
             dialogue_id=1, interaction_id=1, timestamp=time_to_vusion_format(now)))
         self.slm.set_limit('none')
-        self.assertTrue(self.slm.is_allowed('test'))
+        self.assertTrue(self.slm.is_allowed('test', now))
 
     def test_outgoing_limit_history(self):
         now = datetime.now()
@@ -66,11 +66,11 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
             to_date=time_to_vusion_format(future))
 
         # first message should be granted
-        self.assertTrue(self.slm.is_allowed(message_credits=1))
+        self.assertTrue(self.slm.is_allowed(message_credits=1, local_time=now))
 
         # second message should not
-        self.assertFalse(self.slm.is_allowed(message_credits=1))
-        self.assertFalse(self.slm.is_allowed(message_credits=1))
+        self.assertFalse(self.slm.is_allowed(message_credits=1, local_time=now))
+        self.assertFalse(self.slm.is_allowed(message_credits=1, local_time=now))
 
         # until the limit is increased
         self.slm.set_limit(
@@ -78,7 +78,7 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
             limit_number=4, 
             from_date=time_to_vusion_format(past),
             to_date=time_to_vusion_format(future))
-        self.assertTrue(self.slm.is_allowed(message_credits=1))
+        self.assertTrue(self.slm.is_allowed(message_credits=1, local_time=now))
 
     def test_sync_history_outgoing_only(self):
         now = datetime.now()
@@ -223,16 +223,16 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
 
         # first message should be granted
         self.assertTrue(
-            self.slm.is_allowed(message_credits=1, schedule=schedule_first))
+            self.slm.is_allowed(message_credits=1, local_time=now, schedule=schedule_first))
         
         # the whitecard didn't book the allowed space, so another message can still be send
-        self.assertTrue(self.slm.is_allowed(message_credits=1))
+        self.assertTrue(self.slm.is_allowed(message_credits=1, local_time=now))
         
         # At this point the manager start to reject message 
-        self.assertFalse(self.slm.is_allowed(message_credits=1))
+        self.assertFalse(self.slm.is_allowed(message_credits=1, local_time=now))
         
         # Except the one having a whitecard
-        self.assertTrue(self.slm.is_allowed(message_credits=1, schedule=schedule_second))
+        self.assertTrue(self.slm.is_allowed(message_credits=1, local_time=now, schedule=schedule_second))
 
     def test_set_blackcard_unattach_schedule(self):
         now = datetime.now()
@@ -254,15 +254,31 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
         
         # first message should not be granted as the total credit required is 4
         self.assertFalse(
-            self.slm.is_allowed(message_credits=2, schedule=schedule_first))
+            self.slm.is_allowed(message_credits=2, local_time=now, schedule=schedule_first))
 
         # other message are still allowed
-        self.assertTrue(self.slm.is_allowed(message_credits=1))
+        self.assertTrue(self.slm.is_allowed(message_credits=1, local_time=now))
         # Still same origin unattach message are rejected
         self.assertFalse(
-            self.slm.is_allowed(message_credits=2, schedule=schedule_second))
-        
-        self.assertTrue(self.slm.is_allowed(message_credits=1))
+            self.slm.is_allowed(message_credits=2, local_time=now, schedule=schedule_second))
+
+        self.assertTrue(self.slm.is_allowed(message_credits=1, local_time=now))
         # At this point the manager start to reject message 
-        self.assertFalse(self.slm.is_allowed(message_credits=1))
+        self.assertFalse(self.slm.is_allowed(message_credits=1, local_time=now))
+
+    def test_is_timeframed(self):
+        now = datetime.now()
+        past = now - timedelta(days=1)
+        more_past = past - timedelta(days=1)
+        future = now + timedelta(days=1)
+        more_future = future + timedelta(days=1)
         
+        self.slm.set_limit(
+            'outgoing-only', 
+            limit_number=2, 
+            from_date=time_to_vusion_format(past),
+            to_date=time_to_vusion_format(future))
+        
+        self.assertTrue(self.slm.is_allowed(message_credits=1, local_time=now))
+        self.assertFalse(self.slm.is_allowed(message_credits=1, local_time=more_future))
+        self.assertFalse(self.slm.is_allowed(message_credits=1, local_time=more_past))

@@ -47,7 +47,14 @@ class MessageHistory(History):
             },
         'message-status':{
             'required': False,
-            'valid_value': lambda v: v['message-status'] in ['failed', 'pending', 'delivered', 'ack', 'nack', 'no-credit'],
+            'valid_value': lambda v: v['message-status'] in [
+                'failed', 
+                'pending', 
+                'delivered', 
+                'ack', 
+                'nack', 
+                'no-credit',
+                'no-credit-timeframe'],
             'required_subfield': lambda v: getattr(v, 'required_subfields') (
                 v['message-status'],
                 {'failed': ['failure-reason'],
@@ -55,7 +62,8 @@ class MessageHistory(History):
                  'delivered': [],
                  'ack': [],
                  'nack': [],
-                 'no-credit': []})
+                 'no-credit': [],
+                 'no-credit-timeframe': []})
             },
         'failure-reason': {
             'required': False,

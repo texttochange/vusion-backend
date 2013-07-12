@@ -1128,14 +1128,18 @@ class DialogueWorker(ApplicationWorker):
 		message['transport_metadata'].update(participant['transport_metadata'])
             
 	    message_credits = self.properties.use_credits(message_content)
-	    if self.sms_limit.is_allowed(message_credits, schedule):
+	    if self.sms_limit.is_allowed(message_credits, local_time, schedule):
 		yield self.transport_publisher.publish_message(message)
 		message_status = 'pending'
 		self.log("Message has been sent to %s '%s'" % (message['to_addr'], message['content']))
 	    else: 
-		message_status = 'no-credit'
 		message_credits = 0
-		self.log("SMS limit, message hasn't been sent to %s '%s'" % (message['to_addr'], message['content']))
+		if self.sms_limit.is_timeframed(local_time):
+		    message_status = 'no-credit'
+		else:
+		    message_status = 'no-credit-timeframe'
+		self.log("%s, message hasn't been sent to %s '%s'" % (
+		    message_status, message['to_addr'], message['content']))
 
             history = {
                 'message-content': message['content'],

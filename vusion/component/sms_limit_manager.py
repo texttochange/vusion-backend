@@ -3,6 +3,8 @@ from bson.code import Code
 
 from twisted.internet.task import LoopingCall
 
+from vusion.utils import time_to_vusion_format
+
 
 class SmsLimitManager(object):
     
@@ -54,9 +56,12 @@ class SmsLimitManager(object):
             self.redis.incr(self.used_credit_counter_key(), message_credits)
 
     ## Should go quite fast
-    def is_allowed(self, message_credits, schedule=None):
+    def is_allowed(self, message_credits, local_time, schedule=None):
         if self.limit_type == 'none':
             return True
+        if not self.is_timeframed(local_time):
+            self.set_blackcard(schedule)
+            return False
         used_credit_counter = self.get_used_credit_counter()
         if self.can_be_sent(used_credit_counter, message_credits, schedule):
             self.redis.incr(self.used_credit_counter_key(), message_credits)
@@ -64,7 +69,12 @@ class SmsLimitManager(object):
             return True
         self.set_blackcard(schedule)
         return False
-        
+
+    def is_timeframed(self, local_time):
+        local_time_iso = time_to_vusion_format(local_time)
+        return (self.limit_from_date < local_time_iso 
+                and local_time_iso < self.limit_to_date)
+
     def can_be_sent(self, used_credit_count, message_credits, schedule=None):
         if schedule is not None and schedule.get_type() == 'unattach-schedule':
             if self.has_whitecard(schedule):
