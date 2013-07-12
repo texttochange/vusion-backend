@@ -27,3 +27,12 @@ class TestDialogueHistory(TestCase, ObjectMaker):
         self.assertTrue(unattach_history is not None)
         self.assertEqual(unattach_history['object-type'], 'unattach-history')
         self.assertEqual(unattach_history['model-version'], UnattachHistory.MODEL_VERSION)
+
+    def test_validation_request(self):
+        history = self.mkobj_history_request(
+            '1',
+            '2012-10-10T15:15:12')
+        request_history = history_generator(**history)
+        self.assertTrue(request_history is not None)
+        self.assertEqual(request_history['object-type'], 'request-history')
+        self.assertEqual(request_history['model-version'], UnattachHistory.MODEL_VERSION)

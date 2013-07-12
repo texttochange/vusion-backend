@@ -12,7 +12,7 @@ from twisted.internet import task, reactor
 import pymongo
 from bson.objectid import ObjectId
 
-import redis
+from redis import Redis
 
 from datetime import datetime, time, date, timedelta
 import pytz
@@ -75,12 +75,17 @@ class DialogueWorker(ApplicationWorker):
         #Initializing
         self.program_name = None
         self.last_script_used = None
-        self.r_server = redis.Redis(**self.r_config)
+	self.r_key = 'vusion:programs:' + self.config['database_name']
+        self.r_server = Redis(**self.r_config)
         self._d.callback(None)
 
         self.collections = {}
         self.init_program_db(self.config['database_name'],
-                             self.config['vusion_database_name'])
+                             self.config['vusion_database_name'])	
+	
+	self.sms_limit = SmsLimitManager(self.r_key, self.r_server, 
+	                                 self.collections['history'], 
+	                                 self.collections['schedules'])
 	
         #Set up dispatcher publisher
         self.dispatcher_publisher = yield self.publish_to(
@@ -89,7 +94,7 @@ class DialogueWorker(ApplicationWorker):
 	self.properties = DialogueWorkerPropertyHelper(
 	    self.collections['program_settings'],
 	    self.collections['shortcodes'])
-	#Will need the dispatcher publisher
+	#Will need to register the keywords
 	self.load_properties(if_needed_register_keywords=True)
 
         #Set up control consumer
@@ -521,13 +526,17 @@ class DialogueWorker(ApplicationWorker):
                     and (actions.contains('optin') or actions.contains('enrolling'))):
                 self.run_action(message['from_addr'], actions.get_priority_action(), context)
             participant = self.get_participant(message['from_addr'], only_optin=True)
+	    message_credits = self.properties.use_credits(message['content'])
             history.update({
-                'message-content': message['content'],
                 'participant-phone': message['from_addr'],
-                'participant-session-id': (participant['session-id'] if participant else None),
-                'message-direction': 'incoming'})
+                'participant-session-id': (participant['session-id'] if participant else None),	        
+                'message-content': message['content'],
+                'message-direction': 'incoming',
+	        'message-credits': message_credits
+	    })
             history.update(context.get_dict_for_history())
             self.save_history(**history)
+	    self.sms_limit.received_message(message_credits)
 	    self.update_participant_transport_metadata(message)
             if (context.is_matching() and participant is not None):
                 if ('interaction' in context):
@@ -705,12 +714,24 @@ class DialogueWorker(ApplicationWorker):
                     secondsLater,
                     self.daemon_process)
 
+    def set_sms_limit(self):
+	self.sms_limit.set_limit(
+	    limit_type=self.properties['sms-limit-type'],
+	    limit_number=self.properties['sms-limit-number'],
+	    from_date=self.properties['sms-limit-date-from'],
+	    to_date=self.properties['sms-limit-date-to'])
+
     def load_properties(self, if_needed_register_keywords=True):
 	try:
 	    was_ready = self.properties.is_ready()
-	    callbacks = {}
+	    ## the default callbacks in case the value is changing
+	    callbacks = {
+	        'sms-limit-type': self.set_sms_limit,
+	        'sms-limit-number': self.set_sms_limit,
+	        'sms-limit-date-from': self.set_sms_limit,
+	        'sms-limit-date-to': self.set_sms_limit}
 	    if if_needed_register_keywords == True:
-		callbacks = {'shortcode': self.register_keywords_in_dispatcher}
+		callbacks.update({'shortcode': self.register_keywords_in_dispatcher})
 	    self.properties.load(callbacks)
 	except MissingProperty as e:
 	    self.log("Missing Mandatory Property: %s" % e.message)
@@ -1080,7 +1101,7 @@ class DialogueWorker(ApplicationWorker):
                 history.update(context.get_dict_for_history())
                 self.save_history(**history)
                 return
-                
+	             
             message = TransportUserMessage(**{
                 'from_addr': self.properties['shortcode'],
                 'to_addr': schedule['participant-phone'],
@@ -1105,16 +1126,24 @@ class DialogueWorker(ApplicationWorker):
 	    participant = self.get_participant(schedule['participant-phone'])
 	    if (participant['transport_metadata'] is not {}):
 		message['transport_metadata'].update(participant['transport_metadata'])
-                
-            yield self.transport_publisher.publish_message(message)
-            self.log("Message has been sent to %s '%s'" % (message['to_addr'], message['content']))
+            
+	    message_credits = self.properties.use_credits(message_content)
+	    if self.sms_limit.is_allowed(message_credits, schedule):
+		yield self.transport_publisher.publish_message(message)
+		message_status = 'pending'
+		self.log("Message has been sent to %s '%s'" % (message['to_addr'], message['content']))
+	    else: 
+		message_status = 'no-credit'
+		message_credits = 0
+		self.log("SMS limit, message hasn't been sent to %s '%s'" % (message['to_addr'], message['content']))
 
             history = {
                 'message-content': message['content'],
                 'participant-phone': message['to_addr'],
                 'message-direction': 'outgoing',
-                'message-status': 'pending',
-                'message-id': message['message_id']}
+                'message-status': message_status,
+                'message-id': message['message_id'],
+	        'message-credits': message_credits}
             history.update(context.get_dict_for_history(schedule))
             self.save_history(**history)
         except:

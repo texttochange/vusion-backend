@@ -250,3 +250,69 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['content'],
                          'What is your gender?\n male or female')
+
+    @inlineCallbacks
+    def test_send_scheduled_messages_sms_limit(self):
+        settings = self.mk_program_settings(
+            sms_limit_type='outgoing-incoming',
+            sms_limit_number=4,
+            sms_limit_date_from='2013-01-01T00:00:00',
+            sms_limit_date_to='2020-01-01T00:00:00')
+        self.initialize_properties(program_settings=settings)
+        
+        dNow = self.worker.get_local_time()
+        dJustPast = dNow - timedelta(minutes=1)
+        dPast = dNow - timedelta(minutes=60)
+        dFuture = dNow + timedelta(minutes=30)        
+        
+        ## A first to be send
+        unattached = self.mkobj_unattach_message(
+            content=self.mk_content(280),
+            fixed_time=time_to_vusion_format(dJustPast))
+        unattached_id = self.collections['unattached_messages'].save(unattached)
+        
+        participant = self.mkobj_participant('+1', session_id='1')
+        self.collections['participants'].save(participant)
+        participant = self.mkobj_participant('+2', session_id='1')
+        self.collections['participants'].save(participant)
+
+        schedule_first = self.mkobj_schedule_unattach(
+            participant_phone='+1',
+            participant_session_id='1',
+            unattach_id=str(unattached_id),
+            date_time=time_to_vusion_format(dJustPast))
+        schedule_second = self.mkobj_schedule_unattach(
+            participant_phone='+2',
+            participant_session_id='1',            
+            unattach_id=str(unattached_id),
+            date_time=time_to_vusion_format(dJustPast))
+        self.collections['schedules'].save(schedule_first)
+        self.collections['schedules'].save(schedule_second)
+        
+        ## A second for which, the program doesn't have enougth credit
+        unattached = self.mkobj_unattach_message(
+            content=self.mk_content(),
+            fixed_time=time_to_vusion_format(dJustPast))
+        unattached_id = self.collections['unattached_messages'].save(unattached)
+        
+        schedule_no_credit = self.mkobj_schedule_unattach(
+            participant_phone='+1',
+            participant_session_id='1',
+            unattach_id=str(unattached_id),
+            date_time=time_to_vusion_format(dJustPast))
+        self.collections['schedules'].save(schedule_no_credit)
+        
+        yield self.worker.send_scheduled()
+        
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 2)
+        histories = self.collections['history'].find()
+        self.assertEqual(histories.count(), 3)
+        self.assertEqual(histories[0]['message-status'], 'pending')        
+        self.assertEqual(histories[0]['message-credits'], 2)        
+        self.assertEqual(histories[1]['message-status'], 'pending')
+        self.assertEqual(histories[1]['message-credits'], 2)
+        self.assertEqual(histories[2]['message-status'], 'no-credit')
+        self.assertEqual(histories[2]['message-credits'], 0)
+        
+        

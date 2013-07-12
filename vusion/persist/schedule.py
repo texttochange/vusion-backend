@@ -29,6 +29,9 @@ class Schedule(VusionModel):
     def get_schedule_time(self):
         return time_from_vusion_format(self['date-time'])
 
+    def is_message(self):
+        return False
+
     def is_expired(self, local_time):
         return time_from_vusion_format(self['date-time']) < (local_time - timedelta(hours=1))
 
@@ -37,22 +40,30 @@ class Schedule(VusionModel):
             kwargs['participant-session-id'] = None
             kwargs['model-version'] = '2'
         return kwargs
+    
+    #def get_source_id(self):
+        #return 
 
-    def get_history_type(self):
-        if self.get_type() in ['dialogue-schedule', 'reminder-schedule']:
-            return 'dialogue-history'
-        elif self.get_type() == 'unattach-schedule':
-            return 'unattach-history'
-        elif self.get_type() == 'feedback-schedule':
-            message_ref = self.get_context()
-            if 'dialogue-id' in message_ref:
-                return 'dialogue-history'
-            elif 'request-id' in message_ref:
-                return 'request-history'
-        return None
-        
+    #def get_history_type(self):
+        #if self.get_type() in ['dialogue-schedule', 'reminder-schedule']:
+            #return 'dialogue-history'
+        #elif self.get_type() == 'unattach-schedule':
+            #return 'unattach-history'
+        #elif self.get_type() == 'feedback-schedule':
+            #message_ref = self.get_context()
+            #if 'dialogue-id' in message_ref:
+                #return 'dialogue-history'
+            #elif 'request-id' in message_ref:
+                #return 'request-history'
+        #return None
 
-class DialogueSchedule(Schedule):
+class MessageSchedule(Schedule):
+    
+    def is_message(self):
+        return True
+
+
+class DialogueSchedule(MessageSchedule):
 
     MODEL_TYPE = 'dialogue-schedule'
     MODEL_VERSION = '2'
@@ -63,6 +74,9 @@ class DialogueSchedule(Schedule):
 
     def validatefields(self):
         super(DialogueSchedule, self).validate_fields()
+
+    def get_history_type(self):
+        return 'dialogue-history'
 
 
 class DeadlineSchedule(Schedule):
@@ -90,8 +104,11 @@ class ReminderSchedule(Schedule):
     def validatefields(self):
         super(ReminderSchedule, self).validate_fields()
 
+    def get_history_type(self):
+        return 'dialogue-history'
 
-class UnattachSchedule(Schedule):
+
+class UnattachSchedule(MessageSchedule):
 
     MODEL_TYPE = 'unattach-schedule'
     MODEL_VERSION = '2'
@@ -101,8 +118,11 @@ class UnattachSchedule(Schedule):
     def validatefields(self):
         super(UnattachSchedule, self).validate_fields()
 
+    def get_history_type(self):
+        return 'unattach-history'
 
-class FeedbackSchedule(Schedule):
+
+class FeedbackSchedule(MessageSchedule):
 
     MODEL_TYPE = 'feedback-schedule'
     MODEL_VERSION = '2'
@@ -111,6 +131,14 @@ class FeedbackSchedule(Schedule):
 
     def validatefields(self):
         super(FeedbackSchedule, self).validate_fields()
+
+    def get_history_type(self):
+        context = self.get_context()
+        if 'dialogue-id' in context:
+            return 'dialogue-history'
+        elif 'request-id' in context:
+            return 'request-history'
+        return 'feedback-history'
 
 
 class ActionSchedule(Schedule):

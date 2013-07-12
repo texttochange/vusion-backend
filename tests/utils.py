@@ -244,20 +244,33 @@ class ObjectMaker:
         'international-prefix': '256',
         'timezone': 'Africa/Kampala',
         'customized-id': 'myid',
-        'request-and-feedback-prioritized': 'prioritized'}
-    
+        'request-and-feedback-prioritized': 'prioritized',
+        'sms-limit-type': 'none',
+        'sms-limit-number': None,
+        'sms-limit-date-from': None,
+        'sms-limit-date-to': None}
 
     def mk_program_settings(self, shortcode='256-8181',
                             default_template_open_question= None,
                             default_template_closed_question=None,
                             double_matching_answer_feedback=None,
-                            double_optin_error_feedback=None):
+                            double_optin_error_feedback=None,
+                            sms_limit_type='none',
+                            sms_limit_number=None,
+                            sms_limit_date_from=None,
+                            sms_limit_date_to=None
+                            ):
         settings = deepcopy(self.settings)
-        settings['shortcode'] = shortcode
-        settings['default-template-open-question'] = default_template_open_question
-        settings['default-template-closed-question'] = default_template_closed_question
-        settings['double-matching-answer-feedback'] = double_matching_answer_feedback
-        settings['double-optin-error-feedback'] = double_optin_error_feedback
+        settings.update({
+            'shortcode': shortcode,
+            'default-template-open-question': default_template_open_question,
+            'default-template-closed-question': default_template_closed_question,
+            'double-matching-answer-feedback': double_matching_answer_feedback,
+            'double-optin-error-feedback': double_optin_error_feedback,
+            'sms-limit-type': sms_limit_type,
+            'sms-limit-number': sms_limit_number,
+            'sms-limit-date-from': sms_limit_date_from,
+            'sms-limit-date-to': sms_limit_date_to})
         program_settings = []
         for key, value in settings.iteritems():
             program_settings.append({'key': key, 'value': value})
@@ -958,7 +971,7 @@ class ObjectMaker:
 
     def mkobj_schedule_unattach(self, participant_phone='06',
                                 participant_session_id='1',
-                                date_time=None,
+                                date_time='2013-12-20T08:00:00',
                                 unattach_id='1'):
         return schedule_generator(**{
             'object-type': 'unattach-schedule',
@@ -983,3 +996,10 @@ class ObjectMaker:
             'content': content,
             'context': context}
         return schedule_generator(**schedule).get_as_dict()
+
+    def mk_content(self, length=160, keyword=None):
+        content = keyword if keyword is not None else ""
+        template = " This is a %s char message." % length
+        while len(content) < length:
+            content = content + template
+        return content[0:length]

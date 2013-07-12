@@ -1,5 +1,5 @@
 from vusion.persist.vusion_model import VusionModel
-from vusion.error import InvalidField
+from vusion.error import InvalidField, VusionError
 import re
 
 
@@ -24,27 +24,6 @@ class History(VusionModel):
 
     def validate_fields(self):
         self._validate(self, History.fields)
-
-    #def validate_fields(self):
-        #super(History, self).validate_fields()
-        #for field, check in self.HISTORY_FIELDS.items():
-            #self.assert_field_present(field)
-            #if not check(self[field]):
-                #raise InvalidField(field)
-        #if self.is_message():
-            #for field, check in self.MESSAGE_FIELDS.items():
-                #self.assert_field_present(field)
-                #if not check(self[field]):
-                    #raise InvalidField(field)
-            #for field, check in self.SPECIFIC_DIRECTION_FIELDS[self['message-direction']].items():
-                #self.assert_field_present(field)
-                #if not check(self[field]):
-                    #raise InvalidField(field)
-            #if self['message-direction'] == 'outgoing':
-                #for field, check in self.SPECIFIC_STATUS_FIELDS[self['message-status']].items():
-                    #self.assert_field_present(field)
-                    #if not check(self[field]):
-                        #raise InvalidField(field)
 
 
 class MessageHistory(History):

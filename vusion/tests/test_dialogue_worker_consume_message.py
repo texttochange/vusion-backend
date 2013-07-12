@@ -547,3 +547,31 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
         yield self.send(inbound_msg_unmatching, 'inbound')
         self.assertEqual(self.collections['schedules'].count(), 0)
+
+    @inlineCallbacks
+    def test_inbound_message_sms_limit(self):
+        settings = self.mk_program_settings(
+                   sms_limit_type='outgoing-incoming',
+                   sms_limit_number=2,
+                   sms_limit_date_from='2013-01-01T00:00:00',
+                   sms_limit_date_to='2020-01-01T00:00:00')        
+        self.initialize_properties(program_settings=settings)
+        
+        self.collections['participants'].save(
+            self.mkobj_participant(participant_phone='+1'))
+        self.collections['requests'].save(self.mkobj_request_response('www'))
+        
+        inbound_msg_matching_request = self.mkmsg_in(from_addr='+1', content='www')
+        yield self.send(inbound_msg_matching_request, 'inbound')   ## response is allowed
+        self.assertEqual(2, self.worker.sms_limit.get_used_credit_counter())
+        
+        yield self.send(inbound_msg_matching_request, 'inbound')   ## response is not allowed
+        self.assertEqual(3, self.worker.sms_limit.get_used_credit_counter())
+        
+        inbound_msg_matching_request = self.mkmsg_in(from_addr='+1', content=self.mk_content(200, 'www'))
+        yield self.send(inbound_msg_matching_request, 'inbound')   ## response is not allowed
+        self.assertEqual(5, self.worker.sms_limit.get_used_credit_counter()) 
+ 
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 1)
+        

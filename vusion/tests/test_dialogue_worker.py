@@ -2,6 +2,7 @@ from datetime import datetime, time, date, timedelta
 
 import json
 import pymongo
+from redis import StrictRedis
 from bson.objectid import ObjectId
 from bson.timestamp import Timestamp
 
@@ -64,6 +65,8 @@ class DialogueWorkerTestCase(TestCase, MessageMaker,
 
         self.drop_collections()
         self.broker.dispatched = {}
+        
+        self.redis = StrictRedis()
         #Let's rock"
         self.worker.startService()
         yield self.worker.startWorker()
@@ -111,6 +114,9 @@ class DialogueWorkerTestCase(TestCase, MessageMaker,
     def delete_properties(self):
         self.collections['shortcodes'].remove()
         self.collections['program_settings'].remove()
+        keys = self.redis.keys('vusion:programs:%s:*' % self.database_name)
+        for key in keys:
+            self.redis.delete(key)
 
 
 class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
