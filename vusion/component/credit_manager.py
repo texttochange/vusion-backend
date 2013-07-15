@@ -4,12 +4,15 @@ from bson.code import Code
 from twisted.internet.task import LoopingCall
 
 from vusion.utils import time_to_vusion_format
+from vusion.persist import VusionModel
+from vusion.error import WrongModelInstanciation
 
 
-class SmsLimitManager(object):
+class CreditManager(object):
     
-    SMSLIMIT_KEY = 'smslimit'
+    CREDITMANAGER_KEY = 'creditmanager'
     COUNT_KEY = 'count'
+    NOTIFICATION_KEY = 'notifications'
     
     def __init__(self, prefix_key, redis, history, schedule,
                 limit_type='none',
@@ -41,14 +44,17 @@ class SmsLimitManager(object):
         if need_resync:
             self.delete_redis_counter()
 
-    def sms_limit_key(self):
-        return ':'.join([self.prefix_key, self.SMSLIMIT_KEY])
+    def credit_manager_key(self):
+        return ':'.join([self.prefix_key, self.CREDITMANAGER_KEY])
 
     def used_credit_counter_key(self):
-        return ':'.join([self.sms_limit_key(), self.COUNT_KEY])
+        return ':'.join([self.credit_manager_key(), self.COUNT_KEY])
 
     def whitecard_key(self, source_type, source_id):
-        return ':'.join([self.sms_limit_key(), unicode(source_type), unicode(source_id)])
+        return ':'.join([self.credit_manager_key(), unicode(source_type), unicode(source_id)])
+
+    def notification_key(self):
+        return ':'.join([self.credit_manager_key(), self.NOTIFICATION_KEY])
 
     ## To keep some counting correct even in between sync
     def received_message(self, message_credits):
@@ -146,3 +152,69 @@ class SmsLimitManager(object):
         if len(result) != 0:
             return int(float(result[0]['count']))
         return 0
+
+
+## CreditNotification aims highligth a decision from the creditManage on to the frontend
+class CreditNotification(VusionModel):
+    
+    MODEL_TYPE='credit-notification'
+    MODEL_VERSION='1'
+    
+    fields = {
+        'timestamp': {
+            'required': True
+            },
+        'notif-type': {
+            'required': True,
+            'valid_value': lambda v: v['notif-type'] in ['no-credit', 'no-credit-timeframe'],
+            'required_subfield': lambda v: getattr(v, 'required_subfields')(
+                v['notif-type'],
+                {'no-credit':['source-type'],
+                 'no-credit-timeframe': []}),
+            },
+        'source-type': {
+            'required': False,
+            'valid_value': lambda v: v['source-type'] in [
+                'unattach-schedule',
+                'dialogue-schedule',
+                'request-schedule'],
+            'required_subfield': lambda v: getattr(v, 'required_subfields')(
+                            v['source-type'],
+                            {'unattached':['unattach-id'],
+                             'dialogue': ['dialogue-id', 'interaction-id'],
+                             'request': ['request-id']}), 
+            },
+        'unattach-id': {
+            'required': False,
+            'valid_type': lambda v: isinstance(v['unattach-id'], str),
+            'valid_value': lambda v: v['unattach-id'] is not None,
+            },
+        'dialogue-id': {
+            'required': False,
+            'valid_type': lambda v: isinstance(v['dialogue-id'], str),
+            'valid_value': lambda v: v['unattach-id'] is not None,            
+            },
+        'interaction-id': {
+            'required': False,
+            'valid_type': lambda v: isinstance(v['interaction-id'], str),
+            'valid_value': lambda v: v['unattach-id'] is not None,            
+            },
+        'request-id': {
+            'required': False,
+            'valid_type': lambda v: isinstance(v['request-id'], str),
+            'valid_value': lambda v: v['unattach-id'] is not None,            
+            },
+        }
+
+    def __init__(self, **kwargs):
+        if 'object-type' in kwargs:
+            if kwargs['object-type'] != self.MODEL_TYPE:
+                message = 'Object-type %s cannot be instanciate as %s' % (kwargs['object-type'], self.MODEL_TYPE)
+                raise WrongModelInstanciation(message)
+        else:
+            kwargs.update({
+                'object-type': self.MODEL_TYPE})
+        super(CreditNotification, self).__init__(**kwargs)    
+
+    def validate_fields(self):
+        self._validate(self, self.fields)

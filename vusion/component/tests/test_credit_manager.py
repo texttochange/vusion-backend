@@ -7,14 +7,14 @@ from twisted.trial.unittest import TestCase
 from tests.utils import ObjectMaker
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from vusion.persist import UnattachSchedule
-from vusion.component.sms_limit_manager import SmsLimitManager
+from vusion.component import CreditManager
 
-class SmsLimitManagerTestCase(TestCase, ObjectMaker):
+class CreditManagerTestCase(TestCase, ObjectMaker):
         
     def setUp(self):
         # setUp redis
         self.redis = Redis()
-        self.slm_redis_key = 'test:slm'
+        self.cm_redis_key = 'test:creditmanager'
         # setUp mongodb
         self.database_name = 'test_program_db'
         c = pymongo.Connection()
@@ -29,10 +29,10 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
         self.limit_from_date = None
         self.limit_to_date = None
         
-        self.slm = SmsLimitManager(self.slm_redis_key, self.redis,
-                                   self.history_collection, self.schedules_collection,
-                                   self.limit_type, self.limit_number,
-                                   self.limit_from_date, self.limit_to_date)
+        self.cm = CreditManager(self.cm_redis_key, self.redis,
+                                self.history_collection, self.schedules_collection,
+                                self.limit_type, self.limit_number,
+                                self.limit_from_date, self.limit_to_date)
 
     def tearDown(self):
         self.clearData()
@@ -40,7 +40,7 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
     def clearData(self):
         self.history_collection.drop()
         self.schedules_collection.drop()
-        keys = self.redis.keys("test:slm:*")
+        keys = self.redis.keys("%s:*" % self.cm_redis_key)
         for key in keys:
             self.redis.delete(key)        
 
@@ -48,8 +48,8 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
         now = datetime.now()
         self.history_collection.save(self.mkobj_history_dialogue(
             dialogue_id=1, interaction_id=1, timestamp=time_to_vusion_format(now)))
-        self.slm.set_limit('none')
-        self.assertTrue(self.slm.is_allowed('test', now))
+        self.cm.set_limit('none')
+        self.assertTrue(self.cm.is_allowed('test', now))
 
     def test_outgoing_limit_history(self):
         now = datetime.now()
@@ -59,33 +59,33 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
         self.history_collection.save(self.mkobj_history_dialogue(
             dialogue_id=1, interaction_id=1, timestamp=time_to_vusion_format(now)))
 
-        self.slm.set_limit(
+        self.cm.set_limit(
             'outgoing-only', 
             limit_number=2, 
             from_date=time_to_vusion_format(past),
             to_date=time_to_vusion_format(future))
 
         # first message should be granted
-        self.assertTrue(self.slm.is_allowed(message_credits=1, local_time=now))
+        self.assertTrue(self.cm.is_allowed(message_credits=1, local_time=now))
 
         # second message should not
-        self.assertFalse(self.slm.is_allowed(message_credits=1, local_time=now))
-        self.assertFalse(self.slm.is_allowed(message_credits=1, local_time=now))
+        self.assertFalse(self.cm.is_allowed(message_credits=1, local_time=now))
+        self.assertFalse(self.cm.is_allowed(message_credits=1, local_time=now))
 
         # until the limit is increased
-        self.slm.set_limit(
+        self.cm.set_limit(
             'outgoing', 
             limit_number=4, 
             from_date=time_to_vusion_format(past),
             to_date=time_to_vusion_format(future))
-        self.assertTrue(self.slm.is_allowed(message_credits=1, local_time=now))
+        self.assertTrue(self.cm.is_allowed(message_credits=1, local_time=now))
 
     def test_sync_history_outgoing_only(self):
         now = datetime.now()
         past = now - timedelta(days=1)
         future = now + timedelta(days=1)
         
-        self.slm.set_limit(
+        self.cm.set_limit(
             'outgoing-only', 
             limit_number=4, 
             from_date=time_to_vusion_format(past),
@@ -97,7 +97,7 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
             interaction_id=1,
             direction='outgoing',
             timestamp=time_to_vusion_format(now)))
-        self.assertEqual(self.slm.get_used_credit_counter_mongo(), 1)
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 1)
    
         self.history_collection.save(self.mkobj_history_dialogue(
             dialogue_id=1,
@@ -105,7 +105,7 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
             direction='outgoing',
             timestamp=time_to_vusion_format(now), 
             message_credits=2))        
-        self.assertEqual(self.slm.get_used_credit_counter_mongo(), 3)
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 3)
         
         self.history_collection.save(self.mkobj_history_dialogue(
             dialogue_id=1, 
@@ -113,14 +113,14 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
             direction="incoming", 
             timestamp=time_to_vusion_format(now), 
             message_credits=2))
-        self.assertEqual(self.slm.get_used_credit_counter_mongo(), 3)        
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 3)        
         
         ## Count unattached
         self.history_collection.save(self.mkobj_history_unattach(
             unattach_id=1,
             timestamp=time_to_vusion_format(now),
             message_credits=2))
-        self.assertEqual(self.slm.get_used_credit_counter_mongo(), 5)
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 5)
 
         ## Count request
         self.history_collection.save(self.mkobj_history_request(
@@ -128,21 +128,21 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
             message_direction='outgoing',
             timestamp=time_to_vusion_format(now),
             message_credits=2))
-        self.assertEqual(self.slm.get_used_credit_counter_mongo(), 7)
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 7)
                 
         self.history_collection.save(self.mkobj_history_request(
             request_id=1,
             message_direction='incoming',
             timestamp=time_to_vusion_format(now),
             message_credits=2))
-        self.assertEqual(self.slm.get_used_credit_counter_mongo(), 7)
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 7)
 
         ## Do not count marker
         self.history_collection.save(self.mkobj_history_one_way_marker(
             dialogue_id=1,
             interaction_id=1,
             timestamp=time_to_vusion_format(now)))
-        self.assertEqual(self.slm.get_used_credit_counter_mongo(), 7)
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 7)
 
         ## Count previous version of history model without field message-credits
         self.history_collection.save({
@@ -150,16 +150,14 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
             'timestamp': time_to_vusion_format(now),
             'message-direction': 'outgoing',
             'message-status': 'delivered'})
-        self.assertEqual(self.slm.get_used_credit_counter_mongo(), 8)
-        
-        
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 8)
 
     def test_sync_history_outgoing_incoming(self):
         now = datetime.now()
         past = now - timedelta(days=1)
         future = now + timedelta(days=1)
         
-        self.slm.set_limit(
+        self.cm.set_limit(
             'outgoing-incoming', 
             limit_number=4, 
             from_date=time_to_vusion_format(past),
@@ -171,7 +169,7 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
             interaction_id=1,
             direction='outgoing',
             timestamp=time_to_vusion_format(now)))
-        self.assertEqual(self.slm.get_used_credit_counter_mongo(), 1)
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 1)
                    
         self.history_collection.save(self.mkobj_history_dialogue(
             dialogue_id=1, 
@@ -179,7 +177,7 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
             direction="incoming", 
             timestamp=time_to_vusion_format(now), 
             message_credits=2))
-        self.assertEqual(self.slm.get_used_credit_counter_mongo(), 3)        
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 3)        
                     
         ## Count request
         self.history_collection.save(self.mkobj_history_request(
@@ -187,28 +185,28 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
             message_direction='outgoing',
             timestamp=time_to_vusion_format(now),
             message_credits=2))
-        self.assertEqual(self.slm.get_used_credit_counter_mongo(), 5)
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 5)
             
         self.history_collection.save(self.mkobj_history_request(
             request_id=1,
             message_direction='incoming',
             timestamp=time_to_vusion_format(now),
             message_credits=2))
-        self.assertEqual(self.slm.get_used_credit_counter_mongo(), 7)
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 7)
         
         ## Do not count marker
         self.history_collection.save(self.mkobj_history_one_way_marker(
             dialogue_id=1,
             interaction_id=1,
             timestamp=time_to_vusion_format(now)))
-        self.assertEqual(self.slm.get_used_credit_counter_mongo(), 7)
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 7)
 
     def test_set_whitecard_unattach_schedule(self):
         now = datetime.now()
         past = now - timedelta(days=1)
         future = now + timedelta(days=1)
 
-        self.slm.set_limit(
+        self.cm.set_limit(
             'outgoing',
             limit_number=2, 
             from_date=time_to_vusion_format(past),
@@ -223,23 +221,23 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
 
         # first message should be granted
         self.assertTrue(
-            self.slm.is_allowed(message_credits=1, local_time=now, schedule=schedule_first))
+            self.cm.is_allowed(message_credits=1, local_time=now, schedule=schedule_first))
         
         # the whitecard didn't book the allowed space, so another message can still be send
-        self.assertTrue(self.slm.is_allowed(message_credits=1, local_time=now))
+        self.assertTrue(self.cm.is_allowed(message_credits=1, local_time=now))
         
         # At this point the manager start to reject message 
-        self.assertFalse(self.slm.is_allowed(message_credits=1, local_time=now))
+        self.assertFalse(self.cm.is_allowed(message_credits=1, local_time=now))
         
         # Except the one having a whitecard
-        self.assertTrue(self.slm.is_allowed(message_credits=1, local_time=now, schedule=schedule_second))
+        self.assertTrue(self.cm.is_allowed(message_credits=1, local_time=now, schedule=schedule_second))
 
     def test_set_blackcard_unattach_schedule(self):
         now = datetime.now()
         past = now - timedelta(days=1)
         future = now + timedelta(days=1)
 
-        self.slm.set_limit(
+        self.cm.set_limit(
             'outgoing',
             limit_number=2, 
             from_date=time_to_vusion_format(past),
@@ -254,17 +252,17 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
         
         # first message should not be granted as the total credit required is 4
         self.assertFalse(
-            self.slm.is_allowed(message_credits=2, local_time=now, schedule=schedule_first))
+            self.cm.is_allowed(message_credits=2, local_time=now, schedule=schedule_first))
 
         # other message are still allowed
-        self.assertTrue(self.slm.is_allowed(message_credits=1, local_time=now))
+        self.assertTrue(self.cm.is_allowed(message_credits=1, local_time=now))
         # Still same origin unattach message are rejected
         self.assertFalse(
-            self.slm.is_allowed(message_credits=2, local_time=now, schedule=schedule_second))
+            self.cm.is_allowed(message_credits=2, local_time=now, schedule=schedule_second))
 
-        self.assertTrue(self.slm.is_allowed(message_credits=1, local_time=now))
+        self.assertTrue(self.cm.is_allowed(message_credits=1, local_time=now))
         # At this point the manager start to reject message 
-        self.assertFalse(self.slm.is_allowed(message_credits=1, local_time=now))
+        self.assertFalse(self.cm.is_allowed(message_credits=1, local_time=now))
 
     def test_is_timeframed(self):
         now = datetime.now()
@@ -273,12 +271,12 @@ class SmsLimitManagerTestCase(TestCase, ObjectMaker):
         future = now + timedelta(days=1)
         more_future = future + timedelta(days=1)
         
-        self.slm.set_limit(
+        self.cm.set_limit(
             'outgoing-only', 
             limit_number=2, 
             from_date=time_to_vusion_format(past),
             to_date=time_to_vusion_format(future))
         
-        self.assertTrue(self.slm.is_allowed(message_credits=1, local_time=now))
-        self.assertFalse(self.slm.is_allowed(message_credits=1, local_time=more_future))
-        self.assertFalse(self.slm.is_allowed(message_credits=1, local_time=more_past))
+        self.assertTrue(self.cm.is_allowed(message_credits=1, local_time=now))
+        self.assertFalse(self.cm.is_allowed(message_credits=1, local_time=more_future))
+        self.assertFalse(self.cm.is_allowed(message_credits=1, local_time=more_past))

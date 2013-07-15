@@ -38,7 +38,7 @@ from vusion.persist.action import (Actions, action_generator,FeedbackAction,
                                    RemoveRemindersAction)
 from vusion.context import Context
 from vusion.persist import Request, history_generator, schedule_generator
-from vusion.component import DialogueWorkerPropertyHelper, SmsLimitManager
+from vusion.component import DialogueWorkerPropertyHelper, CreditManager
 	
 
 class DialogueWorker(ApplicationWorker):
@@ -83,9 +83,9 @@ class DialogueWorker(ApplicationWorker):
         self.init_program_db(self.config['database_name'],
                              self.config['vusion_database_name'])	
 	
-	self.sms_limit = SmsLimitManager(self.r_key, self.r_server, 
-	                                 self.collections['history'], 
-	                                 self.collections['schedules'])
+	self.credit_manager = CreditManager(self.r_key, self.r_server, 
+	                                    self.collections['history'], 
+	                                    self.collections['schedules'])
 	
         #Set up dispatcher publisher
         self.dispatcher_publisher = yield self.publish_to(
@@ -536,7 +536,7 @@ class DialogueWorker(ApplicationWorker):
 	    })
             history.update(context.get_dict_for_history())
             self.save_history(**history)
-	    self.sms_limit.received_message(message_credits)
+	    self.credit_manager.received_message(message_credits)
 	    self.update_participant_transport_metadata(message)
             if (context.is_matching() and participant is not None):
                 if ('interaction' in context):
@@ -715,7 +715,7 @@ class DialogueWorker(ApplicationWorker):
                     self.daemon_process)
 
     def set_sms_limit(self):
-	self.sms_limit.set_limit(
+	self.credit_manager.set_limit(
 	    limit_type=self.properties['sms-limit-type'],
 	    limit_number=self.properties['sms-limit-number'],
 	    from_date=self.properties['sms-limit-date-from'],
@@ -1128,13 +1128,13 @@ class DialogueWorker(ApplicationWorker):
 		message['transport_metadata'].update(participant['transport_metadata'])
             
 	    message_credits = self.properties.use_credits(message_content)
-	    if self.sms_limit.is_allowed(message_credits, local_time, schedule):
+	    if self.credit_manager.is_allowed(message_credits, local_time, schedule):
 		yield self.transport_publisher.publish_message(message)
 		message_status = 'pending'
 		self.log("Message has been sent to %s '%s'" % (message['to_addr'], message['content']))
 	    else: 
 		message_credits = 0
-		if self.sms_limit.is_timeframed(local_time):
+		if self.credit_manager.is_timeframed(local_time):
 		    message_status = 'no-credit'
 		else:
 		    message_status = 'no-credit-timeframe'

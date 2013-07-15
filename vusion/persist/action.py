@@ -109,16 +109,16 @@ class Action(VusionModel):
             self.valid_subcondition_value(subcondition)
         return True
     
-    def _validate(self, data, field_rules):
-        for field, rules in field_rules.items():
-            for rule_name, rule in rules.items():
-                if rule_name is 'required':
-                    if not rule and not field in data:
-                        break
-                    else: 
-                        continue
-                if not rule(data):
-                    raise InvalidField("%s=%s is not %s" % (field, data[field], rule_name))        
+    #def _validate(self, data, field_rules):
+        #for field, rules in field_rules.items():
+            #for rule_name, rule in rules.items():
+                #if rule_name is 'required':
+                    #if not rule and not field in data:
+                        #break
+                    #else: 
+                        #continue
+                #if not rule(data):
+                    #raise InvalidField("%s=%s is not %s" % (field, data[field], rule_name))        
 
     def valid_subcondition_value(self, subconditon):
         if not subconditon['subcondition-field'] in self.subcondition_values:

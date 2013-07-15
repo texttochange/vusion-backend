@@ -32,3 +32,7 @@ class MissingProperty(VusionError):
 
 class MissingCode(MissingProperty):
     pass
+
+
+class WrongModelInstanciation(VusionError):
+    pass
