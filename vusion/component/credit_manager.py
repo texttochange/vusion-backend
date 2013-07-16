@@ -1,4 +1,6 @@
 # -*- test-case-name: vusion.component.tests.test_sms_limit_manager -*-
+import re
+
 from bson.code import Code
 
 from twisted.internet.task import LoopingCall
@@ -12,7 +14,16 @@ class CreditManager(object):
     
     CREDITMANAGER_KEY = 'creditmanager'
     COUNT_KEY = 'count'
+    STATUS_KEY = 'status'
+    CARD_KEY = 'card'
     NOTIFICATION_KEY = 'notifications'
+    
+    limit_type = 'none'
+    limit_number = None
+    limit_from_date = None
+    limit_to_date = None
+    
+    last_status = None
     
     def __init__(self, prefix_key, redis, history, schedule,
                 limit_type='none',
@@ -21,14 +32,8 @@ class CreditManager(object):
         self.redis = redis
         self.history_collection = history
         self.schedule_collection = schedule
-        self.limit_type = limit_type
-        self.limit_number = limit_number
-        self.limit_from_date = from_date
-        self.limit_to_date = to_data
-        self.delete_redis_counter()
-
-    def __del__(self):
-        self.delete_redis_counter()
+        self.last_status = self.redis.get(self.status_key())
+        self.set_limit(limit_type, limit_number, from_date, to_data)
 
     ## in case the program settings are changing
     def set_limit(self, limit_type, limit_number=None, from_date=None, to_date=None):
@@ -38,20 +43,23 @@ class CreditManager(object):
             or self.limit_to_date != to_date):
             need_resync = True
         self.limit_type = limit_type
-        self.limit_number = limit_number
+        self.limit_number = int(limit_number) if limit_number is not None else None
         self.limit_from_date = from_date
         self.limit_to_date = to_date
         if need_resync:
-            self.delete_redis_counter()
-
+            self.reinitialize_counter()
+        
     def credit_manager_key(self):
         return ':'.join([self.prefix_key, self.CREDITMANAGER_KEY])
 
     def used_credit_counter_key(self):
         return ':'.join([self.credit_manager_key(), self.COUNT_KEY])
 
-    def whitecard_key(self, source_type, source_id):
-        return ':'.join([self.credit_manager_key(), unicode(source_type), unicode(source_id)])
+    def status_key(self):
+        return ':'.join([self.credit_manager_key(), self.STATUS_KEY])
+
+    def card_key(self, source_type, source_id):
+        return ':'.join([self.credit_manager_key(), self.CARD_KEY, unicode(source_type), unicode(source_id)])
 
     def notification_key(self):
         return ':'.join([self.credit_manager_key(), self.NOTIFICATION_KEY])
@@ -63,32 +71,66 @@ class CreditManager(object):
 
     ## Should go quite fast
     def is_allowed(self, message_credits, local_time, schedule=None):
-        if self.limit_type == 'none':
+        if not self.has_limit():
             return True
         if not self.is_timeframed(local_time):
             self.set_blackcard(schedule)
             return False
-        used_credit_counter = self.get_used_credit_counter()
-        if self.can_be_sent(used_credit_counter, message_credits, schedule):
-            self.redis.incr(self.used_credit_counter_key(), message_credits)
+        if self.can_be_sent(message_credits, schedule):
+            self.increase_used_credit_counter(message_credits)
             self.set_whitecard(schedule)
             return True
         self.set_blackcard(schedule)
         return False
 
+    def has_limit(self):
+        if self.limit_type == 'none':
+            return False
+        return True
+
+    def increase_used_credit_counter(self, message_credits):
+        self.redis.incr(self.used_credit_counter_key(), message_credits)        
+
     def is_timeframed(self, local_time):
         local_time_iso = time_to_vusion_format(local_time)
-        return (self.limit_from_date < local_time_iso 
-                and local_time_iso < self.limit_to_date)
+        return (self.limit_from_date <= local_time_iso 
+                and local_time_iso <= self.limit_to_date)
 
-    def can_be_sent(self, used_credit_count, message_credits, schedule=None):
+    def check_status(self, local_time):
+        if not self.has_limit():
+            status = CreditStatus(**{
+                'status': 'none',
+                'since': time_to_vusion_format(local_time)})
+        elif not self.is_timeframed(local_time):
+            status = CreditStatus(**{
+                'status': 'no-credit-timeframe',
+                'since': time_to_vusion_format(local_time),
+            })
+        elif not self.can_be_sent(1):
+            status = CreditStatus(**{
+                'status': 'no-credit',
+                'since': time_to_vusion_format(local_time),
+            })
+        else:
+            status = CreditStatus(**{
+                'status': 'ok',
+                'since': time_to_vusion_format(local_time),
+            })
+        if self.last_status is not None and self.last_status == status:
+            return self.last_status
+        self.last_status = status
+        self.redis.set(self.status_key(), self.last_status.get_as_json())
+        return self.last_status
+
+    def can_be_sent(self, message_credits, schedule=None):
+        used_credit_counter = self.get_used_credit_counter()
         if schedule is not None and schedule.get_type() == 'unattach-schedule':
             if self.has_whitecard(schedule):
                 return True
             else:
                 estimation = self.estimate_unattached_required_credit(message_credits, schedule)
-                return used_credit_count + estimation <= self.limit_number
-        return int(used_credit_count) + message_credits <= self.limit_number
+                return used_credit_counter + estimation <= self.limit_number
+        return int(used_credit_counter) + message_credits <= self.limit_number
         
     ## This is just a rought estimation based on the message send to the first participant
     def estimate_unattached_required_credit(self, message_credits, schedule):
@@ -97,15 +139,30 @@ class CreditManager(object):
             'unattach-id': schedule['unattach-id'],
             'date-time': schedule['date-time']}
         scheduled_count = self.schedule_collection.find(conditions).count()
-        return message_credits * scheduled_count + message_credits ##the first one have already been deleted
+        return message_credits * scheduled_count + message_credits ##the first one have already been deleted        
 
     ## Cache a card for a given schedule for 30min
     def cache_card(self, schedule, card):
         if schedule is None or schedule.get_type() != 'unattach-schedule':
             return False
-        whitecard_key = self.whitecard_key('unattach-schedule', schedule['unattach-id'])
+        whitecard_key = self.card_key('unattach-schedule', schedule['unattach-id'])
         self.redis.setex(whitecard_key, card, 1800000) ## 30 minutes
         return True
+    
+    def push_notification(self, notification, local_time):
+        notification_key = self.notification_key()
+        self.redis.zadd(
+            notification_key,
+            notification.get_as_json(),
+            get_local_time_as_timestamp(local_time))
+
+    def delete_old_notification(self, local_time):
+        notification_key = self.notification_key()
+        self.redis.zremrangebyscore(
+            notification_key,
+            1,
+            get_local_time_as_timestamp(local_time - timedelta(days=5)))
+
 
     def set_whitecard(self, schedule):
         self.cache_card(schedule, 'white')
@@ -118,7 +175,7 @@ class CreditManager(object):
     def has_whitecard(self, schedule):
         if schedule.get_type() != 'unattach-schedule':
             return False
-        card_key = self.whitecard_key('unattach-schedule', schedule['unattach-id'])
+        card_key = self.card_key('unattach-schedule', schedule['unattach-id'])
         is_whitecarded = self.redis.get(card_key)
         if is_whitecarded is not None and is_whitecarded == 'white':
             return True
@@ -132,8 +189,9 @@ class CreditManager(object):
         self.redis.set(self.used_credit_counter_key(), used_credit_counter)
         return used_credit_counter
 
-    def delete_redis_counter(self):
+    def reinitialize_counter(self):
         self.redis.delete(self.used_credit_counter_key())
+        self.get_used_credit_counter()
 
     def get_used_credit_counter_mongo(self):
         reducer = Code("function(obj, prev) {"
@@ -162,13 +220,16 @@ class CreditNotification(VusionModel):
     
     fields = {
         'timestamp': {
-            'required': True
-            },
-        'notif-type': {
             'required': True,
-            'valid_value': lambda v: v['notif-type'] in ['no-credit', 'no-credit-timeframe'],
+            'valid_value': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)T0?(\d+):0?(\d+)(:0?(\d+))$'), v['timestamp'])
+            },
+        'notification-type': {
+            'required': True,
+            'valid_value': lambda v: v['notification-type'] in [
+                'no-credit', 
+                'no-credit-timeframe'],
             'required_subfield': lambda v: getattr(v, 'required_subfields')(
-                v['notif-type'],
+                v['notification-type'],
                 {'no-credit':['source-type'],
                  'no-credit-timeframe': []}),
             },
@@ -180,9 +241,9 @@ class CreditNotification(VusionModel):
                 'request-schedule'],
             'required_subfield': lambda v: getattr(v, 'required_subfields')(
                             v['source-type'],
-                            {'unattached':['unattach-id'],
-                             'dialogue': ['dialogue-id', 'interaction-id'],
-                             'request': ['request-id']}), 
+                            {'unattach-schedule':['unattach-id'],
+                             'dialogue-schedule': ['dialogue-id', 'interaction-id'],
+                             'request-schedule': ['request-id']}), 
             },
         'unattach-id': {
             'required': False,
@@ -218,3 +279,42 @@ class CreditNotification(VusionModel):
 
     def validate_fields(self):
         self._validate(self, self.fields)
+
+
+class CreditStatus(VusionModel):
+
+    MODEL_TYPE='credit-status'
+    MODEL_VERSION='1'
+
+    fields = {
+        'since': {
+            'required': True,
+            'valid_value': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)T0?(\d+):0?(\d+)(:0?(\d+))$'), v['since'])
+            },
+        'status': {
+            'required': True,
+            'valid_value': lambda v: v['status'] in [
+                'none', 
+                'ok', 
+                'no-credit', 
+                'no-credit-timeframe'],
+            },
+    }
+    
+    def __init__(self, **kwargs):
+        if 'object-type' in kwargs:
+            if kwargs['object-type'] != self.MODEL_TYPE:
+                message = 'Object-type %s cannot be instanciate as %s' % (kwargs['object-type'], self.MODEL_TYPE)
+                raise WrongModelInstanciation(message)
+        else:
+            kwargs.update({
+                'object-type': self.MODEL_TYPE})
+        super(CreditStatus, self).__init__(**kwargs)    
+
+    def __eq__(self, other):
+            if isinstance(other, CreditStatus):
+                return self['status'] == other['status']
+            return False 
+
+    def validate_fields(self):
+        self._validate(self, self.fields)    
