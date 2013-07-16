@@ -26,6 +26,10 @@ class FailingModelUpgrade(VusionError):
     pass
 
 
+class WrongModelInstanciation(VusionError):
+    pass
+
+
 class MissingProperty(VusionError):
     pass
 
@@ -34,5 +38,5 @@ class MissingCode(MissingProperty):
     pass
 
 
-class WrongModelInstanciation(VusionError):
+class MissingLocalTime(MissingProperty):
     pass
