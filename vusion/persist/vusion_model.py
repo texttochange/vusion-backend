@@ -1,3 +1,4 @@
+import json
 from vusion.error import MissingField, FailingModelUpgrade, InvalidField
 
 
@@ -76,6 +77,9 @@ class VusionModel(object):
         for key in self.payload:
             instance_dict[key] = self.payload[key]
         return instance_dict
+
+    def get_as_json(self):
+        return json.dumps(self.get_as_dict())
 
     def upgrade(self, **kwargs):
         return kwargs
