@@ -182,9 +182,6 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertFalse(self.worker.is_enrolled(participant, '2'))
 
     def test03_multiple_dialogue_in_collection(self):
-        #for program_setting in self.program_settings:
-            #self.collections['program_settings'].save(program_setting)
-        #self.worker.load_properties()
         self.initialize_properties()
 
         dNow = self.worker.get_local_time()
@@ -239,16 +236,6 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertEqual(dialogues[1]['_id'],
                          id_active_dialogue_two)
 
-    def test04_create_participant(self):
-        #for program_setting in self.program_settings:
-            #self.collections['program_settings'].save(program_setting)
-        #self.worker.load_properties()
-        self.initialize_properties()
-        
-        participant = self.worker.create_participant('06')
-        
-        self.assertEqual(participant['model-version'], Participant.MODEL_VERSION)
-
     def test03_get_current_dialogue(self):
         dialogue = self.mkobj_dialogue_annoucement()
         dialogue['modified'] = Timestamp(datetime.now() - timedelta(minutes=1), 0)
@@ -288,6 +275,14 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         context = {}
         self.worker.get_matching_request_actions('ww', Actions(), context)
         self.assertTrue(context == {})
+
+    def test04_create_participant(self):
+        self.initialize_properties()
+        
+        participant = self.worker.create_participant('06')
+        
+        self.assertEqual(participant['model-version'], Participant.MODEL_VERSION)
+
 
     def test06_get_program_actions(self):
         self.initialize_properties()

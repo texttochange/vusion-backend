@@ -984,15 +984,10 @@ class DialogueWorker(ApplicationWorker):
 	self.save_schedule(**deadline)
 	    
     def get_local_time(self):
-        try:
-            return datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(
-                pytz.timezone(self.properties['timezone'])).replace(tzinfo=None)
-        except:
-            return datetime.utcnow()
-
-    #TODO: Move into Utils
-    def to_vusion_format(self, timestamp):
-        return timestamp.strftime('%Y-%m-%dT%H:%M:%S')
+	try:
+	    return self.properties.get_local_time()
+	except:
+	    return datetime.utcnow()
 
     def from_schedule_to_message(self, schedule):
         if schedule.get_type() in ['dialogue-schedule', 'reminder-schedule', 'deadline-schedule']:
