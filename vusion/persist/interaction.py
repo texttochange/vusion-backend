@@ -12,6 +12,8 @@ from vusion.persist.action import (action_generator, FeedbackAction,
                                    RemoveRemindersAction)
 from vusion.utils import time_from_vusion_format, time_to_vusion_format
 
+
+## TODO Update the validation
 class Interaction(VusionModel):
     
     MODEL_TYPE = 'interaction'

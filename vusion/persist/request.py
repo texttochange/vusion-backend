@@ -1,7 +1,7 @@
 from vusion.persist.vusion_model import VusionModel
 from vusion.persist.action import Actions, action_generator, FeedbackAction
 
-
+## TODO: update the validation
 class Request(VusionModel):
 
     MODEL_TYPE = 'request'

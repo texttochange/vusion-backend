@@ -7,6 +7,8 @@ from vusion.persist.vusion_model import VusionModel
 from vusion.context import Context
 from vusion.utils import time_from_vusion_format
 
+
+##TODO update the validation
 class Schedule(VusionModel):
 
     SCHEDULE_FIELDS = {
@@ -40,22 +42,7 @@ class Schedule(VusionModel):
             kwargs['participant-session-id'] = None
             kwargs['model-version'] = '2'
         return kwargs
-    
-    #def get_source_id(self):
-        #return 
 
-    #def get_history_type(self):
-        #if self.get_type() in ['dialogue-schedule', 'reminder-schedule']:
-            #return 'dialogue-history'
-        #elif self.get_type() == 'unattach-schedule':
-            #return 'unattach-history'
-        #elif self.get_type() == 'feedback-schedule':
-            #message_ref = self.get_context()
-            #if 'dialogue-id' in message_ref:
-                #return 'dialogue-history'
-            #elif 'request-id' in message_ref:
-                #return 'request-history'
-        #return None
 
 class MessageSchedule(Schedule):
     
