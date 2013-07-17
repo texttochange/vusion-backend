@@ -2,7 +2,8 @@ from datetime import datetime
 from math import ceil
 from copy import deepcopy
 from pytz import all_timezones, utc, timezone
-from vusion.utils import get_shortcode_value, is_shortcode_address, get_shortcode_international_prefix
+from vusion.utils import (get_shortcode_value, is_shortcode_address,
+                          get_shortcode_international_prefix, time_to_vusion_format)
 from vusion.error import MissingCode, MissingLocalTime
 from vusion.persist.shortcode import Shortcode
 
@@ -77,8 +78,12 @@ class DialogueWorkerPropertyHelper(object):
 	    return 1
 	return int(ceil(float(len(message_content)) / float(self['shortcode-max-character-per-sms'])))
     
-    def get_local_time(self):
+    def get_local_time(self, date_format='datetime'):
 	if self['timezone'] is None:
 	    raise MissingLocalTime()
-	return datetime.utcnow().replace(tzinfo=utc).astimezone(
-	    timezone(self['timezone'])).replace(tzinfo=None)	
+	local_time = datetime.utcnow().replace(tzinfo=utc).astimezone(
+	    timezone(self['timezone'])).replace(tzinfo=None)
+	if (date_format=='datetime'):
+	    return local_time
+	elif (date_format=='vusion'):
+	    return time_to_vusion_format(local_time)

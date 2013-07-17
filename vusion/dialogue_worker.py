@@ -1,5 +1,4 @@
 # -*- test-case-name: tests.test_ttc -*-
-
 import sys
 import traceback
 import re
@@ -80,20 +79,24 @@ class DialogueWorker(ApplicationWorker):
         self._d.callback(None)
 
         self.collections = {}
-        self.init_program_db(self.config['database_name'],
-                             self.config['vusion_database_name'])	
-	
-	self.credit_manager = CreditManager(self.r_key, self.r_server, 
-	                                    self.collections['history'], 
-	                                    self.collections['schedules'])
-	
-        #Set up dispatcher publisher
-        self.dispatcher_publisher = yield self.publish_to(
-            '%(dispatcher_name)s.control' % self.config)
+        self.init_program_db(
+	    self.config['database_name'],
+	    self.config['vusion_database_name'])	
 	
 	self.properties = DialogueWorkerPropertyHelper(
 	    self.collections['program_settings'],
 	    self.collections['shortcodes'])
+
+	self.credit_manager = CreditManager(
+	    self.r_key, self.r_server, 
+	    self.collections['history'], 
+	    self.collections['schedules'],
+	    self.properties)
+
+        #Set up dispatcher publisher
+        self.dispatcher_publisher = yield self.publish_to(
+            '%(dispatcher_name)s.control' % self.config)
+
 	#Will need to register the keywords
 	self.load_properties(if_needed_register_keywords=True)
 
@@ -105,7 +108,7 @@ class DialogueWorker(ApplicationWorker):
         self._consumers.append(self.control_consumer)
 
         self.sender = reactor.callLater(2, self.daemon_process)
-      
+
     @inlineCallbacks
     def teardown_application(self):
         self.log("Worker is stopped.")
@@ -679,6 +682,7 @@ class DialogueWorker(ApplicationWorker):
     def daemon_process(self):
         self.load_properties()
         if self.is_ready():
+	    self.credit_manager.check_status()
             self.send_scheduled()
         next_iteration = self.get_time_next_daemon_iteration()
         if not self.sender.active():
@@ -714,22 +718,15 @@ class DialogueWorker(ApplicationWorker):
                     secondsLater,
                     self.daemon_process)
 
-    def set_sms_limit(self):
-	self.credit_manager.set_limit(
-	    limit_type=self.properties['sms-limit-type'],
-	    limit_number=self.properties['sms-limit-number'],
-	    from_date=self.properties['sms-limit-date-from'],
-	    to_date=self.properties['sms-limit-date-to'])
-
     def load_properties(self, if_needed_register_keywords=True):
 	try:
 	    was_ready = self.properties.is_ready()
 	    ## the default callbacks in case the value is changing
 	    callbacks = {
-	        'sms-limit-type': self.set_sms_limit,
-	        'sms-limit-number': self.set_sms_limit,
-	        'sms-limit-date-from': self.set_sms_limit,
-	        'sms-limit-date-to': self.set_sms_limit}
+	        'sms-limit-type': self.credit_manager.set_limit,
+	        'sms-limit-number': self.credit_manager.set_limit,
+	        'sms-limit-date-from': self.credit_manager.set_limit,
+	        'sms-limit-date-to': self.credit_manager.set_limit}
 	    if if_needed_register_keywords == True:
 		callbacks.update({'shortcode': self.register_keywords_in_dispatcher})
 	    self.properties.load(callbacks)
@@ -1123,13 +1120,13 @@ class DialogueWorker(ApplicationWorker):
 		message['transport_metadata'].update(participant['transport_metadata'])
             
 	    message_credits = self.properties.use_credits(message_content)
-	    if self.credit_manager.is_allowed(message_credits, local_time, schedule):
+	    if self.credit_manager.is_allowed(message_credits, schedule):
 		yield self.transport_publisher.publish_message(message)
 		message_status = 'pending'
 		self.log("Message has been sent to %s '%s'" % (message['to_addr'], message['content']))
 	    else: 
 		message_credits = 0
-		if self.credit_manager.is_timeframed(local_time):
+		if self.credit_manager.is_timeframed():
 		    message_status = 'no-credit'
 		else:
 		    message_status = 'no-credit-timeframe'
@@ -1275,6 +1272,7 @@ class DialogueWorker(ApplicationWorker):
             message = re.sub(regex_Breakline, '\n', message)
         return message
 
+    # TODO more to the Participant class
     def get_participant_label_value(self, participant, label):
         label_indexer = dict((p['label'], p['value']) for i, p in enumerate(participant['profile']))
         return label_indexer.get(label, None)

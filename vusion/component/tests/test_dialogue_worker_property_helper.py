@@ -95,14 +95,12 @@ class DialogueWorkerPropertyHelperTestCase(TestCase, ObjectMaker):
 
     def test_load_fail(self):
         self.save_settings(self.mk_program_settings())
-
         try:
             self.dwph.load()
             self.fail()
         except MissingCode:
             return
         self.fail()
-            
     
     def test_get_local_time_fail(self):
         try:

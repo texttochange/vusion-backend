@@ -320,8 +320,9 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test_inbound_message_matching_request_optin(self):
+        self.initialize_properties()
+        
         request_id = self.collections['requests'].save(self.mkobj_request_join())
-
         inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
                                                      content='wWw')
         yield self.send(inbound_msg_matching_request, 'inbound')
@@ -347,6 +348,8 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test_inbound_message_matching_request_from_non_participant(self):
+        self.initialize_properties()
+        
         self.collections['requests'].save(self.mkobj_request_join())
         self.collections['requests'].save(self.mkobj_request_tag())
         self.collections['requests'].save(self.mkobj_request_leave())

@@ -7,7 +7,7 @@ from twisted.trial.unittest import TestCase
 from tests.utils import ObjectMaker
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from vusion.persist import UnattachSchedule
-from vusion.component import CreditManager, CreditStatus
+from vusion.component import CreditManager, CreditStatus, DialogueWorkerPropertyHelper
 
 class CreditManagerTestCase(TestCase, ObjectMaker):
         
@@ -24,15 +24,16 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.clearData()
 
         #parameters:
-        self.limit_type = 'none'
-        self.limit_number = None
-        self.limit_from_date = None
-        self.limit_to_date = None
+        self.property_helper = DialogueWorkerPropertyHelper(None, None)
+        self.property_helper['timezone'] = 'Africa/Kampala'
+        self.property_helper['sms-limit-type'] = 'none'
+        self.property_helper['sms-limit-number'] = None
+        self.property_helper['sms-limit-date-from'] = None
+        self.property_helper['sms-limit-date-to'] = None
         
         self.cm = CreditManager(self.cm_redis_key, self.redis,
                                 self.history_collection, self.schedules_collection,
-                                self.limit_type, self.limit_number,
-                                self.limit_from_date, self.limit_to_date)
+                                self.property_helper)
 
     def tearDown(self):
         self.clearData()
@@ -52,8 +53,9 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         now = datetime.now()
         self.history_collection.save(self.mkobj_history_dialogue(
             dialogue_id=1, interaction_id=1, timestamp=time_to_vusion_format(now)))
-        self.cm.set_limit('none')
-        self.assertTrue(self.cm.is_allowed('test', now))
+        self.property_helper['sms-limit-type'] = 'none'
+        self.cm.set_limit()
+        self.assertTrue(self.cm.is_allowed('test'))
 
     def test_outgoing_limit_history(self):
         now = datetime.now()
@@ -63,15 +65,16 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.history_collection.save(self.mkobj_history_dialogue(
             dialogue_id=1, interaction_id=1, timestamp=time_to_vusion_format(now)))
 
-        self.cm.set_limit(
-            'outgoing-only', 
-            limit_number=2, 
-            from_date=time_to_vusion_format(past),
-            to_date=time_to_vusion_format(future))
+        self.property_helper['sms-limit-type'] = 'outgoing-only'
+        self.property_helper['sms-limit-number'] = '2'
+        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(past)
+        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(future)
+
+        self.cm.set_limit()
         self.assertCounter('1')
         
         # first message should be granted
-        self.assertTrue(self.cm.is_allowed(message_credits=1, local_time=now))
+        self.assertTrue(self.cm.is_allowed(message_credits=1))
         self.assertCounter('2')
         
         # let add this last message to collection
@@ -79,29 +82,26 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
             dialogue_id=1, interaction_id=1, timestamp=time_to_vusion_format(now)))        
 
         # second message should not
-        self.assertFalse(self.cm.is_allowed(message_credits=1, local_time=now))
-        self.assertFalse(self.cm.is_allowed(message_credits=1, local_time=now))
+        self.assertFalse(self.cm.is_allowed(message_credits=1))
+        self.assertFalse(self.cm.is_allowed(message_credits=1))
         self.assertCounter('2')
 
         # until the limit is increased
-        self.cm.set_limit(
-            'outgoing', 
-            limit_number=4, 
-            from_date=time_to_vusion_format(past),
-            to_date=time_to_vusion_format(future))
-        self.assertTrue(self.cm.is_allowed(message_credits=1, local_time=now))
+        self.property_helper['sms-limit-number'] = '4'
+        self.cm.set_limit()
+        self.assertTrue(self.cm.is_allowed(message_credits=1))
         self.assertCounter('3')
 
     def test_sync_history_outgoing_only(self):
         now = datetime.now()
         past = now - timedelta(days=1)
         future = now + timedelta(days=1)
-        
-        self.cm.set_limit(
-            'outgoing-only', 
-            limit_number=4, 
-            from_date=time_to_vusion_format(past),
-            to_date=time_to_vusion_format(future))        
+                
+        self.property_helper['sms-limit-type'] = 'outgoing-only'
+        self.property_helper['sms-limit-number'] = '4'
+        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(past)
+        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(future)
+        self.cm.set_limit()        
    
         ## Count dialogue history
         self.history_collection.save(self.mkobj_history_dialogue(
@@ -169,11 +169,11 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         past = now - timedelta(days=1)
         future = now + timedelta(days=1)
         
-        self.cm.set_limit(
-            'outgoing-incoming', 
-            limit_number=4, 
-            from_date=time_to_vusion_format(past),
-            to_date=time_to_vusion_format(future))        
+        self.property_helper['sms-limit-type'] = 'outgoing-incoming'
+        self.property_helper['sms-limit-number'] = '4'
+        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(past)
+        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(future)
+        self.cm.set_limit()
         
         ## Count dialogue history
         self.history_collection.save(self.mkobj_history_dialogue(
@@ -218,11 +218,11 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         past = now - timedelta(days=1)
         future = now + timedelta(days=1)
 
-        self.cm.set_limit(
-            'outgoing',
-            limit_number=2, 
-            from_date=time_to_vusion_format(past),
-            to_date=time_to_vusion_format(future))
+        self.property_helper['sms-limit-type'] = 'outgoing-only'
+        self.property_helper['sms-limit-number'] = '2'
+        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(past)
+        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(future)
+        self.cm.set_limit()
 
         schedule_first = UnattachSchedule(
             **self.mkobj_schedule_unattach(participant_phone='+1', unattach_id='1'))
@@ -233,19 +233,19 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
 
         # first message should be granted
         self.assertTrue(
-            self.cm.is_allowed(message_credits=1, local_time=now, schedule=schedule_first))
+            self.cm.is_allowed(message_credits=1, schedule=schedule_first))
         
         # the whitecard didn't book the allowed space, so another message can still be send
-        self.assertTrue(self.cm.is_allowed(message_credits=1, local_time=now))
+        self.assertTrue(self.cm.is_allowed(message_credits=1))
         
         # At this point the manager start to reject message 
-        self.assertFalse(self.cm.is_allowed(message_credits=1, local_time=now))
+        self.assertFalse(self.cm.is_allowed(message_credits=1))
         
         # Except the one having a whitecard
-        self.assertTrue(self.cm.is_allowed(message_credits=1, local_time=now, schedule=schedule_second))
+        self.assertTrue(self.cm.is_allowed(message_credits=1, schedule=schedule_second))
         
-        blackcard = self.redis.get("%s:creditmanager:card:unattach-schedule:1" % self.cm_redis_key)
-        self.assertEqual(blackcard, 'white')
+        card = self.redis.get("%s:creditmanager:card:unattach-schedule:1" % self.cm_redis_key)
+        self.assertEqual(card, 'white')
         
 
     def test_set_blackcard_unattach_schedule(self):
@@ -253,11 +253,11 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         past = now - timedelta(days=1)
         future = now + timedelta(days=1)
 
-        self.cm.set_limit(
-            'outgoing',
-            limit_number=2, 
-            from_date=time_to_vusion_format(past),
-            to_date=time_to_vusion_format(future))
+        self.property_helper['sms-limit-type'] = 'outgoing-only'
+        self.property_helper['sms-limit-number'] = '2'
+        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(past)
+        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(future)
+        self.cm.set_limit()
         
         schedule_first = UnattachSchedule(
             **self.mkobj_schedule_unattach(participant_phone='+1', unattach_id='1'))
@@ -268,17 +268,17 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         
         # first message should not be granted as the total credit required is 4
         self.assertFalse(
-            self.cm.is_allowed(message_credits=2, local_time=now, schedule=schedule_first))
+            self.cm.is_allowed(message_credits=2, schedule=schedule_first))
         # Other message are still allowed
         self.assertTrue(
-            self.cm.is_allowed(message_credits=1, local_time=now))
+            self.cm.is_allowed(message_credits=1))
         # Still same origin unattach message are rejected
         self.assertFalse(
-            self.cm.is_allowed(message_credits=2, local_time=now, schedule=schedule_second))
+            self.cm.is_allowed(message_credits=2, schedule=schedule_second))
 
-        self.assertTrue(self.cm.is_allowed(message_credits=1, local_time=now))
+        self.assertTrue(self.cm.is_allowed(message_credits=1))
         # At this point the manager start to reject message 
-        self.assertFalse(self.cm.is_allowed(message_credits=1, local_time=now))
+        self.assertFalse(self.cm.is_allowed(message_credits=1))
 
         # The separate message should have a blackcard
         blackcard = self.redis.get("%s:creditmanager:card:unattach-schedule:1" % self.cm_redis_key)
@@ -291,17 +291,74 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         future = now + timedelta(days=1)
         more_future = future + timedelta(days=1)
         
-        self.cm.set_limit(
-            'outgoing-only', 
-            limit_number=2, 
-            from_date=time_to_vusion_format(past),
-            to_date=time_to_vusion_format(future))
+        self.property_helper['sms-limit-type'] = 'outgoing-only'
+        self.property_helper['sms-limit-number'] = '2'
+        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(past)
+        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(future)
+        self.cm.set_limit()
         
-        self.assertTrue(self.cm.is_allowed(message_credits=1, local_time=now))
-        self.assertFalse(self.cm.is_allowed(message_credits=1, local_time=more_future))
-        self.assertFalse(self.cm.is_allowed(message_credits=1, local_time=more_past))
+        self.assertTrue(self.cm.is_allowed(message_credits=1))
+        self.property_helper.get_local_time = lambda v: time_to_vusion_format(more_future)
+        self.assertFalse(self.cm.is_allowed(message_credits=1))
+        self.property_helper.get_local_time = lambda v: time_to_vusion_format(more_past)
+        self.assertFalse(self.cm.is_allowed(message_credits=1))
 
-    def test_check_status(self):
+    def test_check_status_none(self):
+        status = self.cm.check_status()
+        self.assertIsInstance(status, CreditStatus)
+        self.assertEqual(status['status'], 'none')
+        redis_status = CreditStatus(**json.loads(self.redis.get("%s:creditmanager:status" % self.cm_redis_key)))
+        self.assertEqual(status, redis_status)
+
+    def test_check_status_no_credit_timeframe(self):
+        now = datetime.now()
+        past = now - timedelta(days=1)
+        more_past = past - timedelta(days=1)
+        future = now + timedelta(days=1)
+        more_future = future + timedelta(days=1)
+        even_more_future = more_future + timedelta(days=1)
+        
+        ## no-credit-timeframe status
+        self.property_helper['sms-limit-type'] = 'outgoing-only'
+        self.property_helper['sms-limit-number'] = '2'
+        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(past)
+        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(future)
+        self.cm.set_limit()
+        status = self.cm.check_status()
+        self.assertEqual(status['status'], 'ok')
+        redis_status = CreditStatus(**json.loads(self.redis.get("%s:creditmanager:status" % self.cm_redis_key)))
+        self.assertEqual(status, redis_status)        
+        
+        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(future)
+        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(more_future)
+        self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)        
+        self.cm.set_limit()
+        status = self.cm.check_status()
+        self.assertEqual(status['status'], 'no-credit-timeframe')
+        self.assertEqual(status['since'], time_to_vusion_format(now))
+
+        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(past)
+        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(future)
+        self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)        
+        self.cm.set_limit()
+        status = self.cm.check_status()
+        self.assertEqual(status['status'], 'ok')
+        
+        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(more_past)
+        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(past)
+        self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)        
+        self.cm.set_limit()
+        status = self.cm.check_status()
+        self.assertEqual(status['status'], 'no-credit-timeframe')
+        self.assertEqual(status['since'], time_to_vusion_format(now))
+        
+        ## even more future keep the time since the status changed
+        self.property_helper.get_local_time = lambda v: time_to_vusion_format(future)        
+        status = self.cm.check_status()
+        self.assertEqual(status['status'], 'no-credit-timeframe')
+        self.assertEqual(status['since'], time_to_vusion_format(now))
+        
+    def test_check_status_no_credit_timeframe(self):
         now = datetime.now()
         past = now - timedelta(days=1)
         more_past = past - timedelta(days=1)
@@ -309,52 +366,22 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         more_future = future + timedelta(days=1)
         even_more_future = more_future + timedelta(days=1)
 
-        status = self.cm.check_status(now)
-        self.assertIsInstance(status, CreditStatus)
-        self.assertEqual(status['status'], 'none')
-        redis_status = CreditStatus(**json.loads(self.redis.get("%s:creditmanager:status" % self.cm_redis_key)))
-        self.assertEqual(status, redis_status)
+        self.property_helper['sms-limit-type'] = 'outgoing-only'
+        self.property_helper['sms-limit-number'] = '0'
+        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(more_past)
+        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(future)
+        self.cm.set_limit()
         
-        self.cm.set_limit(
-            'outgoing-only', 
-            limit_number=2, 
-            from_date=time_to_vusion_format(past),
-            to_date=time_to_vusion_format(future))
-        status = self.cm.check_status(now)
-        self.assertEqual(status['status'], 'ok')
-        redis_status = CreditStatus(**json.loads(self.redis.get("%s:creditmanager:status" % self.cm_redis_key)))
-        self.assertEqual(status, redis_status)        
-        
-        status = self.cm.check_status(more_past)
-        self.assertEqual(status['status'], 'no-credit-timeframe')
-        self.assertEqual(status['since'], time_to_vusion_format(more_past))
-
-        status = self.cm.check_status(now)
-        self.assertEqual(status['status'], 'ok')
-        
-        status = self.cm.check_status(more_future)
-        self.assertEqual(status['status'], 'no-credit-timeframe')
-        self.assertEqual(status['since'], time_to_vusion_format(more_future))
-        
-        ## even more future keep the time since the status changed
-        status = self.cm.check_status(even_more_future)
-        self.assertEqual(status['status'], 'no-credit-timeframe')
-        self.assertEqual(status['since'], time_to_vusion_format(more_future))
-        
-        self.cm.set_limit(
-            'outgoing-only', 
-            limit_number=0, 
-            from_date=time_to_vusion_format(past),
-            to_date=time_to_vusion_format(future))
-        
-        status = self.cm.check_status(now)
+        status = self.cm.check_status()
         self.assertEqual(status['status'], 'no-credit')
         self.assertEqual(status['since'], time_to_vusion_format(now))
         
-        status = self.cm.check_status(future)
+        status = self.cm.check_status()
         self.assertEqual(status['status'], 'no-credit')
         self.assertEqual(status['since'], time_to_vusion_format(now))
         
-        status = self.cm.check_status(more_future)
+        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(past)
+        self.cm.set_limit()        
+        status = self.cm.check_status()
         self.assertEqual(status['status'], 'no-credit-timeframe')
-        self.assertEqual(status['since'], time_to_vusion_format(more_future))
+        self.assertEqual(status['since'], time_to_vusion_format(now))

@@ -5,6 +5,8 @@ from bson.code import Code
 
 from twisted.internet.task import LoopingCall
 
+from vumi import log
+
 from vusion.utils import time_to_vusion_format
 from vusion.persist import VusionModel
 from vusion.error import WrongModelInstanciation
@@ -26,28 +28,36 @@ class CreditManager(object):
     last_status = None
     
     def __init__(self, prefix_key, redis, history, schedule,
-                limit_type='none',
-                limit_number=None, from_date=None, to_data=None):
+                 property_helper):
         self.prefix_key = prefix_key
         self.redis = redis
         self.history_collection = history
         self.schedule_collection = schedule
         self.last_status = self.redis.get(self.status_key())
-        self.set_limit(limit_type, limit_number, from_date, to_data)
+        self.property_helper = property_helper        
+        self.set_limit()
 
     ## in case the program settings are changing
-    def set_limit(self, limit_type, limit_number=None, from_date=None, to_date=None):
+    def set_limit(self):
+        property_helper = self.property_helper
         need_resync = False
-        if (self.limit_type != limit_type 
-            or self.limit_from_date != from_date
-            or self.limit_to_date != to_date):
+        new_limit_type = property_helper['sms-limit-type']
+        new_limit_number = int(property_helper['sms-limit-number']) if property_helper['sms-limit-number'] is not None else None
+        new_limit_from_date = property_helper['sms-limit-date-from']
+        new_limit_to_date = property_helper['sms-limit-date-to']
+        if (self.limit_type != new_limit_type 
+            or self.limit_number != new_limit_number
+            or self.limit_from_date != new_limit_from_date
+            or self.limit_to_date != new_limit_to_date):
             need_resync = True
-        self.limit_type = limit_type
-        self.limit_number = int(limit_number) if limit_number is not None else None
-        self.limit_from_date = from_date
-        self.limit_to_date = to_date
+        self.limit_type = new_limit_type
+        self.limit_number = new_limit_number
+        self.limit_from_date = new_limit_from_date
+        self.limit_to_date = new_limit_to_date
         if need_resync:
             self.reinitialize_counter()
+            if self.property_helper.is_ready():
+                self.check_status()
         
     def credit_manager_key(self):
         return ':'.join([self.prefix_key, self.CREDITMANAGER_KEY])
@@ -70,16 +80,17 @@ class CreditManager(object):
             self.redis.incr(self.used_credit_counter_key(), message_credits)
 
     ## Should go quite fast
-    def is_allowed(self, message_credits, local_time, schedule=None):
+    def is_allowed(self, message_credits, schedule=None):
         if not self.has_limit():
             return True
-        if not self.is_timeframed(local_time):
+        if not self.is_timeframed():
             self.set_blackcard(schedule)
             return False
         if self.can_be_sent(message_credits, schedule):
             self.increase_used_credit_counter(message_credits)
             self.set_whitecard(schedule)
             return True
+        self.check_status()
         self.set_blackcard(schedule)
         return False
 
@@ -91,30 +102,31 @@ class CreditManager(object):
     def increase_used_credit_counter(self, message_credits):
         self.redis.incr(self.used_credit_counter_key(), message_credits)        
 
-    def is_timeframed(self, local_time):
-        local_time_iso = time_to_vusion_format(local_time)
-        return (self.limit_from_date <= local_time_iso 
-                and local_time_iso <= self.limit_to_date)
+    def is_timeframed(self):
+        local_time = self.property_helper.get_local_time('vusion')
+        return (self.limit_from_date <= local_time
+                and local_time <= self.limit_to_date)
 
-    def check_status(self, local_time):
+    def check_status(self):
+        local_time = self.property_helper.get_local_time('vusion')
         if not self.has_limit():
             status = CreditStatus(**{
                 'status': 'none',
-                'since': time_to_vusion_format(local_time)})
-        elif not self.is_timeframed(local_time):
+                'since': local_time})
+        elif not self.is_timeframed():
             status = CreditStatus(**{
                 'status': 'no-credit-timeframe',
-                'since': time_to_vusion_format(local_time),
+                'since': local_time,
             })
         elif not self.can_be_sent(1):
             status = CreditStatus(**{
                 'status': 'no-credit',
-                'since': time_to_vusion_format(local_time),
+                'since': local_time,
             })
         else:
             status = CreditStatus(**{
                 'status': 'ok',
-                'since': time_to_vusion_format(local_time),
+                'since': local_time,
             })
         if self.last_status is not None and self.last_status == status:
             return self.last_status
@@ -156,12 +168,13 @@ class CreditManager(object):
             notification.get_as_json(),
             get_local_time_as_timestamp(local_time))
 
-    def delete_old_notification(self, local_time):
+    def delete_old_notification(self):
+        remove_older_than = self.property_helper.get_local_time() - timedelta(days=5)
         notification_key = self.notification_key()
         self.redis.zremrangebyscore(
             notification_key,
             1,
-            get_local_time_as_timestamp(local_time - timedelta(days=5)))
+            get_local_time_as_timestamp(remove_older_than))
 
 
     def set_whitecard(self, schedule):
