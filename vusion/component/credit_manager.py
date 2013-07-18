@@ -86,6 +86,7 @@ class CreditManager(object):
 
     ## Should go quite fast
     def is_allowed(self, message_credits, schedule=None):
+        log.msg('[credit manager] is allowed %r' % schedule)
         if not self.has_limit():
             return True
         if not self.is_timeframed():
@@ -145,9 +146,13 @@ class CreditManager(object):
 
     def can_be_sent(self, message_credits, schedule=None):
         used_credit_counter = self.get_used_credit_counter()
+        log.msg("[credit manager] can be sent %r" % schedule)
         if schedule is not None and schedule.get_type() == 'unattach-schedule':
-            if self.has_whitecard(schedule):
+            card = self.get_card(schedule)
+            if card == 'white':
                 return True
+            elif card == 'black':
+                return False
             else:
                 estimation = self.estimate_unattached_required_credit(message_credits, schedule)
                 return used_credit_counter + estimation <= self.limit_number
@@ -194,14 +199,11 @@ class CreditManager(object):
 
     ## On it implemented the "all or none of participant" for unattach-schedule
     ## the "all or none of sequence for dialogue and request" is not yet prioritized
-    def has_whitecard(self, schedule):
+    def get_card(self, schedule):
         if schedule.get_type() != 'unattach-schedule':
-            return False
+            return None
         card_key = self.card_key('unattach-schedule', schedule['unattach-id'])
-        is_whitecarded = self.redis.get(card_key)
-        if is_whitecarded is not None and is_whitecarded == 'white':
-            return True
-        return False
+        return self.redis.get(card_key)
 
     def get_used_credit_counter(self):
         used_credit_counter = self.redis.get(self.used_credit_counter_key())
