@@ -257,8 +257,8 @@ class ObjectMaker:
                             double_optin_error_feedback=None,
                             sms_limit_type='none',
                             sms_limit_number=None,
-                            sms_limit_date_from=None,
-                            sms_limit_date_to=None
+                            sms_limit_from_date=None,
+                            sms_limit_to_date=None
                             ):
         settings = deepcopy(self.settings)
         settings.update({
@@ -269,8 +269,8 @@ class ObjectMaker:
             'double-optin-error-feedback': double_optin_error_feedback,
             'sms-limit-type': sms_limit_type,
             'sms-limit-number': sms_limit_number,
-            'sms-limit-date-from': sms_limit_date_from,
-            'sms-limit-date-to': sms_limit_date_to})
+            'sms-limit-from-date': sms_limit_from_date,
+            'sms-limit-to-date': sms_limit_to_date})
         program_settings = []
         for key, value in settings.iteritems():
             program_settings.append({'key': key, 'value': value})
