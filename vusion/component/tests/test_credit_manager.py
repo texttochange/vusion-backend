@@ -293,8 +293,8 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         
         self.property_helper['sms-limit-type'] = 'outgoing-only'
         self.property_helper['sms-limit-number'] = '2'
-        self.property_helper['sms-limit-from-date'] = time_to_vusion_format(past)
-        self.property_helper['sms-limit-to-date'] = time_to_vusion_format(future)
+        self.property_helper['sms-limit-from-date'] = time_to_vusion_format(past.date())
+        self.property_helper['sms-limit-to-date'] = time_to_vusion_format(future.date())
         self.cm.set_limit()
         
         self.assertTrue(self.cm.is_allowed(message_credits=1))
@@ -302,6 +302,11 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.assertFalse(self.cm.is_allowed(message_credits=1))
         self.property_helper.get_local_time = lambda v: time_to_vusion_format(more_past)
         self.assertFalse(self.cm.is_allowed(message_credits=1))
+        
+        ## current day of the to-date limit is allowed
+        same_date_future = future + timedelta(minutes=1)
+        self.property_helper.get_local_time = lambda v: time_to_vusion_format(same_date_future)
+        self.assertTrue(self.cm.is_allowed(message_credits=1))
 
     def test_check_status_none(self):
         status = self.cm.check_status()
@@ -368,8 +373,8 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
 
         self.property_helper['sms-limit-type'] = 'outgoing-only'
         self.property_helper['sms-limit-number'] = '0'
-        self.property_helper['sms-limit-from-date'] = time_to_vusion_format(more_past)
-        self.property_helper['sms-limit-to-date'] = time_to_vusion_format(future)
+        self.property_helper['sms-limit-from-date'] = time_to_vusion_format(more_past.date())
+        self.property_helper['sms-limit-to-date'] = time_to_vusion_format(future.date())
         self.cm.set_limit()
         
         status = self.cm.check_status()
@@ -380,7 +385,7 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.assertEqual(status['status'], 'no-credit')
         self.assertEqual(status['since'], time_to_vusion_format(now))
         
-        self.property_helper['sms-limit-to-date'] = time_to_vusion_format(past)
+        self.property_helper['sms-limit-to-date'] = time_to_vusion_format(past.date())
         self.cm.set_limit()        
         status = self.cm.check_status()
         self.assertEqual(status['status'], 'no-credit-timeframe')

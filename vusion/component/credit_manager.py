@@ -1,5 +1,6 @@
 # -*- test-case-name: vusion.component.tests.test_sms_limit_manager -*-
 import re
+from datetime import timedelta
 
 from bson.code import Code
 
@@ -7,7 +8,7 @@ from twisted.internet.task import LoopingCall
 
 from vumi import log
 
-from vusion.utils import time_to_vusion_format
+from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from vusion.persist import VusionModel
 from vusion.error import WrongModelInstanciation
 
@@ -44,7 +45,11 @@ class CreditManager(object):
         new_limit_type = property_helper['sms-limit-type']
         new_limit_number = int(property_helper['sms-limit-number']) if property_helper['sms-limit-number'] is not None else None
         new_limit_from_date = property_helper['sms-limit-from-date']
-        new_limit_to_date = property_helper['sms-limit-to-date']
+        if property_helper['sms-limit-to-date'] is not None:
+            ## the timeframe include the last day
+            new_limit_to_date = time_to_vusion_format(time_from_vusion_format(property_helper['sms-limit-to-date']) + timedelta(days=1))
+        else: 
+            new_limit_to_date = None
         if (self.limit_type != new_limit_type 
             or self.limit_number != new_limit_number
             or self.limit_from_date != new_limit_from_date
