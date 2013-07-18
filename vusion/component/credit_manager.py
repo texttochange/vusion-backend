@@ -43,8 +43,8 @@ class CreditManager(object):
         need_resync = False
         new_limit_type = property_helper['sms-limit-type']
         new_limit_number = int(property_helper['sms-limit-number']) if property_helper['sms-limit-number'] is not None else None
-        new_limit_from_date = property_helper['sms-limit-date-from']
-        new_limit_to_date = property_helper['sms-limit-date-to']
+        new_limit_from_date = property_helper['sms-limit-from-date']
+        new_limit_to_date = property_helper['sms-limit-to-date']
         if (self.limit_type != new_limit_type 
             or self.limit_number != new_limit_number
             or self.limit_from_date != new_limit_from_date
@@ -104,6 +104,7 @@ class CreditManager(object):
 
     def is_timeframed(self):
         local_time = self.property_helper.get_local_time('vusion')
+        log.msg("[credit manager] is timeframed %s < %s < %s" % (self.limit_from_date, local_time, self.limit_to_date))
         return (self.limit_from_date <= local_time
                 and local_time <= self.limit_to_date)
 
@@ -128,9 +129,12 @@ class CreditManager(object):
                 'status': 'ok',
                 'since': local_time,
             })
+        log.msg('[credit manager] old status %r' % self.last_status)
         if self.last_status is not None and self.last_status == status:
+            log.msg('[credit manager] not updating the status')
             return self.last_status
         self.last_status = status
+        log.msg('[credit manager] save new status %r' % status)
         self.redis.set(self.status_key(), self.last_status.get_as_json())
         return self.last_status
 

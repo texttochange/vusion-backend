@@ -28,8 +28,8 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.property_helper['timezone'] = 'Africa/Kampala'
         self.property_helper['sms-limit-type'] = 'none'
         self.property_helper['sms-limit-number'] = None
-        self.property_helper['sms-limit-date-from'] = None
-        self.property_helper['sms-limit-date-to'] = None
+        self.property_helper['sms-limit-from-date'] = None
+        self.property_helper['sms-limit-to-date'] = None
         
         self.cm = CreditManager(self.cm_redis_key, self.redis,
                                 self.history_collection, self.schedules_collection,
@@ -67,8 +67,8 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
 
         self.property_helper['sms-limit-type'] = 'outgoing-only'
         self.property_helper['sms-limit-number'] = '2'
-        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(past)
-        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(future)
+        self.property_helper['sms-limit-from-date'] = time_to_vusion_format(past)
+        self.property_helper['sms-limit-to-date'] = time_to_vusion_format(future)
 
         self.cm.set_limit()
         self.assertCounter('1')
@@ -99,8 +99,8 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
                 
         self.property_helper['sms-limit-type'] = 'outgoing-only'
         self.property_helper['sms-limit-number'] = '4'
-        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(past)
-        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(future)
+        self.property_helper['sms-limit-from-date'] = time_to_vusion_format(past)
+        self.property_helper['sms-limit-to-date'] = time_to_vusion_format(future)
         self.cm.set_limit()        
    
         ## Count dialogue history
@@ -171,8 +171,8 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         
         self.property_helper['sms-limit-type'] = 'outgoing-incoming'
         self.property_helper['sms-limit-number'] = '4'
-        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(past)
-        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(future)
+        self.property_helper['sms-limit-from-date'] = time_to_vusion_format(past)
+        self.property_helper['sms-limit-to-date'] = time_to_vusion_format(future)
         self.cm.set_limit()
         
         ## Count dialogue history
@@ -220,8 +220,8 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
 
         self.property_helper['sms-limit-type'] = 'outgoing-only'
         self.property_helper['sms-limit-number'] = '2'
-        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(past)
-        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(future)
+        self.property_helper['sms-limit-from-date'] = time_to_vusion_format(past)
+        self.property_helper['sms-limit-to-date'] = time_to_vusion_format(future)
         self.cm.set_limit()
 
         schedule_first = UnattachSchedule(
@@ -255,8 +255,8 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
 
         self.property_helper['sms-limit-type'] = 'outgoing-only'
         self.property_helper['sms-limit-number'] = '2'
-        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(past)
-        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(future)
+        self.property_helper['sms-limit-from-date'] = time_to_vusion_format(past)
+        self.property_helper['sms-limit-to-date'] = time_to_vusion_format(future)
         self.cm.set_limit()
         
         schedule_first = UnattachSchedule(
@@ -293,8 +293,8 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         
         self.property_helper['sms-limit-type'] = 'outgoing-only'
         self.property_helper['sms-limit-number'] = '2'
-        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(past)
-        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(future)
+        self.property_helper['sms-limit-from-date'] = time_to_vusion_format(past)
+        self.property_helper['sms-limit-to-date'] = time_to_vusion_format(future)
         self.cm.set_limit()
         
         self.assertTrue(self.cm.is_allowed(message_credits=1))
@@ -321,31 +321,31 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         ## no-credit-timeframe status
         self.property_helper['sms-limit-type'] = 'outgoing-only'
         self.property_helper['sms-limit-number'] = '2'
-        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(past)
-        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(future)
+        self.property_helper['sms-limit-from-date'] = time_to_vusion_format(past)
+        self.property_helper['sms-limit-to-date'] = time_to_vusion_format(future)
         self.cm.set_limit()
         status = self.cm.check_status()
         self.assertEqual(status['status'], 'ok')
         redis_status = CreditStatus(**json.loads(self.redis.get("%s:creditmanager:status" % self.cm_redis_key)))
         self.assertEqual(status, redis_status)        
         
-        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(future)
-        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(more_future)
+        self.property_helper['sms-limit-from-date'] = time_to_vusion_format(future)
+        self.property_helper['sms-limit-to-date'] = time_to_vusion_format(more_future)
         self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)        
         self.cm.set_limit()
         status = self.cm.check_status()
         self.assertEqual(status['status'], 'no-credit-timeframe')
         self.assertEqual(status['since'], time_to_vusion_format(now))
 
-        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(past)
-        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(future)
+        self.property_helper['sms-limit-from-date'] = time_to_vusion_format(past)
+        self.property_helper['sms-limit-to-date'] = time_to_vusion_format(future)
         self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)        
         self.cm.set_limit()
         status = self.cm.check_status()
         self.assertEqual(status['status'], 'ok')
         
-        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(more_past)
-        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(past)
+        self.property_helper['sms-limit-from-date'] = time_to_vusion_format(more_past)
+        self.property_helper['sms-limit-to-date'] = time_to_vusion_format(past)
         self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)        
         self.cm.set_limit()
         status = self.cm.check_status()
@@ -368,8 +368,8 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
 
         self.property_helper['sms-limit-type'] = 'outgoing-only'
         self.property_helper['sms-limit-number'] = '0'
-        self.property_helper['sms-limit-date-from'] = time_to_vusion_format(more_past)
-        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(future)
+        self.property_helper['sms-limit-from-date'] = time_to_vusion_format(more_past)
+        self.property_helper['sms-limit-to-date'] = time_to_vusion_format(future)
         self.cm.set_limit()
         
         status = self.cm.check_status()
@@ -380,7 +380,7 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.assertEqual(status['status'], 'no-credit')
         self.assertEqual(status['since'], time_to_vusion_format(now))
         
-        self.property_helper['sms-limit-date-to'] = time_to_vusion_format(past)
+        self.property_helper['sms-limit-to-date'] = time_to_vusion_format(past)
         self.cm.set_limit()        
         status = self.cm.check_status()
         self.assertEqual(status['status'], 'no-credit-timeframe')

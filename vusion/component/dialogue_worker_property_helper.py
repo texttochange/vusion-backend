@@ -31,8 +31,8 @@ class DialogueWorkerPropertyHelper(object):
 	    'request-and-feedback-prioritized': None,
 	    'sms-limit-type': None,
 	    'sms-limit-number': None,
-	    'sms-limit-date-from': None,
-	    'sms-limit-date-to': None}	
+	    'sms-limit-from-date': None,
+	    'sms-limit-to-date': None}
 	
     def __getitem__(self, key):
 	return self.properties[key]

@@ -725,8 +725,8 @@ class DialogueWorker(ApplicationWorker):
 	    callbacks = {
 	        'sms-limit-type': self.credit_manager.set_limit,
 	        'sms-limit-number': self.credit_manager.set_limit,
-	        'sms-limit-date-from': self.credit_manager.set_limit,
-	        'sms-limit-date-to': self.credit_manager.set_limit}
+	        'sms-limit-from-date': self.credit_manager.set_limit,
+	        'sms-limit-to-date': self.credit_manager.set_limit}
 	    if if_needed_register_keywords == True:
 		callbacks.update({'shortcode': self.register_keywords_in_dispatcher})
 	    self.properties.load(callbacks)
