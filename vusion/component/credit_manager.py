@@ -21,10 +21,10 @@ class CreditManager(object):
     CARD_KEY = 'card'
     NOTIFICATION_KEY = 'notifications'
     
-    limit_type = 'none'
-    limit_number = None
-    limit_from_date = None
-    limit_to_date = None
+    credit_type = 'none'
+    credit_number = None
+    credit_from_date = None
+    credit_to_date = None
     
     last_status = None
     
@@ -42,23 +42,23 @@ class CreditManager(object):
     def set_limit(self):
         property_helper = self.property_helper
         need_resync = False
-        new_limit_type = property_helper['sms-limit-type']
-        new_limit_number = int(property_helper['sms-limit-number']) if property_helper['sms-limit-number'] is not None else None
-        new_limit_from_date = property_helper['sms-limit-from-date']
-        if property_helper['sms-limit-to-date'] is not None:
+        new_credit_type = property_helper['credit-type']
+        new_credit_number = int(property_helper['credit-number']) if property_helper['credit-number'] is not None else None
+        new_credit_from_date = property_helper['credit-from-date']
+        if property_helper['credit-to-date'] is not None:
             ## the timeframe include the last day
-            new_limit_to_date = time_to_vusion_format(time_from_vusion_format(property_helper['sms-limit-to-date']) + timedelta(days=1))
+            new_credit_to_date = time_to_vusion_format(time_from_vusion_format(property_helper['credit-to-date']) + timedelta(days=1))
         else: 
-            new_limit_to_date = None
-        if (self.limit_type != new_limit_type 
-            or self.limit_number != new_limit_number
-            or self.limit_from_date != new_limit_from_date
-            or self.limit_to_date != new_limit_to_date):
+            new_credit_to_date = None
+        if (self.credit_type != new_credit_type 
+            or self.credit_number != new_credit_number
+            or self.credit_from_date != new_credit_from_date
+            or self.credit_to_date != new_credit_to_date):
             need_resync = True
-        self.limit_type = new_limit_type
-        self.limit_number = new_limit_number
-        self.limit_from_date = new_limit_from_date
-        self.limit_to_date = new_limit_to_date
+        self.credit_type = new_credit_type
+        self.credit_number = new_credit_number
+        self.credit_from_date = new_credit_from_date
+        self.credit_to_date = new_credit_to_date
         if need_resync:
             self.reinitialize_counter()
             if self.property_helper.is_ready():
@@ -81,7 +81,7 @@ class CreditManager(object):
 
     ## To keep some counting correct even in between sync
     def received_message(self, message_credits):
-        if self.limit_type == 'outgoing-incoming':
+        if self.credit_type == 'outgoing-incoming':
             self.redis.incr(self.used_credit_counter_key(), message_credits)
 
     ## Should go quite fast
@@ -101,7 +101,7 @@ class CreditManager(object):
         return False
 
     def has_limit(self):
-        if self.limit_type == 'none':
+        if self.credit_type == 'none':
             return False
         return True
 
@@ -110,9 +110,9 @@ class CreditManager(object):
 
     def is_timeframed(self):
         local_time = self.property_helper.get_local_time('vusion')
-        log.msg("[credit manager] is timeframed %s < %s < %s" % (self.limit_from_date, local_time, self.limit_to_date))
-        return (self.limit_from_date <= local_time
-                and local_time <= self.limit_to_date)
+        log.msg("[credit manager] is timeframed %s < %s < %s" % (self.credit_from_date, local_time, self.credit_to_date))
+        return (self.credit_from_date <= local_time
+                and local_time <= self.credit_to_date)
 
     def check_status(self):
         local_time = self.property_helper.get_local_time('vusion')
@@ -155,8 +155,8 @@ class CreditManager(object):
                 return False
             else:
                 estimation = self.estimate_unattached_required_credit(message_credits, schedule)
-                return used_credit_counter + estimation <= self.limit_number
-        return int(used_credit_counter) + message_credits <= self.limit_number
+                return used_credit_counter + estimation <= self.credit_number
+        return int(used_credit_counter) + message_credits <= self.credit_number
         
     ## This is just a rought estimation based on the message send to the first participant
     def estimate_unattached_required_credit(self, message_credits, schedule):
@@ -225,10 +225,10 @@ class CreditManager(object):
                        "        prev.count = prev.count + 1;"
                        "    }"
                        " }")
-        condition = {"timestamp": {"$gt": self.limit_from_date},
-                     "timestamp": {"$lt": self.limit_to_date},
+        condition = {"timestamp": {"$gt": self.credit_from_date},
+                     "timestamp": {"$lt": self.credit_to_date},
                      "object-type": {"$in": ["dialogue-history", "unattach-history", "request-history"]}}
-        if self.limit_type == 'outgoing-only':
+        if self.credit_type == 'outgoing-only':
             condition.update({'message-direction': 'outgoing'})
         result = self.history_collection.group(None, condition, {"count":0}, reducer)
         if len(result) != 0:

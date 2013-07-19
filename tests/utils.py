@@ -245,10 +245,10 @@ class ObjectMaker:
         'timezone': 'Africa/Kampala',
         'customized-id': 'myid',
         'request-and-feedback-prioritized': 'prioritized',
-        'sms-limit-type': 'none',
-        'sms-limit-number': None,
-        'sms-limit-date-from': None,
-        'sms-limit-date-to': None}
+        'credit-type': 'none',
+        'credit-number': None,
+        'credit-date-from': None,
+        'credit-date-to': None}
 
     def mk_program_settings(self, shortcode='256-8181',
                             default_template_open_question= None,
@@ -267,10 +267,10 @@ class ObjectMaker:
             'default-template-closed-question': default_template_closed_question,
             'double-matching-answer-feedback': double_matching_answer_feedback,
             'double-optin-error-feedback': double_optin_error_feedback,
-            'sms-limit-type': sms_limit_type,
-            'sms-limit-number': sms_limit_number,
-            'sms-limit-from-date': sms_limit_from_date,
-            'sms-limit-to-date': sms_limit_to_date})
+            'credit-type': sms_limit_type,
+            'credit-number': sms_limit_number,
+            'credit-from-date': sms_limit_from_date,
+            'credit-to-date': sms_limit_to_date})
         program_settings = []
         for key, value in settings.iteritems():
             program_settings.append({'key': key, 'value': value})

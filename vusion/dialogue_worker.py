@@ -723,10 +723,10 @@ class DialogueWorker(ApplicationWorker):
 	    was_ready = self.properties.is_ready()
 	    ## the default callbacks in case the value is changing
 	    callbacks = {
-	        'sms-limit-type': self.credit_manager.set_limit,
-	        'sms-limit-number': self.credit_manager.set_limit,
-	        'sms-limit-from-date': self.credit_manager.set_limit,
-	        'sms-limit-to-date': self.credit_manager.set_limit}
+	        'credit-type': self.credit_manager.set_limit,
+	        'credit-number': self.credit_manager.set_limit,
+	        'credit-from-date': self.credit_manager.set_limit,
+	        'credit-to-date': self.credit_manager.set_limit}
 	    if if_needed_register_keywords == True:
 		callbacks.update({'shortcode': self.register_keywords_in_dispatcher})
 	    self.properties.load(callbacks)

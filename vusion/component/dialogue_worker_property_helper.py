@@ -29,10 +29,10 @@ class DialogueWorkerPropertyHelper(object):
 	    'double-matching-answer-feedback': None,
 	    'double-optin-error-feedback': None,
 	    'request-and-feedback-prioritized': None,
-	    'sms-limit-type': None,
-	    'sms-limit-number': None,
-	    'sms-limit-from-date': None,
-	    'sms-limit-to-date': None}
+	    'credit-type': None,
+	    'credit-number': None,
+	    'credit-from-date': None,
+	    'credit-to-date': None}
 	
     def __getitem__(self, key):
 	return self.properties[key]
