@@ -15,12 +15,19 @@ class TestPriorityContentKeywordRouter(DispatcherTestCase):
         self.config = {
             'dispatcher_name': 'keyword_dispatcher',
             'router_class': 'dispatchers.priority_router.PriorityContentKeywordRouter',
-            'transport_names': ['transport1', 'transport2','transport2-priority'],
+            'transport_names': [
+                'transport1', 
+                'transport2',
+                'transport2-priority',
+                'transport-http'],
             'transport_mappings':{
-                'shortcode1': 'transport1',
-                'shortcode2': {
-                    'default': 'transport2',
-                    'prioritized': 'transport2-priority'}},
+                'http_api': {
+                    '.*': 'transport-http'},
+                'sms': {
+                    'shortcode1': 'transport1',
+                    'shortcode2': {
+                        'default': 'transport2',
+                        'prioritized': 'transport2-priority'}}},
             'exposed_names': ['app1', 'app2', 'app3', 'fallback_app'],
             'rules': [{'app': 'app1',
                        'keyword': 'KEYWORD1',
@@ -103,7 +110,20 @@ class TestPriorityContentKeywordRouter(DispatcherTestCase):
                                                       direction='outbound')
         self.assertEqual(transport2_msgs, [msg])
         
+    @inlineCallbacks
+    def test_outbound_message_routing_transport_type(self):
+        msg = self.mkmsg_out(content="hello outbound msg",
+                             from_addr='http://server.domain.ext/mo_message',
+                             transport_name='app2',
+                             transport_type='http_api')
         
+        yield self.dispatch(msg,
+                            transport_name='app2',
+                            direction='outbound')
+        
+        transport1_msgs = self.get_dispatched_messages('transport-http',
+                                                      direction='outbound')
+        self.assertEqual(transport1_msgs, [msg])        
         
         
         

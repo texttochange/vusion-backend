@@ -1,3 +1,5 @@
+import re
+
 from twisted.internet.defer import inlineCallbacks
 
 from vumi.dispatchers.base import ContentKeywordRouter
@@ -17,15 +19,23 @@ class PriorityContentKeywordRouter(ContentKeywordRouter):
         yield self.r_server.expire(message_key,
                                    self.expire_routing_timeout)
             
-    def get_transport_name(self, msg):        
-        transport_name = self.transport_mappings.get(msg['from_addr'])
-        if transport_name is None:
+    def get_transport_name(self, msg):
+        match_transport_name = None
+        transport_mappings = self.transport_mappings.get(msg['transport_type'])
+        if transport_mappings is None:
             return None
-        if isinstance(transport_name, str):
-            return transport_name
-        if isinstance(transport_name, dict):
+        for to_address, transport_name in transport_mappings.iteritems():
+            regex_to_address = re.compile(to_address)
+            if re.match(regex_to_address, msg['from_addr']):
+                match_transport_name = transport_name
+                break
+        if match_transport_name is None:
+            return None
+        if isinstance(match_transport_name, str):
+            return match_transport_name
+        if isinstance(match_transport_name, dict):
             if ('priority' in msg['transport_metadata']
-                    and msg['transport_metadata']['priority'] in transport_name):   
+                    and msg['transport_metadata']['priority'] in match_transport_name):
                 return transport_name[msg['transport_metadata']['priority']]
             return transport_name['default']
         return None
