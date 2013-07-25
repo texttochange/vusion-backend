@@ -64,7 +64,8 @@ class DialogueWorkerTestCase(TestCase, MessageMaker,
                                 'shortcodes',
                                 'program_settings',
                                 'unattached_messages',
-                                'requests'])
+                                'requests',
+                                'dynamic_contents'])
         self.db = connection[self.config['vusion_database_name']]
         self.setup_collections(['templates'])
 
@@ -590,8 +591,18 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertEqual(message_4, 'u have send: month2 and proud')
         
         message_5 = self.worker.customize_message('08', 'u have send: [participant.5 to 6_raw]')        
-        self.assertEqual(message_5, 'u have send: usingnumber 2')        
+        self.assertEqual(message_5, 'u have send: usingnumber 2')
         
+    def test11_customize_dynamic_message(self):
+        for program_setting in self.program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.worker.load_data()
+        
+        dynamic_content = self.mkobj_dynamic_content()
+        self.collections['dynamic_contents'].save(dynamic_content)
+        
+        message_one = self.worker.customize_dynamic_message('Today the temperature is [program.weather]')
+        self.assertEqual(message_one, 'Today the temperature is 30 C')
 
     def test12_generate_message_use_template(self):
         for program_setting in self.mkobj_program_settings():

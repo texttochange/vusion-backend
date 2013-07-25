@@ -239,7 +239,8 @@ class DialogueWorker(ApplicationWorker):
             'schedules': 'date-time',
             'program_settings': None,
             'unattached_messages': None,
-            'requests': None})
+            'requests': None,
+            'dynamic_contents': None})
         self.collections['history'].ensure_index([('interaction-id', 1),
                                                   ('participant-session-id',1)],
                                                  sparce = True)
@@ -1304,4 +1305,16 @@ class DialogueWorker(ApplicationWorker):
             message = message.replace('[%s.%s]' %
                                       (table, attribute),
                                       participant_label_value)
+        return message
+    
+    def customize_dynamic_message(self, message):
+        keys_regexp = re.compile(r'\[program.(?P<attribute>[\s\w]*)\]')
+        keys = re.findall(keys_regexp, message)
+        contents = self.collections['dynamic_contents'].find()
+        for attribute in keys:
+            for dynamic_content in contents:
+                if attribute == dynamic_content['key']:
+                    message = message.replace('[program.%s]' %
+                                              (attribute),
+                                              dynamic_content['value'])
         return message

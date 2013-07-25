@@ -943,3 +943,7 @@ class ObjectMaker:
             'content': content,
             'context': context}
         return schedule_generator(**schedule).get_as_dict()
+    
+    def mkobj_dynamic_content(self):
+        return {'key' : 'weather',
+                'value' : '30 C'}
