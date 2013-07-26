@@ -19,7 +19,7 @@ class CmTransportTestCase(TransportTestCase):
     transport_type = 'sms'
     transport_class = CmTransport
 
-    yo_incomming_template = (
+    cm_incomming_template = (
         'http://localhost:%s%s?recipient=0041791234567&'
         'operator=MTN&originator=9292&message=Hello+World')
 
@@ -33,7 +33,6 @@ class CmTransportTestCase(TransportTestCase):
             'url': 'http://localhost:%s%s' % (self.send_port, self.send_path),
             'login': 'login',
             'password': 'password',
-            'default_origin': '3939',
             'customer_id': '3454',
             'receive_path': '/cm',
             'receive_port': 9998
@@ -130,7 +129,7 @@ class CmTransportTestCase(TransportTestCase):
 
     @inlineCallbacks
     def test_receiving_one_sms(self):
-        url = (self.yo_incomming_template
+        url = (self.cm_incomming_template
                % (self.config['receive_port'], self.config['receive_path']))
         response = yield http_request_full(url, method='GET')
         [smsg] = self.get_dispatched('cm.inbound')

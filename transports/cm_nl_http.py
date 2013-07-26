@@ -20,8 +20,8 @@ import re
 
 
 ##This transport is supposed to send and receive sms in 2 different ways.
-##To send sms we use the CM API
-##To receive sms we use the YO Interface to forward the sms
+##For MT, it uses the CM API POST
+##For MO, it uses the CM API GET
 class CmTransport(Transport):
 
     def mkres(self, cls, publish_func, path_key):
@@ -53,7 +53,7 @@ class CmTransport(Transport):
                     'customer_id': self.config['customer_id'],
                     'login': self.config['login'],
                     'password': self.config['password'],
-                    'from_addr': self.config['default_origin'],
+                    'from_addr': message['from_addr'],
                     'to_addr': message['to_addr'],
                     'content': message['content']}),
                 {'User-Agent': ['Vumi CM YO Transport'],
