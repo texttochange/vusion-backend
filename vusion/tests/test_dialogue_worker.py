@@ -1,8 +1,8 @@
 from datetime import datetime, time, date, timedelta
-import pytz
 
 import json
 import pymongo
+from redis import StrictRedis
 from bson.objectid import ObjectId
 from bson.timestamp import Timestamp
 
@@ -15,15 +15,8 @@ from vumi.tests.utils import get_stubbed_worker, UTCNearNow, RegexMatcher
 from vusion.dialogue_worker import DialogueWorker
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from vusion.error import MissingData, MissingTemplate
-from vusion.persist.action import (UnMatchingAnswerAction, EnrollingAction,
-                                   FeedbackAction, OptinAction, OptoutAction,
-                                   TaggingAction, ProfilingAction,
-                                   OffsetConditionAction, RemoveRemindersAction,
-                                   ResetAction, RemoveDeadlineAction,
-                                   DelayedEnrollingAction, action_generator, Actions)
-from vusion.persist import Dialogue, schedule_generator, Participant
-
-#from transports import YoUgHttpTransport
+from vusion.persist.action import Actions
+from vusion.persist import Dialogue, Participant
 
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 
@@ -52,8 +45,9 @@ class DialogueWorkerTestCase(TestCase, MessageMaker,
         self.broker.queue_bind("%s.outbound" % self.transport_name,
                                "vumi",
                                "%s.outbound" % self.transport_name)
-        #Database#
+        #Database to be run in safe mode to guaranty write / edit / delete#
         connection = pymongo.Connection("localhost", 27017)
+        connection.safe = True
         self.db = connection[self.config['database_name']]
 
         self.collections = {}
@@ -67,9 +61,12 @@ class DialogueWorkerTestCase(TestCase, MessageMaker,
                                 'requests'])
         self.db = connection[self.config['vusion_database_name']]
         self.setup_collections(['templates'])
+        self.setup_collections(['shortcodes'])
 
         self.drop_collections()
         self.broker.dispatched = {}
+        
+        self.redis = StrictRedis()
         #Let's rock"
         self.worker.startService()
         yield self.worker.startWorker()
@@ -103,6 +100,23 @@ class DialogueWorkerTestCase(TestCase, MessageMaker,
         for key in metadata:
             history[key] = metadata[key]
         self.collections['history'].save(history)
+
+    def initialize_properties(self, program_settings=None, shortcode=None, register_keyword=False):
+        if program_settings is None:
+            program_settings = self.mk_program_settings('256-8181')
+        if shortcode is None:
+            shortcode = self.mkobj_shortcode('8181', '256')
+        for program_setting in program_settings:
+            self.collections['program_settings'].save(program_setting)
+        self.collections['shortcodes'].save(shortcode)
+        self.worker.load_properties(register_keyword)
+
+    def delete_properties(self):
+        self.collections['shortcodes'].remove()
+        self.collections['program_settings'].remove()
+        keys = self.redis.keys('vusion:programs:%s:*' % self.database_name)
+        for key in keys:
+            self.redis.delete(key)
 
 
 class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
@@ -168,9 +182,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertFalse(self.worker.is_enrolled(participant, '2'))
 
     def test03_multiple_dialogue_in_collection(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
 
         dNow = self.worker.get_local_time()
         dPast1 = datetime.now() - timedelta(minutes=30)
@@ -224,19 +236,9 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertEqual(dialogues[1]['_id'],
                          id_active_dialogue_two)
 
-    def test04_create_participant(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-        
-        participant = self.worker.create_participant('06')
-        
-        self.assertEqual(participant['model-version'], Participant.MODEL_VERSION)
-
     def test03_get_current_dialogue(self):
         dialogue = self.mkobj_dialogue_annoucement()
-        dialogue['modified'] = Timestamp(datetime.now() - timedelta(minutes=1),
-                                         0)
+        dialogue['modified'] = Timestamp(datetime.now() - timedelta(minutes=1), 0)
         self.collections['dialogues'].save(dialogue)
         other_dialogue = self.mkobj_dialogue_annoucement()
         other_dialogue['interactions'] = []
@@ -274,265 +276,20 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.worker.get_matching_request_actions('ww', Actions(), context)
         self.assertTrue(context == {})
 
-    def test05_send_scheduled_messages(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()        
-        #mytimezone = self.program_settings[2]['value']
-        dNow = self.worker.get_local_time()
-        dNow = dNow - timedelta(minutes=2)
-        dPast = dNow - timedelta(minutes=61)
-        dFuture = dNow + timedelta(minutes=30)
-
-        dialogue = self.mkobj_dialogue_announcement_2()
-        participant_transport_metadata = {'some_key': 'some_value'}
-        participant = self.mkobj_participant('09', transport_metadata=participant_transport_metadata)
-
-        self.collections['dialogues'].save(dialogue)
-        self.collections['participants'].save(participant)
-       
-        unattached_message = self.collections['unattached_messages'].save({
-            'date-time': time_to_vusion_format(dNow),
-            'content': 'Hello unattached',
-            'to': 'all participants',
-            'type-interaction': 'annoucement'
-        })
-        self.collections['schedules'].save(
-            self.mkobj_schedule(
-                date_time=dPast.strftime(self.time_format),
-                dialogue_id='2',
-                interaction_id='0',
-                participant_phone='09'))
-        self.collections['schedules'].save(
-            self.mkobj_schedule(
-                date_time=dNow.strftime(self.time_format),
-                dialogue_id='2',
-                interaction_id='1',
-                participant_phone='09'))
-        self.collections['schedules'].save(
-            self.mkobj_schedule(
-                date_time=dFuture.strftime(self.time_format),
-                dialogue_id='2',
-                interaction_id='2',
-                participant_phone='09'))
-        self.collections['schedules'].save(
-            self.mkobj_schedule_unattach(
-                date_time=time_to_vusion_format(dNow),
-                unattach_id=unattached_message,
-                participant_phone='09'))
-        self.collections['schedules'].save(
-            self.mkobj_schedule_feedback(
-                date_time=time_to_vusion_format(dNow),
-                content='Thank you',
-                participant_phone='09',
-                context={'dialogue-id': '2', 'interaction-id': '1'}))
-
-        self.worker.send_scheduled()
-
-        participant_transport_metadata.update({'customized_id': 'myid'})
-        messages = self.broker.get_messages('vumi', 'test.outbound')
-        self.assertEqual(len(messages), 3)
-        self.assertEqual(messages[0]['content'], 'Today will be sunny')
-        self.assertEqual(messages[0]['transport_metadata'], participant_transport_metadata)
-        self.assertEqual(messages[1]['content'], 'Hello unattached')
-        self.assertEqual(messages[1]['transport_metadata'], participant_transport_metadata)        
-        self.assertEqual(messages[2]['content'], 'Thank you')
-        participant_transport_metadata.update({'priority': 'prioritized'})        
-        self.assertEqual(messages[2]['transport_metadata'], participant_transport_metadata) 
-        for message in messages:
-            self.assertTrue('customized_id' in message['transport_metadata'])
-
-        self.assertEquals(self.collections['schedules'].count(), 1)
-        self.assertEquals(self.collections['history'].count(), 4)
-        histories = self.collections['history'].find()
-        for history in histories:
-            self.assertTrue(history['participant-session-id'] is not None)
-            
-    def test05_send_scheduled_messages_with_priority(self):
-        dialogue = self.mkobj_dialogue_announcement_prioritized()
-        participant = self.mkobj_participant('10')
-        mytimezone = self.program_settings[2]['value']
-        dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
-        dNow = dNow - timedelta(minutes=2)
-        #dPast = dNow - timedelta(minutes=61)
-        #dFuture = dNow + timedelta(minutes=30)
+    def test04_create_participant(self):
+        self.initialize_properties()
         
-        self.collections['dialogues'].save(dialogue)
-        self.collections['participants'].save(participant)
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
+        participant = self.worker.create_participant('06')
         
-        self.collections['schedules'].save(
-            self.mkobj_schedule(
-                date_time=dNow.strftime(self.time_format),
-                dialogue_id='2',
-                interaction_id='0',
-                participant_phone='10'))
-        self.collections['schedules'].save(
-            self.mkobj_schedule(
-                date_time=dNow.strftime(self.time_format),
-                dialogue_id='2',
-                interaction_id='1',
-                participant_phone='10'))
-        self.collections['schedules'].save(
-            self.mkobj_schedule(
-                date_time=dNow.strftime(self.time_format),
-                dialogue_id='2',
-                interaction_id='2',
-                participant_phone='10'))
-        self.collections['schedules'].save(
-            self.mkobj_schedule_feedback(
-                date_time=time_to_vusion_format(dNow),
-                content='Thank you',
-                participant_phone='10',
-                context={'dialogue-id': '2', 'interaction-id': '1'}))
-        
-        self.worker.load_data()
+        self.assertEqual(participant['model-version'], Participant.MODEL_VERSION)
 
-        self.worker.send_scheduled()
-
-        messages = self.broker.get_messages('vumi', 'test.outbound')
-        self.assertEqual(len(messages), 4)
-        self.assertTrue('priority' in messages[0]['transport_metadata'])
-        self.assertTrue('priority' in messages[1]['transport_metadata'])
-        self.assertTrue('priority' in messages[3]['transport_metadata'])
-        
-        self.assertFalse('priority' in messages[2]['transport_metadata'])
-        
-        self.assertEqual(messages[0]['transport_metadata']['priority'],
-            dialogue['interactions'][0]['prioritized'])
-        self.assertEqual(messages[1]['transport_metadata']['priority'],
-            dialogue['interactions'][1]['prioritized'])
-        self.assertEqual(messages[3]['transport_metadata']['priority'],
-            self.program_settings[4]['value'])
-
-    @inlineCallbacks
-    def test05_send_scheduled_deadline(self):
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-
-        dNow = self.worker.get_local_time()
-        dPast = dNow - timedelta(minutes=2)
-
-        dialogue = self.mkobj_dialogue_open_question_reminder_offset_time()
-        dialogue['interactions'][0]['reminder-actions'].append(
-            {'type-action': 'feedback', 'content': 'Bye'})
-        dialogue = Dialogue(**dialogue)
-        participant = self.mkobj_participant('06')
-        self.collections['dialogues'].save(dialogue.get_as_dict())
-        self.collections['participants'].save(participant)
-        schedule = schedule_generator(**{
-            'object-type': 'deadline-schedule',
-            'model-version': '2',
-            'date-time': dPast.strftime(self.time_format),
-            'dialogue-id': '04',
-            'interaction-id': '01-01',
-            'participant-phone': '06',
-            'participant-session-id': '1'})
-        self.collections['schedules'].save(schedule.get_as_dict())
-
-        yield self.worker.send_scheduled()
-
-        saved_participant = self.collections['participants'].find_one()
-        self.assertEqual(saved_participant['session-id'], None)
-        history = self.collections['history'].find_one({'object-type': 'oneway-marker-history'})
-        self.assertTrue(history is not None)
-        messages = self.broker.get_messages('vumi', 'test.outbound')
-        self.assertEqual(len(messages), 1)
-        history = self.collections['history'].find_one({'object-type': 'dialogue-history'})
-        self.assertEqual(history['participant-session-id'], '1')
-        self.assertEqual(history['message-content'], 'Bye')
-
-
-    @inlineCallbacks
-    def test05_send_scheduled_run_action(self):
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-
-        dNow = self.worker.get_local_time()
-        dPast = dNow - timedelta(minutes=2)
-
-        dialogue = self.mkobj_dialogue_open_question()
-        participant = self.mkobj_participant('06')
-        self.collections['dialogues'].save(dialogue)
-        self.collections['participants'].save(participant)
-        schedule = schedule_generator(**{
-            'participant-phone': '06',
-            'date-time': dPast.strftime(self.time_format),
-            'object-type': 'action-schedule',
-            'action': {'type-action': 'enrolling',
-                       'enroll': '04'},
-            'context': {'request-id': '1'}})
-        self.collections['schedules'].save(schedule.get_as_dict())
-        yield self.worker.send_scheduled()
-
-        saved_participant = self.collections['participants'].find_one({
-            'enrolled.dialogue-id': '04'})
-        self.assertTrue(saved_participant)
-
-    @inlineCallbacks
-    def test05_send_scheduled_run_action_expired(self):
-          for program_setting in self.mkobj_program_settings():
-              self.collections['program_settings'].save(program_setting)
-          self.worker.load_data()
-  
-          dNow = self.worker.get_local_time()
-          dPast = dNow - timedelta(minutes=61)
-  
-          dialogue = self.mkobj_dialogue_open_question()
-          participant = self.mkobj_participant('06')
-          self.collections['dialogues'].save(dialogue)
-          self.collections['participants'].save(participant)
-          schedule = schedule_generator(**{
-              'participant-phone': '06',
-              'date-time': dPast.strftime(self.time_format),
-              'object-type': 'action-schedule',
-              'action': {'type-action': 'enrolling',
-                         'enroll': '04'},
-              'context': {'request-id': '1'}})
-          self.collections['schedules'].save(schedule.get_as_dict())
-          yield self.worker.send_scheduled()
-  
-          saved_participant = self.collections['participants'].find_one({
-              'enrolled.dialogue-id': '04'})
-          self.assertTrue(saved_participant is None)
-          self.assertEqual(1, self.collections['history'].count())
-
-    @inlineCallbacks
-    def test05_send_scheduled_question_multi_keyword(self):
-        mytimezone = self.program_settings[2]['value']
-        dNow = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(mytimezone))
-        dPast = dNow - timedelta(minutes=2)
-
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-
-        dialogue = self.mkobj_dialogue_question_multi_keyword()
-        participant = self.mkobj_participant('06')
-        self.collections['dialogues'].save(dialogue)
-        self.collections['participants'].save(participant)
-        self.collections['schedules'].save(
-            self.mkobj_schedule(
-                date_time=dPast.strftime(self.time_format),
-                dialogue_id='05',
-                interaction_id='05',
-                participant_phone='06'))
-
-        yield self.worker.send_scheduled()
-
-        messages = self.broker.get_messages('vumi', 'test.outbound')
-        self.assertEqual(len(messages), 1)
-        self.assertEqual(messages[0]['content'],
-                         'What is your gender?\n male or female')
 
     def test06_get_program_actions(self):
+        self.initialize_properties()
         self.collections['program_settings'].save({
             'key': 'unmatching-answer-remove-reminder',
             'value': 1})        
-        self.worker.load_data()
+        self.worker.load_properties()
 
         actions = Actions()
         dialogue = Dialogue(**self.mkobj_dialogue_open_question_reminder_offset_time())
@@ -548,9 +305,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertEqual(1, len(actions))
 
     def test11_customize_message(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
 
         participant1 = self.mkobj_participant(
             '06',
@@ -593,10 +348,8 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertEqual(message_5, 'u have send: usingnumber 2')        
         
 
-    def test12_generate_message_use_template(self):
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+    def test12_generate_message_use_template_fail(self):
+        self.initialize_properties()
 
         dialogue = self.mkobj_dialogue_question_offset_days()
 
@@ -604,13 +357,15 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
                           self.worker.generate_message,
                           dialogue['interactions'][0])
 
+    def test12_generate_message_use_template_open_question(self):
         saved_template_id = self.collections['templates'].save(
             self.template_closed_question)
-        self.collections['program_settings'].save(
-            {'key': 'default-template-closed-question',
-             'value': saved_template_id}
-        )
-        self.worker.load_data()
+
+        settings = self.mk_program_settings(
+            default_template_closed_question=saved_template_id)
+        self.initialize_properties(settings)
+
+        dialogue = self.mkobj_dialogue_question_offset_days()
 
         close_question = self.worker.generate_message(
             dialogue['interactions'][0])
@@ -619,16 +374,16 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             close_question,
             "How are you?\n1. Fine\n2. Ok\n To reply send: FEEL<space><AnswerNb> to 8181")
 
+    def test12_generate_message_use_template_closed_question(self):
         saved_template_id = self.collections['templates'].save(
             self.template_open_question)
-        self.collections['program_settings'].save(
-            {'key': 'default-template-open-question',
-             'value': saved_template_id})
-        self.collections['program_settings'].save(
-            {'key': 'shortcode',
-             'value': '+3123456'})
-        self.worker.load_data()
-
+        
+        settings = self.mk_program_settings(
+            shortcode='+3123456',
+            default_template_open_question=saved_template_id)
+        shortcode = self.mkobj_shortcode_international('+3123456')
+        self.initialize_properties(settings, shortcode)
+        
         interaction = self.mkobj_dialogue_open_question()['interactions'][0]
         interaction['keyword'] = "name, nam"
 
@@ -636,32 +391,32 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
 
         self.assertEqual(
             open_question,
-            "What is your name?\n To reply send: NAME<space><name> to +3123456"
-        )
-
-        self.collections['program_settings'].drop()
-        self.collections['program_settings'].save(
-            {'key': 'default-template-open-question',
-             'value': ObjectId("4fc343509fa4da5e11000000")}
-        )
-        self.worker.load_data()
-
+            "What is your name?\n To reply send: NAME<space><name> to +3123456")
+        
+    def test12_generate_message_use_template_open_question_fail_bad_ref(self):        
+        settings = self.mk_program_settings(
+            default_template_open_question=ObjectId("4fc343509fa4da5e11000000"))
+        self.initialize_properties(settings)
+        
+        interaction = self.mkobj_dialogue_open_question()['interactions'][0]        
+        
         self.assertRaises(MissingTemplate,
-                          self.worker.generate_message, interaction)
+                          self.worker.generate_message,
+                          interaction)
 
-        self.collections['program_settings'].drop()
-        self.collections['program_settings'].save(
-            {'key': 'default-template-open-question',
-             'value': None}
-        )
-        self.worker.load_data()
+    def test12_generate_message_use_template_open_question_no_ref(self):
+        settings = self.mk_program_settings(
+            default_template_open_question=None)
+        self.initialize_properties(settings)
+
+        interaction = self.mkobj_dialogue_open_question()['interactions'][0]
+                
         self.assertRaises(MissingTemplate,
-                          self.worker.generate_message, interaction)
+                          self.worker.generate_message,
+                          interaction)
 
     def test12_generate_message_question_multi_keyword_uses_no_template(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
 
         interaction_question_multi_keyword = self.mkobj_dialogue_question_multi_keyword()['interactions'][0]
 
@@ -672,9 +427,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
                          "What is your gender?\n male or female")
 
     def test12_generate_message_no_template(self):
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties
 
         interaction = self.mkobj_dialogue_question_offset_days()['interactions'][0]
         interaction['set-use-template'] = None
@@ -686,9 +439,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
 
 
     def test13_get_time_next_daemon_iteration(self):
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
         
         self.assertEqual(
             60,
@@ -717,12 +468,10 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test22_register_keywords_in_dispatcher(self):
+        self.initialize_properties()
         self.collections['dialogues'].save(self.dialogue_question)
         self.collections['requests'].save(self.mkobj_request_join())
         self.collections['requests'].save(self.request_leave)
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
 
         yield self.worker.register_keywords_in_dispatcher()
 
@@ -738,10 +487,11 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
 
     @inlineCallbacks
     def test22_register_keywords_in_dispatcher_international(self):
+        self.initialize_properties(
+            program_settings=self.mk_program_settings_international_shortcode(),
+            shortcode=self.mkobj_shortcode_international())       
+        
         self.collections['requests'].save(self.mkobj_request_join())
-        for program_setting in self.mkobj_program_settings_international_shortcode():
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
 
         yield self.worker.register_keywords_in_dispatcher()
 
@@ -752,23 +502,34 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             messages[0]['rules'])
 
     def test22_daemon_shortcode_updated(self):
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        ## load a first time the properties
-        self.worker.load_data()
-        for program_setting in self.mkobj_program_settings_international_shortcode():
-            self.collections['program_settings'].save(program_setting)
+        ## load a first time the properties        
+        self.initialize_properties()
+        self.assertTrue(self.worker.is_ready())
+        ## reload with a shortcode that doesn't exist  
+        self.delete_properties()
+        self.initialize_properties(
+            self.mk_program_settings_international_shortcode(),
+            register_keyword=True)
         
-        self.worker.sender.cancel()
-        self.worker.daemon_process()
-
         messages = self.broker.get_messages('vumi', 'dispatcher.control')
         self.assertEqual(1, len(messages))
+        self.assertEqual('remove_exposed', messages[0]['action'])
+        self.assertFalse(self.worker.is_ready())
+
+        self.delete_properties()
+        self.initialize_properties(
+            self.mk_program_settings_international_shortcode(),
+            self.mkobj_shortcode_international(),
+            register_keyword=True)
+        
+        messages = self.broker.get_messages('vumi', 'dispatcher.control')
+        self.assertEqual(2, len(messages))
+        self.assertEqual('add_exposed', messages[1]['action'])
+        self.assertTrue(self.worker.is_ready())
+        
 
     def test23_test_send_all_messages(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
 
         self.worker.send_all_messages(self.dialogue_announcement, '06')
 
@@ -781,9 +542,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
 
 
     def test24_is_tagged(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
             
         participant = self.mkobj_participant(
             '06',

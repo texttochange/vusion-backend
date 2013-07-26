@@ -68,7 +68,7 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
         template_id = self.templates_collection.save(
             self.mkobj_template_unmatching_keyword()
         )
-        self.shortcodes_collection.save(self.mkobj_shortcode(template_id))
+        self.shortcodes_collection.save(self.mkobj_shortcode(error_template=template_id))
 
         yield self.send(msg)
 
@@ -86,12 +86,12 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
         msg = self.mkmsg_in(content='Gen 2', to_addr='8282')
         template_1_id = self.templates_collection.save(
             self.mkobj_template_unmatching_keyword())
-        shortcode_1 = self.mkobj_shortcode(template_1_id, '8181')
+        shortcode_1 = self.mkobj_shortcode(error_template=template_1_id, code='8181')
         self.shortcodes_collection.save(shortcode_1)
 
         template_2_id = self.templates_collection.save(
             self.mkobj_template_unmatching_keyword(message="KEYWORD is not good."))
-        shortcode_2 = self.mkobj_shortcode(template_2_id, '8282')
+        shortcode_2 = self.mkobj_shortcode(error_template=template_2_id, code='8282')
         self.shortcodes_collection.save(shortcode_2)
 
         yield self.send(msg)

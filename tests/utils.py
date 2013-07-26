@@ -210,19 +210,22 @@ class ObjectMaker:
         'error-template': None,
         'support-customized-id': 0,
         'supported-internationally': 0,
+        'max-character-per-sms': 140
     }
 
-    def mkobj_shortcode(self, error_template=None, code='8181'):
+    def mkobj_shortcode(self, code='8181', international_prefix='256',
+                        error_template=None):
         shortcode = deepcopy(self.shortcodes)
-        shortcode['error-template'] = error_template
         shortcode['shortcode'] = code
+        shortcode['international-prefix'] = international_prefix
+        shortcode['error-template'] = error_template        
         return shortcode
 
-    def mkobj_shortcode_international(self):
+    def mkobj_shortcode_international(self, code='+318181'):
         shortcode = deepcopy(self.shortcodes)
         shortcode['country'] = 'Netherlands'
         shortcode['international-prefix'] = '31'
-        shortcode['shortcode'] = '+318181'
+        shortcode['shortcode'] = code
         shortcode['supported-internationally'] = 1
         return shortcode
 
@@ -236,28 +239,54 @@ class ObjectMaker:
         'dispatcher': 'dispatcher',
         'transport_name': 'app'}
 
-    program_settings = [
-        {'key': 'shortcode',
-         'value': '256-8181'},
-        {'key': 'international-prefix',
-         'value': '256'},
-        {'key': 'timezone',
-         'value': 'Africa/Kampala'},
-        {'key': 'customized-id',
-         'value': 'myid'},
-        {'key': 'request-and-feedback-prioritized',
-         'value': 'prioritized'}]
+    settings = {
+        'shortcode': '256-8181',
+        'international-prefix': '256',
+        'timezone': 'Africa/Kampala',
+        'customized-id': 'myid',
+        'request-and-feedback-prioritized': 'prioritized',
+        'credit-type': 'none',
+        'credit-number': None,
+        'credit-date-from': None,
+        'credit-date-to': None}
 
-    def mkobj_program_settings(self):
-        program_settings = deepcopy(self.program_settings)
+    def mk_program_settings(self, shortcode='256-8181',
+                            default_template_open_question= None,
+                            default_template_closed_question=None,
+                            double_matching_answer_feedback=None,
+                            double_optin_error_feedback=None,
+                            sms_limit_type='none',
+                            sms_limit_number=None,
+                            sms_limit_from_date=None,
+                            sms_limit_to_date=None
+                            ):
+        settings = deepcopy(self.settings)
+        settings.update({
+            'shortcode': shortcode,
+            'default-template-open-question': default_template_open_question,
+            'default-template-closed-question': default_template_closed_question,
+            'double-matching-answer-feedback': double_matching_answer_feedback,
+            'double-optin-error-feedback': double_optin_error_feedback,
+            'credit-type': sms_limit_type,
+            'credit-number': sms_limit_number,
+            'credit-from-date': sms_limit_from_date,
+            'credit-to-date': sms_limit_to_date})
+        program_settings = []
+        for key, value in settings.iteritems():
+            program_settings.append({'key': key, 'value': value})
         return program_settings
 
-    def mkobj_program_settings_international_shortcode(self):
-        program_settings = deepcopy(self.program_settings)
-        program_settings[2] = {'key': 'shortcode',
-                               'value': '+318181'}
-        program_settings[1] = {'key': 'international-prefix',
-                               'value': 'all'}
+    def mk_program_settings_international_shortcode(self, shortcode='+318181',
+                                                    default_template_open_question=None,
+                                                    default_template_closed_question=None):
+        settings = deepcopy(self.settings)
+        settings['shortcode'] = shortcode
+        settings['international-prefix'] = 'all'
+        settings['default-template-open-question'] = default_template_open_question
+        settings['default-template-closed-question'] = default_template_closed_question
+        program_settings = []
+        for key, value in settings.iteritems():
+            program_settings.append({'key': key, 'value': value})
         return program_settings
 
     dialogue_announcement = {
@@ -826,7 +855,8 @@ class ObjectMaker:
                                participant_session_id="1", 
                                message_direction='outgoing',
                                message_status='delivered',
-                               message_id='1'):
+                               message_id='1',
+                               message_credits=1):
         return history_generator(**{
             'timestamp': timestamp,
             'participant-phone': participant_phone,
@@ -835,12 +865,34 @@ class ObjectMaker:
             'message-status': message_status,
             'message-id': message_id,
             'message-content': 'A message',
+            'message-credits': message_credits,
             'unattach-id': unattach_id}).get_as_dict()
+
+    def mkobj_history_request(self, 
+                              request_id, 
+                              timestamp,
+                              participant_phone='06',
+                              participant_session_id="1", 
+                              message_direction='outgoing',
+                              message_status='delivered',
+                              message_id='1',
+                              message_credits=1):
+        return history_generator(**{
+            'timestamp': timestamp,
+            'participant-phone': participant_phone,
+            'participant-session-id': participant_session_id,
+            'message-direction': message_direction,
+            'message-status': message_status,
+            'message-id': message_id,
+            'message-content': 'A message',
+            'message-credits': message_credits,
+            'request-id': request_id}).get_as_dict()    
 
     def mkobj_history_dialogue(self, dialogue_id, interaction_id,
                                timestamp, participant_phone='06',
                                participant_session_id="1", direction='outgoing',
-                               matching_answer=None, message_content=''):
+                               matching_answer=None, message_content='', 
+                               message_credits=1):
         return history_generator(**{
             'timestamp': timestamp,
             'participant-phone': participant_phone,
@@ -849,6 +901,7 @@ class ObjectMaker:
             'message-direction': direction,
             'message-status': 'delivered',
             'message-content': message_content,
+            'message-credits': message_credits,
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id,
             'matching-answer': matching_answer}).get_as_dict()
@@ -918,7 +971,7 @@ class ObjectMaker:
 
     def mkobj_schedule_unattach(self, participant_phone='06',
                                 participant_session_id='1',
-                                date_time=None,
+                                date_time='2013-12-20T08:00:00',
                                 unattach_id='1'):
         return schedule_generator(**{
             'object-type': 'unattach-schedule',
@@ -943,3 +996,10 @@ class ObjectMaker:
             'content': content,
             'context': context}
         return schedule_generator(**schedule).get_as_dict()
+
+    def mk_content(self, length=160, keyword=None):
+        content = keyword if keyword is not None else ""
+        template = " This is a %s char message." % length
+        while len(content) < length:
+            content = content + template
+        return content[0:length]

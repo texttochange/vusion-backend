@@ -12,6 +12,8 @@ from vusion.persist.action import (action_generator, FeedbackAction,
                                    RemoveRemindersAction)
 from vusion.utils import time_from_vusion_format, time_to_vusion_format
 
+
+## TODO Update the validation
 class Interaction(VusionModel):
     
     MODEL_TYPE = 'interaction'
@@ -220,6 +222,11 @@ class Interaction(VusionModel):
         if 'set-reminder' not in self.payload:
             return False
         return self.payload['set-reminder'] == 'reminder'
+
+    def is_prioritized(self):
+        if 'prioritized' not in self.payload:
+            return False
+        return self['prioritized']
 
     def generate_reminder_times(self, interaction_date_time):
         if not self.has_reminder:

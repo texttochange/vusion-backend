@@ -12,6 +12,7 @@ class Action(VusionModel):
     
     ACTION_TYPE = None
 
+    ##TODO add subcondition on type action
     fields = {
         'subconditions': {
             'required': False,
@@ -108,17 +109,6 @@ class Action(VusionModel):
             self._validate(subcondition, self.subcondition_fields)
             self.valid_subcondition_value(subcondition)
         return True
-    
-    def _validate(self, data, field_rules):
-        for field, rules in field_rules.items():
-            for rule_name, rule in rules.items():
-                if rule_name is 'required':
-                    if not rule and not field in data:
-                        break
-                    else: 
-                        continue
-                if not rule(data):
-                    raise InvalidField("%s=%s is not %s" % (field, data[field], rule_name))        
 
     def valid_subcondition_value(self, subconditon):
         if not subconditon['subcondition-field'] in self.subcondition_values:
@@ -130,14 +120,6 @@ class Action(VusionModel):
         if not parameter_regex.match(subconditon['subcondition-parameter']):
             raise InvalidField("%s=%s is not valid" % ('subcondition-parameter', subconditon['subcondition-parameter']))
         
-    def required_subfields(self, field, subfields):
-        if field is None:
-            return True
-        for subfield in subfields[field]:
-            if not subfield in self:
-                raise MissingField(subfield)
-        return True
-
     def get_type(self):
         return self.ACTION_TYPE
 

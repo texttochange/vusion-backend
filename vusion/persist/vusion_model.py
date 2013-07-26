@@ -1,4 +1,5 @@
-from vusion.error import MissingField, FailingModelUpgrade
+import json
+from vusion.error import MissingField, FailingModelUpgrade, InvalidField
 
 
 class VusionModel(object):
@@ -77,8 +78,30 @@ class VusionModel(object):
             instance_dict[key] = self.payload[key]
         return instance_dict
 
+    def get_as_json(self):
+        return json.dumps(self.get_as_dict())
+
     def upgrade(self, **kwargs):
         return kwargs
 
     def is_already_saved(self):
         return '_id' in self.payload
+
+    def _validate(self, data, field_rules):
+        for field, rules in field_rules.items():
+            for rule_name, rule in rules.items():
+                if rule_name is 'required':
+                    if not rule and not field in data:
+                        break
+                    else: 
+                        continue
+                if not rule(data):
+                    raise InvalidField("%s=%s is not %s" % (field, data[field], rule_name))        
+
+    def required_subfields(self, field, subfields):
+        if field is None:
+            return True
+        for subfield in subfields[field]:
+            if not subfield in self:
+                raise MissingField(subfield)
+        return True
