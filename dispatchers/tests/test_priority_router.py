@@ -21,8 +21,7 @@ class TestPriorityContentKeywordRouter(DispatcherTestCase):
                 'transport2-priority',
                 'transport-http'],
             'transport_mappings':{
-                'http_api': {
-                    '.*': 'transport-http'},
+                'http_forward': 'transport-http',
                 'sms': {
                     'shortcode1': 'transport1',
                     'shortcode2': {
@@ -115,7 +114,7 @@ class TestPriorityContentKeywordRouter(DispatcherTestCase):
         msg = self.mkmsg_out(content="hello outbound msg",
                              from_addr='http://server.domain.ext/mo_message',
                              transport_name='app2',
-                             transport_type='http_api')
+                             transport_type='http_forward')
         
         yield self.dispatch(msg,
                             transport_name='app2',

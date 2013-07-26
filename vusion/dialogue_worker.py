@@ -513,6 +513,8 @@ class DialogueWorker(ApplicationWorker):
 	    for tag in action.get_tags():
 		action.set_tag_count(tag, self.collections['participants'].find({'tags': tag}).count())
 	    self.run_action(participant_phone, action.get_tagging_action())
+	elif (action.get_type() == 'message-forwarding'):
+	    pass
         else:
             self.log("The action is not supported %s" % action.get_type())
 
