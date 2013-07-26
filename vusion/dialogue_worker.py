@@ -1090,6 +1090,7 @@ class DialogueWorker(ApplicationWorker):
                 return
 
             message_content = self.generate_message(interaction)
+            message_content = self.customize_dynamic_message(message_content)
             message_content = self.customize_message(
                 schedule['participant-phone'],
                 message_content)
