@@ -232,7 +232,8 @@ class DialogueWorker(ApplicationWorker):
 
         #Initilization of the database
         connection = pymongo.Connection(self.config['mongodb_host'],
-                                        self.config['mongodb_port'])
+                                        self.config['mongodb_port'],
+                                        safe=self.config.get('mongodb_safe', False))
         self.db = connection[self.database_name]
         self.setup_collections({
             'dialogues': 'dialogue-id',

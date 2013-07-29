@@ -35,7 +35,8 @@ class DialogueWorkerTestCase(TestCase, MessageMaker,
                        'control_name': self.control_name,
                        'dispatcher_name': 'dispatcher',
                        'mongodb_host': 'localhost',
-                       'mongodb_port': 27017}
+                       'mongodb_port': 27017,
+                       'mongodb_safe': True}
         self.worker = get_stubbed_worker(DialogueWorker,
                                          config=self.config)
         self.broker = self.worker._amqp_client.broker
@@ -67,7 +68,7 @@ class DialogueWorkerTestCase(TestCase, MessageMaker,
         self.broker.dispatched = {}
         
         self.redis = StrictRedis()
-        #Let's rock"
+        # Let's rock"
         self.worker.startService()
         yield self.worker.startWorker()
 
