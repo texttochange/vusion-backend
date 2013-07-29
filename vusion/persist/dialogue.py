@@ -10,6 +10,7 @@ from vusion.persist.vusion_model import VusionModel
 from vusion.persist.interaction import Interaction
 
 
+## TODO update the validation
 class Dialogue(VusionModel):
 
     MODEL_TYPE = 'dialogue'

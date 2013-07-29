@@ -29,14 +29,33 @@ def get_local_time_as_timestamp(local_time):
                           local_time.microsecond))
 
 
-def get_shortcode_value(stored_shortcode):
-    if stored_shortcode is None :
-        return None
-    regex_NATIONAL_SHORTCODE = re.compile('[0-9]+-[0-9]+')
-    if re.match(regex_NATIONAL_SHORTCODE, stored_shortcode):
-        return stored_shortcode.split('-')[1]
-    return stored_shortcode
+def is_shortcode_address(address):
+    if address is None:
+        return False
+    regex_NATIONAL_SHORTCODE = re.compile('^[0-9]+-[0-9]+$')
+    if re.match(regex_NATIONAL_SHORTCODE, address):
+        return True
+    return False
+    
+def is_longcode_address(address):
+    regex_LONGCODE = re.compile('/^\+[0-9]+$/')
+    if re.match(regex_LONGCODE, address):
+        return True
+    return False
 
+def get_shortcode_value(shortcode):
+    if shortcode is None :
+        return None
+    if is_shortcode_address(shortcode):
+        return shortcode.split('-')[1]
+    return shortcode
+
+def get_shortcode_international_prefix(shortcode):
+    if shortcode is None :
+        return None
+    if is_shortcode_address(shortcode):
+        return shortcode.split('-')[0]
+    return shortcode
 
 def get_shortcode_address(shortcode):
     if shortcode['supported-internationally'] == 0:
