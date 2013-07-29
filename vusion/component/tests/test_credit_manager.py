@@ -377,16 +377,20 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.property_helper['credit-to-date'] = time_to_vusion_format(future.date())
         self.cm.set_limit()
         
+        self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)
         status = self.cm.check_status()
         self.assertEqual(status['status'], 'no-credit')
         self.assertEqual(status['since'], time_to_vusion_format(now))
-        
+
+        self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)        
         status = self.cm.check_status()
         self.assertEqual(status['status'], 'no-credit')
         self.assertEqual(status['since'], time_to_vusion_format(now))
         
         self.property_helper['credit-to-date'] = time_to_vusion_format(past.date())
-        self.cm.set_limit()        
+        self.cm.set_limit()
+        self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)
+        
         status = self.cm.check_status()
         self.assertEqual(status['status'], 'no-credit-timeframe')
         self.assertEqual(status['since'], time_to_vusion_format(now))

@@ -101,7 +101,7 @@ class CreditManager(object):
         return False
 
     def has_limit(self):
-        if self.credit_type == 'none':
+        if self.credit_type is None or self.credit_type == 'none':
             return False
         return True
 
