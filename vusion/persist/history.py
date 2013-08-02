@@ -54,7 +54,9 @@ class MessageHistory(History):
                 'ack', 
                 'nack', 
                 'no-credit',
-                'no-credit-timeframe'],
+                'no-credit-timeframe',
+                'received',
+                'forwarded'],
             'required_subfield': lambda v: getattr(v, 'required_subfields') (
                 v['message-status'],
                 {'failed': ['failure-reason'],
@@ -63,17 +65,41 @@ class MessageHistory(History):
                  'ack': [],
                  'nack': [],
                  'no-credit': [],
-                 'no-credit-timeframe': []})
+                 'no-credit-timeframe': [],
+                 'received': [],
+                 'forwarded': ['forwards']})
             },
         'failure-reason': {
             'required': False,
             'valid_value': lambda v: v['failure-reason'] is not None
             },
-        'message-credits':{
+        'message-credits': {
             'required': True,
             'valid_value': lambda v: isinstance(v['message-credits'], int)
+            },
+        'forwards': {
+            'required': False,
+            'valid_forwards': lambda v: getattr(v['forwards'], 'valid_forwards')(),
+            }
         }
-    }
+    
+    forward_fields = {
+        'status': {
+            'required': True,
+            'valid_value': lambda v: v['message-id'] in [
+                'pending',
+                'failed',
+                'ack', 
+                'nack']
+            },
+        'message-id': {
+            'required': True,
+            },
+        'timestamp': {
+            'required': True,
+            'valid_value': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)T0?(\d+):0?(\d+):0?(\d+)$'), v['timestamp'])
+            }
+        }
 
     def is_message(self):
         return True
@@ -82,11 +108,25 @@ class MessageHistory(History):
         super(MessageHistory, self).validate_fields()        
         self._validate(self, MessageHistory.fields)
 
+    def valid_forwards(self, forwards):
+        pass
+
+    def upgrade(self, **kwargs):
+        if kwargs['model-version'] == '1':
+            kwargs['message-credits'] = kwargs['message-credits'] if 'message-credits' in kwargs else 1
+            kwargs['model-version'] = '2'
+            return self.upgrade(**kwargs)
+        elif kwargs['model-version'] == '2':
+            if kwargs['message-direction'] == 'incoming':
+                kwargs['message-status'] = kwargs['message-status'] if 'message-status' in kwargs else 'received'
+            kwargs['model-version'] = '3'
+        return kwargs
+
 
 class DialogueHistory(MessageHistory):
 
     MODEL_TYPE = 'dialogue-history'
-    MODEL_VERSION = '2'
+    MODEL_VERSION = '3'
 
     fields = {
         'dialogue-id':{
@@ -102,17 +142,11 @@ class DialogueHistory(MessageHistory):
     def validate_fields(self):
         super(DialogueHistory, self).validate_fields()
 
-    def upgrade(self, **kwargs):
-        if kwargs['model-version'] == '1':
-            kwargs['message-credits'] = kwargs['message-credits'] if 'message-credits' in kwargs else 1
-            kwargs['model-version'] = '2'
-        return kwargs
-
 
 class RequestHistory(MessageHistory):
 
     MODEL_TYPE = 'request-history'
-    MODEL_VERSION = '2'
+    MODEL_VERSION = '3'
 
     fields = {
         'request-id':{
@@ -125,17 +159,11 @@ class RequestHistory(MessageHistory):
         super(RequestHistory, self).validate_fields()
         self._validate(self, RequestHistory.fields)
 
-    def upgrade(self, **kwargs):
-        if kwargs['model-version'] == '1':
-            kwargs['message-credits'] = kwargs['message-credits'] if 'message-credits' in kwargs else 1
-            kwargs['model-version'] = '2'
-        return kwargs
-
 
 class UnattachHistory(MessageHistory):
 
     MODEL_TYPE = 'unattach-history'
-    MODEL_VERSION = '2'
+    MODEL_VERSION = '3'
 
     fields = {
         'unattach-id':{
@@ -148,17 +176,11 @@ class UnattachHistory(MessageHistory):
         super(UnattachHistory, self).validate_fields()
         self._validate(self, UnattachHistory.fields)
 
-    def upgrade(self, **kwargs):
-        if kwargs['model-version'] == '1':
-            kwargs['message-credits'] = kwargs['message-credits'] if 'message-credits' in kwargs else 1
-            kwargs['model-version'] = '2'
-        return kwargs
-
 
 class UnmatchingHistory(MessageHistory):
 
     MODEL_TYPE = 'unmatching-history'
-    MODEL_VERSION = '2'
+    MODEL_VERSION = '3'
 
     fields = {}
 
@@ -167,12 +189,6 @@ class UnmatchingHistory(MessageHistory):
 
     def validate_fields(self):
         super(UnmatchingHistory, self).validate_fields()
-
-    def upgrade(self, **kwargs):
-        if kwargs['model-version'] == '1':
-            kwargs['message-credits'] = kwargs['message-credits'] if 'message-credits' in kwargs else 1
-            kwargs['model-version'] = '2'
-        return kwargs
 
 
 class OnewayMarkerHistory(History):

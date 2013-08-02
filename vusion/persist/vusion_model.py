@@ -89,12 +89,13 @@ class VusionModel(object):
 
     def _validate(self, data, field_rules):
         for field, rules in field_rules.items():
+            if rules['required'] is False and not field in data:
+                break
+            elif rules['required'] and not field in data:
+                raise MissingField("%s is missing" % field)
             for rule_name, rule in rules.items():
                 if rule_name is 'required':
-                    if not rule and not field in data:
-                        break
-                    else: 
-                        continue
+                    continue
                 if not rule(data):
                     raise InvalidField("%s=%s is not %s" % (field, data[field], rule_name))        
 
