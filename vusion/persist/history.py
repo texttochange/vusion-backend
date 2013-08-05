@@ -1,6 +1,7 @@
+import re
+
 from vusion.persist.vusion_model import VusionModel
 from vusion.error import InvalidField, VusionError
-import re
 
 
 class History(VusionModel):
@@ -109,7 +110,10 @@ class MessageHistory(History):
         self._validate(self, MessageHistory.fields)
 
     def valid_forwards(self, forwards):
-        pass
+        if len(forwads) > 1:
+            raise InvalidField("Field forwards should have at least 1 element.")
+        for forward in self['forwards']:
+            self._validate(forward, MessageHistory.forward_fields)
 
     def upgrade(self, **kwargs):
         if kwargs['model-version'] == '1':
