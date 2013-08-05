@@ -240,7 +240,7 @@ class DialogueWorker(ApplicationWorker):
             'program_settings': None,
             'unattached_messages': None,
             'requests': None,
-            'dynamic_contents': None})
+            'content_variables': None})
         self.collections['history'].ensure_index([('interaction-id', 1),
                                                   ('participant-session-id',1)],
                                                  sparce = True)
@@ -1090,10 +1090,9 @@ class DialogueWorker(ApplicationWorker):
                 return
 
             message_content = self.generate_message(interaction)
-            message_content = self.customize_dynamic_message(message_content)
             message_content = self.customize_message(
-                schedule['participant-phone'],
-                message_content)
+                message_content,
+                schedule['participant-phone'])
 
             if schedule.is_expired(local_time):
                 history = {
@@ -1293,29 +1292,33 @@ class DialogueWorker(ApplicationWorker):
         label_indexer = dict((p['label'], p['value']) for i, p in enumerate(participant['profile']))
         return label_indexer.get(label, None)
 
-    def customize_message(self, participant_phone, message):
-        tags_regexp = re.compile(r'\[(?P<table>\w*)\.(?P<attribute>[\s\w]*)\]')
-        tags = re.findall(tags_regexp, message)
-        for table, attribute in tags:
-            participant = self.get_participant(participant_phone)
-            #attribute = attribute.lower()
-            participant_label_value = participant.get_participant_label_value(attribute)
-            if not participant_label_value:
-                raise MissingData("%s has no attribute %s" %
-                                  (participant_phone, attribute))
-            message = message.replace('[%s.%s]' %
-                                      (table, attribute),
-                                      participant_label_value)
+    def customize_message(self, message, participant_phone=None):
+        if participant_phone is not None:
+            tags_regexp = re.compile(r'\[(?P<table>\w*)\.(?P<attribute>[\s\w]*)\]')
+            tags = re.findall(tags_regexp, message)
+            for table, attribute in tags:
+                participant = self.get_participant(participant_phone)
+                #attribute = attribute.lower()
+                participant_label_value = participant.get_participant_label_value(attribute)
+                if not participant_label_value:
+                    raise MissingData("%s has no attribute %s" %
+                                      (participant_phone, attribute))
+                message = message.replace('[%s.%s]' %
+                                          (table, attribute),
+                                          participant_label_value)            
+        keys_regexp = re.compile(r'\[(?P<keyone>\w*)\.(?P<keytwo>[\s\w]*)\]')
+        keys = re.findall(keys_regexp, message)
+        for keyone, keytwo in keys:
+            contents = self.collections['content_variables'].find({'keys':[
+                                                               {'key':keyone},
+                                                                {'key':keytwo}]})
+            count = contents.count()
+            if not contents.count() > 0:
+                raise MissingData("Program has no content variables (%s|%s)" %
+                                      (keyone, keytwo))
+            for content_variable in contents:
+                message = message.replace('[%s.%s]' %
+                                          (keyone, keytwo),
+                                          content_variable['value'])
         return message
     
-    def customize_dynamic_message(self, message):
-        keys_regexp = re.compile(r'\[program.(?P<attribute>[\s\w]*)\]')
-        keys = re.findall(keys_regexp, message)
-        contents = self.collections['dynamic_contents'].find()
-        for attribute in keys:
-            for dynamic_content in contents:
-                if attribute == dynamic_content['key']:
-                    message = message.replace('[program.%s]' %
-                                              (attribute),
-                                              dynamic_content['value'])
-        return message

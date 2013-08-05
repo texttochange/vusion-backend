@@ -65,7 +65,7 @@ class DialogueWorkerTestCase(TestCase, MessageMaker,
                                 'program_settings',
                                 'unattached_messages',
                                 'requests',
-                                'dynamic_contents'])
+                                'content_variables'])
         self.db = connection[self.config['vusion_database_name']]
         self.setup_collections(['templates'])
 
@@ -578,19 +578,19 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.collections['participants'].save(participant2)
         self.collections['participants'].save(participant3)
 
-        message_one = self.worker.customize_message('06', 'Hello [participant.name]')
+        message_one = self.worker.customize_message( 'Hello [participant.name]', '06')
         self.assertEqual(message_one, 'Hello oliv')
 
         self.assertRaises(MissingData,
-                          self.worker.customize_message, '07', 'Hello [participant.name]')
+                          self.worker.customize_message, 'Hello [participant.name]', '07')
         
-        message_three = self.worker.customize_message('08', 'u have send: [participant.gender_raw]')        
+        message_three = self.worker.customize_message('u have send: [participant.gender_raw]', '08')        
         self.assertEqual(message_three, 'u have send: gender 2 and proud')
         
-        message_4 = self.worker.customize_message('08', 'u have send: [participant.Month of Pregnancy_raw]')        
+        message_4 = self.worker.customize_message('u have send: [participant.Month of Pregnancy_raw]', '08')        
         self.assertEqual(message_4, 'u have send: month2 and proud')
         
-        message_5 = self.worker.customize_message('08', 'u have send: [participant.5 to 6_raw]')        
+        message_5 = self.worker.customize_message('u have send: [participant.5 to 6_raw]', '08')        
         self.assertEqual(message_5, 'u have send: usingnumber 2')
         
     def test11_customize_dynamic_message(self):
@@ -598,11 +598,14 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             self.collections['program_settings'].save(program_setting)
         self.worker.load_data()
         
-        dynamic_content = self.mkobj_dynamic_content()
-        self.collections['dynamic_contents'].save(dynamic_content)
+        content = self.mkobj_content_variables()
+        self.collections['content_variables'].save(content)
         
-        message_one = self.worker.customize_dynamic_message('Today the temperature is [program.weather]')
+        message_one = self.worker.customize_message('Today the temperature is [program.weather]')
         self.assertEqual(message_one, 'Today the temperature is 30 C')
+        
+        self.assertRaises(MissingData,
+                          self.worker.customize_message, 'Today the temperature is [today.weather]')
 
     def test12_generate_message_use_template(self):
         for program_setting in self.mkobj_program_settings():

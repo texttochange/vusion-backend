@@ -944,6 +944,7 @@ class ObjectMaker:
             'context': context}
         return schedule_generator(**schedule).get_as_dict()
     
-    def mkobj_dynamic_content(self):
-        return {'key' : 'weather',
+    def mkobj_content_variables(self):
+        return {'keys':[{'key' : 'program'},
+                        {'key' : 'weather'}],
                 'value' : '30 C'}
