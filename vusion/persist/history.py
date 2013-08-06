@@ -36,11 +36,11 @@ class MessageHistory(History):
             },
         'message-direction': {
             'required': True,
-            'valid_value': lambda v: v['message-direction'] in ['incoming', 'outgoing'],
-            'required_subfield': lambda v: getattr(v, 'required_subfields')(
+            '1_valid_value': lambda v: v['message-direction'] in ['incoming', 'outgoing'],
+            '2_required_subfield': lambda v: getattr(v, 'required_subfields')(
                 v['message-direction'],
                 {'outgoing':['message-id', 'message-status'],
-                 'incoming': []})
+                 'incoming': ['message-status']})
             },
         'message-id':{
             'required': False,
@@ -48,7 +48,7 @@ class MessageHistory(History):
             },
         'message-status':{
             'required': False,
-            'valid_value': lambda v: v['message-status'] in [
+            '1_valid_value': lambda v: v['message-status'] in [
                 'failed', 
                 'pending', 
                 'delivered', 
@@ -58,7 +58,7 @@ class MessageHistory(History):
                 'no-credit-timeframe',
                 'received',
                 'forwarded'],
-            'required_subfield': lambda v: getattr(v, 'required_subfields') (
+            '2_required_subfield': lambda v: getattr(v, 'required_subfields') (
                 v['message-status'],
                 {'failed': ['failure-reason'],
                  'pending': [],
@@ -80,14 +80,14 @@ class MessageHistory(History):
             },
         'forwards': {
             'required': False,
-            'valid_forwards': lambda v: getattr(v['forwards'], 'valid_forwards')(),
+            'valid_forwards': lambda v: getattr(v, 'valid_forwards')(v['forwards']),
             }
         }
     
     forward_fields = {
         'status': {
             'required': True,
-            'valid_value': lambda v: v['message-id'] in [
+            'valid_value': lambda v: v['status'] in [
                 'pending',
                 'failed',
                 'ack', 
@@ -99,6 +99,9 @@ class MessageHistory(History):
         'timestamp': {
             'required': True,
             'valid_value': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)T0?(\d+):0?(\d+):0?(\d+)$'), v['timestamp'])
+            },
+        'to-addr': {
+            'required': True,
             }
         }
 
@@ -110,10 +113,11 @@ class MessageHistory(History):
         self._validate(self, MessageHistory.fields)
 
     def valid_forwards(self, forwards):
-        if len(forwads) > 1:
+        if len(forwards) < 1:
             raise InvalidField("Field forwards should have at least 1 element.")
-        for forward in self['forwards']:
+        for forward in forwards:
             self._validate(forward, MessageHistory.forward_fields)
+        return True
 
     def upgrade(self, **kwargs):
         if kwargs['model-version'] == '1':
@@ -195,6 +199,7 @@ class UnmatchingHistory(MessageHistory):
         super(UnmatchingHistory, self).validate_fields()
 
 
+## Todo update the validation
 class OnewayMarkerHistory(History):
 
     MODEL_TYPE = 'oneway-marker-history'
@@ -203,13 +208,11 @@ class OnewayMarkerHistory(History):
     fields = ['dialogue-id',
               'interaction-id']
 
-    def is_message(self):
-        return False
-
     def validate_fields(self):
         super(OnewayMarkerHistory, self).validate_fields()
 
 
+## Todo update the validation
 class DatePassedMarkerHistory(History):
 
     MODEL_TYPE = 'datepassed-marker-history'
@@ -219,13 +222,11 @@ class DatePassedMarkerHistory(History):
               'interaction-id',
               'scheduled-date-time']
 
-    def is_message(self):
-        return False
-
     def validate_fields(self):
         super(DatePassedMarkerHistory, self).validate_fields()
 
 
+## Todo update the validation
 class DatePassedActionMarkerHistory(History):
     
     MODEL_TYPE = 'datepassed-action-marker-history'
@@ -234,11 +235,8 @@ class DatePassedActionMarkerHistory(History):
     fields = ['action-type',
               'scheduled-date-time']
 
-    def is_message(self):
-        return False
-
     def validate_fields(self):
-        super(DatePassedActionMarkerHistory, self).validate_fields()    
+        super(DatePassedActionMarkerHistory, self).validate_fields()
 
 
 def history_generator(**kwargs):
@@ -263,6 +261,5 @@ def history_generator(**kwargs):
     elif kwargs['object-type'] == 'datepassed-marker-history':
         return DatePassedMarkerHistory(**kwargs)
     elif kwargs['object-type'] == 'datepassed-action-marker-history':
-        return DatePassedActionMarkerHistory(**kwargs)    
-
+        return DatePassedActionMarkerHistory(**kwargs)
     raise VusionError("%s not supported" % kwargs['object-type'])

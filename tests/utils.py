@@ -892,19 +892,24 @@ class ObjectMaker:
                                timestamp, participant_phone='06',
                                participant_session_id="1", direction='outgoing',
                                matching_answer=None, message_content='', 
-                               message_credits=1):
-        return history_generator(**{
+                               message_credits=1, message_status='delivered',
+                               forwards=None, message_id='1'):
+        history = {
             'timestamp': timestamp,
             'participant-phone': participant_phone,
             'participant-session-id': participant_session_id,
-            'message-id': '1',
+            'message-id': message_id,
             'message-direction': direction,
-            'message-status': 'delivered',
+            'message-status': message_status,
             'message-content': message_content,
             'message-credits': message_credits,
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id,
-            'matching-answer': matching_answer}).get_as_dict()
+            'matching-answer': matching_answer
+        }
+        if forwards is not None:
+            history.update({'forwards': forwards})
+        return history_generator(**history).get_as_dict()
 
     def mkobj_history_one_way_marker(self, dialogue_id, interaction_id, timestamp,
                                      participant_phone='06', participant_session_id='1'):
