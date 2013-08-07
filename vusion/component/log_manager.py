@@ -3,20 +3,23 @@ from datetime import timedelta
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 
-from vumi.log import log
+from vumi import log
 
 
 class LogManager(object):
     
     LOGS_KEY = 'logs'
 
-    def __init__(self, program_key, prefix_key, redis, gc_interval=10, keep_log=120):
+    def __init__(self, program_key, prefix_key, redis, gc_interval=10,
+                 keep_log=120, property_helper=None):
         self.program_key = program_key
         self.prefix_key = prefix_key
         self.redis = redis
         self.property_helper = None
         self.gc_interval = gc_interval
         self.keep_log = keep_log
+        if property_helper is not None:
+            self.startup(property_helper)
 
     def stop(self):
         if self.gc.running:
@@ -45,12 +48,15 @@ class LogManager(object):
 
     def log(self, msg, level='msg'):
         #log in redis
-        to_log = msg
-        if level != 'msg':
-            to_log = "-%s- %s" % (level, msg)
-        to_log = "[%s] %s" % (self.property_helper.get_local_time('iso'), to_log)
-        self.redis.zadd(
-            self.logs_key(), to_log, self.property_helper.get_local_time('timestamp'))
+        try:
+            to_log = msg
+            if level != 'msg':
+                to_log = "-%s- %s" % (level, msg)
+            to_log = "[%s] %s" % (self.property_helper.get_local_time('iso'), to_log)
+            self.redis.zadd(
+                self.logs_key(), to_log, self.property_helper.get_local_time('timestamp'))
+        except:
+            pass
         
         #log in file
         if (level == 'msg'):
