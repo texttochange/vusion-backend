@@ -38,6 +38,15 @@ class DataLayerUtils:
             collection.drop()
 
 
+class DumbLogManager(object):
+    
+    def __init__(self):
+        self.logs = []
+    
+    def log(self, msg, level='msg'):
+        self.logs.append("%s - %s" % (level, msg))
+
+
 #TODO use UTC time rather than datetime
 class MessageMaker:
 

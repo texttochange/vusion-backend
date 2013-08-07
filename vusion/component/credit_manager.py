@@ -29,13 +29,14 @@ class CreditManager(object):
     last_status = None
     
     def __init__(self, prefix_key, redis, history, schedule,
-                 property_helper):
+                 property_helper, log_manager):
         self.prefix_key = prefix_key
         self.redis = redis
         self.history_collection = history
         self.schedule_collection = schedule
         self.last_status = self.redis.get(self.status_key())
-        self.property_helper = property_helper        
+        self.property_helper = property_helper
+        self.log_manager = log_manager
         self.set_limit()
 
     ## in case the program settings are changing

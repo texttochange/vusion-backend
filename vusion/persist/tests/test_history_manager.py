@@ -85,6 +85,7 @@ class TestHistoryManager(TestCase, ObjectMaker):
         self.history_manager.update_forwarded_status('2', 'ack')
         
         updated_history = self.history_manager.find_one()
+        updated_history = history_generator(**updated_history)        
         self.assertEqual(
             updated_history['forwards'][0],
             {'status': 'ack', 'message-id': '2','timestamp': '2013-08-06T15:15:01', 'to-addr':'http://something'})
@@ -104,6 +105,7 @@ class TestHistoryManager(TestCase, ObjectMaker):
         self.history_manager.update_forwarded_status('2', {'status': 'failed', 'reason': 'some issue'})
         
         updated_history = self.history_manager.find_one()
+        updated_history = history_generator(**updated_history)        
         self.assertEqual(
             updated_history['forwards'][0],
             {'status': 'failed', 'message-id': '2','timestamp': '2013-08-06T15:15:01', 'to-addr':'http://something', 'failure-reason': 'some issue'})
@@ -123,6 +125,7 @@ class TestHistoryManager(TestCase, ObjectMaker):
         self.history_manager.update_forwarding(history_id, '2', 'http://partner.com')
         
         updated_history = self.history_manager.find_one()
+        updated_history = history_generator(**updated_history)
         self.assertEqual(
             updated_history['forwards'][0],
             {'status': 'pending', 
