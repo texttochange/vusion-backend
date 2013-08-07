@@ -20,6 +20,8 @@ class VusionAddressMiddleware(BaseMiddleware):
         msg['from_addr'] = re.sub(self.regex_zeros, "", msg['from_addr'])
         if (not re.match(self.regex_plus, msg['from_addr'])):
             msg['from_addr'] = '+%s' % msg['from_addr']
+        if (re.match(self.regex_zeros, msg['to_addr'])):
+            msg['to_addr'] = re.sub(self.regex_zeros, "+", msg['to_addr'])
         if self.ensure_international_prefix and not re.match(self.regex_internation_prefix, msg['from_addr']):
             msg['from_addr'] = re.sub(self.regex_plus, '', msg['from_addr'])
             msg['from_addr'] = '+%s%s' % (self.ensure_international_prefix, msg['from_addr'])

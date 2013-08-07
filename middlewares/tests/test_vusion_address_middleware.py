@@ -12,7 +12,7 @@ class VusionAddressTestCase(TestCase, MessageMaker):
         self.mw = VusionAddressMiddleware('mw1', {}, dummy_worker)
         self.mw.setup_middleware()
 
-    def test_handle_inbound(self):
+    def test_handle_inbound_from_addr(self):
         msg_1 = self.mkmsg_in(from_addr="254888")
         msg_1 = self.mw.handle_inbound(msg_1 , 'dummy_endpoint')
         self.assertEqual(msg_1['from_addr'], '+254888')
@@ -24,6 +24,19 @@ class VusionAddressTestCase(TestCase, MessageMaker):
         msg_3 = self.mkmsg_in(from_addr="00254888")
         msg_3 = self.mw.handle_inbound(msg_3 , 'dummy_endpoint')
         self.assertEqual(msg_3['from_addr'], '+254888')
+        
+    def test_handle_inbound_to_addr(self):
+        msg_1 = self.mkmsg_in(to_addr="254888")
+        msg_1 = self.mw.handle_inbound(msg_1 , 'dummy_endpoint')
+        self.assertEqual(msg_1['to_addr'], '254888')
+        
+        msg_2 = self.mkmsg_in(to_addr="+254888")
+        msg_2 = self.mw.handle_inbound(msg_2 , 'dummy_endpoint')
+        self.assertEqual(msg_2['to_addr'], '+254888')
+    
+        msg_3 = self.mkmsg_in(to_addr="00254888")
+        msg_3 = self.mw.handle_inbound(msg_3 , 'dummy_endpoint')
+        self.assertEqual(msg_3['to_addr'], '+254888')
 
     def test_handle_outbound(self):
         msg_1 = self.mkmsg_out(from_addr="254-8888", to_addr="+256")

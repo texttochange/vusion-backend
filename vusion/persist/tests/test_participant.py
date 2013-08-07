@@ -11,79 +11,79 @@ class TestParticipant(TestCase, ObjectMaker):
 
     def test_upgrade_version_1(self):
         participant1 = { 
-             "enrolled":[{"date-time" : "2012-11-07T11:53:46",
-                          "dialogue-id" : "506c0fb487776" },
-                         {"date-time" : "2012-11-07T11:53:47",
-                          "dialogue-id" : "506e826a3fd44"}, 
-                         { "date-time" : "2012-11-07T11:59:17",
-                           "dialogue-id" : "506bece239b45" },
-                         { "date-time" : "2012-11-07T12:04:02",
-                           "dialogue-id" : "506e76b8bba86" },
-                         { "date-time" : "2012-11-09T09:00:14",
-                           "dialogue-id" : "506e88aeea51f" },
-                         { "date-time" : "2012-11-14T01:00:01",
-                           "dialogue-id" : "506e8280aa5f0" } ],
-             "last-optin-date" : "2012-11-07T11:53:46",
-             "model-version" : 1, 
-             "phone" : "+255713840370", 
-             "profile" : [ { "value" : "A", "label" : "type" } ], 
-             "session-id" : "022fba874b664b7f87265be805cfaa50", 
-             "tags" : [ "Mother updated week 5" ] }
+             "enrolled":[{"date-time": "2012-11-07T11:53:46",
+                          "dialogue-id": "506c0fb487776" },
+                         {"date-time": "2012-11-07T11:53:47",
+                          "dialogue-id": "506e826a3fd44"}, 
+                         { "date-time": "2012-11-07T11:59:17",
+                           "dialogue-id": "506bece239b45" },
+                         { "date-time": "2012-11-07T12:04:02",
+                           "dialogue-id": "506e76b8bba86" },
+                         { "date-time": "2012-11-09T09:00:14",
+                           "dialogue-id": "506e88aeea51f" },
+                         { "date-time": "2012-11-14T01:00:01",
+                           "dialogue-id": "506e8280aa5f0" } ],
+             "last-optin-date": "2012-11-07T11:53:46",
+             "model-version": 1, 
+             "phone": "+255713840370", 
+             "profile": [ { "value": "A", "label": "type" } ], 
+             "session-id": "022fba874b664b7f87265be805cfaa50", 
+             "tags": [ "Mother updated week 5" ] }
         p = Participant(**participant1)
         self.assertEqual(Participant.MODEL_VERSION, p['model-version'])
         self.assertEqual(None, p['last-optout-date'])
 
     def test_upgrade_version_2(self):
         participant_cake = {
-            "enrolled" : [
+            "enrolled": [
                 {
-                    "date-time" : "2012-11-19T17:57:55",
-                    "dialogue-id" : "506bece239b45"},
+                    "date-time": "2012-11-19T17:57:55",
+                    "dialogue-id": "506bece239b45"},
                 {
-                    "date-time" : "2012-11-19T17:59:55",
-                    "dialogue-id" : "506c0fb487776"},
+                    "date-time": "2012-11-19T17:59:55",
+                    "dialogue-id": "506c0fb487776"},
                 {
-                    "date-time" : "2012-11-19T17:59:55",
-                    "dialogue-id" : "506e76eec5071"}],
-            "last-optin-date" : "2012-11-19T17:57:55",
-            "model-version" : "2",
-            "object-type" : "participant",
-            "phone" : "+255787101151",
-            "profile" : [{
-                "raw" : "NJIA D",
-                "value" : "D",
-                "label" : "type"}],
-            "session-id" : "d4d67fba1fb04f38b8196eadd38da2fb",
-            "tags" : [ ]}
+                    "date-time": "2012-11-19T17:59:55",
+                    "dialogue-id": "506e76eec5071"}],
+            "last-optin-date": "2012-11-19T17:57:55",
+            "model-version": "2",
+            "object-type": "participant",
+            "phone": "+255787101151",
+            "profile": [{
+                "raw": "NJIA D",
+                "value": "D",
+                "label": "type"}],
+            "session-id": "d4d67fba1fb04f38b8196eadd38da2fb",
+            "tags": [ ]}
         p = Participant(**participant_cake)
         self.assertEqual(Participant.MODEL_VERSION, p['model-version'])
 
     def test_upgrade_version_2_with_optout_date(self):
         participant_cake = {
-            "model-version" : "2", 
-            "object-type" : "participant", 
-            "phone" : "+255654033486", 
-            "session-id" : "ee29e5a2321f426cb52f19e1371cb32e", 
-            "last-optin-date" : "2012-11-20T13:30:56",
-            "last-optout-date" : "2012-11-20T14:00:00",
-            "enrolled" : [ ],
-            "tags" : [ ],
-            "profile" : [ ]}
+            "model-version": "2", 
+            "object-type": "participant", 
+            "phone": "+255654033486", 
+            "session-id": "ee29e5a2321f426cb52f19e1371cb32e", 
+            "last-optin-date": "2012-11-20T13:30:56",
+            "last-optout-date": "2012-11-20T14:00:00",
+            "enrolled": [ ],
+            "tags": [ ],
+            "profile": [ ]}
         p = Participant(**participant_cake)
         self.assertEqual(Participant.MODEL_VERSION, p['model-version'])
         self.assertEqual('2012-11-20T14:00:00', p['last-optout-date'])
 
     def test_upgrade_version_2_with_transport_metadata(self):
         participant_cake = {
-            "model-version" : "2", 
-            "object-type" : "participant", 
-            "phone" : "+255654033486", 
-            "session-id" : "ee29e5a2321f426cb52f19e1371cb32e", 
-            "last-optin-date" : "2012-11-20T13:30:56",
-            "last-optout-date" : "2012-11-20T14:00:00",
-            "enrolled" : [ ],
-            "tags" : [ ],
-            "profile" : [ ],
+            "model-version": "2", 
+            "object-type": "participant", 
+            "phone": "+255654033486", 
+            "session-id": "ee29e5a2321f426cb52f19e1371cb32e", 
+            "last-optin-date": "2012-11-20T13:30:56",
+            "last-optout-date": "2012-11-20T14:00:00",
+            "enrolled": [ ],
+            "tags": [ ],
+            "profile": [ ],
             "transport_metadata": {"SomeKey": "SomeValue"}}
         p = Participant(**participant_cake)
         self.assertEqual(Participant.MODEL_VERSION, p['model-version'])

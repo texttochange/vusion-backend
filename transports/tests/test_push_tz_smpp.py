@@ -22,6 +22,8 @@ from vumi.transports.tests.test_base import TransportTestCase
 
 from transports.push_tz_smpp import PushTzSmppTransport
 
+from tests.utils import ObjectMaker
+
 import redis
 
 
@@ -60,7 +62,18 @@ def mk_expected_pdu(direction, sequence_number, command_id, **extras):
     return {"direction": direction, "pdu": {"header": headers}}
 
 
-class EsmeToSmscTestCasePlus(TransportTestCase):
+class PushTzSmscTestServer(SmscTestServer):
+    
+    def command_status(self, pdu):
+        if (pdu['body']['mandatory_parameters']['short_message'] is not None
+            and pdu['body']['mandatory_parameters']['short_message'][:5] == "ESME_"):
+            return pdu['body']['mandatory_parameters']['short_message'].split(
+                ' ')[0]
+        else:
+            return 'ESME_ROK'    
+
+
+class EsmeToSmscTestCasePlus(TransportTestCase, ObjectMaker):
 
     transport_name = "esme_testing_transport"
     transport_class = MockSmppTransport
@@ -89,7 +102,7 @@ class EsmeToSmscTestCasePlus(TransportTestCase):
         }
         self.service = SmppService(None, config=self.config)
         yield self.service.startWorker()
-        self.service.factory.protocol = SmscTestServer
+        self.service.factory.protocol = PushTzSmscTestServer
         self.config['port'] = self.service.listening.getHost().port
         self.transport = yield self.get_transport(self.config, start=False)
         self.transport.r_server = FakeRedis()
@@ -490,3 +503,48 @@ class EsmeToSmscTestCasePlus(TransportTestCase):
         self.assertEqual(delv['delivery_status'],
                          self.expected_delivery_status)
 
+
+    @inlineCallbacks
+    def test_submit_long_message(self):
+
+        self._block_till_bind = defer.Deferred()
+
+        # Startup
+        yield self.startTransport()
+        yield self.transport._block_till_bind
+
+        expected_pdus_1 = [
+                   mk_expected_pdu("inbound", 1, "bind_transceiver"),
+                   mk_expected_pdu("outbound", 1, "bind_transceiver_resp"),
+                   mk_expected_pdu("inbound", 2, "enquire_link"),
+                   mk_expected_pdu("outbound", 2, "enquire_link_resp"),
+               ]        
+        
+        pdu_queue = self.service.factory.smsc.pdu_queue        
+        
+        for expected_message in expected_pdus_1:
+            actual_message = yield pdu_queue.get()
+            self.assert_server_pdu(expected_message, actual_message)
+
+        msg = TransportUserMessage(
+                to_addr="2772222222",
+                from_addr="2772000000",
+                content=self.mk_content(260),
+                transport_name=self.transport_name,
+                transport_type='smpp',
+                transport_metadata={},
+                rkey='%s.outbound' % self.transport_name,
+                timestamp='0',
+                )
+        yield self.dispatch(msg)
+
+        long_message = yield pdu_queue.get()
+
+        self.assertEqual(
+            0,
+            long_message['pdu']['body']['mandatory_parameters']['sm_length'])
+        self.assertEqual(
+            None,
+            long_message['pdu']['body']['mandatory_parameters']['short_message'])
+        self.assertTrue(
+            'value' in long_message['pdu']['body']['optional_parameters'][0])

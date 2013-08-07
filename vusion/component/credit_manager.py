@@ -87,7 +87,7 @@ class CreditManager(object):
 
     ## Should go quite fast
     def is_allowed(self, message_credits, schedule=None):
-        log.msg('[credit manager] is allowed %r' % schedule)
+        #log.msg('[credit manager] is allowed %r' % schedule)
         if not self.has_limit():
             return True
         if not self.is_timeframed():
@@ -102,7 +102,7 @@ class CreditManager(object):
         return False
 
     def has_limit(self):
-        if self.credit_type == 'none':
+        if self.credit_type is None or self.credit_type == 'none':
             return False
         return True
 
@@ -111,7 +111,7 @@ class CreditManager(object):
 
     def is_timeframed(self):
         local_time = self.property_helper.get_local_time('vusion')
-        log.msg("[credit manager] is timeframed %s < %s < %s" % (self.credit_from_date, local_time, self.credit_to_date))
+        #log.msg("[credit manager] is timeframed %s < %s < %s" % (self.credit_from_date, local_time, self.credit_to_date))
         return (self.credit_from_date <= local_time
                 and local_time <= self.credit_to_date)
 
@@ -136,18 +136,18 @@ class CreditManager(object):
                 'status': 'ok',
                 'since': local_time,
             })
-        log.msg('[credit manager] old status %r' % self.last_status)
+        #log.msg('[credit manager] old status %r' % self.last_status)
         if self.last_status is not None and self.last_status == status:
-            log.msg('[credit manager] not updating the status')
+            #log.msg('[credit manager] not updating the status')
             return self.last_status
         self.last_status = status
-        log.msg('[credit manager] save new status %r' % status)
+        #log.msg('[credit manager] save new status %r' % status)
         self.redis.set(self.status_key(), self.last_status.get_as_json())
         return self.last_status
 
     def can_be_sent(self, message_credits, schedule=None):
         used_credit_counter = self.get_used_credit_counter()
-        log.msg("[credit manager] can be sent %r" % schedule)
+        #log.msg("[credit manager] can be sent %r" % schedule)
         if schedule is not None and schedule.get_type() == 'unattach-schedule':
             card = self.get_card(schedule)
             if card == 'white':
