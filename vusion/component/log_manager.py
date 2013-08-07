@@ -10,7 +10,7 @@ class LogManager(object):
     
     LOGS_KEY = 'logs'
 
-    def __init__(self, program_key, prefix_key, redis, gc_interval=10,
+    def __init__(self, program_key, prefix_key, redis, gc_interval=120,
                  keep_log=120, property_helper=None):
         self.program_key = program_key
         self.prefix_key = prefix_key
@@ -39,6 +39,7 @@ class LogManager(object):
         return ':'.join([self.prefix_key, self.LOGS_KEY])
 
     def gc_logs(self):
+        log.msg('remove old log')
         self.redis.zremrangebyscore(
             self.logs_key(),
             1,
@@ -52,11 +53,11 @@ class LogManager(object):
             to_log = msg
             if level != 'msg':
                 to_log = "-%s- %s" % (level, msg)
-            to_log = "[%s] %s" % (self.property_helper.get_local_time('iso'), to_log)
+            to_log = "[%s] %s" % (self.property_helper.get_local_time('vusion'), to_log)
             self.redis.zadd(
                 self.logs_key(), to_log, self.property_helper.get_local_time('timestamp'))
         except:
-            pass
+            log.error('[%s] %s' % (self.program_key, "Couldn't log in redis"))
         
         #log in file
         if (level == 'msg'):

@@ -38,11 +38,14 @@ class HistoryManager(object):
         else:
             return orig_attr
 
+    def get_local_time(self, date_format='datetime'):
+        return self.property_helper.get_local_time(date_format)
+    
     def save_history(self, **kwargs):
         if 'timestamp' in kwargs:
             kwargs['timestamp'] = time_to_vusion_format(kwargs['timestamp'])
         else:
-            kwargs['timestamp'] = self.property_helper.get_local_time('vusion')
+            kwargs['timestamp'] = self.get_local_time('vusion')
         if 'interaction' in kwargs:
             kwargs.pop('interaction')
         history = history_generator(**kwargs)
@@ -56,7 +59,7 @@ class HistoryManager(object):
             failure_reason = status['reason']
         else:
             message_status = status
-        limit_timesearch = self.property_helper.get_local_time() - timedelta(hours=5)        
+        limit_timesearch = self.get_local_time() - timedelta(hours=6)        
         selector_query = {'message-id': message_id,
                           'timestamp': {'$gt' : time_to_vusion_format(limit_timesearch)}}
         update_query = {'$set': {'message-status': message_status}}
@@ -72,7 +75,7 @@ class HistoryManager(object):
             failure_reason = status['reason']
         else:
             message_status = status
-        limit_timesearch = self.property_helper.get_local_time() - timedelta(hours=3)
+        limit_timesearch = self.get_local_time() - timedelta(hours=3)
         selector_query = {'forwards.message-id': message_id,
                     'timestamp': {'$gt' : time_to_vusion_format(limit_timesearch)}}
         update_query = {'$set': {'forwards.$.status': message_status}}
@@ -85,7 +88,7 @@ class HistoryManager(object):
         update_query = {
             '$set': {'message-status': 'forwarded'},
             '$push': {'forwards': {'status': 'pending', 
-                                   'timestamp': self.property_helper.get_local_time('vusion'),
+                                   'timestamp': self.get_local_time('vusion'),
                                    'message-id': message_id,
                                    'to-addr': to_addr}}}
         self.collection.update(selector_query, update_query)

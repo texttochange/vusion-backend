@@ -36,9 +36,12 @@ from vusion.persist.action import (Actions, action_generator,FeedbackAction,
                                    EnrollingAction, OptinAction, OptoutAction,
                                    RemoveRemindersAction)
 from vusion.context import Context
-from vusion.persist import Request, history_generator, schedule_generator
-from vusion.component import DialogueWorkerPropertyHelper, CreditManager
 
+from vusion.persist import (Request, history_generator, schedule_generator, 
+                            HistoryManager)
+from vusion.component import (DialogueWorkerPropertyHelper, CreditManager,
+                              LogManager)
+	
 
 class DialogueWorker(ApplicationWorker):
     
@@ -62,8 +65,6 @@ class DialogueWorker(ApplicationWorker):
 
     @inlineCallbacks
     def setup_application(self):
-        log.msg("One Generic Worker is starting")
-
         #Store basic configuration data
         self.transport_name = self.config['transport_name']
         self.control_name = self.config['control_name']
@@ -77,22 +78,33 @@ class DialogueWorker(ApplicationWorker):
         self.r_key = 'vusion:programs:' + self.config['database_name']
         self.r_server = Redis(**self.r_config)
         self._d.callback(None)
-
+	
+	# Component / Manager initialization
+	self.log_manager = LogManager(
+	    self.config['database_name'], 
+	    self.r_key,
+	    self.r_server)
+	
         self.collections = {}
         self.init_program_db(
-        self.config['database_name'],
-        self.config['vusion_database_name'])
+	    self.config['database_name'],
+	    self.config['vusion_database_name'])	
+	
+	self.properties = DialogueWorkerPropertyHelper(
+	    self.collections['program_settings'],
+	    self.collections['shortcodes'])	
 
-        self.properties = DialogueWorkerPropertyHelper(
-        self.collections['program_settings'],
-        self.collections['shortcodes'])
+	self.log_manager.startup(self.properties)
+	self.collections['history'].set_property_helper(self.properties)
 
-        self.credit_manager = CreditManager(
-            self.r_key, self.r_server, 
-            self.collections['history'], 
-            self.collections['schedules'],
-            self.properties)
+	self.credit_manager = CreditManager(
+	    self.r_key, self.r_server, 
+	    self.collections['history'], 
+	    self.collections['schedules'],
+	    self.properties, 
+	    self.log_manager)
 
+	self.log_manager.log("Dialogue Worker is starting")
         #Set up dispatcher publisher
         self.dispatcher_publisher = yield self.publish_to(
             '%(dispatcher_name)s.control' % self.config)
@@ -112,6 +124,7 @@ class DialogueWorker(ApplicationWorker):
     @inlineCallbacks
     def teardown_application(self):
         self.log("Worker is stopped.")
+	self.log_manager.stop()
         if self.is_ready():
             yield self.unregister_from_dispatcher()
         if (self.sender.active()):
@@ -243,9 +256,9 @@ class DialogueWorker(ApplicationWorker):
             'program_settings': None,
             'unattached_messages': None,
             'requests': None})
-        self.collections['history'].ensure_index([('interaction-id', 1),
-                                                  ('participant-session-id',1)],
-                                                 sparce = True)
+        #self.collections['history'].ensure_index([('interaction-id', 1),
+                                                  #('participant-session-id',1)],
+                                                 #sparce = True)
         self.collections['schedules'].ensure_index([('participant-phone',1),
                                                     ('interaction-id', 1)])
         self.db = connection[self.vusion_database_name]
@@ -257,6 +270,9 @@ class DialogueWorker(ApplicationWorker):
             self.setup_collection(name, index)
 
     def setup_collection(self, name, index):
+	if name == 'history':
+	    self.collections[name] = HistoryManager(self.db, name)
+	    return
         if name in self.db.collection_names():
             self.collections[name] = self.db[name]
         else:
@@ -298,23 +314,21 @@ class DialogueWorker(ApplicationWorker):
 
     def dispatch_event(self, message):
         self.log("Event message received %s" % (message,))
-        time_from = self.get_local_time() - timedelta(hours=6)
-        history = self.collections['history'].find_one({
-            'message-id': message['user_message_id'],
-            'timestamp': {'$gt' : time_to_vusion_format(time_from)}})
-        if (not history):
-            self.log('No reference of this event in history, nothing stored.')
-            return
-        if (message['event_type'] == 'ack'):
-            history['message-status'] = 'ack'
-        if (message['event_type'] == 'delivery_report'):
-            history['message-status'] = message['delivery_status']
+	if (message['event_type'] == 'ack'):
+	    status = 'ack'
+	elif (message['event_type'] == 'delivery_report'):
+            status = message['delivery_status']
             if (message['delivery_status'] == 'failed'):
-                history['failure-reason'] = ("Code:%s Level:%s Message:%s" % (
-                    message.get('failure_code', 'unknown'),
-                    message.get('failure_level', 'unknown'),
-                    message.get('failure_reason', 'unknown')))
-        self.collections['history'].save(history)
+		status = {
+		    'status': message['delivery_status'],
+		    'reason': ("Code:%s Level:%s Message:%s" % (
+		        message.get('failure_code', 'unknown'),
+		        message.get('failure_level', 'unknown'),
+		        message.get('failure_reason', 'unknown')))}
+	if 'transport_type' not in message or message['transport_type'] == 'sms':
+	    self.collections['history'].update_status(message['user_message_id'], status)
+	elif message['transport_type'] == 'http_forward':
+	    self.collections['history'].update_forwarded_status(message['user_message_id'], status)
 
     def get_matching_request_actions(self, content, actions, context):
         # exact matching
@@ -518,9 +532,23 @@ class DialogueWorker(ApplicationWorker):
 		action.set_tag_count(tag, self.collections['participants'].find({'tags': tag}).count())
 	    self.run_action(participant_phone, action.get_tagging_action())
 	elif (action.get_type() == 'message-forwarding'):
-	    pass
+	    self.run_action_message_forwarding(participant_phone, action, context, participant_session_id)
         else:
             self.log("The action is not supported %s" % action.get_type())
+
+    @inlineCallbacks
+    def run_action_message_forwarding(self, participant_phone, action, context, participant_session_id):
+	message = TransportUserMessage(**{
+	    'to_addr': self.properties['shortcode'],
+	    'from_addr': participant_phone,
+	    'transport_name': self.transport_name,
+	    'transport_type': 'http_forwarding',
+	    'content': context['content'],
+	    'transport_metadata': {
+	        'url': action['url']}
+	})
+	yield self.transport_publisher.publish_message(message)
+	self.collections['history'].update_forwarding(context['history-id'], message['message_id'], action['url'])    
 
     def consume_user_message(self, message):
         self.log("User message received from %s '%s'" % (message['from_addr'],
@@ -735,7 +763,8 @@ class DialogueWorker(ApplicationWorker):
                 'credit-type': self.credit_manager.set_limit,
                 'credit-number': self.credit_manager.set_limit,
                 'credit-from-date': self.credit_manager.set_limit,
-                'credit-to-date': self.credit_manager.set_limit}
+                'credit-to-date': self.credit_manager.set_limit,
+	        'timezone': self.log_manager.clear_logs}
             if if_needed_register_keywords == True:
                 callbacks.update({'shortcode': self.register_keywords_in_dispatcher})
             self.properties.load(callbacks)
@@ -1172,27 +1201,7 @@ class DialogueWorker(ApplicationWorker):
                      % (message['to_addr'], message['content'],))
 
     def log(self, msg, level='msg'):
-        timezone = None
-        local_time = self.get_local_time()
-        if self.r_prefix is None or self.control_name is None:
-            return
-        rkey = "%slogs" % (self.r_prefix,)
-        self.r_server.zremrangebyscore(
-            rkey,
-            1,
-            get_local_time_as_timestamp(
-                local_time - timedelta(hours=2))
-        )
-        self.r_server.zadd(
-            rkey,
-            "[%s] %s" % (
-                time_to_vusion_format(local_time),
-                msg),
-            get_local_time_as_timestamp(local_time))
-        if (level == 'msg'):
-            log.msg('[%s] %s' % (self.control_name, msg))
-        else:
-            log.error('[%s] %s' % (self.control_name, msg))
+        self.log_manager.log(msg, level)
 
     def get_keywords(self):
         keywords = []
