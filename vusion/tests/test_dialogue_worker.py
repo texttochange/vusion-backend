@@ -601,11 +601,11 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         content = self.mkobj_content_variables()
         self.collections['content_variables'].save(content)
         
-        message_one = self.worker.customize_message('Today the temperature is [program.weather]')
+        message_one = self.worker.customize_message('Today the temperature is [contentVariable.program.weather]')
         self.assertEqual(message_one, 'Today the temperature is 30 C')
         
         self.assertRaises(MissingData,
-                          self.worker.customize_message, 'Today the temperature is [today.weather]')
+                          self.worker.customize_message, 'Today the temperature is [contentVariable.today.weather]')
 
     def test12_generate_message_use_template(self):
         for program_setting in self.mkobj_program_settings():

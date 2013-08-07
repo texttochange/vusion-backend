@@ -1306,7 +1306,7 @@ class DialogueWorker(ApplicationWorker):
                 message = message.replace('[%s.%s]' %
                                           (table, attribute),
                                           participant_label_value)            
-        keys_regexp = re.compile(r'\[(?P<keyone>\w*)\.(?P<keytwo>[\s\w]*)\]')
+        keys_regexp = re.compile(r'\[contentVariable.(?P<keyone>\w*)\.(?P<keytwo>[\s\w]*)\]')
         keys = re.findall(keys_regexp, message)
         for keyone, keytwo in keys:
             contents = self.collections['content_variables'].find({'keys':[
@@ -1317,7 +1317,7 @@ class DialogueWorker(ApplicationWorker):
                 raise MissingData("Program has no content variables (%s|%s)" %
                                       (keyone, keytwo))
             for content_variable in contents:
-                message = message.replace('[%s.%s]' %
+                message = message.replace('[contentVariable.%s.%s]' %
                                           (keyone, keytwo),
                                           content_variable['value'])
         return message
