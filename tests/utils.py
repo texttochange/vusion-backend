@@ -54,15 +54,15 @@ class MessageMaker:
                   transport_metadata=None):
         if transport_metadata is None:
             transport_metadata = {}
-            return TransportEvent(
-                event_id=RegexMatcher(r'^[0-9a-fA-F]{32}$'),
-                event_type='ack',
-                user_message_id=user_message_id,
-                sent_message_id=sent_message_id,
-                timestamp=UTCNearNow(),
-                transport_name=self.transport_name,
-                transport_metadata=transport_metadata,
-            )
+        return TransportEvent(
+            event_id=RegexMatcher(r'^[0-9a-fA-F]{32}$'),
+            event_type='ack',
+            user_message_id=user_message_id,
+            sent_message_id=sent_message_id,
+            timestamp=UTCNearNow(),
+            transport_name=self.transport_name,
+            transport_metadata=transport_metadata
+        )
 
     def mkmsg_delivery_for_send(self, event_type='delivery_report',
                                 user_message_id='1', sent_message_id='abc',
