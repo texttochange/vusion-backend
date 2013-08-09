@@ -45,7 +45,8 @@ class Action(VusionModel):
                 'remove-question',
                 'remove-reminders',
                 'remove-deadline',
-                'offset-conditioning']},
+                'offset-conditioning',
+                'message-forwarding']},
         }
 
     subcondition_fields = {
