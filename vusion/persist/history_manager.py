@@ -8,6 +8,9 @@ from vusion.utils import time_to_vusion_format
 
 class HistoryManager(object):
 
+    TIMESTAMP_LIMIT_ACK = 6          #in hours
+    TIMESTAMP_LIMIT_ACK_FORWARD = 3  #in hours
+
     def __init__(self, db, collection_name):
         self.properties = None
         if collection_name in db.collection_names():
@@ -41,6 +44,9 @@ class HistoryManager(object):
     def get_local_time(self, date_format='datetime'):
         return self.property_helper.get_local_time(date_format)
     
+    def get_history(self, history_id):
+        return self.collection.find_one({'_id': ObjectId(history_id)})
+    
     def save_history(self, **kwargs):
         if 'timestamp' in kwargs:
             kwargs['timestamp'] = time_to_vusion_format(kwargs['timestamp'])
@@ -49,7 +55,7 @@ class HistoryManager(object):
         if 'interaction' in kwargs:
             kwargs.pop('interaction')
         history = history_generator(**kwargs)
-        self.collection.save(history.get_as_dict())
+        return self.collection.save(history.get_as_dict())
 
     def update_status(self, message_id, status):
         message_status = None
@@ -59,7 +65,7 @@ class HistoryManager(object):
             failure_reason = status['reason']
         else:
             message_status = status
-        limit_timesearch = self.get_local_time() - timedelta(hours=6)        
+        limit_timesearch = self.get_local_time() - timedelta(hours=self.TIMESTAMP_LIMIT_ACK)
         selector_query = {'message-id': message_id,
                           'timestamp': {'$gt' : time_to_vusion_format(limit_timesearch)}}
         update_query = {'$set': {'message-status': message_status}}
@@ -75,9 +81,9 @@ class HistoryManager(object):
             failure_reason = status['reason']
         else:
             message_status = status
-        limit_timesearch = self.get_local_time() - timedelta(hours=3)
+        limit_timesearch = self.get_local_time() - timedelta(hours=self.TIMESTAMP_LIMIT_ACK_FORWARD)
         selector_query = {'forwards.message-id': message_id,
-                    'timestamp': {'$gt' : time_to_vusion_format(limit_timesearch)}}
+                          'timestamp': {'$gt' : time_to_vusion_format(limit_timesearch)}}
         update_query = {'$set': {'forwards.$.status': message_status}}
         if failure_reason is not None:
             update_query['$set'].update({'forwards.$.failure-reason': failure_reason})
