@@ -20,7 +20,7 @@ from vusion.persist.action import (UnMatchingAnswerAction, EnrollingAction,
                                    OffsetConditionAction, RemoveRemindersAction,
                                    ResetAction, RemoveDeadlineAction,
                                    DelayedEnrollingAction, ProportionalTagging,
-                                   action_generator, Actions)
+                                   action_generator, Actions, MessageForwarding)
 from vusion.context import Context
 from vusion.persist import Dialogue
 
@@ -560,3 +560,34 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.worker.run_action("08", proportional_tagging)
         participant = self.collections['participants'].find_one()
         self.assertEqual(participant['tags'], ['geek', 'GroupB'])
+
+    def test_run_action_forwarding(self):
+        self.initialize_properties()
+        
+        history_id = self.collections['history'].save(self.mkobj_history_dialogue(
+            dialogue_id='1',
+            interaction_id='1',
+            timestamp='2012-08-04T15:15:00',
+            direction='incoming'))
+        participant = self.mkobj_participant(participant_phone='+6')
+        
+        message_forwarding = MessageForwarding(**{'url': 'http://partner.com'})
+        
+        context = Context(**{'history_id': str(history_id)})
+        
+        self.worker.run_action_message_forwarding(
+            participant['phone'],
+            message_forwarding,
+            context,
+            participant['session-id'])
+        
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0]['transport_type'], 'http_forwarding')
+        self.assertEqual(messages[0]['from_addr'], 'test')
+        self.assertEqual(messages[0]['to_addr'], 'http://partner.com')
+        self.assertEqual(
+            messages[0]['transport_metadata'], 
+            {'program_shortcode': '256-8181',
+             'participant_phone': '+6'})
+        

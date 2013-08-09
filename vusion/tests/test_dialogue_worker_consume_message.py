@@ -498,7 +498,6 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
             'message-id': event['user_message_id']})
         self.assertEqual('ack', status['message-status'])
 
-
     @inlineCallbacks
     def test_ack_forward(self):
         self.initialize_properties()
@@ -507,7 +506,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         event = self.mkmsg_delivery_for_send(
             event_type='ack',
             user_message_id='2',
-            transport_type='http_forward')
+            transport_metadata={'transport_type':'http_forward'})
 
         history = self.mkobj_history_dialogue(
             dialogue_id='1',

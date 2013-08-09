@@ -137,14 +137,15 @@ class DialogueWorker(ApplicationWorker):
         self.collections['schedules'].save(schedule.get_as_dict())
 
     def save_history(self, **kwargs):
-        if 'timestamp' in kwargs:
-            kwargs['timestamp'] = time_to_vusion_format(kwargs['timestamp'])
-        else:
-            kwargs['timestamp'] = time_to_vusion_format(self.get_local_time())
-        if 'interaction' in kwargs:
-            kwargs.pop('interaction')
-        history = history_generator(**kwargs)
-        self.collections['history'].save(history.get_as_dict())
+	self.collections['history'].save_history(**kwargs)
+        #if 'timestamp' in kwargs:
+            #kwargs['timestamp'] = time_to_vusion_format(kwargs['timestamp'])
+        #else:
+            #kwargs['timestamp'] = time_to_vusion_format(self.get_local_time())
+        #if 'interaction' in kwargs:
+            #kwargs.pop('interaction')
+        #history = history_generator(**kwargs)
+        #self.collections['history'].save(history.get_as_dict())
 
     def get_participant(self, participant_phone, only_optin=False):
         try:
@@ -325,10 +326,11 @@ class DialogueWorker(ApplicationWorker):
 		        message.get('failure_code', 'unknown'),
 		        message.get('failure_level', 'unknown'),
 		        message.get('failure_reason', 'unknown')))}
-	if 'transport_type' not in message or message['transport_type'] == 'sms':
-	    self.collections['history'].update_status(message['user_message_id'], status)
-	elif message['transport_type'] == 'http_forward':
+	if ('transport_type' in message['transport_metadata'] 
+	    and message['transport_metadata']['transport_type'] == 'http_forward'):
 	    self.collections['history'].update_forwarded_status(message['user_message_id'], status)
+	    return
+	self.collections['history'].update_status(message['user_message_id'], status)
 
     def get_matching_request_actions(self, content, actions, context):
         # exact matching
@@ -538,17 +540,19 @@ class DialogueWorker(ApplicationWorker):
 
     @inlineCallbacks
     def run_action_message_forwarding(self, participant_phone, action, context, participant_session_id):
+	history = self.collections['history'].get_history(context['history_id'])
 	message = TransportUserMessage(**{
-	    'to_addr': self.properties['shortcode'],
-	    'from_addr': participant_phone,
+	    'to_addr': action['url'],
+	    'from_addr': self.transport_name,
 	    'transport_name': self.transport_name,
 	    'transport_type': 'http_forwarding',
-	    'content': context['content'],
+	    'content': history['message-content'],
 	    'transport_metadata': {
-	        'url': action['url']}
+	        'program_shortcode': self.properties['shortcode'],
+	        'participant_phone': participant_phone}
 	})
 	yield self.transport_publisher.publish_message(message)
-	self.collections['history'].update_forwarding(context['history-id'], message['message_id'], action['url'])    
+	self.collections['history'].update_forwarding(context['history_id'], message['message_id'], action['url'])
 
     def consume_user_message(self, message):
         self.log("User message received from %s '%s'" % (message['from_addr'],
@@ -581,7 +585,8 @@ class DialogueWorker(ApplicationWorker):
                 'message-direction': 'incoming',
                 'message-credits': message_credits})
             history.update(context.get_dict_for_history())
-            self.save_history(**history)
+            history_id = self.save_history(**history)
+	    context['history_id'] = str(history_id)
             self.credit_manager.received_message(message_credits)
             self.update_participant_transport_metadata(message)
             if (context.is_matching() and participant is not None):
