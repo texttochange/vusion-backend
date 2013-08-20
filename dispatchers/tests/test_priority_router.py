@@ -112,7 +112,8 @@ class TestPriorityContentKeywordRouter(DispatcherTestCase):
     @inlineCallbacks
     def test_outbound_message_routing_transport_type(self):
         msg = self.mkmsg_out(content="hello outbound msg",
-                             from_addr='http://server.domain.ext/mo_message',
+                             to_addr='http://server.domain.ext/mo_message',
+                             from_addr='app2',
                              transport_name='app2',
                              transport_type='http_forward')
         
