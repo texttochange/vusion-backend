@@ -1293,6 +1293,38 @@ class DialogueWorker(ApplicationWorker):
         return label_indexer.get(label, None)
 
     def customize_message(self, message, participant_phone=None):
+        custom_regexp = re.compile(r'\[(?P<domain>\w*)\.(?P<key1>[\s\w]*)(\.(?P<key2>[\s\w]*))?\]')
+        matches = re.findall(custom_regexp, message)
+        #mymatches = re.search(custom_regexp, message,0)
+        #matches = mymatches.groupdict()
+        for domain, key1, key2 in matches:
+        #for domain, key1, key2, other in matches:
+            if domain == 'participant':
+                if participant_phone is None:
+                    raise MissingData('No participant supplied for this message.')
+                participant = self.get_participant(participant_phone)
+                participant_label_value = participant.get_participant_label_value(key1)
+                if not participant_label_value:
+                    raise MissingData("%s has no attribute %s" %
+                                      (participant_phone, key1))
+                message = message.replace('[%s.%s]' %
+                                          (domain, key1),
+                                          participant_label_value) 
+            elif domain == 'contentVariable':
+                contents = self.collections['content_variables'].find({'keys':[
+                                                               {'key':key1},
+                                                                {'key':key2}]})
+                count = contents.count()
+                if not contents.count() > 0:
+                    raise MissingData("Program has no content variables (%s|%s)" %
+                                          (key1, key2))
+                for content_variable in contents:
+                    message = message.replace('[domain.%s.%s]' %
+                                              (domain, key1, key2),
+                                              content_variable['value'])
+            else:
+                self.log("Dynamic content domain not supported %s" % domain)
+        '''
         if participant_phone is not None:
             tags_regexp = re.compile(r'\[(?P<table>\w*)\.(?P<attribute>[\s\w]*)\]')
             tags = re.findall(tags_regexp, message)
@@ -1320,5 +1352,6 @@ class DialogueWorker(ApplicationWorker):
                 message = message.replace('[contentVariable.%s.%s]' %
                                           (keyone, keytwo),
                                           content_variable['value'])
+        '''
         return message
     
