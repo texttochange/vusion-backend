@@ -583,7 +583,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 1)
-        self.assertEqual(messages[0]['transport_type'], 'http_forwarding')
+        self.assertEqual(messages[0]['transport_type'], 'http_forward')
         self.assertEqual(messages[0]['from_addr'], 'test')
         self.assertEqual(messages[0]['to_addr'], 'http://partner.com')
         self.assertEqual(

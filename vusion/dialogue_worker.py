@@ -137,15 +137,7 @@ class DialogueWorker(ApplicationWorker):
         self.collections['schedules'].save(schedule.get_as_dict())
 
     def save_history(self, **kwargs):
-	self.collections['history'].save_history(**kwargs)
-        #if 'timestamp' in kwargs:
-            #kwargs['timestamp'] = time_to_vusion_format(kwargs['timestamp'])
-        #else:
-            #kwargs['timestamp'] = time_to_vusion_format(self.get_local_time())
-        #if 'interaction' in kwargs:
-            #kwargs.pop('interaction')
-        #history = history_generator(**kwargs)
-        #self.collections['history'].save(history.get_as_dict())
+	return self.collections['history'].save_history(**kwargs)
 
     def get_participant(self, participant_phone, only_optin=False):
         try:
@@ -545,7 +537,7 @@ class DialogueWorker(ApplicationWorker):
 	    'to_addr': action['url'],
 	    'from_addr': self.transport_name,
 	    'transport_name': self.transport_name,
-	    'transport_type': 'http_forwarding',
+	    'transport_type': 'http_forward',
 	    'content': history['message-content'],
 	    'transport_metadata': {
 	        'program_shortcode': self.properties['shortcode'],
