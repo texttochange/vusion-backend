@@ -76,9 +76,8 @@ class ForwardHttp(Transport):
                 delivery_status='failed',
                 failure_level='transport',
                 failure_code=None,
-                failure_reason=ex.message,
-                transport_metadata={'transport_type':'http_forward'})            
-            log.msg("Unexpected error %s" % repr(ex))
+                failure_reason=repr(ex),
+                transport_metadata={'transport_type':'http_forward'})
 
     def stopWorker(self):
         log.msg("stop forward http transport")

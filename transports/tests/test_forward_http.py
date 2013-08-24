@@ -183,7 +183,7 @@ class ForwardHttpTransportTestCase(MessageMaker, TransportTestCase):
                 delivery_status='failed',
                 failure_level='transport',
                 failure_code=None,
-                failure_reason='Connection refused',
+                failure_reason='ConnectionRefusedError(\'Connection refused\',)',
                 transport_metadata={'transport_type':'http_forward'}),
             TransportMessage.from_json(fail.body))        
     
@@ -208,7 +208,7 @@ class ForwardHttpTransportTestCase(MessageMaker, TransportTestCase):
                 delivery_status='failed',
                 failure_level='transport',
                 failure_code=None,
-                failure_reason='Unsupported scheme: \'htp\'',
+                failure_reason='SchemeNotSupported("Unsupported scheme: \'htp\'",)',
                 transport_metadata={'transport_type':'http_forward'}),
             TransportMessage.from_json(fail.body))
 
