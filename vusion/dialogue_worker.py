@@ -1294,9 +1294,8 @@ class DialogueWorker(ApplicationWorker):
 
     def customize_message(self, message, participant_phone=None):
         custom_regexp = re.compile(r'\[(?P<domain>\w*)\.(?P<key1>[\s\w]*)(\.(?P<key2>[\s\w]*))?\]')
-        #matches = re.findall(custom_regexp, message)
-        mymatches = re.search(custom_regexp, message,0)
-        matches = mymatches.groupdict() if mymatches is not None else None
+        obj_matches = re.search(custom_regexp, message,0)
+        matches = obj_matches.groupdict() if obj_matches is not None else None
         if matches is not None:
             if matches['domain'] == 'participant':
                 if participant_phone is None:
