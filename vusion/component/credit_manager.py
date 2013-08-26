@@ -101,9 +101,9 @@ class CreditManager(object):
         return False
 
     def has_limit(self):
-        if self.credit_type is None or self.credit_type == 'none':
-            return False
-        return True
+        if self.credit_type in ['outgoing-only', 'outgoing-incoming']:
+            return True
+        return False
 
     def increase_used_credit_counter(self, message_credits):
         self.redis.incr(self.used_credit_counter_key(), message_credits)        
@@ -215,7 +215,8 @@ class CreditManager(object):
 
     def reinitialize_counter(self):
         self.redis.delete(self.used_credit_counter_key())
-        self.get_used_credit_counter()
+        if self.has_limit():
+            self.get_used_credit_counter()
 
     def get_used_credit_counter_mongo(self):
         reducer = Code("function(obj, prev) {"
@@ -225,9 +226,11 @@ class CreditManager(object):
                        "        prev.count = prev.count + 1;"
                        "    }"
                        " }")
-        condition = {"timestamp": {"$gt": self.credit_from_date},
-                     "timestamp": {"$lt": self.credit_to_date},
-                     "object-type": {"$in": ["dialogue-history", "unattach-history", "request-history"]}}
+        condition = {
+            "timestamp": {
+                "$gt": self.credit_from_date,
+                "$lt": self.credit_to_date},
+            "object-type": {"$in": ["dialogue-history", "unattach-history", "request-history"]}}
         if self.credit_type == 'outgoing-only':
             condition.update({'message-direction': 'outgoing'})
         result = self.history_collection.group(None, condition, {"count":0}, reducer)

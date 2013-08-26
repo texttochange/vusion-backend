@@ -97,13 +97,28 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
     def test_sync_history_outgoing_only(self):
         now = datetime.now()
         past = now - timedelta(days=1)
+        more_past = past - timedelta(days=1)
         future = now + timedelta(days=1)
+        more_future = future + timedelta(days=1)
 
         self.property_helper['credit-type'] = 'outgoing-only'
         self.property_helper['credit-number'] = '4'
         self.property_helper['credit-from-date'] = time_to_vusion_format(past)
         self.property_helper['credit-to-date'] = time_to_vusion_format(future)
         self.cm.set_limit()
+
+        ## Out of the timeframe histories
+        self.history_collection.save(self.mkobj_history_dialogue(
+            dialogue_id=1,
+            interaction_id=1,
+            direction='outgoing',
+            timestamp=time_to_vusion_format(more_past)))
+        self.history_collection.save(self.mkobj_history_dialogue(
+            dialogue_id=1,
+            interaction_id=1,
+            direction='outgoing',
+            timestamp=time_to_vusion_format(more_future)))        
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 0)        
 
         ## Count dialogue history
         self.history_collection.save(self.mkobj_history_dialogue(
@@ -169,13 +184,29 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
     def test_sync_history_outgoing_incoming(self):
         now = datetime.now()
         past = now - timedelta(days=1)
+        more_past = past - timedelta(days=1)
         future = now + timedelta(days=1)
+        more_future = future + timedelta(days=1)
+        
 
         self.property_helper['credit-type'] = 'outgoing-incoming'
         self.property_helper['credit-number'] = '4'
         self.property_helper['credit-from-date'] = time_to_vusion_format(past)
         self.property_helper['credit-to-date'] = time_to_vusion_format(future)
         self.cm.set_limit()
+
+        ## Out of the timeframe histories
+        self.history_collection.save(self.mkobj_history_dialogue(
+            dialogue_id=1,
+            interaction_id=1,
+            direction='outgoing',
+            timestamp=time_to_vusion_format(more_past)))
+        self.history_collection.save(self.mkobj_history_dialogue(
+            dialogue_id=1,
+            interaction_id=1,
+            direction='outgoing',
+            timestamp=time_to_vusion_format(more_future)))        
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 0)
 
         ## Count dialogue history
         self.history_collection.save(self.mkobj_history_dialogue(
