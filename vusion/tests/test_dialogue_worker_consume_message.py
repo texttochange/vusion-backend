@@ -445,7 +445,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
             'message-id': event['user_message_id']})
 
         self.assertEqual('failed', status['message-status'])
-        self.assertEqual('Code:404 Level:http Message:some reason',
+        self.assertEqual('Level:http Code:404 Message:some reason',
                          status['failure-reason'])
 
     @inlineCallbacks
@@ -472,7 +472,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
             'message-id': event['user_message_id']})
 
         self.assertEqual('failed', history['message-status'])
-        self.assertEqual('Code:unknown Level:unknown Message:unknown', history['failure-reason'])
+        self.assertEqual('Level:unknown Code:unknown Message:unknown', history['failure-reason'])
 
     @inlineCallbacks
     def test_ack(self):
@@ -606,4 +606,3 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
  
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 1)
-        

@@ -314,9 +314,9 @@ class DialogueWorker(ApplicationWorker):
             if (message['delivery_status'] == 'failed'):
 		status = {
 		    'status': message['delivery_status'],
-		    'reason': ("Code:%s Level:%s Message:%s" % (
-		        message.get('failure_code', 'unknown'),
+		    'reason': ("Level:%s Code:%s Message:%s" % (
 		        message.get('failure_level', 'unknown'),
+		        message.get('failure_code', 'unknown'),
 		        message.get('failure_reason', 'unknown')))}
 	if ('transport_type' in message['transport_metadata'] 
 	    and message['transport_metadata']['transport_type'] == 'http_forward'):
