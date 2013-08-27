@@ -101,9 +101,9 @@ class TestHistoryManager(TestCase, ObjectMaker):
             message_status='forwarded', 
             forwards=[{'status': 'pending', 'message-id': '2','timestamp': '2013-08-06T15:15:01', 'to-addr':'http://something'}])
         self.history_manager.save(history)
-        
+
         self.history_manager.update_forwarded_status('2', {'status': 'failed', 'reason': 'some issue'})
-        
+
         updated_history = self.history_manager.find_one()
         updated_history = history_generator(**updated_history)        
         self.assertEqual(
@@ -112,7 +112,8 @@ class TestHistoryManager(TestCase, ObjectMaker):
 
     def test_update_forwarding_history(self):
         past = self.property_helper.get_local_time() - timedelta(minutes=1)
-        
+        more_past = past - timedelta(hours=2)        
+
         history = self.mkobj_history_dialogue(
             message_id='1',
             dialogue_id='1',
@@ -122,9 +123,17 @@ class TestHistoryManager(TestCase, ObjectMaker):
             message_status='received')
         history_id = self.history_manager.save(history)
         
+        history_other = self.mkobj_history_dialogue(
+             dialogue_id='1',
+             interaction_id='1',
+             timestamp=time_to_vusion_format(more_past),
+             direction='incoming',
+             message_status='received')
+        history_other_id = self.history_manager.save(history_other)                
+        
         self.history_manager.update_forwarding(history_id, '2', 'http://partner.com')
         
-        updated_history = self.history_manager.find_one()
+        updated_history = self.history_manager.find_one({'_id': history_id})
         updated_history = history_generator(**updated_history)
         self.assertEqual(
             updated_history['forwards'][0],
@@ -132,6 +141,10 @@ class TestHistoryManager(TestCase, ObjectMaker):
              'message-id': '2',
              'timestamp': self.property_helper.get_local_time('vusion'), 
              'to-addr':'http://partner.com'})
-
         
-        
+        not_updated_history = self.history_manager.find_one({'_id': history_other_id})
+        not_updated_history = history_generator(**not_updated_history)
+        self.assertEqual(
+            not_updated_history['message-status'],
+            'received')
+        self.assertFalse('forwards' in not_updated_history)
