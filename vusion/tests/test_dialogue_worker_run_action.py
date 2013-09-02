@@ -590,4 +590,27 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             messages[0]['transport_metadata'], 
             {'program_shortcode': '256-8181',
              'participant_phone': '+6'})
+
+    def test_run_action_forwarding_not_allowed(self):
+        program_settings = self.mk_program_settings('256-8181', sms_forwarding_allowed='none')
+        self.initialize_properties(program_settings)
         
+        history_id = self.collections['history'].save(self.mkobj_history_dialogue(
+            dialogue_id='1',
+            interaction_id='1',
+            timestamp='2012-08-04T15:15:00',
+            direction='incoming'))
+        participant = self.mkobj_participant(participant_phone='+6')
+        
+        message_forwarding = MessageForwarding(**{'url': 'http://partner.com'})
+        
+        context = Context(**{'history_id': str(history_id)})
+        
+        self.worker.run_action_message_forwarding(
+            participant['phone'],
+            message_forwarding,
+            context,
+            participant['session-id'])
+        
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 0)

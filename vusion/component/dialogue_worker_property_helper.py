@@ -35,7 +35,9 @@ class DialogueWorkerPropertyHelper(object):
             'credit-type': None,
             'credit-number': None,
             'credit-from-date': None,
-            'credit-to-date': None}
+            'credit-to-date': None,
+	    'sms-forwarding-allowed': 'full',
+	}
     
     def __getitem__(self, key):
         return self.properties[key]
@@ -98,3 +100,9 @@ class DialogueWorkerPropertyHelper(object):
 	else:
 	    raise Exception('Datetime format %s is not supported' % date_format)
 
+    def is_sms_forwarding_allowed(self):
+	if self['sms-forwarding-allowed'] == "full":
+	    return True
+	else:
+	    return False
+	

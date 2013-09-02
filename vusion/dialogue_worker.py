@@ -532,6 +532,9 @@ class DialogueWorker(ApplicationWorker):
 
     @inlineCallbacks
     def run_action_message_forwarding(self, participant_phone, action, context, participant_session_id):
+	if not self.properties.is_sms_forwarding_allowed():
+	    self.log('SMS Forwarding not allowed, dump action')
+	    return
 	history = self.collections['history'].get_history(context['history_id'])
 	message = TransportUserMessage(**{
 	    'to_addr': action['url'],

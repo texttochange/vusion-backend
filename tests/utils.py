@@ -267,7 +267,8 @@ class ObjectMaker:
                             sms_limit_type='none',
                             sms_limit_number=None,
                             sms_limit_from_date=None,
-                            sms_limit_to_date=None
+                            sms_limit_to_date=None,
+                            sms_forwarding_allowed='full'
                             ):
         settings = deepcopy(self.settings)
         settings.update({
@@ -279,7 +280,9 @@ class ObjectMaker:
             'credit-type': sms_limit_type,
             'credit-number': sms_limit_number,
             'credit-from-date': sms_limit_from_date,
-            'credit-to-date': sms_limit_to_date})
+            'credit-to-date': sms_limit_to_date,
+            'sms-forwarding-allowed': sms_forwarding_allowed
+        })
         program_settings = []
         for key, value in settings.iteritems():
             program_settings.append({'key': key, 'value': value})
