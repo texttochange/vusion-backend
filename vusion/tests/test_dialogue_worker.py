@@ -350,9 +350,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertEqual(message_5, 'u have send: usingnumber 2')
         
     def test11_customize_dynamic_message(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
         
         content = self.mkobj_content_variables()
         self.collections['content_variables'].save(content)
