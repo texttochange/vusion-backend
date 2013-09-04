@@ -118,6 +118,18 @@ class TestUnattachMessage(TestCase, ObjectMaker):
                 {'profile': {'$elemMatch' : {'label': 'born', 'value': 'jinja'}}}]},
             unattach.get_selector_as_query())
 
+        unattach = UnattachMessage(
+            **self.mkobj_unattach_message(
+                send_to_type='match',
+                send_to_match_operator="any", 
+                send_to_match_conditions=["Daniel","name:gerald"]))
+        self.assertEqual(
+            {'$or': [
+                {'tags': 'Daniel'},
+                {'profile': {'$elemMatch' : {'label': 'name', 'value': 'gerald'}}}]},
+            unattach.get_selector_as_query())
+        
+
     def test_get_query_match_all(self):
         unattach = UnattachMessage(
             **self.mkobj_unattach_message(send_to_type='match',
