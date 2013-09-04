@@ -167,7 +167,7 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
             TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks
-    def test_receiving_one_sms(self):
+    def test_receiving_one_mo(self):
         url = ("http://localhost:%s%s"
                % (self.config['receive_port'], self.config['receive_path']))
         response = yield http_request_full(url, data=self.mk_mo_request())
@@ -180,7 +180,14 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
         self.assertEqual('2229', msg_in['to_addr'])
         self.assertEqual('12345678', msg_in['transport_metadata']['telefono_id_tran'])
         self.assertEqual('2229.tigo.bo', msg_in['transport_metadata']['servicio_id'])
-        
+
+    @inlineCallbacks
+    def test_receiving_ping(self):
+        url = ("http://localhost:%s%s"
+               % (self.config['receive_port'], self.config['receive_path']))
+        response = yield http_request_full(url, data='')
+        self.assertEqual(200, response.code)
+
 
 class TestResource(Resource):
     isLeaf = True

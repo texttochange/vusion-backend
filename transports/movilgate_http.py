@@ -127,6 +127,11 @@ class MovilgateReceiveSMSResource(Resource):
         try:
             raw_body = request.content.read()
             log.msg('got hit with %s' % raw_body)
+            if raw_body is None or raw_body == "":
+                #it's a ping from movilgate
+                request.setResponseCode(http.OK)
+                request.finish()
+                return
             mo_request = ElementTree.fromstring(raw_body)
             contenido = mo_request.find('Contenido').text
             servicio_id = mo_request.find('Servicio').attrib['Id']
