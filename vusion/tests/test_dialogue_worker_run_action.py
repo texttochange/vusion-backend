@@ -31,16 +31,14 @@ from vusion.tests.test_dialogue_worker import DialogueWorkerTestCase
 class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
 
     def test_run_action_unmatching_answer(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-        
+        self.initialize_properties()
+
         self.collections['participants'].save(self.mkobj_participant(
             '08',
             tags=['geek'],
             profile=[{'label': 'name',
                      'value': 'Oliv'}]))
-        
+
         ## Error message
         saved_template_id = self.collections['templates'].save(
             self.template_unmatching_answer)
@@ -49,7 +47,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
              'value': saved_template_id})
 
         context = Context()
-        context.update({'request-id':'1'})
+        context.update({'request-id': '1'})
 
         self.worker.run_action(
             '08',
@@ -66,10 +64,8 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
                          "best does not match any answer")
 
     def test_run_action_tagging(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-        
+        self.initialize_properties()
+
         self.collections['participants'].save(self.mkobj_participant(
             '08',
             tags=['geek'],
@@ -83,13 +79,11 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.worker.run_action("08", TaggingAction(**{'tag': 'my tag'}))
         self.assertEqual(
             ['geek', 'my tag', 'my second tag'],
-        self.collections['participants'].find_one({'tags': 'my tag'})['tags'])
+            self.collections['participants'].find_one({'tags': 'my tag'})['tags'])
 
     def test_run_action_profiling(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-        
+        self.initialize_properties()
+
         self.collections['participants'].save(self.mkobj_participant(
             '08',
             tags=['geek'],
@@ -101,19 +95,16 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertTrue(self.collections['participants'].find_one({'profile.label': 'gender'}))
         self.assertTrue(self.collections['participants'].find_one({'profile.value': 'Female'}))
 
-
     def test_run_action_feedback(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-        
+        self.initialize_properties()
+
         self.collections['participants'].save(self.mkobj_participant())
-        
+
         context = Context()
         context.update({'request-id': '1'})
-        
+
         self.worker.run_action(
-            '06', 
+            '06',
             FeedbackAction(**{'content': 'message'}),
             context,
             '1')
@@ -125,10 +116,9 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(history['participant-phone'], '06')
 
     def test_run_action_enroll(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-        dNow = self.worker.get_local_time();
+        self.initialize_properties()
+
+        dNow = self.worker.get_local_time()
         self.collections['participants'].save(self.mkobj_participant(
             "08", last_optin_date=time_to_vusion_format(dNow)))        
         self.collections['dialogues'].save(
@@ -136,13 +126,13 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         dBegin = self.worker.get_local_time()
      
         self.worker.run_action("08", EnrollingAction(**{'enroll': '01'}))
-        participant = self.collections['participants'].find_one({'enrolled.dialogue-id':'01'})
+        participant = self.collections['participants'].find_one({'enrolled.dialogue-id': '01'})
         self.assertTrue(participant)
         self.assertEqual(1, self.collections['schedules'].count())
         self.assertTrue('date-time' in participant['enrolled'][0])
         dEnrolled = time_from_vusion_format(participant['enrolled'][0]['date-time'])
         self.assertTrue(dEnrolled - dBegin < timedelta(seconds=1))
-       
+
         #Enrolling again should keep the old date
         self.worker.run_action("08", EnrollingAction(**{'enroll': '01'}))
         participant = self.collections['participants'].find_one({'phone': '08'})
@@ -156,61 +146,56 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         participant = self.collections['participants'].find_one({'phone': '09', 'enrolled.dialogue-id':'01'})
         self.assertTrue(participant)
         self.assertEqual(participant['session-id'], RegexMatcher(r'^[0-9a-fA-F]{32}$'))
-    
+
     def test_run_action_enroll_again(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
+
         dNow = self.worker.get_local_time()
         dPast = dNow - timedelta(days=1)
         dialogue = self.mkobj_dialogue_question_offset_days()
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(self.mkobj_participant(
-            "08", 
+            "08",
             last_optin_date=time_to_vusion_format(dPast),
             enrolled=[{'dialogue-id': dialogue['dialogue-id'],
                        'date-time': time_to_vusion_format(dPast)}]))
-        
+
         self.worker.run_action("08", EnrollingAction(**{'enroll': '01'}))
-        
+
         participant = self.collections['participants'].find_one({'phone': '08'})
         self.assertEqual(
             time_to_vusion_format(dPast),
             participant['enrolled'][0]['date-time'])
-        
+
     def test_run_action_enroll_auto_enroll(self):
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-        
+        self.initialize_properties()
+
         dialogue = self.mkobj_dialogue_annoucement()        
         self.collections['dialogues'].save(dialogue)
-        
+
         self.worker.run_action("04", OptinAction())
-        
+
         self.assertTrue(self.collections['participants'].find_one({'enrolled.dialogue-id':'0'}) is not None)
         self.assertEqual(1, self.collections['schedules'].count())
 
     def test_run_action_enroll_clear_profile_if_not_optin(self):
-        for program_setting in self.mkobj_program_settings():
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
 
         dialogue = self.mkobj_dialogue_question_offset_days()
-        self.collections['dialogues'].save(dialogue)        
+        self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(self.mkobj_participant(
             participant_phone='06',
             last_optin_date=None,
             session_id=None,
             tags=['geeks'],
-            profile=[{'label':'name',
-                      'value':'Oliv'}],
+            profile=[{'label': 'name',
+                      'value': 'Oliv'}],
             enrolled=[{'dialogue-id': '01',
                        'date-time': '2012-08-08T12:36:20'}]))
         dNow = self.worker.get_local_time()
-        
+
         self.worker.run_action("06", EnrollingAction(**{'enroll': '01'}))
-        
+
         participant = self.collections['participants'].find_one({'phone':'06'})
         self.assertEqual(participant['tags'], [])
         self.assertEqual(participant['profile'], [])
@@ -219,38 +204,34 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             dNow - time_from_vusion_format(participant['enrolled'][0]['date-time']) < timedelta(seconds=1))
 
     def test_run_action_delayed_enrolling(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-        
+        self.initialize_properties()
+
         dialogue = self.mkobj_dialogue_question_offset_days()
-        dNow = self.worker.get_local_time();
+        dNow = self.worker.get_local_time()
         self.collections['participants'].save(self.mkobj_participant(
-            "08", last_optin_date=time_to_vusion_format(dNow)))        
+            "08", last_optin_date=time_to_vusion_format(dNow)))
         self.collections['dialogues'].save(dialogue)
-     
+
         self.worker.run_action(
             "08",
             DelayedEnrollingAction(**{
                 'enroll': '01',
-                'offset-days': {'days':'1', 'at-time': '12:00'}}),
+                'offset-days': {'days': '1', 'at-time': '12:00'}}),
             Context(**{'dialogue-id': '02', 'interaction-id': '1'}))
 
         schedule = self.collections['schedules'].find_one({'object-type': 'action-schedule'})
         self.assertTrue(schedule is not None)
         self.assertEqual(schedule['context']['dialogue-id'], '02')
-        self.assertEqual(schedule['context']['interaction-id'], '1')        
+        self.assertEqual(schedule['context']['interaction-id'], '1')
         self.assertTrue(
             action_generator(**schedule['action']),
             EnrollingAction(**{'enroll': '01'}))
 
     def test_run_action_optin_optout(self):
-        regex_time = RegexMatcher(r'^(\d{4})-0?(\d+)-0?(\d+)[T ]0?(\d+):0?(\d+):0?(\d+)$')
-        
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-        
+        self.initialize_properties()
+
+        regex_time = RegexMatcher(r'^(\d{4})-0?(\d+)-0?(\d+)[T ]0?(\d+):0?(\d+):0?(\d+)$')        
+
         ## Participant optin
         self.worker.run_action("08", OptinAction())
         self.assertEqual(1, self.collections['participants'].count())
@@ -265,7 +246,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
 
         ## Participant optout (All schedule messages should be removed)
         self.collections['schedules'].save(self.mkobj_schedule("08"))
-        self.collections['schedules'].save(self.mkobj_schedule("06"))        
+        self.collections['schedules'].save(self.mkobj_schedule("06"))
         self.worker.run_action("08", OptoutAction())
         self.assertEqual(1, self.collections['participants'].count())
         participant_optout = self.collections['participants'].find_one()
@@ -273,7 +254,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(participant_optout['last-optin-date'], regex_time)
         self.assertEqual(participant_optout['last-optout-date'], regex_time)
         self.assertEqual(1, self.collections['schedules'].count())
-        
+
         ## Participant can optin again
         self.worker.run_action("08", OptinAction())
         self.assertEqual(1, self.collections['participants'].count())
@@ -289,7 +270,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(participant['session-id'], participant_reoptin['session-id'])
         self.assertEqual(participant['last-optin-date'], participant_reoptin['last-optin-date'])
         self.assertEqual(participant['last-optout-date'], None)
-        
+
         ## Participant profile is cleared by optin
         self.collections['participants'].save(self.mkobj_participant(
             participant_phone='06',
@@ -298,7 +279,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             tags=['geeks'],
             profile=[{'label': 'name',
                       'value': 'Oliv'}],
-            enrolled=[{'dialogue-id':'1', 
+            enrolled=[{'dialogue-id': '1', 
                        'date-time': '2012-11-01T10:30:20'}]
         ))
         self.worker.run_action("06", OptinAction())
@@ -306,67 +287,60 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(participant['tags'], [])
         self.assertEqual(participant['profile'], [])
         self.assertEqual(participant['enrolled'], [])
-        
+
         ## Participant profile is not cleard by optout
         self.collections['participants'].save(self.mkobj_participant(
             participant_phone='07',
             tags=['geeks'],
             profile=[{'label': 'name',
-                      'value':'Oliv'}],
-            enrolled=[{'dialogue-id':'1', 
+                      'value': 'Oliv'}],
+            enrolled=[{'dialogue-id': '1', 
                        'date-time': '2012-11-01T10:30:20'}]
         ))
         self.worker.run_action("06", OptoutAction())
-        participant = self.collections['participants'].find_one({'phone':'07'})
+        participant = self.collections['participants'].find_one({'phone': '07'})
         self.assertEqual(participant['tags'], ['geeks'])
         self.assertEqual(participant['profile'], [{'label': 'name',
-                                                   'value':'Oliv', 
+                                                   'value': 'Oliv', 
                                                    'raw': None}])
         self.assertEqual(participant['enrolled'], [
-            {'dialogue-id':'1', 
+            {'dialogue-id': '1', 
              'date-time': '2012-11-01T10:30:20'}])
 
     def test_run_action_optin_double_option_no_setting(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-            
+        self.initialize_properties()
+
         self.collections['participants'].save(self.mkobj_participant())           
-        
+
         self.worker.run_action('06', OptinAction())
         
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 0)
         self.assertEqual(self.collections['history'].count(), 0)
-        
+
     def test_run_action_optin_double_option_error_message_in_setting(self):
-        program_settings = deepcopy(self.program_settings)
-        program_settings.append({'key': 'double-optin-error-feedback',
-                                 'value': 'You are double optin'})
-        for program_setting in program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()        
-        
+        settings = self.mk_program_settings(
+            double_optin_error_feedback='You are double optin')
+        self.initialize_properties(settings)
+
         self.collections['participants'].save(
             self.mkobj_participant(participant_phone='06', session_id='1'))        
-        
+
         self.worker.run_action('06', OptinAction(),  Context(**{'request-id': '22'}), '1')
-        
+
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 1)
         self.assertEqual(self.collections['history'].count(), 1)
-        
+
         history = self.collections['history'].find_one()
         self.assertEqual(history['participant-session-id'], '1')
         self.assertEqual(history['participant-phone'], '06')
 
-
     def test_run_action_offset_condition(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
+
         dNow = self.worker.get_local_time()
-       
+
         self.collections['dialogues'].save(self.mkobj_dialogue_question_offset_conditional())
         self.collections['dialogues'].save(self.mkobj_dialogue_open_question_offset_conditional())
         self.collections['participants'].save(self.mkobj_participant('06'))
@@ -375,82 +349,84 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             timestamp=dNow - timedelta(minutes=30),
             participant_phone='06',
             participant_session_id='1',
-            metadata={'dialogue-id':'01',
-                      'interaction-id':'01-01'})
+            metadata={'dialogue-id': '01',
+                      'interaction-id': '01-01'})
 
         self.save_history(
             timestamp=dNow - timedelta(minutes=30),
             participant_phone='06',
             participant_session_id='1',
-            metadata={'dialogue-id':'04',
-                      'interaction-id':'01-01'})
-        
+            metadata={'dialogue-id': '04',
+                      'interaction-id': '01-01'})
+
         # a non matching answer do not trigger the offsetcondition
         self.save_history(
             timestamp=dNow,
             participant_phone='06',
             participant_session_id='1',
             message_direction='incoming',
-            metadata={'dialogue-id':'01',
-                      'interaction-id':'01-01',
-                      'matching-answer':None})
+            metadata={'dialogue-id': '01',
+                      'interaction-id': '01-01',
+                      'matching-answer': None})
 
         # Need to store the message into the history
         self.worker.run_action("06", OffsetConditionAction(**{
             'dialogue-id': '01',
-            'interaction-id':'01-02'}))
-        self.assertEqual(self.collections['schedules'].count(),
-                         0)
-        
+            'interaction-id': '01-02'}))
+        self.assertEqual(
+            self.collections['schedules'].count(),
+            0)
+
         self.save_history(
             timestamp=dNow,
             participant_phone='06',
             participant_session_id='1',
             message_direction="incoming",
-            metadata={'dialogue-id':'01',
-                      'interaction-id':'01-01',
-                      'matching-answer':'Fine'})
+            metadata={'dialogue-id': '01',
+                      'interaction-id': '01-01',
+                      'matching-answer': 'Fine'})
 
         # Need to store the message into the history
         self.worker.run_action("06", OffsetConditionAction(**{
             'dialogue-id': '01',
             'interaction-id':'01-02'}))
-        self.assertEqual(self.collections['schedules'].count(),
-                         2)
-        
+        self.assertEqual(
+            self.collections['schedules'].count(),
+            2)
+
         # Do not reschedule
         self.worker.run_action("06", OffsetConditionAction(**{
             'dialogue-id': '01',
             'interaction-id':'01-02'}))        
-        self.assertEqual(self.collections['schedules'].count(),
-                         2)
-        
+        self.assertEqual(
+            self.collections['schedules'].count(),
+            2)
+
         # Do send if open question
         self.save_history(
             timestamp=dNow,
             participant_phone='06',
             participant_session_id='1',
             message_direction='incoming',
-            metadata={'dialogue-id':'04',
-                      'interaction-id':'01-01'})
+            metadata={'dialogue-id': '04',
+                      'interaction-id': '01-01'})
 
         self.worker.run_action("06", OffsetConditionAction(**{
             'dialogue-id': '04',
-            'interaction-id':'01-01'}))        
+            'interaction-id': '01-01'}))        
         self.assertEqual(
             self.collections['schedules'].count(),
             3)
         
     def test_run_action_remove_reminders(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
+
         dNow = self.worker.get_local_time()
         dPast = dNow - timedelta(minutes=30)
-       
+
         dialogue = Dialogue(**self.mkobj_dialogue_open_question_reminder_offset_time())
         participant = self.mkobj_participant('06')
-        
+
         interaction = dialogue.interactions[0]
         interaction['date-time'] = time_to_vusion_format(dPast)
         self.worker.schedule_participant_reminders(
@@ -458,22 +434,21 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
 
         schedules_count = self.collections['schedules'].count()
         self.assertEqual(schedules_count, 3)
-        
+
         self.worker.run_action("06", RemoveRemindersAction(**{
             'dialogue-id': dialogue['dialogue-id'],
             'interaction-id': interaction['interaction-id']}))        
         self.assertEqual(self.collections['schedules'].count(), 1)
         self.assertEqual(self.collections['schedules'].find_one({'object-type':'reminder-schedule'}), None)
         self.assertTrue(self.collections['schedules'].find_one({'object-type':'deadline-schedule'}) is not None)
-        
+
         self.worker.run_action('06', RemoveDeadlineAction(**{'dialogue-id': dialogue['dialogue-id'],
                                                            'interaction-id': interaction['interaction-id']}))        
         self.assertEqual(self.collections['schedules'].count(), 0) 
 
     def test_run_action_reset(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
+        self.initialize_properties()
+
         dNow = self.worker.get_local_time()
         
         participant = self.mkobj_participant(
@@ -482,18 +457,16 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             profile=[{'label': 'name',
                      'value': 'Oliv'}])
         self.collections['participants'].save(participant)
-        
+
         self.worker.run_action("06", ResetAction())
-        
+
         reset_participant = self.collections['participants'].find_one({'phone':'06'})
-        
+
         self.assertEqual(reset_participant['profile'], [])
 
     def test_run_conditional_action(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-        
+        self.initialize_properties()
+
         self.collections['participants'].save(self.mkobj_participant(
             '08',
             session_id='01',
@@ -513,7 +486,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             }],
             'tag': 'my tag'}),
             participant_session_id='01')
-        participant = self.collections['participants'].find_one({'phone':'08'})
+        participant = self.collections['participants'].find_one({'phone': '08'})
         self.assertEqual(
             ['geek'],
             participant['tags'])
@@ -529,11 +502,11 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             }],
             'tag': 'marker'}),
             participant_session_id='01')
-        participant = self.collections['participants'].find_one({'phone':'08'})
+        participant = self.collections['participants'].find_one({'phone': '08'})
         self.assertEqual(
             ['geek'],
-            participant['tags'])        
-        
+            participant['tags'])
+
         ## Complex Condition
         self.worker.run_action(
             "08", 
@@ -557,10 +530,8 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             participant['tags'])        
 
     def test_run_action_proportional_tagging(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-        
+        self.initialize_properties()
+
         self.collections['participants'].save(self.mkobj_participant(
             '08',
             tags=['geek'],
@@ -573,12 +544,9 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.worker.run_action("08", proportional_tagging)
         self.assertTrue(self.collections['participants'].find_one({'tags': 'Group A'}))
 
-
     def test_run_action_proportional_tagging_double(self):
-        for program_setting in self.program_settings:
-            self.collections['program_settings'].save(program_setting)
-        self.worker.load_data()
-        
+        self.initialize_properties()
+
         self.collections['participants'].save(self.mkobj_participant(
             '08',
             tags=['geek', 'GroupB'],

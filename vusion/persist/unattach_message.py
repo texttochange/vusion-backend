@@ -3,6 +3,8 @@ import re
 from vusion.error import InvalidField, MissingField
 from vusion_model import VusionModel
 
+
+##TODO update the validation
 class UnattachMessage(VusionModel):
     
     MODEL_TYPE = 'unattach_message'
