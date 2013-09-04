@@ -129,6 +129,7 @@ class MovilgateReceiveSMSResource(Resource):
             log.msg('got hit with %s' % raw_body)
             if raw_body is None or raw_body == "":
                 #it's a ping from movilgate
+                log.msg('PING from Movilgate')
                 request.setResponseCode(http.OK)
                 request.finish()
                 return
