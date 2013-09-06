@@ -1288,37 +1288,38 @@ class DialogueWorker(ApplicationWorker):
 
     def customize_message(self, message, participant_phone=None):
         custom_regexp = re.compile(r'\[(?P<domain>[^\.\]]+)\.(?P<key1>[^\.\]]+)(\.(?P<key2>[^\.\]]+))?(\.(?P<otherkey>[^\.\]]+))?\]')
-        obj_matches = re.search(custom_regexp, message,0)
-        matches = obj_matches.groupdict() if obj_matches is not None else None
-        if matches is not None:
-            if matches['domain'] == 'participant':
-                if participant_phone is None:
-                    raise MissingData('No participant supplied for this message.')
-                participant = self.get_participant(participant_phone)
-                participant_label_value = participant.get_participant_label_value(matches['key1'])
-                if not participant_label_value:
-                    raise MissingData("%s has no attribute %s" %
-                                      (participant_phone, matches['key1']))
-                message = message.replace('[%s.%s]' %
-                                          (matches['domain'], matches['key1']),
-                                          participant_label_value) 
-            elif matches['domain'] == 'contentVariable':
-                condition = {'keys':[{'key':matches['key1']}]}
-                if matches['key2'] is not None:
-                    condition['keys'].append({'key':matches['key2']})
-                condition = {'$and':[condition]}
-                condition['$and'].append({'keys':{'$size': len(condition['$and'][0]['keys'])}})
-                content_variable = self.collections['content_variables'].find_one(condition)
-                if not content_variable:
-                    raise MissingData("Program has no content variables [%s.%s]" %
-                                          (matches['key1'], matches['key2']))
-                content_variable = ContentVariable(**content_variable)
-                if matches['key2'] is not None:
-                    replace_match = '[%s.%s.%s]' % (matches['domain'], matches['key1'], matches['key2'])
+        matches = re.finditer(custom_regexp, message)
+        for match in matches:
+            match = match.groupdict() if match is not None else None
+            if match is not None:
+                if match['domain'] == 'participant':
+                    if participant_phone is None:
+                        raise MissingData('No participant supplied for this message.')
+                    participant = self.get_participant(participant_phone)
+                    participant_label_value = participant.get_participant_label_value(match['key1'])
+                    if not participant_label_value:
+                        raise MissingData("%s has no attribute %s" % 
+                                          (participant_phone, match['key1']))
+                    message = message.replace('[%s.%s]' %
+                                              (match['domain'], match['key1']),
+                                              participant_label_value) 
+                elif match['domain'] == 'contentVariable':
+                    condition = {'keys':[{'key':match['key1']}]}
+                    if match['key2'] is not None:
+                        condition['keys'].append({'key':match['key2']})
+                    condition = {'$and':[condition]}
+                    condition['$and'].append({'keys':{'$size': len(condition['$and'][0]['keys'])}})
+                    content_variable = self.collections['content_variables'].find_one(condition)
+                    if not content_variable:
+                        raise MissingData("Program has no content variables [%s.%s]" %
+                                              (match['key1'], match['key2']))
+                    content_variable = ContentVariable(**content_variable)
+                    if match['key2'] is not None:
+                        replace_match = '[%s.%s.%s]' % (match['domain'], match['key1'], match['key2'])
+                    else:
+                        replace_match = '[%s.%s]' % (match['domain'], match['key1'])
+                    message = message.replace(replace_match, content_variable['value'])
                 else:
-                    replace_match = '[%s.%s]' % (matches['domain'], matches['key1'])
-                message = message.replace(replace_match, content_variable['value'])
-            else:
-                self.log("Dynamic content domain not supported %s" % domain)
+                    self.log("Dynamic content domain not supported %s" % domain)
         return message
     
