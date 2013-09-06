@@ -349,17 +349,23 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         message_5 = self.worker.customize_message('u have send: [participant.5 to 6_raw]', '08')        
         self.assertEqual(message_5, 'u have send: usingnumber 2')
         
-    def test11_customize_dynamic_message(self):
+    def test11_customize_message_content_variable(self):
         self.initialize_properties()
         
-        content = self.mkobj_content_variables()
-        self.collections['content_variables'].save(content)
+        content_two_keys = self.mkobj_content_variables(key1='program', key2='weather', value='30 C')
+        self.collections['content_variables'].save(content_two_keys)
         
-        message_one = self.worker.customize_message('Today the temperature is [contentVariable.program.weather]')
-        self.assertEqual(message_one, 'Today the temperature is 30 C')
+        content_one_key = self.mkobj_content_variables_one_key(key1='temperature', value='100 C')
+        self.collections['content_variables'].save(content_one_key)
+        
+        message_two_keys = self.worker.customize_message('Today the temperature is [contentVariable.program.weather]')
+        self.assertEqual(message_two_keys, 'Today the temperature is 30 C')
         
         self.assertRaises(MissingData,
                           self.worker.customize_message, 'Today the temperature is [contentVariable.today.weather]')
+        
+        message_one_key = self.worker.customize_message('Today the temperature is [contentVariable.temperature]')
+        self.assertEqual(message_one_key, 'Today the temperature is 100 C')
 
     def test12_generate_message_use_template_fail(self):
         self.initialize_properties()

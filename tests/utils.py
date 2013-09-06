@@ -997,10 +997,14 @@ class ObjectMaker:
             'context': context}
         return schedule_generator(**schedule).get_as_dict()
     
-    def mkobj_content_variables(self):
-        return {'keys':[{'key' : 'program'},
-                        {'key' : 'weather'}],
-                'value' : '30 C'}
+    def mkobj_content_variables(self, key1='program', key2='weather', value='30 C'):
+        return {'keys':[{'key' : key1},
+                        {'key' : key2}],
+                'value' : value}
+    
+    def mkobj_content_variables_one_key(self, key1='temperature', value='100 C'):
+        return {'keys':[{'key' : key1}],
+                'value' : value}
 
     def mk_content(self, length=160, keyword=None):
         content = keyword if keyword is not None else ""

@@ -36,7 +36,7 @@ from vusion.persist.action import (Actions, action_generator,FeedbackAction,
                                    EnrollingAction, OptinAction, OptoutAction,
                                    RemoveRemindersAction)
 from vusion.context import Context
-from vusion.persist import Request, history_generator, schedule_generator
+from vusion.persist import Request, history_generator, schedule_generator, ContentVariable
 from vusion.component import DialogueWorkerPropertyHelper, CreditManager
 
 
@@ -1287,7 +1287,7 @@ class DialogueWorker(ApplicationWorker):
         return label_indexer.get(label, None)
 
     def customize_message(self, message, participant_phone=None):
-        custom_regexp = re.compile(r'\[(?P<domain>\w*)\.(?P<key1>[\s\w]*)(\.(?P<key2>[\s\w]*))?\]')
+        custom_regexp = re.compile(r'\[(?P<domain>[^\.\]]+)\.(?P<key1>[^\.\]]+)(\.(?P<key2>[^\.\]]+))?(\.(?P<otherkey>[^\.\]]+))?\]')
         obj_matches = re.search(custom_regexp, message,0)
         matches = obj_matches.groupdict() if obj_matches is not None else None
         if matches is not None:
@@ -1303,17 +1303,21 @@ class DialogueWorker(ApplicationWorker):
                                           (matches['domain'], matches['key1']),
                                           participant_label_value) 
             elif matches['domain'] == 'contentVariable':
-                contents = self.collections['content_variables'].find({'keys':[
-                                                               {'key':matches['key1']},
-                                                                {'key':matches['key2']}]})
-                count = contents.count()
-                if not contents.count() > 0:
-                    raise MissingData("Program has no content variables (%s|%s)" %
+                condition = {'keys':[{'key':matches['key1']}]}
+                if matches['key2'] is not None:
+                    condition['keys'].append({'key':matches['key2']})
+                condition = {'$and':[condition]}
+                condition['$and'].append({'keys':{'$size': len(condition['$and'][0]['keys'])}})
+                content_variable = self.collections['content_variables'].find_one(condition)
+                if not content_variable:
+                    raise MissingData("Program has no content variables [%s.%s]" %
                                           (matches['key1'], matches['key2']))
-                for content_variable in contents:
-                    message = message.replace('[%s.%s.%s]' %
-                          (matches['domain'], matches['key1'], matches['key2']),
-                          content_variable['value'])
+                content_variable = ContentVariable(**content_variable)
+                if matches['key2'] is not None:
+                    replace_match = '[%s.%s.%s]' % (matches['domain'], matches['key1'], matches['key2'])
+                else:
+                    replace_match = '[%s.%s]' % (matches['domain'], matches['key1'])
+                message = message.replace(replace_match, content_variable['value'])
             else:
                 self.log("Dynamic content domain not supported %s" % domain)
         return message
