@@ -12,6 +12,7 @@ from schedule import (FeedbackSchedule, DeadlineSchedule, ReminderSchedule,
 from participant import Participant
 from unattach_message import UnattachMessage
 from vusion_model import VusionModel
+from content_variable import ContentVariable
 
 __all__ = ["Request", "WorkerConfig", "Dialogue", "Interaction",
            "DialogueHistory", "RequestHistory", "UnattachHistory",
@@ -19,4 +20,5 @@ __all__ = ["Request", "WorkerConfig", "Dialogue", "Interaction",
            "history_generator", "schedule_generator", "FeedbackSchedule",
            "DeadlineSchedule","ReminderSchedule", "DialogueSchedule",
            "UnattachSchedule", "ActionSchedule", "Participant",
-           "UnattachMessage", "VusionModel", "HistoryManager"]
+           "UnattachMessage", "VusionModel", "HistoryManager", 
+           "ContentVariable"]
