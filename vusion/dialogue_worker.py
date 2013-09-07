@@ -537,7 +537,7 @@ class DialogueWorker(ApplicationWorker):
 	    return
 	history = self.collections['history'].get_history(context['history_id'])
 	message = TransportUserMessage(**{
-	    'to_addr': action['url'],
+	    'to_addr': action['forward-url'],
 	    'from_addr': self.transport_name,
 	    'transport_name': self.transport_name,
 	    'transport_type': 'http_forward',
@@ -547,7 +547,7 @@ class DialogueWorker(ApplicationWorker):
 	        'participant_phone': participant_phone}
 	})
 	yield self.transport_publisher.publish_message(message)
-	self.collections['history'].update_forwarding(context['history_id'], message['message_id'], action['url'])
+	self.collections['history'].update_forwarding(context['history_id'], message['message_id'], action['forward-url'])
 
     def consume_user_message(self, message):
         self.log("User message received from %s '%s'" % (message['from_addr'],

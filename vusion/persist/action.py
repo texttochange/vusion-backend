@@ -368,7 +368,7 @@ class MessageForwarding(Action):
     
     def validate_fields(self):
         super(MessageForwarding, self).validate_fields()
-        self.assert_field_present('url')
+        self.assert_field_present('forward-url')
            
 
 def action_generator(**kwargs):

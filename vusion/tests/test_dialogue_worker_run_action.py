@@ -571,7 +571,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             direction='incoming'))
         participant = self.mkobj_participant(participant_phone='+6')
         
-        message_forwarding = MessageForwarding(**{'url': 'http://partner.com'})
+        message_forwarding = MessageForwarding(**{'forward-url': 'http://partner.com'})
         
         context = Context(**{'history_id': str(history_id)})
         
@@ -602,7 +602,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             direction='incoming'))
         participant = self.mkobj_participant(participant_phone='+6')
         
-        message_forwarding = MessageForwarding(**{'url': 'http://partner.com'})
+        message_forwarding = MessageForwarding(**{'forward-url': 'http://partner.com'})
         
         context = Context(**{'history_id': str(history_id)})
         
