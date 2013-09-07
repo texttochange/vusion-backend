@@ -1,0 +1,7 @@
+transport_name: forward-http
+message_replacement:
+    content: '\[MESSAGE\]'
+    from_addr: '\[PROGRAM\]'
+message_metadata_replacement:
+    participant_phone: '\[FROM\]'
+    program_shortcode: '\[TO\]'

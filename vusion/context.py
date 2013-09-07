@@ -40,7 +40,7 @@ class Context(object):
                 'request-id' in self.payload)
 
     def get_message(self):
-        return (self.payload['message'] if message in self.payload else None)
+        return (self.payload['message'] if 'message' in self.payload else None)
 
     def get_dict_for_history(self, schedule=None):
         dict_for_history = {}

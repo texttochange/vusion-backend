@@ -5,6 +5,7 @@ from interaction import Interaction
 from history import (DialogueHistory, RequestHistory, UnattachHistory,
                      OnewayMarkerHistory, DatePassedActionMarkerHistory,
                      history_generator)
+from history_manager import HistoryManager
 from schedule import (FeedbackSchedule, DeadlineSchedule, ReminderSchedule,
                       DialogueSchedule, UnattachSchedule, ActionSchedule,
                       schedule_generator)
@@ -18,4 +19,4 @@ __all__ = ["Request", "WorkerConfig", "Dialogue", "Interaction",
            "history_generator", "schedule_generator", "FeedbackSchedule",
            "DeadlineSchedule","ReminderSchedule", "DialogueSchedule",
            "UnattachSchedule", "ActionSchedule", "Participant",
-           "UnattachMessage", "VusionModel"]
+           "UnattachMessage", "VusionModel", "HistoryManager"]

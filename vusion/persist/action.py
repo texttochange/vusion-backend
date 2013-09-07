@@ -45,7 +45,8 @@ class Action(VusionModel):
                 'remove-question',
                 'remove-reminders',
                 'remove-deadline',
-                'offset-conditioning']},
+                'offset-conditioning',
+                'message-forwarding']},
         }
 
     subcondition_fields = {
@@ -359,7 +360,16 @@ class ProportionalTagging(Action):
             if count_expected >= count_tag:
                 return TaggingAction(**{'tag': proportional_tag['tag']})
         return TaggingAction(**{'tag': self['proportional-tags'][0]['tag']})
-            
+
+
+class MessageForwarding(Action):
+    
+    ACTION_TYPE = 'message-forwarding'
+    
+    def validate_fields(self):
+        super(MessageForwarding, self).validate_fields()
+        self.assert_field_present('forward-url')
+           
 
 def action_generator(**kwargs):
     # Condition to be removed when Dialogue structure freezed
@@ -391,6 +401,8 @@ def action_generator(**kwargs):
         return OffsetConditionAction(**kwargs)
     elif kwargs['type-action'] == 'proportional-tagging':
         return ProportionalTagging(**kwargs)
+    elif kwargs['type-action'] == 'message-forwarding':
+        return MessageForwarding(**kwargs)
     raise VusionError("%r not supported" % kwargs)
 
 

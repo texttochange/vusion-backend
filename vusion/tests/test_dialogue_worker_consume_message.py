@@ -396,7 +396,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
             time_to_vusion_format(past), 
             message_direction='outgoing',
             message_status='pending',
-            message_id='1')
+            message_id='1',)
         
         self.collections['history'].save(history)
 
@@ -445,7 +445,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
             'message-id': event['user_message_id']})
 
         self.assertEqual('failed', status['message-status'])
-        self.assertEqual('Code:404 Level:http Message:some reason',
+        self.assertEqual('Level:http Code:404 Message:some reason',
                          status['failure-reason'])
 
     @inlineCallbacks
@@ -472,15 +472,16 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
             'message-id': event['user_message_id']})
 
         self.assertEqual('failed', history['message-status'])
-        self.assertEqual('Code:unknown Level:unknown Message:unknown', history['failure-reason'])
+        self.assertEqual('Level:unknown Code:unknown Message:unknown', history['failure-reason'])
 
     @inlineCallbacks
     def test_ack(self):
         self.initialize_properties()
         past = self.worker.get_local_time() - timedelta(hours=5)
         
-        event = self.mkmsg_delivery_for_send(event_type='ack',
-                                             user_message_id='1')
+        event = self.mkmsg_delivery_for_send(
+            event_type='ack',
+            user_message_id='1')
 
         history = self.mkobj_history_unattach(
             '4',
@@ -495,8 +496,36 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
         status = self.collections['history'].find_one({
             'message-id': event['user_message_id']})
-
         self.assertEqual('ack', status['message-status'])
+
+    @inlineCallbacks
+    def test_ack_forward(self):
+        self.initialize_properties()
+        past = self.worker.get_local_time() - timedelta(hours=2)
+        
+        event = self.mkmsg_delivery_for_send(
+            event_type='ack',
+            user_message_id='2',
+            transport_metadata={'transport_type':'http_forward'})
+
+        history = self.mkobj_history_dialogue(
+            dialogue_id='1',
+            interaction_id='1',
+            timestamp=time_to_vusion_format(past), 
+            direction='incoming',
+            message_status='forwarded',
+            message_id='1',
+            forwards=[{'status': 'pending', 
+                      'timestamp': time_to_vusion_format(past),
+                      'message-id': '2',
+                      'to-addr': 'http://partner.com'}])
+
+        self.collections['history'].save(history)
+
+        yield self.send(event, 'event')
+
+        history = self.collections['history'].find_one()
+        self.assertEqual('ack', history['forwards'][0]['status'])
 
     @inlineCallbacks
     def test_inbound_message_matching_dialogue_limit_max_unmatching_answers(self):
@@ -577,4 +606,3 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
  
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 1)
-        

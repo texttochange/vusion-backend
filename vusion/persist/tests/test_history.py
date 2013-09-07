@@ -19,6 +19,18 @@ class TestDialogueHistory(TestCase, ObjectMaker):
         self.assertEqual(dialogue_history['object-type'], 'dialogue-history')
         self.assertEqual(dialogue_history['model-version'], DialogueHistory.MODEL_VERSION)
 
+    def test_validation_dialogue_forwarded(self):
+            history = self.mkobj_history_dialogue(
+                '1',
+                '1',
+                '2012-10-10T15:25:12',
+                direction='incoming',
+                message_status='forwarded',
+                forwards=[{'status': 'pending', 'message-id': '2', 'timestamp': '2012-08-08T12:00:00', 'to-addr': 'http://something.com'}])
+            dialogue_history = history_generator(**history)
+            self.assertTrue(dialogue_history is not None)
+            self.assertEqual(dialogue_history['model-version'], DialogueHistory.MODEL_VERSION)
+
     def test_validation_unattach(self):
         history = self.mkobj_history_unattach(
             '1',

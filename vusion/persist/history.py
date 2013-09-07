@@ -1,6 +1,7 @@
+import re
+
 from vusion.persist.vusion_model import VusionModel
 from vusion.error import InvalidField, VusionError
-import re
 
 
 class History(VusionModel):
@@ -35,11 +36,11 @@ class MessageHistory(History):
             },
         'message-direction': {
             'required': True,
-            'valid_value': lambda v: v['message-direction'] in ['incoming', 'outgoing'],
-            'required_subfield': lambda v: getattr(v, 'required_subfields')(
+            '1_valid_value': lambda v: v['message-direction'] in ['incoming', 'outgoing'],
+            '2_required_subfield': lambda v: getattr(v, 'required_subfields')(
                 v['message-direction'],
                 {'outgoing':['message-id', 'message-status'],
-                 'incoming': []})
+                 'incoming': ['message-status']})
             },
         'message-id':{
             'required': False,
@@ -47,15 +48,17 @@ class MessageHistory(History):
             },
         'message-status':{
             'required': False,
-            'valid_value': lambda v: v['message-status'] in [
+            '1_valid_value': lambda v: v['message-status'] in [
                 'failed', 
                 'pending', 
                 'delivered', 
                 'ack', 
                 'nack', 
                 'no-credit',
-                'no-credit-timeframe'],
-            'required_subfield': lambda v: getattr(v, 'required_subfields') (
+                'no-credit-timeframe',
+                'received',
+                'forwarded'],
+            '2_required_subfield': lambda v: getattr(v, 'required_subfields') (
                 v['message-status'],
                 {'failed': ['failure-reason'],
                  'pending': [],
@@ -63,17 +66,44 @@ class MessageHistory(History):
                  'ack': [],
                  'nack': [],
                  'no-credit': [],
-                 'no-credit-timeframe': []})
+                 'no-credit-timeframe': [],
+                 'received': [],
+                 'forwarded': ['forwards']})
             },
         'failure-reason': {
             'required': False,
             'valid_value': lambda v: v['failure-reason'] is not None
             },
-        'message-credits':{
+        'message-credits': {
             'required': True,
             'valid_value': lambda v: isinstance(v['message-credits'], int)
+            },
+        'forwards': {
+            'required': False,
+            'valid_forwards': lambda v: getattr(v, 'valid_forwards')(v['forwards']),
+            }
         }
-    }
+    
+    forward_fields = {
+        'status': {
+            'required': True,
+            'valid_value': lambda v: v['status'] in [
+                'pending',
+                'failed',
+                'ack', 
+                'nack']
+            },
+        'message-id': {
+            'required': True,
+            },
+        'timestamp': {
+            'required': True,
+            'valid_value': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)T0?(\d+):0?(\d+):0?(\d+)$'), v['timestamp'])
+            },
+        'to-addr': {
+            'required': True,
+            }
+        }
 
     def is_message(self):
         return True
@@ -82,11 +112,29 @@ class MessageHistory(History):
         super(MessageHistory, self).validate_fields()        
         self._validate(self, MessageHistory.fields)
 
+    def valid_forwards(self, forwards):
+        if len(forwards) < 1:
+            raise InvalidField("Field forwards should have at least 1 element.")
+        for forward in forwards:
+            self._validate(forward, MessageHistory.forward_fields)
+        return True
+
+    def upgrade(self, **kwargs):
+        if kwargs['model-version'] == '1':
+            kwargs['message-credits'] = kwargs['message-credits'] if 'message-credits' in kwargs else 1
+            kwargs['model-version'] = '2'
+            return self.upgrade(**kwargs)
+        elif kwargs['model-version'] == '2':
+            if kwargs['message-direction'] == 'incoming':
+                kwargs['message-status'] = kwargs['message-status'] if 'message-status' in kwargs else 'received'
+            kwargs['model-version'] = '3'
+        return kwargs
+
 
 class DialogueHistory(MessageHistory):
 
     MODEL_TYPE = 'dialogue-history'
-    MODEL_VERSION = '2'
+    MODEL_VERSION = '3'
 
     fields = {
         'dialogue-id':{
@@ -102,17 +150,11 @@ class DialogueHistory(MessageHistory):
     def validate_fields(self):
         super(DialogueHistory, self).validate_fields()
 
-    def upgrade(self, **kwargs):
-        if kwargs['model-version'] == '1':
-            kwargs['message-credits'] = kwargs['message-credits'] if 'message-credits' in kwargs else 1
-            kwargs['model-version'] = '2'
-        return kwargs
-
 
 class RequestHistory(MessageHistory):
 
     MODEL_TYPE = 'request-history'
-    MODEL_VERSION = '2'
+    MODEL_VERSION = '3'
 
     fields = {
         'request-id':{
@@ -125,17 +167,11 @@ class RequestHistory(MessageHistory):
         super(RequestHistory, self).validate_fields()
         self._validate(self, RequestHistory.fields)
 
-    def upgrade(self, **kwargs):
-        if kwargs['model-version'] == '1':
-            kwargs['message-credits'] = kwargs['message-credits'] if 'message-credits' in kwargs else 1
-            kwargs['model-version'] = '2'
-        return kwargs
-
 
 class UnattachHistory(MessageHistory):
 
     MODEL_TYPE = 'unattach-history'
-    MODEL_VERSION = '2'
+    MODEL_VERSION = '3'
 
     fields = {
         'unattach-id':{
@@ -148,17 +184,11 @@ class UnattachHistory(MessageHistory):
         super(UnattachHistory, self).validate_fields()
         self._validate(self, UnattachHistory.fields)
 
-    def upgrade(self, **kwargs):
-        if kwargs['model-version'] == '1':
-            kwargs['message-credits'] = kwargs['message-credits'] if 'message-credits' in kwargs else 1
-            kwargs['model-version'] = '2'
-        return kwargs
-
 
 class UnmatchingHistory(MessageHistory):
 
     MODEL_TYPE = 'unmatching-history'
-    MODEL_VERSION = '2'
+    MODEL_VERSION = '3'
 
     fields = {}
 
@@ -168,13 +198,8 @@ class UnmatchingHistory(MessageHistory):
     def validate_fields(self):
         super(UnmatchingHistory, self).validate_fields()
 
-    def upgrade(self, **kwargs):
-        if kwargs['model-version'] == '1':
-            kwargs['message-credits'] = kwargs['message-credits'] if 'message-credits' in kwargs else 1
-            kwargs['model-version'] = '2'
-        return kwargs
 
-
+## Todo update the validation
 class OnewayMarkerHistory(History):
 
     MODEL_TYPE = 'oneway-marker-history'
@@ -183,13 +208,11 @@ class OnewayMarkerHistory(History):
     fields = ['dialogue-id',
               'interaction-id']
 
-    def is_message(self):
-        return False
-
     def validate_fields(self):
         super(OnewayMarkerHistory, self).validate_fields()
 
 
+## Todo update the validation
 class DatePassedMarkerHistory(History):
 
     MODEL_TYPE = 'datepassed-marker-history'
@@ -199,13 +222,11 @@ class DatePassedMarkerHistory(History):
               'interaction-id',
               'scheduled-date-time']
 
-    def is_message(self):
-        return False
-
     def validate_fields(self):
         super(DatePassedMarkerHistory, self).validate_fields()
 
 
+## Todo update the validation
 class DatePassedActionMarkerHistory(History):
     
     MODEL_TYPE = 'datepassed-action-marker-history'
@@ -214,11 +235,8 @@ class DatePassedActionMarkerHistory(History):
     fields = ['action-type',
               'scheduled-date-time']
 
-    def is_message(self):
-        return False
-
     def validate_fields(self):
-        super(DatePassedActionMarkerHistory, self).validate_fields()    
+        super(DatePassedActionMarkerHistory, self).validate_fields()
 
 
 def history_generator(**kwargs):
@@ -243,6 +261,5 @@ def history_generator(**kwargs):
     elif kwargs['object-type'] == 'datepassed-marker-history':
         return DatePassedMarkerHistory(**kwargs)
     elif kwargs['object-type'] == 'datepassed-action-marker-history':
-        return DatePassedActionMarkerHistory(**kwargs)    
-
+        return DatePassedActionMarkerHistory(**kwargs)
     raise VusionError("%s not supported" % kwargs['object-type'])

@@ -12,7 +12,10 @@ transport_names:
         - push-255-15014
         - push-254-4127
         - yo-254-4127-in
+        - forward-http
 transport_mappings:
+    http_forward: forward-http
+    sms:     
         '256-8282': yo-256-8282
         '256-8181': yo-256-8181
         '31-3669': cm-31-3669

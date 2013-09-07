@@ -11,17 +11,22 @@ from vusion.utils import time_from_vusion_format
 ##TODO update the validation
 class Schedule(VusionModel):
 
-    SCHEDULE_FIELDS = {
-        'participant-phone': lambda v: v is not None,
-        'participant-session-id': lambda v: True,
-        'date-time': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)T0?(\d+):0?(\d+)(:0?(\d+))$'), v)}
+    fields = {
+        'participant-phone': {
+            'required': True,
+            'valid_value': lambda v: v['participant-phone'] is not None
+            },
+        'participant-session-id': {
+            'required': True
+            },
+        'date-time': {
+            'required': True,
+            'valid_value': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)T0?(\d+):0?(\d+)(:0?(\d+))$'), v['date-time'])
+            },
+        }
 
     def validate_fields(self):
-        super(Schedule, self).validate_fields()
-        for field, check in self.SCHEDULE_FIELDS.items():
-            self.assert_field_present(field)
-            if not check(self[field]):
-                raise InvalidField(field)
+        self._validate(self, Schedule.fields)
 
     def get_context(self):
         if 'context' not in self.payload:
@@ -55,12 +60,18 @@ class DialogueSchedule(MessageSchedule):
     MODEL_TYPE = 'dialogue-schedule'
     MODEL_VERSION = '2'
 
-    fields = [
-        'dialogue-id',
-        'interaction-id']
+    fields = {
+        'dialogue-id': {
+            'required': True,
+            },
+        'interaction-id':{
+            'required': True,
+            },
+        }
 
-    def validatefields(self):
-        super(DialogueSchedule, self).validate_fields()
+    def validate_fields(self):
+        super(DialogueSchedule, self).validate_fields()        
+        self._validate(self, DialogueSchedule.fields)
 
     def get_history_type(self):
         return 'dialogue-history'
@@ -71,12 +82,18 @@ class DeadlineSchedule(Schedule):
     MODEL_TYPE = 'deadline-schedule'
     MODEL_VERSION = '2'
 
-    fields = [
-        'dialogue-id',
-        'interaction-id']
+    fields = {
+       'dialogue-id': {
+            'required': True,
+            },
+        'interaction-id':{
+            'required': True,
+            },
+        }
 
-    def validatefields(self):
-        super(DeadlineSchedule, self).validate_fields()
+    def validate_fields(self):
+        super(DeadlineSchedule, self).validate_fields()        
+        self._validate(self, DeadlineSchedule.fields)
 
 
 class ReminderSchedule(Schedule):
@@ -84,12 +101,18 @@ class ReminderSchedule(Schedule):
     MODEL_TYPE = 'reminder-schedule'
     MODEL_VERSION = '2'
 
-    fields = [
-        'dialogue-id',
-        'interaction-id']
+    fields = {
+       'dialogue-id': {
+            'required': True,
+            },
+        'interaction-id':{
+            'required': True,
+            },
+        }
 
-    def validatefields(self):
-        super(ReminderSchedule, self).validate_fields()
+    def validate_fields(self):
+        super(ReminderSchedule, self).validate_fields()        
+        self._validate(self, ReminderSchedule.fields)
 
     def get_history_type(self):
         return 'dialogue-history'
@@ -100,10 +123,15 @@ class UnattachSchedule(MessageSchedule):
     MODEL_TYPE = 'unattach-schedule'
     MODEL_VERSION = '2'
 
-    fields = ['unattach-id']
+    fields = {
+        'unattach-id': {
+            'required': True
+        }
+    }
 
-    def validatefields(self):
+    def validate_fields(self):
         super(UnattachSchedule, self).validate_fields()
+        self._validate(self, UnattachSchedule.fields)
 
     def get_history_type(self):
         return 'unattach-history'
@@ -114,10 +142,18 @@ class FeedbackSchedule(MessageSchedule):
     MODEL_TYPE = 'feedback-schedule'
     MODEL_VERSION = '2'
 
-    fields = ['content', 'context']
+    fields = {
+        'content': {
+            'required': True,
+            }, 
+        'context': {
+            'required': True,
+            },
+        }
 
-    def validatefields(self):
+    def validate_fields(self):
         super(FeedbackSchedule, self).validate_fields()
+        self._validate(self, FeedbackSchedule.fields)
 
     def get_history_type(self):
         context = self.get_context()
@@ -133,10 +169,18 @@ class ActionSchedule(Schedule):
     MODEL_TYPE = 'action-schedule'
     MODEL_VERSION = '2'
 
-    fields = ['action', 'context']
+    fields = {
+        'action': {
+            'required': True
+            }, 
+        'context': {
+            'required': True
+            },
+    }
 
-    def validatefields(self):
+    def validate_fields(self):
         super(ActionSchedule, self).validate_fields()
+        self._validate(self, ActionSchedule.fields)
 
     def get_action(self):
         return action_generator(**self.payload['action'])

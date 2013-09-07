@@ -5,10 +5,11 @@ from datetime import datetime, timedelta
 
 from twisted.trial.unittest import TestCase
 
-from tests.utils import ObjectMaker
+from tests.utils import ObjectMaker, DumbLogManager
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from vusion.persist import UnattachSchedule
-from vusion.component import CreditManager, CreditStatus, DialogueWorkerPropertyHelper
+from vusion.component import (CreditManager, CreditStatus, 
+                              DialogueWorkerPropertyHelper, LogManager)
 
 
 class CreditManagerTestCase(TestCase, ObjectMaker):
@@ -35,7 +36,7 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
 
         self.cm = CreditManager(self.cm_redis_key, self.redis,
                                 self.history_collection, self.schedules_collection,
-                                self.property_helper)
+                                self.property_helper, DumbLogManager())
 
     def tearDown(self):
         self.clearData()
@@ -419,6 +420,7 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.assertEqual(status['status'], 'no-credit')
         self.assertEqual(status['since'], time_to_vusion_format(now))
         
+        self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)
         self.property_helper['credit-to-date'] = time_to_vusion_format(past.date())
         self.cm.set_limit()
         self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)

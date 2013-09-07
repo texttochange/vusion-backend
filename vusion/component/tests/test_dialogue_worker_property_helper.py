@@ -102,13 +102,9 @@ class DialogueWorkerPropertyHelperTestCase(TestCase, ObjectMaker):
             return
         self.fail()
     
-    def test_get_local_time_fail(self):
-        try:
-            self.dwph.get_local_time()
-            self.fail()
-        except MissingLocalTime:
-            return
-        self.fail()
+    def test_get_local_time_timezone_not_set(self):
+        local_time = self.dwph.get_local_time()
+        self.assertIsInstance(local_time, datetime)
 
     def test_get_local_time(self):
         self.save_settings(self.mk_program_settings())

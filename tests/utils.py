@@ -38,6 +38,15 @@ class DataLayerUtils:
             collection.drop()
 
 
+class DumbLogManager(object):
+    
+    def __init__(self):
+        self.logs = []
+    
+    def log(self, msg, level='msg'):
+        self.logs.append("%s - %s" % (level, msg))
+
+
 #TODO use UTC time rather than datetime
 class MessageMaker:
 
@@ -45,15 +54,15 @@ class MessageMaker:
                   transport_metadata=None):
         if transport_metadata is None:
             transport_metadata = {}
-            return TransportEvent(
-                event_id=RegexMatcher(r'^[0-9a-fA-F]{32}$'),
-                event_type='ack',
-                user_message_id=user_message_id,
-                sent_message_id=sent_message_id,
-                timestamp=UTCNearNow(),
-                transport_name=self.transport_name,
-                transport_metadata=transport_metadata,
-            )
+        return TransportEvent(
+            event_id=RegexMatcher(r'^[0-9a-fA-F]{32}$'),
+            event_type='ack',
+            user_message_id=user_message_id,
+            sent_message_id=sent_message_id,
+            timestamp=UTCNearNow(),
+            transport_name=self.transport_name,
+            transport_metadata=transport_metadata
+        )
 
     def mkmsg_delivery_for_send(self, event_type='delivery_report',
                                 user_message_id='1', sent_message_id='abc',
@@ -258,7 +267,8 @@ class ObjectMaker:
                             sms_limit_type='none',
                             sms_limit_number=None,
                             sms_limit_from_date=None,
-                            sms_limit_to_date=None
+                            sms_limit_to_date=None,
+                            sms_forwarding_allowed='full'
                             ):
         settings = deepcopy(self.settings)
         settings.update({
@@ -270,7 +280,9 @@ class ObjectMaker:
             'credit-type': sms_limit_type,
             'credit-number': sms_limit_number,
             'credit-from-date': sms_limit_from_date,
-            'credit-to-date': sms_limit_to_date})
+            'credit-to-date': sms_limit_to_date,
+            'sms-forwarding-allowed': sms_forwarding_allowed
+        })
         program_settings = []
         for key, value in settings.iteritems():
             program_settings.append({'key': key, 'value': value})
@@ -892,19 +904,24 @@ class ObjectMaker:
                                timestamp, participant_phone='06',
                                participant_session_id="1", direction='outgoing',
                                matching_answer=None, message_content='', 
-                               message_credits=1):
-        return history_generator(**{
+                               message_credits=1, message_status='delivered',
+                               forwards=None, message_id='1'):
+        history = {
             'timestamp': timestamp,
             'participant-phone': participant_phone,
             'participant-session-id': participant_session_id,
-            'message-id': '1',
+            'message-id': message_id,
             'message-direction': direction,
-            'message-status': 'delivered',
+            'message-status': message_status,
             'message-content': message_content,
             'message-credits': message_credits,
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id,
-            'matching-answer': matching_answer}).get_as_dict()
+            'matching-answer': matching_answer
+        }
+        if forwards is not None:
+            history.update({'forwards': forwards})
+        return history_generator(**history).get_as_dict()
 
     def mkobj_history_one_way_marker(self, dialogue_id, interaction_id, timestamp,
                                      participant_phone='06', participant_session_id='1'):
