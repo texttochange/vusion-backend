@@ -1292,7 +1292,7 @@ class DialogueWorker(ApplicationWorker):
         for match in matches:
             match = match.groupdict() if match is not None else None
             if match is not None:
-                if match['domain'] == 'participant':
+                if match['domain'].lower() in ['participant', 'participants']:
                     if participant_phone is None:
                         raise MissingData('No participant supplied for this message.')
                     participant = self.get_participant(participant_phone)
