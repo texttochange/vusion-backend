@@ -2,10 +2,10 @@ from request import Request
 from worker_config import WorkerConfig
 from dialogue import Dialogue
 from interaction import Interaction
-from history import (DialogueHistory, RequestHistory, UnattachHistory,
+from history.history import (DialogueHistory, RequestHistory, UnattachHistory,
                      OnewayMarkerHistory, DatePassedActionMarkerHistory,
                      history_generator)
-from history_manager import HistoryManager
+from history.history_manager import HistoryManager
 from schedule import (FeedbackSchedule, DeadlineSchedule, ReminderSchedule,
                       DialogueSchedule, UnattachSchedule, ActionSchedule,
                       schedule_generator)
