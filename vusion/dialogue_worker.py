@@ -36,7 +36,7 @@ from vusion.persist.action import (Actions, action_generator,FeedbackAction,
                                    EnrollingAction, OptinAction, OptoutAction,
                                    RemoveRemindersAction)
 from vusion.context import Context
-from vusion.persist import Request, history_generator, schedule_generator
+from vusion.persist import Request, history_generator, schedule_generator, ContentVariable
 from vusion.component import DialogueWorkerPropertyHelper, CreditManager
 
 
@@ -242,7 +242,8 @@ class DialogueWorker(ApplicationWorker):
             'schedules': 'date-time',
             'program_settings': None,
             'unattached_messages': None,
-            'requests': None})
+            'requests': None,
+            'content_variables': None})
         self.collections['history'].ensure_index([('interaction-id', 1),
                                                   ('participant-session-id',1)],
                                                  sparce = True)
@@ -1087,8 +1088,8 @@ class DialogueWorker(ApplicationWorker):
             ## Reaching this line can only be message to be send
             message_content = self.generate_message(interaction)
             message_content = self.customize_message(
-                schedule['participant-phone'],
-                message_content)
+                message_content,
+                schedule['participant-phone'])
 
             ## Do not run expired schedule
             if schedule.is_expired(local_time):
@@ -1285,17 +1286,40 @@ class DialogueWorker(ApplicationWorker):
         label_indexer = dict((p['label'], p['value']) for i, p in enumerate(participant['profile']))
         return label_indexer.get(label, None)
 
-    def customize_message(self, participant_phone, message):
-        tags_regexp = re.compile(r'\[(?P<table>\w*)\.(?P<attribute>[\s\w]*)\]')
-        tags = re.findall(tags_regexp, message)
-        for table, attribute in tags:
-            participant = self.get_participant(participant_phone)
-            #attribute = attribute.lower()
-            participant_label_value = participant.get_participant_label_value(attribute)
-            if not participant_label_value:
-                raise MissingData("%s has no attribute %s" %
-                                  (participant_phone, attribute))
-            message = message.replace('[%s.%s]' %
-                                      (table, attribute),
-                                      participant_label_value)
+    def customize_message(self, message, participant_phone=None):
+        custom_regexp = re.compile(r'\[(?P<domain>[^\.\]]+)\.(?P<key1>[^\.\]]+)(\.(?P<key2>[^\.\]]+))?(\.(?P<otherkey>[^\.\]]+))?\]')
+        matches = re.finditer(custom_regexp, message)
+        for match in matches:
+            match = match.groupdict() if match is not None else None
+            if match is not None:
+                if match['domain'].lower() in ['participant', 'participants']:
+                    if participant_phone is None:
+                        raise MissingData('No participant supplied for this message.')
+                    participant = self.get_participant(participant_phone)
+                    participant_label_value = participant.get_participant_label_value(match['key1'])
+                    if not participant_label_value:
+                        raise MissingData("%s has no attribute %s" % 
+                                          (participant_phone, match['key1']))
+                    message = message.replace('[%s.%s]' %
+                                              (match['domain'], match['key1']),
+                                              participant_label_value) 
+                elif match['domain'] == 'contentVariable':
+                    condition = {'keys':[{'key':match['key1']}]}
+                    if match['key2'] is not None:
+                        condition['keys'].append({'key':match['key2']})
+                    condition = {'$and':[condition]}
+                    condition['$and'].append({'keys':{'$size': len(condition['$and'][0]['keys'])}})
+                    content_variable = self.collections['content_variables'].find_one(condition)
+                    if not content_variable:
+                        raise MissingData("Program has no content variables [%s.%s]" %
+                                              (match['key1'], match['key2']))
+                    content_variable = ContentVariable(**content_variable)
+                    if match['key2'] is not None:
+                        replace_match = '[%s.%s.%s]' % (match['domain'], match['key1'], match['key2'])
+                    else:
+                        replace_match = '[%s.%s]' % (match['domain'], match['key1'])
+                    message = message.replace(replace_match, content_variable['value'])
+                else:
+                    self.log("Dynamic content domain not supported %s" % domain)
         return message
+    
