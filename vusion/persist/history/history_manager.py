@@ -12,7 +12,7 @@ class HistoryManager(object):
     TIMESTAMP_LIMIT_ACK_FORWARD = 3  #in hours
 
     def __init__(self, db, collection_name):
-        self.properties = None
+        self.property_helper = None
         if collection_name in db.collection_names():
             self.collection = db[collection_name]
         else:

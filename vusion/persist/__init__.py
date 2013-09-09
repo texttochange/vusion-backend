@@ -13,6 +13,7 @@ from participant import Participant
 from unattach_message import UnattachMessage
 from vusion_model import VusionModel
 from content_variable.content_variable import ContentVariable
+from content_variable.content_variable_manager import ContentVariableManager
 
 __all__ = ["Request", "WorkerConfig", "Dialogue", "Interaction",
            "DialogueHistory", "RequestHistory", "UnattachHistory",
@@ -21,4 +22,4 @@ __all__ = ["Request", "WorkerConfig", "Dialogue", "Interaction",
            "DeadlineSchedule","ReminderSchedule", "DialogueSchedule",
            "UnattachSchedule", "ActionSchedule", "Participant",
            "UnattachMessage", "VusionModel", "HistoryManager", 
-           "ContentVariable"]
+           "ContentVariable", "ContentVariableManager"]

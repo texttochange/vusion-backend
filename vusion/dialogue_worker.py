@@ -40,7 +40,7 @@ from vusion.persist import Request, history_generator, schedule_generator, Conte
 from vusion.component import DialogueWorkerPropertyHelper, CreditManager
 
 from vusion.persist import (Request, history_generator, schedule_generator, 
-                            HistoryManager)
+                            HistoryManager, ContentVariableManager)
 from vusion.component import (DialogueWorkerPropertyHelper, CreditManager,
                               LogManager)
 	
@@ -246,12 +246,13 @@ class DialogueWorker(ApplicationWorker):
         self.setup_collections({
             'dialogues': 'dialogue-id',
             'participants': 'phone',
-            'history': 'timestamp',
             'schedules': 'date-time',
             'program_settings': None,
             'unattached_messages': None,
-            'requests': None,
-            'content_variables': None})
+            'requests': None})
+
+	self.collections['history'] = HistoryManager(self.db, 'history')
+	self.collections['content_variables'] = ContentVariableManager(self.db, 'content_variables')
 
         self.collections['schedules'].ensure_index([('participant-phone',1),
                                                     ('interaction-id', 1)])
@@ -264,9 +265,6 @@ class DialogueWorker(ApplicationWorker):
             self.setup_collection(name, index)
 
     def setup_collection(self, name, index):
-	if name == 'history':
-	    self.collections[name] = HistoryManager(self.db, name)
-	    return
         if name in self.db.collection_names():
             self.collections[name] = self.db[name]
         else:
@@ -1315,12 +1313,7 @@ class DialogueWorker(ApplicationWorker):
                                               (match['domain'], match['key1']),
                                               participant_label_value) 
                 elif match['domain'] == 'contentVariable':
-                    condition = {'keys':[{'key':match['key1']}]}
-                    if match['key2'] is not None:
-                        condition['keys'].append({'key':match['key2']})
-                    condition = {'$and':[condition]}
-                    condition['$and'].append({'keys':{'$size': len(condition['$and'][0]['keys'])}})
-                    content_variable = self.collections['content_variables'].find_one(condition)
+                    content_variable = self.collections['content_variables'].get_content_variable_from_match(match)
                     if not content_variable:
                         raise MissingData("Program has no content variables [%s.%s]" %
                                               (match['key1'], match['key2']))
