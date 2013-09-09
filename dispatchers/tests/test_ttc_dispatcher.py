@@ -25,16 +25,18 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
     def get_worker(self):
         config = {
             'dispatcher_name': 'vusion',
-            'router_class': 'vumi.dispatchers.ContentKeywordRouter',
+            'router_class': 'dispatchers.PriorityContentKeywordRouter',
             'exposed_names': ['app1', 'fallback_app'],
             'keyword_mappings': {'app1': 'keyword1'},
             'rules': [{
                 'app': 'app1',
                 'keyword': 'keyword2',
                 'to_addr': '8181'}],
-            'transport_names': ['transport1'],
+            'transport_names': ['transport1', 'forward_http'],
             'transport_mappings': {
-                '8181': 'transport1'},
+                'http_forward': 'forward_http',
+                'sms': {
+                    '8181': 'transport1'}},
             'fallback_application': 'fallback_app',
             'expire_routing_memory': '1'
         }
@@ -82,7 +84,8 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
             exposed_name='app2'
         )
         in_msg = self.mkmsg_in(content='keyword2')
-        out_msg = self.mkmsg_out(from_addr='8181')
+        out_msg = self.mkmsg_out(from_addr='8181',
+                                 transport_type='sms')
 
         yield self.dispatch(in_msg, 'transport1.inbound')
         self.assert_no_messages('app2.inbound')

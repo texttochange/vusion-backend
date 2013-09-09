@@ -1,4 +1,4 @@
-from vusion_model import VusionModel
+from vusion.persist import VusionModel
 
 class ContentVariable(VusionModel):
     

@@ -55,7 +55,8 @@ class TestPriorityContentKeywordRouter(DispatcherTestCase):
     def test_outbound_message_routing_without_priority_transport(self):
         msg = self.mkmsg_out(content="hello outbound msg",
                              from_addr='shortcode1',
-                             transport_name='app2')
+                             transport_name='app2',
+                             transport_type='sms')
         
         yield self.dispatch(msg,
                             transport_name='app2',
@@ -69,7 +70,8 @@ class TestPriorityContentKeywordRouter(DispatcherTestCase):
     def test_outbound_message_routing_with_priority_transport_default(self):
         msg = self.mkmsg_out(content="hello outbound msg",
                              from_addr='shortcode2',
-                             transport_name='app2')
+                             transport_name='app2',
+                             transport_type='sms')
         
         yield self.dispatch(msg,
                             transport_name='app2',
@@ -84,6 +86,7 @@ class TestPriorityContentKeywordRouter(DispatcherTestCase):
         msg = self.mkmsg_out(content="hello outbound msg",
                              from_addr='shortcode2',
                              transport_name='app2',
+                             transport_type='sms',
                              transport_metadata={'priority':'prioritized'}) #priority 'prioritized' is defined
         
         yield self.dispatch(msg,
@@ -99,6 +102,7 @@ class TestPriorityContentKeywordRouter(DispatcherTestCase):
         msg = self.mkmsg_out(content="hello outbound msg",
                              from_addr='shortcode2',
                              transport_name='app2',
+                             transport_type='sms',
                              transport_metadata={'priority':'2'}) # priority 2 is undefined
         
         yield self.dispatch(msg,
