@@ -1179,6 +1179,18 @@ class DialogueWorker(ApplicationWorker):
                 'message-credits': message_credits}
             history.update(context.get_dict_for_history(schedule))
             self.save_history(**history)
+	except MissingData as e:
+	    self.log("Error Missing Data: %s" % e.message)
+	    history = {
+	        'message-content': message_content,
+	        'participant-phone': schedule['participant-phone'],
+	        'message-direction': 'outgoing',
+	        'message-status': 'missing-data',
+	        'missing-data': [e.message],
+	        'message-id': None,
+	        'message-credits': 0}
+	    history.update(context.get_dict_for_history(schedule))
+	    self.save_history(**history)
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log("Error send schedule: %r" %
@@ -1307,21 +1319,18 @@ class DialogueWorker(ApplicationWorker):
                     participant = self.get_participant(participant_phone)
                     participant_label_value = participant.get_participant_label_value(match['key1'])
                     if not participant_label_value:
-                        raise MissingData("%s has no attribute %s" % 
+                        raise MissingData("Participant %s doesn't have a label %s" % 
                                           (participant_phone, match['key1']))
-                    message = message.replace('[%s.%s]' %
-                                              (match['domain'], match['key1']),
-                                              participant_label_value) 
+		    replace_match = '[%s.%s]' % (match['domain'], match['key1'])
+                    message = message.replace(replace_match, participant_label_value) 
                 elif match['domain'] == 'contentVariable':
                     content_variable = self.collections['content_variables'].get_content_variable_from_match(match)
-                    if not content_variable:
-                        raise MissingData("Program has no content variables [%s.%s]" %
-                                              (match['key1'], match['key2']))
-                    content_variable = ContentVariable(**content_variable)
                     if match['key2'] is not None:
                         replace_match = '[%s.%s.%s]' % (match['domain'], match['key1'], match['key2'])
                     else:
-                        replace_match = '[%s.%s]' % (match['domain'], match['key1'])
+                        replace_match = '[%s.%s]' % (match['domain'], match['key1'])		    
+                    if content_variable is None:
+                        raise MissingData("The program doesn't have a content variable %s" % replace_match)
                     message = message.replace(replace_match, content_variable['value'])
                 else:
                     self.log("Dynamic content domain not supported %s" % domain)

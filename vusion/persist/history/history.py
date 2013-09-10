@@ -56,6 +56,7 @@ class MessageHistory(History):
                 'nack', 
                 'no-credit',
                 'no-credit-timeframe',
+                'missing-data',
                 'received',
                 'forwarded'],
             '2_required_subfield': lambda v: getattr(v, 'required_subfields') (
@@ -67,12 +68,17 @@ class MessageHistory(History):
                  'nack': [],
                  'no-credit': [],
                  'no-credit-timeframe': [],
+                 'missing-data': ['missing-data'],
                  'received': [],
                  'forwarded': ['forwards']})
             },
         'failure-reason': {
             'required': False,
             'valid_value': lambda v: v['failure-reason'] is not None
+            },
+        'missing-data': {
+            'required': False,
+            'valid_value': lambda v: isinstance(v['missing-data'], list) 
             },
         'message-credits': {
             'required': True,

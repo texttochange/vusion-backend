@@ -1,3 +1,4 @@
+from content_variable import ContentVariable
 
 
 class ContentVariableManager(object):
@@ -32,5 +33,8 @@ class ContentVariableManager(object):
             condition['keys'].append({'key':match['key2']})
         condition = {'$and':[condition]}
         condition['$and'].append({'keys':{'$size': len(condition['$and'][0]['keys'])}})
-        return self.collection.find_one(condition)
+        content_variable = self.collection.find_one(condition)
+        if content_variable is None:
+            return None
+        return ContentVariable(**content_variable)
         

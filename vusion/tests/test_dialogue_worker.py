@@ -355,8 +355,8 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         
         # Test that participant is not case sensitive
         message_7 = self.worker.customize_message( 'Hello [PARTICIPANT.name]', '06')
-        self.assertEqual(message_7, 'Hello oliv')
-        
+        self.assertEqual(message_7, 'Hello oliv')        
+       
     def test11_customize_message_content_variable(self):
         self.initialize_properties()
         

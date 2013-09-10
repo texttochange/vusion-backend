@@ -351,4 +351,39 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
         histories = self.collections['history'].find()
         self.assertEqual(histories.count(), 1)
         self.assertEqual(histories[0]['message-status'], 'no-credit-timeframe')
-        self.assertEqual(histories[0]['message-credits'], 0) 
+        self.assertEqual(histories[0]['message-credits'], 0)
+
+    @inlineCallbacks
+    def test_send_scheduled_messages_fail_missing_data(self):
+        self.initialize_properties()
+        
+        dNow = self.worker.get_local_time()
+        dNow = dNow - timedelta(minutes=2)
+
+        participant = self.mkobj_participant(
+            '06',
+            profile=[{'label': 'name',
+                      'value': 'oliv'}])
+        self.collections['participants'].save(participant)
+       
+        unattached_message = self.mkobj_unattach_message(
+            content="Hello [participant.firstname]",
+            fixed_time=time_to_vusion_format(dNow))
+        
+        unattached_message_id = self.collections['unattached_messages'].save(unattached_message)
+
+        self.collections['schedules'].save(
+            self.mkobj_schedule_unattach(
+                date_time=time_to_vusion_format(dNow),
+                unattach_id=str(unattached_message_id),
+                participant_phone='06'))
+
+        yield self.worker.send_scheduled()
+
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 0)
+        histories = self.collections['history'].find()
+        self.assertEqual(histories.count(), 1)
+        self.assertEqual(histories[0]['message-status'], 'missing-data')
+        self.assertEqual(histories[0]['missing-data'], ['Participant 06 doesn\'t have a label firstname'])
+        self.assertEqual(histories[0]['unattach-id'], str(unattached_message_id))
