@@ -44,4 +44,15 @@ class TestContentVariableManager(TestCase, ObjectMaker):
         self.assertEqual(
             '10 C',
             matched_content_variable['value'])
+
+    def test_get_content_variable_from_match(self):
+        match = {
+            'domain': 'contentVariable',
+            'key1': 'night',
+            'key2': 'temperature'}
+        content_variable_night = self.mkobj_content_variables(
+            key1='temperature', key2='night', value='10 C')
+        self.content_variable_manager.save(content_variable_night)
         
+        not_matched_content_variable = self.content_variable_manager.get_content_variable_from_match(match)
+        self.assertTrue(not_matched_content_variable is None)
