@@ -20,7 +20,7 @@ from vusion.persist.action import (UnMatchingAnswerAction, EnrollingAction,
                                    OffsetConditionAction, RemoveRemindersAction,
                                    ResetAction, RemoveDeadlineAction,
                                    DelayedEnrollingAction, ProportionalTagging,
-                                   action_generator, Actions, MessageForwarding)
+                                   action_generator, Actions, UrlForwarding, SmsForwarding)
 from vusion.context import Context
 from vusion.persist import Dialogue
 
@@ -561,7 +561,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         participant = self.collections['participants'].find_one()
         self.assertEqual(participant['tags'], ['geek', 'GroupB'])
 
-    def test_run_action_forwarding(self):
+    def test_run_action_url_forwarding(self):
         self.initialize_properties()
         
         history_id = self.collections['history'].save(self.mkobj_history_dialogue(
@@ -571,7 +571,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             direction='incoming'))
         participant = self.mkobj_participant(participant_phone='+6')
         
-        message_forwarding = MessageForwarding(**{'forward-url': 'http://partner.com'})
+        message_forwarding = UrlForwarding(**{'forward-url': 'http://partner.com'})
         
         context = Context(**{'history_id': str(history_id)})
         
@@ -591,7 +591,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             {'program_shortcode': '256-8181',
              'participant_phone': '+6'})
 
-    def test_run_action_forwarding_not_allowed(self):
+    def test_run_action_url_forwarding_not_allowed(self):
         program_settings = self.mk_program_settings('256-8181', sms_forwarding_allowed='none')
         self.initialize_properties(program_settings)
         
@@ -602,7 +602,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             direction='incoming'))
         participant = self.mkobj_participant(participant_phone='+6')
         
-        message_forwarding = MessageForwarding(**{'forward-url': 'http://partner.com'})
+        message_forwarding = UrlForwarding(**{'forward-url': 'http://partner.com'})
         
         context = Context(**{'history_id': str(history_id)})
         
@@ -614,3 +614,19 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 0)
+
+    def test_run_action_sms_forwarding(self):
+        self.initialize_properties()
+        
+        sms_forwarding = SmsForwarding(**{
+            'forward-to': 'max',
+            'forward-content': 'iam dead'
+                                          })
+        
+        self.worker.run_action_sms_forwarding(sms_forwarding)
+        
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0]['to_addr'], 'max')
+        self.assertEqual(messages[0]['transport_type'], 'sms')
+        #slef.assertEqual(message)
