@@ -43,7 +43,7 @@ from vusion.persist import (Request, history_generator, schedule_generator,
                             HistoryManager, ContentVariableManager)
 from vusion.component import (DialogueWorkerPropertyHelper, CreditManager,
                               LogManager)
-	
+
 
 class DialogueWorker(ApplicationWorker):
     
@@ -80,33 +80,33 @@ class DialogueWorker(ApplicationWorker):
         self.r_key = 'vusion:programs:' + self.config['database_name']
         self.r_server = Redis(**self.r_config)
         self._d.callback(None)
-	
-	# Component / Manager initialization
-	self.log_manager = LogManager(
-	    self.config['database_name'], 
-	    self.r_key,
-	    self.r_server)
-	
+
+        # Component / Manager initialization
+        self.log_manager = LogManager(
+           self.config['database_name'], 
+           self.r_key,
+           self.r_server)
+
         self.collections = {}
         self.init_program_db(
-	    self.config['database_name'],
-	    self.config['vusion_database_name'])	
-	
-	self.properties = DialogueWorkerPropertyHelper(
-	    self.collections['program_settings'],
-	    self.collections['shortcodes'])	
+           self.config['database_name'],
+           self.config['vusion_database_name'])
 
-	self.log_manager.startup(self.properties)
-	self.collections['history'].set_property_helper(self.properties)
+        self.properties = DialogueWorkerPropertyHelper(
+           self.collections['program_settings'],
+           self.collections['shortcodes'])
 
-	self.credit_manager = CreditManager(
-	    self.r_key, self.r_server, 
-	    self.collections['history'], 
-	    self.collections['schedules'],
-	    self.properties, 
-	    self.log_manager)
+        self.log_manager.startup(self.properties)
+        self.collections['history'].set_property_helper(self.properties)
 
-	self.log_manager.log("Dialogue Worker is starting")
+        self.credit_manager = CreditManager(
+           self.r_key, self.r_server, 
+           self.collections['history'], 
+           self.collections['schedules'],
+           self.properties, 
+           self.log_manager)
+
+        self.log_manager.log("Dialogue Worker is starting")
         #Set up dispatcher publisher
         self.dispatcher_publisher = yield self.publish_to(
             '%(dispatcher_name)s.control' % self.config)
@@ -126,7 +126,7 @@ class DialogueWorker(ApplicationWorker):
     @inlineCallbacks
     def teardown_application(self):
         self.log("Worker is stopped.")
-	self.log_manager.stop()
+        self.log_manager.stop()
         if self.is_ready():
             yield self.unregister_from_dispatcher()
         if (self.sender.active()):
@@ -139,7 +139,7 @@ class DialogueWorker(ApplicationWorker):
         self.collections['schedules'].save(schedule.get_as_dict())
 
     def save_history(self, **kwargs):
-	return self.collections['history'].save_history(**kwargs)
+        return self.collections['history'].save_history(**kwargs)
 
     def get_participant(self, participant_phone, only_optin=False):
         try:
@@ -251,8 +251,8 @@ class DialogueWorker(ApplicationWorker):
             'unattached_messages': None,
             'requests': None})
 
-	self.collections['history'] = HistoryManager(self.db, 'history')
-	self.collections['content_variables'] = ContentVariableManager(self.db, 'content_variables')
+        self.collections['history'] = HistoryManager(self.db, 'history')
+        self.collections['content_variables'] = ContentVariableManager(self.db, 'content_variables')
 
         self.collections['schedules'].ensure_index([('participant-phone',1),
                                                     ('interaction-id', 1)])
@@ -306,22 +306,22 @@ class DialogueWorker(ApplicationWorker):
 
     def dispatch_event(self, message):
         self.log("Event message received %s" % (message,))
-	if (message['event_type'] == 'ack'):
-	    status = 'ack'
-	elif (message['event_type'] == 'delivery_report'):
+        if (message['event_type'] == 'ack'):
+           status = 'ack'
+        elif (message['event_type'] == 'delivery_report'):
             status = message['delivery_status']
             if (message['delivery_status'] == 'failed'):
-		status = {
-		    'status': message['delivery_status'],
-		    'reason': ("Level:%s Code:%s Message:%s" % (
-		        message.get('failure_level', 'unknown'),
-		        message.get('failure_code', 'unknown'),
-		        message.get('failure_reason', 'unknown')))}
-	if ('transport_type' in message['transport_metadata'] 
-	    and message['transport_metadata']['transport_type'] == 'http_forward'):
-	    self.collections['history'].update_forwarded_status(message['user_message_id'], status)
-	    return
-	self.collections['history'].update_status(message['user_message_id'], status)
+                status = {
+                  'status': message['delivery_status'],
+                  'reason': ("Level:%s Code:%s Message:%s" % (
+                      message.get('failure_level', 'unknown'),
+                      message.get('failure_code', 'unknown'),
+                      message.get('failure_reason', 'unknown')))}
+        if ('transport_type' in message['transport_metadata'] 
+           and message['transport_metadata']['transport_type'] == 'http_forward'):
+           self.collections['history'].update_forwarded_status(message['user_message_id'], status)
+           return
+        self.collections['history'].update_status(message['user_message_id'], status)
 
     def get_matching_request_actions(self, content, actions, context):
         # exact matching
@@ -518,35 +518,35 @@ class DialogueWorker(ApplicationWorker):
         elif (action.get_type() == 'reset'):
             self.run_action(participant_phone, OptoutAction())
             self.run_action(participant_phone, OptinAction())
-	elif (action.get_type() == 'proportional-tagging'):
-	    if self.is_tagged(participant_phone, action.get_tags()):
-		return
-	    for tag in action.get_tags():
-		action.set_tag_count(tag, self.collections['participants'].find({'tags': tag}).count())
-	    self.run_action(participant_phone, action.get_tagging_action())
-	elif (action.get_type() == 'message-forwarding'):
-	    self.run_action_message_forwarding(participant_phone, action, context, participant_session_id)
+        elif (action.get_type() == 'proportional-tagging'):
+           if self.is_tagged(participant_phone, action.get_tags()):
+                return
+           for tag in action.get_tags():
+                action.set_tag_count(tag, self.collections['participants'].find({'tags': tag}).count())
+           self.run_action(participant_phone, action.get_tagging_action())
+        elif (action.get_type() == 'message-forwarding'):
+           self.run_action_message_forwarding(participant_phone, action, context, participant_session_id)
         else:
             self.log("The action is not supported %s" % action.get_type())
 
     @inlineCallbacks
     def run_action_message_forwarding(self, participant_phone, action, context, participant_session_id):
-	if not self.properties.is_sms_forwarding_allowed():
-	    self.log('SMS Forwarding not allowed, dump action')
-	    return
-	history = self.collections['history'].get_history(context['history_id'])
-	message = TransportUserMessage(**{
-	    'to_addr': action['forward-url'],
-	    'from_addr': self.transport_name,
-	    'transport_name': self.transport_name,
-	    'transport_type': 'http_forward',
-	    'content': history['message-content'],
-	    'transport_metadata': {
-	        'program_shortcode': self.properties['shortcode'],
-	        'participant_phone': participant_phone}
-	})
-	yield self.transport_publisher.publish_message(message)
-	self.collections['history'].update_forwarding(context['history_id'], message['message_id'], action['forward-url'])
+        if not self.properties.is_sms_forwarding_allowed():
+           self.log('SMS Forwarding not allowed, dump action')
+           return
+        history = self.collections['history'].get_history(context['history_id'])
+        message = TransportUserMessage(**{
+           'to_addr': action['forward-url'],
+           'from_addr': self.transport_name,
+           'transport_name': self.transport_name,
+           'transport_type': 'http_forward',
+           'content': history['message-content'],
+           'transport_metadata': {
+               'program_shortcode': self.properties['shortcode'],
+               'participant_phone': participant_phone}
+        })
+        yield self.transport_publisher.publish_message(message)
+        self.collections['history'].update_forwarding(context['history_id'], message['message_id'], action['forward-url'])
 
     def consume_user_message(self, message):
         self.log("User message received from %s '%s'" % (message['from_addr'],
@@ -580,7 +580,7 @@ class DialogueWorker(ApplicationWorker):
                 'message-credits': message_credits})
             history.update(context.get_dict_for_history())
             history_id = self.save_history(**history)
-	    context['history_id'] = str(history_id)
+            context['history_id'] = str(history_id)
             self.credit_manager.received_message(message_credits)
             self.update_participant_transport_metadata(message)
             if (context.is_matching() and participant is not None):
@@ -763,7 +763,7 @@ class DialogueWorker(ApplicationWorker):
                 'credit-number': self.credit_manager.set_limit,
                 'credit-from-date': self.credit_manager.set_limit,
                 'credit-to-date': self.credit_manager.set_limit,
-	        'timezone': self.log_manager.clear_logs}
+               'timezone': self.log_manager.clear_logs}
             if if_needed_register_keywords == True:
                 callbacks.update({'shortcode': self.register_keywords_in_dispatcher})
             self.properties.load(callbacks)
@@ -1179,18 +1179,18 @@ class DialogueWorker(ApplicationWorker):
                 'message-credits': message_credits}
             history.update(context.get_dict_for_history(schedule))
             self.save_history(**history)
-	except MissingData as e:
-	    self.log("Error Missing Data: %s" % e.message)
-	    history = {
-	        'message-content': message_content,
-	        'participant-phone': schedule['participant-phone'],
-	        'message-direction': 'outgoing',
-	        'message-status': 'missing-data',
-	        'missing-data': [e.message],
-	        'message-id': None,
-	        'message-credits': 0}
-	    history.update(context.get_dict_for_history(schedule))
-	    self.save_history(**history)
+        except MissingData as e:
+           self.log("Error Missing Data: %s" % e.message)
+           history = {
+               'message-content': message_content,
+               'participant-phone': schedule['participant-phone'],
+               'message-direction': 'outgoing',
+               'message-status': 'missing-data',
+               'missing-data': [e.message],
+               'message-id': None,
+               'message-credits': 0}
+           history.update(context.get_dict_for_history(schedule))
+           self.save_history(**history)
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log("Error send schedule: %r" %
@@ -1321,14 +1321,14 @@ class DialogueWorker(ApplicationWorker):
                     if not participant_label_value:
                         raise MissingData("Participant %s doesn't have a label %s" % 
                                           (participant_phone, match['key1']))
-		    replace_match = '[%s.%s]' % (match['domain'], match['key1'])
+                    replace_match = '[%s.%s]' % (match['domain'], match['key1'])
                     message = message.replace(replace_match, participant_label_value) 
                 elif match['domain'] == 'contentVariable':
                     content_variable = self.collections['content_variables'].get_content_variable_from_match(match)
                     if match['key2'] is not None:
                         replace_match = '[%s.%s.%s]' % (match['domain'], match['key1'], match['key2'])
                     else:
-                        replace_match = '[%s.%s]' % (match['domain'], match['key1'])		    
+                        replace_match = '[%s.%s]' % (match['domain'], match['key1'])   
                     if content_variable is None:
                         raise MissingData("The program doesn't have a content variable %s" % replace_match)
                     message = message.replace(replace_match, content_variable['value'])
