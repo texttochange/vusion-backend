@@ -549,14 +549,18 @@ class DialogueWorker(ApplicationWorker):
         self.collections['history'].update_forwarding(context['history_id'], message['message_id'], action['forward-url'])
 
     @inlineCallbacks
-    def run_action_sms_forwarding(self, action):
-        message = TransportUserMessage(**{
-            'to_addr': action['forward-to'],
-            'from_addr': self.properties['shortcode'],
-            'transport_name': self.transport_name,
-            'transport_type': 'sms'
-        })
-        yield self.transport_publisher.publish_message(message)
+    def run_action_sms_forwarding(self, participant_phone, action):
+        
+        participants = self.get_participants({'tags': action['forward-to'],'session-id': {'$ne': None} })
+        for participant in participants:
+            message = TransportUserMessage(**{
+                'to_addr': participant['phone'],
+                'from_addr': self.properties['shortcode'],
+                'transport_name': self.transport_name,
+                'transport_type': 'sms',
+                'content': self.customize_message(action['forward-content'], participant_phone)
+            })
+            yield self.transport_publisher.publish_message(message)
 
     def consume_user_message(self, message):
         self.log("User message received from %s '%s'" % (message['from_addr'],
@@ -1322,27 +1326,28 @@ class DialogueWorker(ApplicationWorker):
         matches = re.finditer(custom_regexp, message)
         for match in matches:
             match = match.groupdict() if match is not None else None
-            if match is not None:
-                if match['domain'].lower() in ['participant', 'participants']:
-                    if participant_phone is None:
-                        raise MissingData('No participant supplied for this message.')
-                    participant = self.get_participant(participant_phone)
-                    participant_label_value = participant.get_participant_label_value(match['key1'])
-                    if not participant_label_value:
-                        raise MissingData("Participant %s doesn't have a label %s" % 
-                                          (participant_phone, match['key1']))
-                    replace_match = '[%s.%s]' % (match['domain'], match['key1'])
-                    message = message.replace(replace_match, participant_label_value) 
-                elif match['domain'] == 'contentVariable':
-                    content_variable = self.collections['content_variables'].get_content_variable_from_match(match)
-                    if match['key2'] is not None:
-                        replace_match = '[%s.%s.%s]' % (match['domain'], match['key1'], match['key2'])
-                    else:
-                        replace_match = '[%s.%s]' % (match['domain'], match['key1'])   
-                    if content_variable is None:
-                        raise MissingData("The program doesn't have a content variable %s" % replace_match)
-                    message = message.replace(replace_match, content_variable['value'])
+            if match is None:
+                continue
+            if match['domain'].lower() in ['participant', 'participants']:
+                if participant_phone is None:
+                    raise MissingData('No participant supplied for this message.')
+                participant = self.get_participant(participant_phone)
+                participant_label_value = participant.get_data(match['key1'])
+                if not participant_label_value:
+                    raise MissingData("Participant %s doesn't have a label %s" % 
+                                      (participant_phone, match['key1']))
+                replace_match = '[%s.%s]' % (match['domain'], match['key1'])
+                message = message.replace(replace_match, participant_label_value) 
+            elif match['domain'] == 'contentVariable':
+                content_variable = self.collections['content_variables'].get_content_variable_from_match(match)
+                if match['key2'] is not None:
+                    replace_match = '[%s.%s.%s]' % (match['domain'], match['key1'], match['key2'])
                 else:
-                    self.log("Dynamic content domain not supported %s" % domain)
+                    replace_match = '[%s.%s]' % (match['domain'], match['key1'])   
+                if content_variable is None:
+                    raise MissingData("The program doesn't have a content variable %s" % replace_match)
+                message = message.replace(replace_match, content_variable['value'])
+            else:
+                self.log("Dynamic content domain not supported %s" % match['domain'])
         return message
     

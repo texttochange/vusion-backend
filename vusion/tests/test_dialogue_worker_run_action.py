@@ -618,15 +618,37 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
     def test_run_action_sms_forwarding(self):
         self.initialize_properties()
         
-        sms_forwarding = SmsForwarding(**{
-            'forward-to': 'max',
-            'forward-content': 'iam dead'
-                                          })
+        sender = self.mkobj_participant(
+            participant_phone='+1',
+            profile=[{'label': 'name',
+                      'value': 'mark'},
+                     {'label': 'address',
+                      'value': 'kampala'}])
+        self.collections['participants'].save(sender)
         
-        self.worker.run_action_sms_forwarding(sms_forwarding)
+        receiver_optin = self.mkobj_participant(
+            participant_phone='+9',
+            tags=['my tag'])
+        self.collections['participants'].save(receiver_optin)
+        
+        receiver_optout = self.mkobj_participant(
+            participant_phone='+5',
+            tags=['my tag'],
+            session_id=None)
+        self.collections['participants'].save(receiver_optout)
+        
+        sms_forwarding = SmsForwarding(**{
+            'forward-to': 'my tag',
+            'forward-content': ('[participant.name]([participant.phone]) ' 
+                                'living in [participant.address] sent'
+                                #'[context.messagee] at [context.time]'
+                                )})
+        
+        self.worker.run_action_sms_forwarding(sender['phone'], sms_forwarding)
         
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 1)
-        self.assertEqual(messages[0]['to_addr'], 'max')
+        self.assertEqual(messages[0]['to_addr'], receiver_optin['phone'])
         self.assertEqual(messages[0]['transport_type'], 'sms')
+        self.assertEqual(messages[0]['content'], 'mark(+1) living in kampala sent')
         #slef.assertEqual(message)

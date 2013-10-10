@@ -57,7 +57,8 @@ class LogManager(object):
             self.redis.zadd(
                 self.logs_key(), to_log, self.property_helper.get_local_time('timestamp'))
         except:
-            log.error('[%s] %s' % (self.program_key, "Couldn't log in redis"))
+            pass
+            #log.error('[%s] %s' % (self.program_key, "Couldn't log in redis"))
         
         #log in file
         if (level == 'msg'):

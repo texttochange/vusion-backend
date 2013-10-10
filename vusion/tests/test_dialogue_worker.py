@@ -334,8 +334,8 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.collections['participants'].save(participant2)
         self.collections['participants'].save(participant3)
 
-        message_one = self.worker.customize_message( 'Hello [participant.name]', '06')
-        self.assertEqual(message_one, 'Hello oliv')
+        message_one = self.worker.customize_message( 'Hello [participant.name] your phone is [participant.phone]', '06')
+        self.assertEqual(message_one, 'Hello oliv your phone is 06')
 
         self.assertRaises(MissingData,
                           self.worker.customize_message, 'Hello [participant.name]', '07')
