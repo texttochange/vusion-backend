@@ -526,6 +526,8 @@ class DialogueWorker(ApplicationWorker):
            self.run_action(participant_phone, action.get_tagging_action())
         elif (action.get_type() == 'message-forwarding'):
            self.run_action_message_forwarding(participant_phone, action, context, participant_session_id)
+        elif (action.get_type() == 'sms-forwarding'):
+            self.run_action_sms_forwarding(participant_phone, action, context)
         else:
             self.log("The action is not supported %s" % action.get_type())
 
@@ -548,9 +550,12 @@ class DialogueWorker(ApplicationWorker):
         yield self.transport_publisher.publish_message(message)
         self.collections['history'].update_forwarding(context['history_id'], message['message_id'], action['forward-url'])
 
+   #TODO
+    #should vusion forward the alert to participant who send it
+    #should vusion send alert when credit is over/finished
+    #context time format 
     @inlineCallbacks
-    def run_action_sms_forwarding(self, participant_phone, action):
-        
+    def run_action_sms_forwarding(self, participant_phone, action, context):
         participants = self.get_participants({'tags': action['forward-to'],'session-id': {'$ne': None} })
         for participant in participants:
             message = TransportUserMessage(**{
@@ -558,10 +563,10 @@ class DialogueWorker(ApplicationWorker):
                 'from_addr': self.properties['shortcode'],
                 'transport_name': self.transport_name,
                 'transport_type': 'sms',
-                'content': self.customize_message(action['forward-content'], participant_phone)
+                'content': self.customize_message(action['forward-content'], participant_phone, context)
             })
             yield self.transport_publisher.publish_message(message)
-
+            
     def consume_user_message(self, message):
         self.log("User message received from %s '%s'" % (message['from_addr'],
                                                          message['content']))
@@ -1321,7 +1326,7 @@ class DialogueWorker(ApplicationWorker):
         label_indexer = dict((p['label'], p['value']) for i, p in enumerate(participant['profile']))
         return label_indexer.get(label, None)
 
-    def customize_message(self, message, participant_phone=None):
+    def customize_message(self, message, participant_phone=None, context=None):
         custom_regexp = re.compile(r'\[(?P<domain>[^\.\]]+)\.(?P<key1>[^\.\]]+)(\.(?P<key2>[^\.\]]+))?(\.(?P<otherkey>[^\.\]]+))?\]')
         matches = re.finditer(custom_regexp, message)
         for match in matches:
@@ -1347,7 +1352,14 @@ class DialogueWorker(ApplicationWorker):
                 if content_variable is None:
                     raise MissingData("The program doesn't have a content variable %s" % replace_match)
                 message = message.replace(replace_match, content_variable['value'])
+            elif match['domain'] == 'context':
+                if context is None:
+                    raise MissingData("No context for message cutomization.")
+                replace_match = '[%s.%s]' % (match['domain'], match['key1'])
+                if context[match['key1']] is None:
+                    raise MissingData("No context key \"%s\"" % match['key1'])
+                message = message.replace(replace_match, context[match['key1']])
             else:
-                self.log("Dynamic content domain not supported %s" % match['domain'])
+                self.log("Customized message domain not supported %s" % match['domain'])
         return message
     

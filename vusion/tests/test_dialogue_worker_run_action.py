@@ -640,15 +640,17 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         sms_forwarding = SmsForwarding(**{
             'forward-to': 'my tag',
             'forward-content': ('[participant.name]([participant.phone]) ' 
-                                'living in [participant.address] sent'
-                                #'[context.messagee] at [context.time]'
+                                'living in [participant.address] sent '
+                                '[context.message] at [context.time]'
                                 )})
-        
-        self.worker.run_action_sms_forwarding(sender['phone'], sms_forwarding)
+        context = Context(**{'message': 'Alert',
+                             'time': '09:20'})
+        self.worker.run_action_sms_forwarding(sender['phone'], sms_forwarding, context)
         
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['to_addr'], receiver_optin['phone'])
         self.assertEqual(messages[0]['transport_type'], 'sms')
-        self.assertEqual(messages[0]['content'], 'mark(+1) living in kampala sent')
-        #slef.assertEqual(message)
+        self.assertEqual(messages[0]['content'], 'mark(+1) living in kampala sent Alert at 09:20')
+        self.assertEqual(self.collections['history'].count(), 1)
+        

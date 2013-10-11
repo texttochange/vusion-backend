@@ -17,6 +17,7 @@ from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from vusion.error import MissingData, MissingTemplate
 from vusion.persist.action import Actions
 from vusion.persist import Dialogue, Participant
+from vusion.context import Context
 
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 
@@ -306,7 +307,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         
         self.assertEqual(1, len(actions))
 
-    def test11_customize_message(self):
+    def test11_customize_message_participant(self):
         self.initialize_properties()
 
         participant1 = self.mkobj_participant(
@@ -369,12 +370,35 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         message_two_keys = self.worker.customize_message('Today the temperature is [contentVariable.program.weather]')
         self.assertEqual(message_two_keys, 'Today the temperature is 30 C')
         
-        self.assertRaises(MissingData,
-                          self.worker.customize_message, 'Today the temperature is [contentVariable.today.weather]')
+        self.assertRaises(
+            MissingData,
+            self.worker.customize_message, 
+            'Today the temperature is [contentVariable.today.weather]')
         
         message_one_key = self.worker.customize_message('Today the temperature is [contentVariable.temperature]')
         self.assertEqual(message_one_key, 'Today the temperature is 100 C')
-
+    
+    def test11_customize_message_context(self):
+        self.initialize_properties()
+        
+        self.assertRaises(
+            MissingData,
+            self.worker.customize_message, 
+            'Today "[context.message]" was received')
+        
+        self.assertRaises(
+            MissingData,
+            self.worker.customize_message,
+            'Today  at "[context.time]" we finish',
+            context=Context())
+        
+        context = Context(**{'message': 'hello how are you',
+                             'time': '09:00'})
+        message = self.worker.customize_message(
+            'Today "[context.message]" was received at [context.time]',
+            context=context)
+        self.assertEqual(message, 'Today "hello how are you" was received at 09:00')
+    
     def test12_generate_message_use_template_fail(self):
         self.initialize_properties()
 
