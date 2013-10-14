@@ -191,6 +191,17 @@ class UnattachHistory(MessageHistory):
         self._validate(self, UnattachHistory.fields)
 
 
+class FeedbackHistory(MessageHistory):
+    
+    MODEL_TYPE = 'feedback-history'
+    MODEL_VERSION = '1'
+    
+    fields = {}
+    
+    def validate_fields(self):
+        super(FeedbackHistory, self).validate_fields()
+
+
 class UnmatchingHistory(MessageHistory):
 
     MODEL_TYPE = 'unmatching-history'
@@ -268,4 +279,6 @@ def history_generator(**kwargs):
         return DatePassedMarkerHistory(**kwargs)
     elif kwargs['object-type'] == 'datepassed-action-marker-history':
         return DatePassedActionMarkerHistory(**kwargs)
+    elif kwargs['object-type'] == 'feedback-history':
+        return FeedbackHistory(**kwargs)
     raise VusionError("%s not supported" % kwargs['object-type'])

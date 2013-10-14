@@ -623,7 +623,8 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             profile=[{'label': 'name',
                       'value': 'mark'},
                      {'label': 'address',
-                      'value': 'kampala'}])
+                      'value': 'kampala'}],
+            tags=['my tag'])
         self.collections['participants'].save(sender)
         
         receiver_optin = self.mkobj_participant(
@@ -644,7 +645,8 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
                                 '[context.message] at [context.time]'
                                 )})
         context = Context(**{'message': 'Alert',
-                             'time': '09:20'})
+                             'time': '09:20',
+                             'request-id': '1'})
         self.worker.run_action_sms_forwarding(sender['phone'], sms_forwarding, context)
         
         messages = self.broker.get_messages('vumi', 'test.outbound')
@@ -653,4 +655,6 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(messages[0]['transport_type'], 'sms')
         self.assertEqual(messages[0]['content'], 'mark(+1) living in kampala sent Alert at 09:20')
         self.assertEqual(self.collections['history'].count(), 1)
+        history = self.collections['history'].find_one()
+        self.assertEqual(history['object-type'], 'request-history')
         

@@ -551,22 +551,24 @@ class DialogueWorker(ApplicationWorker):
         self.collections['history'].update_forwarding(context['history_id'], message['message_id'], action['forward-url'])
 
    #TODO
-    #should vusion forward the alert to participant who send it
     #should vusion send alert when credit is over/finished
     #context time format 
     @inlineCallbacks
     def run_action_sms_forwarding(self, participant_phone, action, context):
-        participants = self.get_participants({'tags': action['forward-to'],'session-id': {'$ne': None} })
+        participants = self.get_participants({
+            'tags': action['forward-to'],
+            'session-id': {'$ne': None},
+            'phone': {'$ne': participant_phone}})
         for participant in participants:
-            message = TransportUserMessage(**{
-                'to_addr': participant['phone'],
-                'from_addr': self.properties['shortcode'],
-                'transport_name': self.transport_name,
-                'transport_type': 'sms',
-                'content': self.customize_message(action['forward-content'], participant_phone, context)
+            schedule = FeedbackSchedule(**{
+                'participant-phone': participant['phone'],
+                'participant-session-id': participant['session-id'],
+                'date-time': self.get_local_time('vusion'),
+                'content': self.customize_message(action['forward-content'], participant_phone, context),
+                'context': context.payload
             })
-            yield self.transport_publisher.publish_message(message)
-            
+            yield self.send_schedule(schedule)
+
     def consume_user_message(self, message):
         self.log("User message received from %s '%s'" % (message['from_addr'],
                                                          message['content']))
@@ -1036,9 +1038,9 @@ class DialogueWorker(ApplicationWorker):
             'interaction-id': interaction['interaction-id']}                                                                               
         self.save_schedule(**deadline)
         
-    def get_local_time(self):
+    def get_local_time(self, date_format='datetime'):
         try:
-            return self.properties.get_local_time()
+            return self.properties.get_local_time(date_format)
         except:
             return datetime.utcnow()
 

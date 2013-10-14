@@ -44,7 +44,7 @@ class Schedule(VusionModel):
 
     def upgrade(self, **kwargs):
         if kwargs['model-version'] == '1':
-            kwargs['participant-session-id'] = None
+            kwargs['participant-session-id'] = kwargs['participant-session-id'] if 'participant-session-id' in kwargs else None
             kwargs['model-version'] = '2'
         return kwargs
 
