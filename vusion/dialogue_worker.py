@@ -1329,6 +1329,7 @@ class DialogueWorker(ApplicationWorker):
         return label_indexer.get(label, None)
 
     def customize_message(self, message, participant_phone=None, context=None):
+        participant = None
         custom_regexp = re.compile(r'\[(?P<domain>[^\.\]]+)\.(?P<key1>[^\.\]]+)(\.(?P<key2>[^\.\]]+))?(\.(?P<otherkey>[^\.\]]+))?\]')
         matches = re.finditer(custom_regexp, message)
         for match in matches:
@@ -1338,7 +1339,8 @@ class DialogueWorker(ApplicationWorker):
             if match['domain'].lower() in ['participant', 'participants']:
                 if participant_phone is None:
                     raise MissingData('No participant supplied for this message.')
-                participant = self.get_participant(participant_phone)
+                if participant is None:
+                    participant = self.get_participant(participant_phone)
                 participant_label_value = participant.get_data(match['key1'])
                 if not participant_label_value:
                     raise MissingData("Participant %s doesn't have a label %s" % 
