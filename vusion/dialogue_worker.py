@@ -550,9 +550,6 @@ class DialogueWorker(ApplicationWorker):
         yield self.transport_publisher.publish_message(message)
         self.collections['history'].update_forwarding(context['history_id'], message['message_id'], action['forward-url'])
 
-   #TODO
-    #should vusion send alert when credit is over/finished
-    #context time format 
     @inlineCallbacks
     def run_action_sms_forwarding(self, participant_phone, action, context):
         participants = self.get_participants({

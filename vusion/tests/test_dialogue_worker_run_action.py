@@ -647,7 +647,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         context = Context(**{'message': 'Alert',
                              'time': '09:20',
                              'request-id': '1'})
-        self.worker.run_action_sms_forwarding(sender['phone'], sms_forwarding, context)
+        self.worker.run_action(sender['phone'], sms_forwarding, context)
         
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 1)
