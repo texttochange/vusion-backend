@@ -524,15 +524,15 @@ class DialogueWorker(ApplicationWorker):
            for tag in action.get_tags():
                 action.set_tag_count(tag, self.collections['participants'].find({'tags': tag}).count())
            self.run_action(participant_phone, action.get_tagging_action())
-        elif (action.get_type() == 'message-forwarding'):
-           self.run_action_message_forwarding(participant_phone, action, context, participant_session_id)
+        elif (action.get_type() == 'url-forwarding'):
+           self.run_action_url_forwarding(participant_phone, action, context, participant_session_id)
         elif (action.get_type() == 'sms-forwarding'):
             self.run_action_sms_forwarding(participant_phone, action, context)
         else:
             self.log("The action is not supported %s" % action.get_type())
 
     @inlineCallbacks
-    def run_action_message_forwarding(self, participant_phone, action, context, participant_session_id):
+    def run_action_url_forwarding(self, participant_phone, action, context, participant_session_id):
         if not self.properties.is_sms_forwarding_allowed():
            self.log('SMS Forwarding not allowed, dump action')
            return

@@ -47,6 +47,7 @@ class Action(VusionModel):
                 'remove-deadline',
                 'offset-conditioning',
                 'message-forwarding',
+                'url-forwarding',
                 'sms-forwarding']},
         }
 
@@ -365,7 +366,7 @@ class ProportionalTagging(Action):
 
 class UrlForwarding(Action):
     
-    ACTION_TYPE = 'message-forwarding'
+    ACTION_TYPE = 'url-forwarding'
     
     def validate_fields(self):
         super(UrlForwarding, self).validate_fields()
@@ -411,8 +412,10 @@ def action_generator(**kwargs):
         return OffsetConditionAction(**kwargs)
     elif kwargs['type-action'] == 'proportional-tagging':
         return ProportionalTagging(**kwargs)
-    elif kwargs['type-action'] == 'message-forwarding':
+    elif kwargs['type-action'] in ['message-forwarding', 'url-forwarding']:
         return UrlForwarding(**kwargs)
+    elif kwargs['type-action'] == 'sms-formarding':
+        return SmsForwarding(**kwargs)
     raise VusionError("%r not supported" % kwargs)
 
 
