@@ -399,6 +399,17 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             context=context)
         self.assertEqual(message, 'Today "hello how are you" was received at 09:00')
     
+    def test11_customize_message_time(self):
+        self.initialize_properties()
+        
+        message = self.worker.customize_message(
+           'Now it is [time.%H:%M]')
+        self.assertRegexpMatches(message,'Now it is ([0-1][0-9]|2[0-3]):[0-5][0-9]')
+        
+        message = self.worker.customize_message(
+            'Now it is [time.%I%p]')
+        self.assertRegexpMatches(message, 'Now it is (0[1-9]|1[0-2])(AM|PM)')
+    
     def test12_generate_message_use_template_fail(self):
         self.initialize_properties()
 

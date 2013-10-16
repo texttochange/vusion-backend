@@ -1360,6 +1360,10 @@ class DialogueWorker(ApplicationWorker):
                 if context[match['key1']] is None:
                     raise MissingData("No context key \"%s\"" % match['key1'])
                 message = message.replace(replace_match, context[match['key1']])
+            elif match['domain'] == 'time':
+                local_time = self.get_local_time()
+                replace_match = '[%s.%s]' % (match['domain'], match['key1'])
+                message = message.replace(replace_match, local_time.strftime(match['key1']))
             else:
                 self.log("Customized message domain not supported %s" % match['domain'])
         return message

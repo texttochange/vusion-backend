@@ -647,10 +647,9 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             'forward-to': 'my tag',
             'forward-content': ('[participant.name]([participant.phone]) ' 
                                 'living in [participant.address] sent '
-                                '[context.message] at [context.time]'
+                                '[context.message] at [time.%H:%M]'
                                 )})
         context = Context(**{'message': 'Alert',
-                             'time': '09:20',
                              'request-id': '1'})
         self.worker.run_action(sender['phone'], sms_forwarding, context)
         
@@ -658,7 +657,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['to_addr'], receiver_optin['phone'])
         self.assertEqual(messages[0]['transport_type'], 'sms')
-        self.assertEqual(messages[0]['content'], 'mark(+1) living in kampala sent Alert at 09:20')
+        self.assertRegexpMatches(messages[0]['content'], 'mark\(\+1\) living in kampala sent Alert at \d{2}:\d{2}')
         self.assertEqual(self.collections['history'].count(), 1)
         history = self.collections['history'].find_one()
         self.assertEqual(history['object-type'], 'request-history')
