@@ -1,3 +1,4 @@
+# encoding: utf-8
 from uuid import uuid4
 from datetime import datetime
 import re
@@ -39,10 +40,10 @@ class YoUgHttpTransportTestCase(MessageMaker, TransportTestCase):
         self.worker = yield self.get_transport(self.config)
         self.today = datetime.utcnow().date()
 
-    def make_resource_worker(self, response, code=http.OK, send_id=None):
+    def make_resource_worker(self, response, code=http.OK, send_id=None, sms_content=None):
         w = get_stubbed_worker(TestResourceWorker, {})
         w.set_resources([
-            (self.send_path, TestResource, ( response, code, send_id))])
+            (self.send_path, TestResource, ( response, code, send_id, sms_content))])
         self._workers.append(w)
         return w.startWorker()
 
@@ -54,6 +55,23 @@ class YoUgHttpTransportTestCase(MessageMaker, TransportTestCase):
         yield self.make_resource_worker(mocked_message)
         #Message to transport
         yield self.dispatch(self.mkmsg_out())
+        [smsg] = self.get_dispatched('yo.event')
+        self.assertEqual(
+            self.mkmsg_delivery(
+                transport_name=self.transport_name,
+                user_message_id='1',
+                sent_message_id='1'),
+            TransportMessage.from_json(smsg.body))
+        
+    @inlineCallbacks
+    def test_sending_one_sms_foreign_language_ok(self):
+        #mocked_message_id = str(uuid4())
+        mocked_message = "ybs_autocreate_status%3DOK"
+        #HTTP response
+        yield self.make_resource_worker(mocked_message, sms_content='für me')
+        #Message to transport
+        my_msg = 'für me'
+        yield self.dispatch(self.mkmsg_out(content=my_msg))
         [smsg] = self.get_dispatched('yo.event')
         self.assertEqual(
             self.mkmsg_delivery(
@@ -157,10 +175,11 @@ class YoUgHttpTransportTestCase(MessageMaker, TransportTestCase):
 class TestResource(Resource):
     isLeaf = True
 
-    def __init__(self, response, code=http.OK, send_id=None):
+    def __init__(self, response, code=http.OK, send_id=None, sms_content=None):
         self.response = response
         self.code = code
         self.send_id = send_id
+        self.sms_content = sms_content
 
     def render_GET(self, request):
         regex = re.compile('^(\+|00|0)')
@@ -173,5 +192,7 @@ class TestResource(Resource):
                 not ('ybsacctno' in request.args) or
                 (self.send_id is not None and self.send_id != request.args['origin'][0])):
             return "ybs_autocreate_status=ERROR"
-        else:
-            return self.response
+        if self.sms_content is not None:
+            if request.args['sms_content'][0] != self.sms_content:
+                return "ybs_autocreate_status=ERROR"
+        return self.response
