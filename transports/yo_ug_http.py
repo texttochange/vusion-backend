@@ -53,7 +53,7 @@ class YoUgHttpTransport(Transport):
                 'destinations': self.phone_format_to_yo(message['to_addr']),
             }
             log.msg('Hitting %s with %s' % (self.config['url'], urlencode(params)))
-            encoded_params = urlencode(params)
+
             response = yield http_request_full(
                 "%s?%s" % (self.config['url'], urlencode(params)),
                 "",

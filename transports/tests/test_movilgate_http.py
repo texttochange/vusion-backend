@@ -1,3 +1,4 @@
+# encoding: utf-8
 import re
 from xml.etree import ElementTree
 
@@ -115,6 +116,18 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
         yield self.make_resource_worker(self.mk_mt_response_ok())
         transport_metadata = {'telefono_id_tran': '12345678', 'servicio_id': '2229.tigo.bo'}
         yield self.dispatch(self.mkmsg_out(transport_metadata=transport_metadata))
+        [smsg] = self.get_dispatched('movilgate.event')
+        self.assertEqual(
+            self.mkmsg_ack(user_message_id='1',
+                           sent_message_id='1'),
+            TransportMessage.from_json(smsg.body))
+    
+    @inlineCallbacks
+    def test_sending_one_sms_foreign_language_ok(self):
+        yield self.make_resource_worker(self.mk_mt_response_ok())
+        transport_metadata = {'telefono_id_tran': '12345678', 'servicio_id': '2229.tigo.bo'}
+        my_msg = 'für me'
+        yield self.dispatch(self.mkmsg_out(content=my_msg, transport_metadata=transport_metadata))
         [smsg] = self.get_dispatched('movilgate.event')
         self.assertEqual(
             self.mkmsg_ack(user_message_id='1',
