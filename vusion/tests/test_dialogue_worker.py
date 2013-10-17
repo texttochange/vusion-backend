@@ -403,11 +403,11 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.initialize_properties()
         
         message = self.worker.customize_message(
-           'Now it is [time.%H:%M]')
+           'Now it is [time.H:M]')
         self.assertRegexpMatches(message,'Now it is ([0-1][0-9]|2[0-3]):[0-5][0-9]')
         
         message = self.worker.customize_message(
-            'Now it is [time.%I%p]')
+            'Now it is [time.Ip]')
         self.assertRegexpMatches(message, 'Now it is (0[1-9]|1[0-2])(AM|PM)')
     
     def test12_generate_message_use_template_fail(self):

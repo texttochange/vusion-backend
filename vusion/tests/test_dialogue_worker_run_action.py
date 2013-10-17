@@ -647,7 +647,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             'forward-to': 'my tag',
             'forward-content': ('[participant.name]([participant.phone]) ' 
                                 'living in [participant.address] sent '
-                                '[context.message] at [time.%H:%M]'
+                                '[context.message] at [time.H:M]'
                                 )})
         context = Context(**{'message': 'Alert',
                              'request-id': '1'})

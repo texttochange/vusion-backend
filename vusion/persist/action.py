@@ -414,7 +414,7 @@ def action_generator(**kwargs):
         return ProportionalTagging(**kwargs)
     elif kwargs['type-action'] in ['message-forwarding', 'url-forwarding']:
         return UrlForwarding(**kwargs)
-    elif kwargs['type-action'] == 'sms-formarding':
+    elif kwargs['type-action'] == 'sms-forwarding':
         return SmsForwarding(**kwargs)
     raise VusionError("%r not supported" % kwargs)
 

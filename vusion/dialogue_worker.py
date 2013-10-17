@@ -28,7 +28,7 @@ from vusion.persist import (Dialogue, FeedbackSchedule, UnattachSchedule,
 from vusion.utils import (time_to_vusion_format, get_local_time,
                           get_local_time_as_timestamp, time_from_vusion_format,
                           get_shortcode_value, get_offset_date_time,
-                          split_keywords)
+                          split_keywords, add_char_to_pattern)
 from vusion.error import (MissingData, SendingDatePassed, VusionError,
                           MissingTemplate, MissingProperty)
 from vusion.message import DispatcherControl, WorkerControl
@@ -1363,7 +1363,8 @@ class DialogueWorker(ApplicationWorker):
             elif match['domain'] == 'time':
                 local_time = self.get_local_time()
                 replace_match = '[%s.%s]' % (match['domain'], match['key1'])
-                message = message.replace(replace_match, local_time.strftime(match['key1']))
+                replace_time = local_time.strftime(add_char_to_pattern(match['key1'], '[a-zA-Z]'))
+                message = message.replace(replace_match, replace_time)
             else:
                 self.log("Customized message domain not supported %s" % match['domain'])
         return message
