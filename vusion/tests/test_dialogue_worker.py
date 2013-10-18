@@ -359,12 +359,18 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
        
     def test11_customize_message_content_variable(self):
         self.initialize_properties()
-        
-        content_two_keys = self.mkobj_content_variables(key1='program', key2='weather', value='30 C')
+
+        content_one_key = self.mkobj_content_variables_one_key(
+                    key1='temperature', value='100 C')
+        self.collections['content_variables'].save(content_one_key)        
+
+        content_two_keys = self.mkobj_content_variables_two_keys(
+            key1='program', key2='weather', value='30 C')
         self.collections['content_variables'].save(content_two_keys)
-        
-        content_one_key = self.mkobj_content_variables_one_key(key1='temperature', value='100 C')
-        self.collections['content_variables'].save(content_one_key)
+
+        content_three_key = self.mkobj_content_variables_three_keys(
+            key1='mombasa', key2='chicken', key3='price', value='600')
+        self.collections['content_variables'].save(content_three_key)
         
         message_two_keys = self.worker.customize_message('Today the temperature is [contentVariable.program.weather]')
         self.assertEqual(message_two_keys, 'Today the temperature is 30 C')
@@ -374,6 +380,9 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         
         message_one_key = self.worker.customize_message('Today the temperature is [contentVariable.temperature]')
         self.assertEqual(message_one_key, 'Today the temperature is 100 C')
+        
+        message_one_key = self.worker.customize_message('Today the chicken cost [contentVariable.mombasa.chicken.price]')
+        self.assertEqual(message_one_key, 'Today the chicken cost 600')        
 
     def test12_generate_message_use_template_fail(self):
         self.initialize_properties()

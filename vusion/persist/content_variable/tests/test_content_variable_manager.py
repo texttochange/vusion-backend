@@ -27,11 +27,11 @@ class TestContentVariableManager(TestCase, ObjectMaker):
             'domain': 'contentVariable',
             'key1': 'temperature',
             'key2': 'night'}
-        content_variable_night = self.mkobj_content_variables(
+        content_variable_night = self.mkobj_content_variables_two_keys(
             key1='temperature', key2='night', value='10 C')
         self.content_variable_manager.save(content_variable_night)
         
-        content_variable_day = self.mkobj_content_variables(
+        content_variable_day = self.mkobj_content_variables_two_keys(
             key1='temperature', key2='day', value='20 C')
         self.content_variable_manager.save(content_variable_day)
         
@@ -49,8 +49,9 @@ class TestContentVariableManager(TestCase, ObjectMaker):
         match = {
             'domain': 'contentVariable',
             'key1': 'night',
-            'key2': 'temperature'}
-        content_variable_night = self.mkobj_content_variables(
+            'key2': 'temperature',
+            'key3': None}
+        content_variable_night = self.mkobj_content_variables_two_keys(
             key1='temperature', key2='night', value='10 C')
         self.content_variable_manager.save(content_variable_night)
         
