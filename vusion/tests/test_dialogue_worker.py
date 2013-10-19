@@ -381,8 +381,8 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         message_one_key = self.worker.customize_message('Today the temperature is [contentVariable.temperature]')
         self.assertEqual(message_one_key, 'Today the temperature is 100 C')
         
-        message_one_key = self.worker.customize_message('Today the chicken cost [contentVariable.mombasa.chicken.price]')
-        self.assertEqual(message_one_key, 'Today the chicken cost 600')        
+        message_three_keys = self.worker.customize_message('Today the chicken cost [contentVariable.mombasa.chicken.price]')
+        self.assertEqual(message_three_keys, 'Today the chicken cost 600')        
 
     def test12_generate_message_use_template_fail(self):
         self.initialize_properties()
