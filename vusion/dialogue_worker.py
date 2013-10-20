@@ -1308,7 +1308,7 @@ class DialogueWorker(ApplicationWorker):
         return label_indexer.get(label, None)
 
     def customize_message(self, message, participant_phone=None):
-        custom_regexp = re.compile(r'\[(?P<domain>[^\.\]]+)\.(?P<key1>[^\.\]]+)(\.(?P<key2>[^\.\]]+))?(\.(?P<otherkey>[^\.\]]+))?\]')
+        custom_regexp = re.compile(r'\[(?P<domain>[^\.\]]+)\.(?P<key1>[^\.\]]+)(\.(?P<key2>[^\.\]]+))?(\.(?P<key3>[^\.\]]+))?(\.(?P<otherkey>[^\.\]]+))?\]')
         matches = re.finditer(custom_regexp, message)
         for match in matches:
             match = match.groupdict() if match is not None else None
@@ -1325,12 +1325,14 @@ class DialogueWorker(ApplicationWorker):
                     message = message.replace(replace_match, participant_label_value) 
                 elif match['domain'] == 'contentVariable':
                     content_variable = self.collections['content_variables'].get_content_variable_from_match(match)
-                    if match['key2'] is not None:
-                        replace_match = '[%s.%s.%s]' % (match['domain'], match['key1'], match['key2'])
-                    else:
-                        replace_match = '[%s.%s]' % (match['domain'], match['key1'])   
+                    keys = 'contentVariable'
+                    for index in ['key1', 'key2', 'key3']:
+                        if match[index] is None:
+                            break
+                        keys = '%s.%s' % (keys, match[index])
+                    replace_match = '[%s]' % keys
                     if content_variable is None:
-                        raise MissingData("The program doesn't have a content variable %s" % replace_match)
+                        raise MissingData("The program doesn't have a content variable %s" % replace_match)                    
                     message = message.replace(replace_match, content_variable['value'])
                 else:
                     self.log("Dynamic content domain not supported %s" % domain)
