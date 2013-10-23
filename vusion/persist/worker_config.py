@@ -1,7 +1,7 @@
-from vusion.persist.vusion_model import VusionModel
+from vusion.persist import Model
 
 
-class WorkerConfig(VusionModel):
+class WorkerConfig(Model):
 
     MODEL_TYPE = 'worker-config'
     MODEL_VERSION = '2'

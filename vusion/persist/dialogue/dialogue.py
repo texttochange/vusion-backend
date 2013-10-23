@@ -6,12 +6,12 @@ from vusion.persist.action import (UnMatchingAnswerAction, FeedbackAction,
                                    action_generator, ProfilingAction,
                                    OffsetConditionAction, RemoveRemindersAction,
                                    RemoveDeadlineAction, RemoveQuestionAction)
-from vusion.persist.vusion_model import VusionModel
+from vusion.persist import Model
 from vusion.persist.interaction import Interaction
 
 
 ## TODO update the validation
-class Dialogue(VusionModel):
+class Dialogue(Model):
 
     MODEL_TYPE = 'dialogue'
     MODEL_VERSION = '2'

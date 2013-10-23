@@ -2,10 +2,10 @@ import re
 from math import ceil
 
 from vusion.error import MissingField, VusionError, InvalidField
-from vusion.persist.vusion_model import VusionModel
+from vusion.persist import Model
 from vumi.log import log
 
-class Action(VusionModel):
+class Action(Model):
 
     MODEL_TYPE = 'action'
     MODEL_VERSION = '2'
