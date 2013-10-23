@@ -5,14 +5,13 @@ from twisted.web import http
 from twisted.web.resource import Resource
 
 from vumi.transports.tests.test_base import TransportTestCase
-from transports import MobivateHttpTransport
 from vumi.tests.utils import (get_stubbed_worker, TestResourceWorker,
                               RegexMatcher, UTCNearNow)
 from vumi.utils import http_request_full
 from vumi.message import TransportMessage, TransportEvent, TransportUserMessage
 
 from tests.utils import MessageMaker
-
+from transports import MobivateHttpTransport
 
 class MobivateHttpTransportTestCase(MessageMaker, TransportTestCase):
     
