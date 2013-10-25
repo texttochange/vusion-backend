@@ -151,10 +151,10 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
             self.assertEqual(headers['Content-Type'], ['text/xml; charset=UTF-8'])
             body = request.content.read()
             
-        yield self.make_resource_worker("0: Accepted for delivery", code=http.OK, callback=assert_request)
+        yield self.make_resource_worker(self.mk_mt_response_ok(), code=http.OK, callback=assert_request)
         transport_metadata = {'telefono_id_tran': '12345678', 'servicio_id': '2229.tigo.bo'}
         yield self.dispatch(self.mkmsg_out(transport_metadata=transport_metadata))
-        [smsg] = self.get_dispatched('mobtech.event')
+        [smsg] = self.get_dispatched('movilgate.event')
         self.assertEqual(
             self.mkmsg_ack(
                 user_message_id='1',
@@ -163,7 +163,14 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
     
     @inlineCallbacks
     def test_sending_one_sms_foreign_language_ok(self):
-        yield self.make_resource_worker(self.mk_mt_response_ok())
+        def assert_request(request):              #this is a closure, ie it can access the variable in the function where it has been defined, here we are using the self
+            headers = dict(request.requestHeaders.getAllRawHeaders())
+            self.assertEqual(headers['Content-Type'], ['text/xml; charset=UTF-8'])
+            body = request.content.read()
+            encoded_msg = ElementTree.fromstring(body)
+            self.assertTrue(isinstance(encoded_msg.find('Contenido').text,unicode))
+            
+        yield self.make_resource_worker(self.mk_mt_response_ok(), code=http.OK, callback=assert_request)
         transport_metadata = {'telefono_id_tran': '12345678', 'servicio_id': '2229.tigo.bo'}
         my_msg = 'für me'
         yield self.dispatch(self.mkmsg_out(content=my_msg, transport_metadata=transport_metadata))
