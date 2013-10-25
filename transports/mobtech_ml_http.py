@@ -138,14 +138,26 @@ class MobtechMlDeliveryResource(Resource):
         log.msg("Init Delivery Resource %s" % config)
         self.config = config
         self.publish_func = publish_func
+        self.delivery_regex = re.compile(self.config['delivery_regex'])
 
     @inlineCallbacks
     def do_render(self, request):
         log.msg("Got hit with %s" % request.args)
         try:
-            yield self.publish_func(
-                user_message_id=request.args['messageid'][0],
-                delivery_status='delivered')
+            raw_delivery = request.content.read()
+            match = re.match(self.delivery_regex, raw_delivery)
+            delivery_report = match.groupdict()
+            if int(delivery_report['dlvrd']) >= 1:
+                yield self.publish_func(
+                    user_message_id=request.args['messageid'][0],
+                    delivery_status='delivered')
+            else:
+                yield self.publish_func(
+                    user_message_id=request.args['messageid'][0],
+                    delivery_status='failed',
+                    failure_level='service',
+                    failure_code='XX',
+                    failure_reason= delivery_report['stat'] if 'stats' in delivery_report else 'XX')
             request.setResponseCode(http.OK)        
         except Exception, e:
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)            

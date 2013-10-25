@@ -34,13 +34,14 @@ class MobtechMlHttpTransportTestCase(MessageMaker, TransportTestCase):
             'url': 'http://localhost:%s%s' % (self.send_port, self.send_path),
             'user_name': 'username',
             'password': 'password',
-            'mt_response_regex': r'^(?P<status>\d+): +(?P<message>[\w\s]+)',
+            'mt_response_regex': '^(?P<status>\d+): +(?P<message>[\w\s]+)',
             'domain': self.domain,
             'receive_path': self.receive_path,
             'mo_receive_path': self.mo_path,
             'delivery_receive_path': self.delivery_path,
             'receive_port': self.receive_port,
-            'delivery_url_params': 'type=%d&receiver=%p&reply=%A&time=%t&usr=%n&message=%b&dlr-mask=7'}
+            'delivery_url_params': 'type=%d&receiver=%p&reply=%A&time=%t&usr=%n&message=%b&dlr-mask=7',
+            'delivery_regex': 'id:(?P<id>\S{,65}) +sub:(?P<sub>\d*) +dlvrd:(?P<dlvrd>\d*) +submit date:(?P<done_date>\d*)'}
         self.worker = yield self.get_transport(self.config)
         
     def make_resource_worker(self, response=None, code=http.OK, callback=None):
@@ -140,11 +141,15 @@ class MobtechMlHttpTransportTestCase(MessageMaker, TransportTestCase):
         self.assertEqual("4444", sms_in['to_addr'])
 
     @inlineCallbacks
-    def test_delivery_report(self):
+    def test_delivery_report_delivered(self):
         url_template = "http://localhost:%s/%s/%s?messageid=4345&type=titi&receiver=tata&reply=toto&time=tutu&usr=tyty&message=tete&dlr-mask=7"
         url = url_template % (self.receive_port, self.receive_path, self.delivery_path)
 
-        response = yield http_request_full(url, method='GET')
+        response = yield http_request_full(
+            url,
+            "id:c449ab9744f47b6af1879e49e75e4f40 sub:001 dlvrd:1 submit date:0610191018",
+            headers={"Content-Type": ["text/xml"]},
+            method='POST')
         self.assertEqual(response.code, http.OK)
         
         [smsg] = self.get_dispatched('mobtech.event')
@@ -156,6 +161,29 @@ class MobtechMlHttpTransportTestCase(MessageMaker, TransportTestCase):
                 user_message_id='4345'),
             sms_delivery)
 
+    @inlineCallbacks
+    def test_delivery_report_failed(self):
+        url_template = "http://localhost:%s/%s/%s?messageid=4345&type=titi&receiver=tata&reply=toto&time=tutu&usr=tyty&message=tete&dlr-mask=7"
+        url = url_template % (self.receive_port, self.receive_path, self.delivery_path)
+
+        response = yield http_request_full(
+            url,
+            "id:c449ab9744f47b6af1879e49e75e4f40 sub:001 dlvrd:0 submit date:0610191018",
+            headers={"Content-Type": ["text/xml"]},
+            method='POST')
+        self.assertEqual(response.code, http.OK)
+        
+        [smsg] = self.get_dispatched('mobtech.event')
+        sms_delivery = TransportMessage.from_json(smsg.body)
+        self.assertEqual(
+            self.mkmsg_delivery(
+                transport_name='mobtech',
+                delivery_status='failed',
+                failure_level='service',
+                failure_code='XX',
+                failure_reason='XX',
+                user_message_id='4345'),
+            sms_delivery)
 
 class TestResource(Resource):
     isLeaf = True
