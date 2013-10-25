@@ -73,7 +73,8 @@ class MovilgateHttpTransport(Transport):
                 self.config['url'],
                 mobilgate_msg,
                 {'User-Agent': ['Vusion Movilgate Transport'],
-                 'Content-Type': ['text/xml; charset=UTF-8']})
+                 'Content-Type': ['text/xml; charset=UTF-8']},
+                method='POST')
             
             if response.code != 200:
                 log.msg("Http Error %s: %s"

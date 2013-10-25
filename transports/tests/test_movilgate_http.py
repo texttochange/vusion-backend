@@ -148,13 +148,12 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
     def test_sending_one_sms_ok(self):
         def assert_request(request):              #this is a closure, ie it can access the variable in the function where it has been defined, here we are using the self
             headers = dict(request.requestHeaders.getAllRawHeaders())
-            self.assertEqual(headers['Content-Type'], ['application/json;charset=UTF-8'])
+            self.assertEqual(headers['Content-Type'], ['text/xml; charset=UTF-8'])
             body = request.content.read()
-            self.assertEqual(body,
-               '{"to": "+41791234567", "dlr-url": "http://localhost:9998", "from": "9292", "text": "hello world"}')
-
+            
         yield self.make_resource_worker("0: Accepted for delivery", code=http.OK, callback=assert_request)
-        yield self.dispatch(self.mkmsg_out())
+        transport_metadata = {'telefono_id_tran': '12345678', 'servicio_id': '2229.tigo.bo'}
+        yield self.dispatch(self.mkmsg_out(transport_metadata=transport_metadata))
         [smsg] = self.get_dispatched('mobtech.event')
         self.assertEqual(
             self.mkmsg_ack(
