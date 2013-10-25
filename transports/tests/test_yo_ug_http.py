@@ -70,8 +70,7 @@ class YoUgHttpTransportTestCase(MessageMaker, TransportTestCase):
         #HTTP response
         yield self.make_resource_worker(mocked_message, sms_content='für me')
         #Message to transport
-        my_msg = 'für me'
-        yield self.dispatch(self.mkmsg_out(content=my_msg))
+        yield self.dispatch(self.mkmsg_out(content='für me'))
         [smsg] = self.get_dispatched('yo.event')
         self.assertEqual(
             self.mkmsg_delivery(

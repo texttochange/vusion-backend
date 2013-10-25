@@ -30,6 +30,15 @@ class MovilgateRequestMaker:
             '<Contenido>ola mundo</Contenido>'
             '</MTRequest>')
     
+    def mk_mt_request_foreign_language(self):
+        return (
+            '<MTRequest>'
+            '<Proveedor Id="mylogin" Password="mypassword"/>'
+            '<Servicio Id="2229.tigo.bo" ContentType="0" CreateSession="0"/>'
+            '<Telefono msisdn="256788" IdTran="12345678"/>'
+            '<Contenido>ola España</Contenido>'
+            '</MTRequest>')
+    
     def mk_mt_response_ok(self):
         return (
             '<MTResponse>'
@@ -77,6 +86,29 @@ class MovilgateParserTestCase(TestCase):
             ElementTree.fromstring(output),
             ElementTree.fromstring(expect),
             reporter), reporter.tostring())
+    
+    def test_generate_mtrequest_foreign_language(self):
+        message_dict_foreign_language = {
+            'proveedor': {
+                'id': 'mylogin',
+                'password': 'mypassword'},
+            'servicio': {
+                'id': '2229.tigo.bo'},
+            'telephono':{
+                'msisdn': '256788',
+                'id_tran': '12345678'
+                },
+            'contenido': 'ola España',
+        }
+        parser = MovilgateXMLParser()
+        output = parser.build(message_dict_foreign_language)
+        expect = MovilgateRequestMaker().mk_mt_request_foreign_language()
+        reporter = Reporter()
+
+        self.assertTrue(xml_compare(
+            ElementTree.fromstring(output),
+            ElementTree.fromstring(expect),
+            reporter), reporter.tostring())
 
 
 class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
@@ -101,10 +133,11 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
             'receive_port': 9998}
         self.worker = yield self.get_transport(self.config)
         
-    def make_resource_worker(self, response, code=http.OK, send_id=None):
+    def make_resource_worker(self, response=None, code=http.OK, callback=None):
         w = get_stubbed_worker(TestResourceWorker, {})
         w.set_resources([
-            (self.send_path, TestResource, ( response, code, send_id))])
+            (self.send_path, TestResource, (response, code, callback))
+        ])
         self._workers.append(w)
         return w.startWorker()
 
@@ -113,13 +146,20 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
 
     @inlineCallbacks
     def test_sending_one_sms_ok(self):
-        yield self.make_resource_worker(self.mk_mt_response_ok())
-        transport_metadata = {'telefono_id_tran': '12345678', 'servicio_id': '2229.tigo.bo'}
-        yield self.dispatch(self.mkmsg_out(transport_metadata=transport_metadata))
-        [smsg] = self.get_dispatched('movilgate.event')
+        def assert_request(request):              #this is a closure, ie it can access the variable in the function where it has been defined, here we are using the self
+            headers = dict(request.requestHeaders.getAllRawHeaders())
+            self.assertEqual(headers['Content-Type'], ['application/json;charset=UTF-8'])
+            body = request.content.read()
+            self.assertEqual(body,
+               '{"to": "+41791234567", "dlr-url": "http://localhost:9998", "from": "9292", "text": "hello world"}')
+
+        yield self.make_resource_worker("0: Accepted for delivery", code=http.OK, callback=assert_request)
+        yield self.dispatch(self.mkmsg_out())
+        [smsg] = self.get_dispatched('mobtech.event')
         self.assertEqual(
-            self.mkmsg_ack(user_message_id='1',
-                           sent_message_id='1'),
+            self.mkmsg_ack(
+                user_message_id='1',
+                sent_message_id='1'),
             TransportMessage.from_json(smsg.body))
     
     @inlineCallbacks
@@ -205,11 +245,13 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
 class TestResource(Resource):
     isLeaf = True
     
-    def __init__(self, response, code=http.OK, send_id=None):
+    def __init__(self, response, code=http.OK, callback=None):
         self.response = response
         self.code = code
-        self.send_id = send_id
-        
+        self.callback = callback       #this is the test function containing all the assertions (a closure)
+
     def render_POST(self, request):
+        if self.callback is not None:
+            self.callback(request)    # this callback function has 1 parameter: the request
         request.setResponseCode(self.code)
         return self.response
