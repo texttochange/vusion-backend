@@ -40,7 +40,7 @@ from vusion.persist import Request, history_generator, schedule_generator, Conte
 from vusion.component import DialogueWorkerPropertyHelper, CreditManager
 
 from vusion.persist import (Request, history_generator, schedule_generator, 
-                            HistoryManager, ContentVariableManager)
+                            HistoryManager, ContentVariableManager, DialogueManager)
 from vusion.component import (DialogueWorkerPropertyHelper, CreditManager,
                               LogManager)
 
@@ -98,6 +98,9 @@ class DialogueWorker(ApplicationWorker):
 
         self.log_manager.startup(self.properties)
         self.collections['history'].set_property_helper(self.properties)
+        self.collections['history'].set_log_helper(self.log_manager)
+        self.collections['dialogues'].set_property_helper(self.properties)
+        self.collections['dialogues'].set_log_helper(self.log_manager)
 
         self.credit_manager = CreditManager(
            self.r_key, self.r_server, 
@@ -178,46 +181,13 @@ class DialogueWorker(ApplicationWorker):
             return participant['session-id']
 
     def get_current_dialogue(self, dialogue_id):
-        try:
-            dialogue = self.get_active_dialogues({'dialogue-id': dialogue_id})
-            if dialogue == []:
-                return None
-            return dialogue[0]
-        except:
-            self.log("Cannot get current dialogue %s" % dialogue_id)
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            self.log(
-                "Error message: %r" %
-                traceback.format_exception(exc_type, exc_value, exc_traceback))
+        return self.collections['dialogues'].get_current_dialogue(dialogue_id)
 
     def get_active_dialogues(self, conditions=None):
-        dialogues = self.collections['dialogues'].group(
-            ['dialogue-id'],
-            conditions,
-            {'Dialogue': 0},
-            """function(obj, prev){
-            if (obj.activated==1 &&
-            (prev.Dialogue==0 || prev.Dialogue.modified <= obj.modified))
-            prev.Dialogue = obj;}"""
-        )
-        active_dialogues = []
-        for dialogue in dialogues:
-            if dialogue['Dialogue'] == 0.0:
-                continue
-            try:
-                active_dialogues.append(Dialogue(**dialogue['Dialogue']))
-            except:
-                exc_type, exc_value, exc_traceback = sys.exc_info()
-                self.log(
-                    "Error while applying dialogue model on dialogue %s: %r" %
-                    (dialogue['Dialogue']['name'],
-                     traceback.format_exception(exc_type, exc_value, exc_traceback)))
-        return active_dialogues
+        return self.collections['dialogues'].get_active_dialogues(conditions)
 
     def get_dialogue_obj(self, dialogue_obj_id):
-        dialogue = self.collections['dialogues'].find_one(
-            {'_id': ObjectId(dialogue_obj_id)})
-        return dialogue
+        return self.collections['dialogues'].get_dialogue_obj(dialogue_obj_id)
 
     def get_requests(self):
         requests = []
@@ -244,7 +214,6 @@ class DialogueWorker(ApplicationWorker):
                                         safe=self.config.get('mongodb_safe', False))
         self.db = connection[self.database_name]
         self.setup_collections({
-            'dialogues': 'dialogue-id',
             'participants': 'phone',
             'schedules': 'date-time',
             'program_settings': None,
@@ -253,6 +222,7 @@ class DialogueWorker(ApplicationWorker):
 
         self.collections['history'] = HistoryManager(self.db, 'history')
         self.collections['content_variables'] = ContentVariableManager(self.db, 'content_variables')
+        self.collections['dialogues'] = DialogueManager(self.db, 'dialogues')
 
         self.collections['schedules'].ensure_index([('participant-phone',1),
                                                     ('interaction-id', 1)])
@@ -709,11 +679,12 @@ class DialogueWorker(ApplicationWorker):
             self.save_history(**history)
     
     def get_max_unmatching_answers_interaction(self, dialogue_id, interaction_id):
-        dialogue = self.get_current_dialogue(dialogue_id)
-        returned_interaction = dialogue.get_interaction(interaction_id)
-        if returned_interaction.has_max_unmatching_answers():
-            return returned_interaction
-        return None
+        #dialogue = self.get_current_dialogue(dialogue_id)
+        #returned_interaction = dialogue.get_interaction(interaction_id)
+        #if returned_interaction.has_max_unmatching_answers():
+            #return returned_interaction
+        #return None
+        return self.collections['dialogues'].get_max_unmatching_answers_interaction(dialogue_id, interaction_id)
 
     def daemon_process(self):
         self.load_properties()

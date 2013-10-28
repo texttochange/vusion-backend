@@ -33,4 +33,5 @@ class ModelManager(object):
         return self.property_helper.get_local_time(date_format)
 
     def log(self, msg, level='msg'):
-        return self.set_log_helper.log(level, msg)
+        if self.log_helper is not None:
+            self.set_log_helper.log(level, msg)
