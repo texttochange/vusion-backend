@@ -177,5 +177,5 @@ class MovilgateXMLParser():
         telephono.set('msisdn', messagedict['telephono']['msisdn'])
         telephono.set('IdTran', messagedict['telephono']['id_tran'])
         contenido = ElementTree.SubElement(messages, 'Contenido')
-        contenido.text = messagedict['contenido']
-        return ElementTree.tostring(messages)
+        contenido.text = messagedict['contenido'].decode('utf-8')
+        return ElementTree.tostring(messages, 'utf-8')
