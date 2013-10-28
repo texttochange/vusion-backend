@@ -16,42 +16,26 @@ class DialogueManager(ModelManager):
         if conditions is None:
             conditions = {}
         conditions.update({'activated': 1})        
-        dialogues = self.group(
-            ['dialogue-id'],
-            conditions,
-            {'Dialogue': 0},
-            """function(obj, prev){
-            if (obj.activated==1 &&
-            (prev.Dialogue==0 || prev.Dialogue.modified <= obj.modified))
-            prev.Dialogue = obj;}"""
-        )
+        dialogues = self.find(conditions)
         active_dialogues = []
         for dialogue in dialogues:
-            if dialogue['Dialogue'] == 0.0:
-                continue
             try:
-                active_dialogues.append(Dialogue(**dialogue['Dialogue']))
+                active_dialogues.append(Dialogue(**dialogue))
             except:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 self.log(
                     "Error while applying dialogue model on dialogue %s: %r" %
-                    (dialogue['Dialogue']['name'],
+                    (dialogue['name'],
                      traceback.format_exception(exc_type, exc_value, exc_traceback)))
         return active_dialogues
    
     def get_current_dialogue(self, dialogue_id):
-        try:
-            dialogue = self.get_active_dialogues({'dialogue-id': dialogue_id})
-            if dialogue == []:
-                return None
-            return dialogue[0]
-        except:
-            self.log("Cannot get current dialogue %s" % dialogue_id)
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            self.log(
-                "Error message: %r" %
-                traceback.format_exception(exc_type, exc_value, exc_traceback))
-   
+        dialogue = self.get_active_dialogues({'dialogue-id': dialogue_id})
+        if dialogue == []:
+            return None
+        return dialogue[0]
+
+    #TODO wrap it in a Dialouge object
     def get_dialogue_obj(self, dialogue_obj_id):
         dialogue = self.find_one(
             {'_id': ObjectId(dialogue_obj_id)})
@@ -63,7 +47,7 @@ class DialogueManager(ModelManager):
     def get_dialogue_interaction(self):
         pass
     
-    def get_keywords(self):
+    def get_all_keywords(self):
         pass
 
     def get_max_unmatching_answers_interaction(self, dialogue_id, interaction_id):

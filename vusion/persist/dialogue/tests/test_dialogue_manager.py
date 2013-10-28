@@ -49,7 +49,7 @@ class TestDialogueManager(TestCase, ObjectMaker):
 
         dialogue.pop('_id')
         dialogue['dialogue-id'] = '1'
-        dialogue['activated'] = 1
+        dialogue['activated'] = 2
         dialogue['modified'] = dPast2
         self.dialogue_manager.save(dialogue)
 
@@ -67,7 +67,7 @@ class TestDialogueManager(TestCase, ObjectMaker):
 
         dialogue.pop('_id')
         dialogue['dialogue-id'] = '2'
-        dialogue['activated'] = 1
+        dialogue['activated'] = 2
         dialogue['modified'] = dPast2
         self.dialogue_manager.save(dialogue)
 
@@ -82,15 +82,14 @@ class TestDialogueManager(TestCase, ObjectMaker):
         self.assertEqual(dialogues[0]['_id'],
                          id_active_dialogue_one)
         self.assertEqual(dialogues[1]['_id'],
-                         id_active_dialogue_two)
-    
+                         id_active_dialogue_two)    
     
     def test_get_dialogue(self):
         pass
     
     #TODO use in consume user message
     def test_get_matching_dialogue_actions(self):
-        pass
+        self.assertTrue(False)
 
     #TODO use in send_schedule
     def test_get_dialogue_interaction(self):
@@ -100,14 +99,10 @@ class TestDialogueManager(TestCase, ObjectMaker):
     def test_get_keywords(self):
         self.assertTrue(False)
     
-    #TODO use in the consume user message
-    # make sure it works with unit test
-    def test_get_max_unmatching_answers_interaction(self):
-        self.assertTrue(False)
-    
     def test_get_current_dialogue(self):
         dialogue = self.mkobj_dialogue_annoucement()
         dialogue['modified'] = Timestamp(datetime.now() - timedelta(minutes=1), 0)
+        dialogue['activated'] = 2
         self.dialogue_manager.save(dialogue)
         other_dialogue = self.mkobj_dialogue_annoucement()
         other_dialogue['interactions'] = []
