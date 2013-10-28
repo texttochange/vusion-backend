@@ -11,16 +11,39 @@ class DialogueManager(ModelManager):
     def __init__(self, db, collection_name, **kwargs):
         super(DialogueManager, self).__init__(db, collection_name, **kwargs)
         self.collection.ensure_index('dialogue-id', background=True)
+        self.loaded_dialogues = {}
+        self.load_dialogues()
 
-    def get_active_dialogues(self, conditions=None):
-        if conditions is None:
-            conditions = {}
-        conditions.update({'activated': 1})        
+    def load_dialogues(self):
+        self._get_active_dialogues()
+    
+    def load_dialogue(self, dialogue_id):
+        self.loaded_dialogues.pop(dialogue_id, false)
+        dialogue = self._get_active_dialogues({'dialogue-id': dialogue_id})
+        if dialogue is not None:
+            self.loaded_dialogues[dialogue_id] = dialogue
+
+    def clear_loaded_dialogues(self, dialogue_id):
+        self.loaded_dialogues.clear()
+
+    def get_active_dialogues(self, conditions={}):
+        if conditions == {}:
+            #In case there are difference in the number of loaded_dialogue
+            # and the one in the database reload all
+            if len(self.loaded_dialogues) == self._count_active_dialogues():
+                return self.loaded_dialogues
+        return self._get_active_dialogues(conditions)
+
+    def _get_active_dialogues(self, conditions={}):
+        conditions.update({'activated': 1})
         dialogues = self.find(conditions)
         active_dialogues = []
         for dialogue in dialogues:
             try:
-                active_dialogues.append(Dialogue(**dialogue))
+                dialogue = Dialogue(**dialogue)
+                active_dialogues.append(dialogue)
+                # as soon a dialogue loaded we keep it
+                self.loaded_dialogues[dialogue['dialogue_id']] = dialogue
             except:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 self.log(
@@ -29,13 +52,17 @@ class DialogueManager(ModelManager):
                      traceback.format_exception(exc_type, exc_value, exc_traceback)))
         return active_dialogues
    
+    def _count_active_dialogues(self):
+        return self.find({'activated': 1}).count()
+   
     def get_current_dialogue(self, dialogue_id):
-        dialogue = self.get_active_dialogues({'dialogue-id': dialogue_id})
-        if dialogue == []:
+        if dialogue_id in self.loaded_dialogues:
+            return self.loaded_dialogues[dialogue_id]
+        dialogues = self._get_active_dialogues({'dialogue-id': dialogue_id})
+        if dialogues == []:
             return None
-        return dialogue[0]
+        return dialogues[0]
 
-    #TODO wrap it in a Dialouge object
     def get_dialogue_obj(self, dialogue_obj_id):
         dialogue = self.find_one({'_id': ObjectId(dialogue_obj_id)})
         return Dialogue(**dialogue)

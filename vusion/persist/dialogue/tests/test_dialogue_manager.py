@@ -79,15 +79,12 @@ class TestDialogueManager(TestCase, ObjectMaker):
         dialogue['modified'] = dPast2
         self.dialogue_manager.save(dialogue)
 
-        dialogues = self.dialogue_manager.get_active_dialogues()
+        dialogues = self.dialogue_manager._get_active_dialogues()
         self.assertEqual(len(dialogues), 2)
         self.assertEqual(dialogues[0]['_id'],
                          id_active_dialogue_one)
         self.assertEqual(dialogues[1]['_id'],
                          id_active_dialogue_two)    
-    
-    def test_get_dialogue(self):
-        pass
     
     def test_get_matching_dialogue_actions(self):
         self.dialogue_manager.save(self.dialogue_question)
@@ -102,6 +99,7 @@ class TestDialogueManager(TestCase, ObjectMaker):
         interaction = self.dialogue_manager.get_dialogue_interaction("2", "2")
         self.assertEqual("Today is the special day", interaction['content'])
 
+    #TODO add 2 more dialogue one without, one with keywords
     def test_get_keywords(self):
         self.dialogue_manager.save(self.dialogue_question)
         self.assertEqual(['feel', 'fel'], self.dialogue_manager.get_all_keywords())
@@ -117,3 +115,9 @@ class TestDialogueManager(TestCase, ObjectMaker):
         active_dialogue = self.dialogue_manager.get_current_dialogue("0")
         self.assertTrue(active_dialogue)
         self.assertEqual([], active_dialogue['interactions'])
+
+    def test_load_dialogues(self):
+        self.assertFalse(True)
+
+    def test_load_dialogue(self):
+        self.assertFalse(True)
