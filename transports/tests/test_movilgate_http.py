@@ -172,7 +172,7 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
             
         yield self.make_resource_worker(self.mk_mt_response_ok(), code=http.OK, callback=assert_request)
         transport_metadata = {'telefono_id_tran': '12345678', 'servicio_id': '2229.tigo.bo'}
-        my_msg = 'für me'
+        my_msg = u'für me'
         yield self.dispatch(self.mkmsg_out(content=my_msg, transport_metadata=transport_metadata))
         [smsg] = self.get_dispatched('movilgate.event')
         self.assertEqual(
