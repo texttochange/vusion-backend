@@ -37,18 +37,26 @@ class DialogueManager(ModelManager):
 
     #TODO wrap it in a Dialouge object
     def get_dialogue_obj(self, dialogue_obj_id):
-        dialogue = self.find_one(
-            {'_id': ObjectId(dialogue_obj_id)})
-        return dialogue
+        dialogue = self.find_one({'_id': ObjectId(dialogue_obj_id)})
+        return Dialogue(**dialogue)
    
-    def get_matching_dialogue_actions(self):
-        pass
+    def get_matching_dialogue_actions(self, message_content, actions, context):
+        active_dialogues = self.get_active_dialogues()
+        for dialogue in active_dialogues:
+            dialogue.get_matching_reference_and_actions(
+                message_content, actions, context)
+            if context.is_matching():
+                return
     
-    def get_dialogue_interaction(self):
-        pass
+    def get_dialogue_interaction(self, dialogue_id, interaction_id):
+        dialogue = self.get_current_dialogue(dialogue_id)
+        return dialogue.get_interaction(interaction_id)
     
     def get_all_keywords(self):
-        pass
+        keywords = []
+        for dialogue in self.get_active_dialogues():
+            keywords += dialogue.get_all_keywords()
+        return keywords
 
     def get_max_unmatching_answers_interaction(self, dialogue_id, interaction_id):
         dialogue = self.get_current_dialogue(dialogue_id)

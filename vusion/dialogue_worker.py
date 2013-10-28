@@ -520,13 +520,10 @@ class DialogueWorker(ApplicationWorker):
             if context.is_matching():
                 history = {'object-type': 'request-history'}
             else:
-                active_dialogues = self.collections['dialogues'].get_active_dialogues()
-                for dialogue in active_dialogues:
-                    dialogue.get_matching_reference_and_actions(
-                        message['content'], actions, context)
-                    if context.is_matching():
-                        history = {'object-type': 'dialogue-history'}
-                        break
+                self.collections['dialogues'].get_matching_dialogue_actions(
+                    message['content'], actions, context)
+                if context.is_matching():
+                    history = {'object-type': 'dialogue-history'}
             # High priority to run an optin or enrolling action to get sessionId 
             if (self.get_participant_session_id(message['from_addr']) is None 
                     and (actions.contains('optin') or actions.contains('enrolling'))):
@@ -979,8 +976,8 @@ class DialogueWorker(ApplicationWorker):
 
     def from_schedule_to_message(self, schedule):
         if schedule.get_type() in ['dialogue-schedule', 'reminder-schedule', 'deadline-schedule']:
-            dialogue = self.collections['dialogues'].get_current_dialogue(schedule['dialogue-id'])
-            interaction = dialogue.get_interaction(schedule['interaction-id'])
+            interaction = self.collections['dialogues'].get_dialogue_interaction(
+                schedule['dialogue-id'], schedule['interaction-id'])
             context = Context(**{
                 'dialogue-id': schedule['dialogue-id'],
                 'interaction-id': schedule['interaction-id']})
@@ -1169,9 +1166,7 @@ class DialogueWorker(ApplicationWorker):
         self.log_manager.log(msg, level)
 
     def get_keywords(self):
-        keywords = []
-        for dialogue in self.collections['dialogues'].get_active_dialogues():
-            keywords += dialogue.get_all_keywords()
+        keywords = self.collections['dialogues'].get_all_keywords()
         for request in self.get_requests():
             keywords += request.get_keywords()
         ## remove potential duplicate due to request exact matching

@@ -10,6 +10,8 @@ from tests.utils import ObjectMaker
 
 from vusion.component import DialogueWorkerPropertyHelper
 from vusion.persist import DialogueManager
+from vusion.context import Context
+from vusion.persist.action import Actions
 
 
 class TestDialogueManager(TestCase, ObjectMaker):
@@ -87,17 +89,22 @@ class TestDialogueManager(TestCase, ObjectMaker):
     def test_get_dialogue(self):
         pass
     
-    #TODO use in consume user message
     def test_get_matching_dialogue_actions(self):
-        self.assertTrue(False)
+        self.dialogue_manager.save(self.dialogue_question)
+        actions = Actions()
+        context = Context()
+        self.dialogue_manager.get_matching_dialogue_actions('fel ok', actions, context)
+        self.assertEqual(3, len(actions))
+        self.assertTrue(context.is_matching())
 
-    #TODO use in send_schedule
     def test_get_dialogue_interaction(self):
-        self.assertTrue(False)
+        self.dialogue_manager.save(self.mkobj_dialogue_announcement_2())
+        interaction = self.dialogue_manager.get_dialogue_interaction("2", "2")
+        self.assertEqual("Today is the special day", interaction['content'])
 
-    #TODO use in the update keywords
     def test_get_keywords(self):
-        self.assertTrue(False)
+        self.dialogue_manager.save(self.dialogue_question)
+        self.assertEqual(['feel', 'fel'], self.dialogue_manager.get_all_keywords())
     
     def test_get_current_dialogue(self):
         dialogue = self.mkobj_dialogue_annoucement()
