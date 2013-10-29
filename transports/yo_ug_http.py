@@ -1,5 +1,7 @@
 # -*- test-case-name: tests.test_yo_ug_http -*-
 
+import sys
+import traceback
 from urllib import urlencode, unquote
 from urlparse import parse_qs
 import re
@@ -47,7 +49,7 @@ class YoUgHttpTransport(Transport):
                 'ybsacctno': self.config['ybsacctno'],
                 'password': self.config['password'],
                 'origin': origin,
-                'sms_content': message['content'],
+                'sms_content': message['content'].encode('utf-8'),
                 'destinations': self.phone_format_to_yo(message['to_addr']),
             }
             log.msg('Hitting %s with %s' % (self.config['url'], urlencode(params)))
@@ -89,8 +91,9 @@ class YoUgHttpTransport(Transport):
                 user_message_id=message['message_id'],
                 delivery_status='delivered'
             )
-        except Exception as ex:
-            log.msg("Unexpected error %s" % repr(ex))
+        except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            log.msg("Unexpected error %r" % traceback.format_exception(exc_type, exc_value, exc_traceback))
 
     def stopWorker(self):
         log.msg("stop yo transport")
