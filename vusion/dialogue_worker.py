@@ -368,7 +368,7 @@ class DialogueWorker(ApplicationWorker):
             if self.collections['participants'].find(query).limit(1).count()==0:
                 self.log(("Participant %s doesn't satify the condition for action for %s" % (participant_phone, action,)))
                 return
-        self.log(("Run action for %s %s" % (participant_phone, action,)))
+        self.log(("Run action for %s action %s" % (participant_phone, action,)))
         if (action.get_type() == 'optin'):
             participant = self.get_participant(participant_phone)
             if not participant:                            
@@ -418,7 +418,7 @@ class DialogueWorker(ApplicationWorker):
                 'participant-phone': participant_phone,
                 'participant-session-id': participant_session_id,
                 'date-time': time_to_vusion_format(self.get_local_time()),
-                'content': action['content'],
+                'content': self.customize_message(action['content'], participant_phone, context, False),
                 'context': context.get_dict_for_history()})
             self.send_schedule(schedule)
         elif (action.get_type() == 'unmatching-answer'):
@@ -1325,47 +1325,51 @@ class DialogueWorker(ApplicationWorker):
         label_indexer = dict((p['label'], p['value']) for i, p in enumerate(participant['profile']))
         return label_indexer.get(label, None)
 
-    def customize_message(self, message, participant_phone=None, context=None):
-        participant = None
-        custom_regexp = re.compile(r'\[(?P<domain>[^\.\]]+)\.(?P<key1>[^\.\]]+)(\.(?P<key2>[^\.\]]+))?(\.(?P<otherkey>[^\.\]]+))?\]')
-        matches = re.finditer(custom_regexp, message)
-        for match in matches:
-            match = match.groupdict() if match is not None else None
-            if match is None:
-                continue
-            if match['domain'].lower() in ['participant', 'participants']:
-                if participant_phone is None:
-                    raise MissingData('No participant supplied for this message.')
-                if participant is None:
-                    participant = self.get_participant(participant_phone)
-                participant_label_value = participant.get_data(match['key1'])
-                if not participant_label_value:
-                    raise MissingData("Participant %s doesn't have a label %s" % 
-                                      (participant_phone, match['key1']))
-                replace_match = '[%s.%s]' % (match['domain'], match['key1'])
-                message = message.replace(replace_match, participant_label_value) 
-            elif match['domain'] == 'contentVariable':
-                content_variable = self.collections['content_variables'].get_content_variable_from_match(match)
-                if match['key2'] is not None:
-                    replace_match = '[%s.%s.%s]' % (match['domain'], match['key1'], match['key2'])
+    def customize_message(self, message, participant_phone=None, context=None, fail=True):
+        try:
+            participant = None
+            custom_regexp = re.compile(r'\[(?P<domain>[^\.\]]+)\.(?P<key1>[^\.\]]+)(\.(?P<key2>[^\.\]]+))?(\.(?P<otherkey>[^\.\]]+))?\]')
+            matches = re.finditer(custom_regexp, message)
+            for match in matches:
+                match = match.groupdict() if match is not None else None
+                if match is None:
+                    continue
+                if match['domain'].lower() in ['participant', 'participants']:
+                    if participant_phone is None:
+                        raise MissingData('No participant supplied for this message.')
+                    if participant is None:
+                        participant = self.get_participant(participant_phone)
+                    participant_label_value = participant.get_data(match['key1'])
+                    if not participant_label_value:
+                        raise MissingData("Participant %s doesn't have a label %s" % 
+                                          (participant_phone, match['key1']))
+                    replace_match = '[%s.%s]' % (match['domain'], match['key1'])
+                    message = message.replace(replace_match, participant_label_value) 
+                elif match['domain'] == 'contentVariable':
+                    content_variable = self.collections['content_variables'].get_content_variable_from_match(match)
+                    if match['key2'] is not None:
+                        replace_match = '[%s.%s.%s]' % (match['domain'], match['key1'], match['key2'])
+                    else:
+                        replace_match = '[%s.%s]' % (match['domain'], match['key1'])   
+                    if content_variable is None:
+                        raise MissingData("The program doesn't have a content variable %s" % replace_match)
+                    message = message.replace(replace_match, content_variable['value'])
+                elif match['domain'] == 'context':
+                    if context is None:
+                        raise MissingData("No context for message cutomization.")
+                    replace_match = '[%s.%s]' % (match['domain'], match['key1'])
+                    if context[match['key1']] is None:
+                        raise MissingData("No context key \"%s\"" % match['key1'])
+                    message = message.replace(replace_match, context[match['key1']])
+                elif match['domain'] == 'time':
+                    local_time = self.get_local_time()
+                    replace_match = '[%s.%s]' % (match['domain'], match['key1'])
+                    replace_time = local_time.strftime(add_char_to_pattern(match['key1'], '[a-zA-Z]'))
+                    message = message.replace(replace_match, replace_time)
                 else:
-                    replace_match = '[%s.%s]' % (match['domain'], match['key1'])   
-                if content_variable is None:
-                    raise MissingData("The program doesn't have a content variable %s" % replace_match)
-                message = message.replace(replace_match, content_variable['value'])
-            elif match['domain'] == 'context':
-                if context is None:
-                    raise MissingData("No context for message cutomization.")
-                replace_match = '[%s.%s]' % (match['domain'], match['key1'])
-                if context[match['key1']] is None:
-                    raise MissingData("No context key \"%s\"" % match['key1'])
-                message = message.replace(replace_match, context[match['key1']])
-            elif match['domain'] == 'time':
-                local_time = self.get_local_time()
-                replace_match = '[%s.%s]' % (match['domain'], match['key1'])
-                replace_time = local_time.strftime(add_char_to_pattern(match['key1'], '[a-zA-Z]'))
-                message = message.replace(replace_match, replace_time)
-            else:
-                self.log("Customized message domain not supported %s" % match['domain'])
+                    self.log("Customized message domain not supported %s" % match['domain'])
+        except Exception, e:
+            if fail:
+                raise e
         return message
     

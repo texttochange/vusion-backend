@@ -200,12 +200,13 @@ class TestDialogue(TestCase, ObjectMaker):
     def test_get_matching_open_question(self):
         script = Dialogue(**self.mkobj_dialogue_question_answer())
 
-        context = Context()
+        context = Context(**{'message': "name john doe"})
         actions = Actions()
         script.get_matching_reference_and_actions("name john doe", actions, context)
         self.assertEqual(context['dialogue-id'], '01')
         self.assertEqual(context['interaction-id'], '01-02')
         self.assertEqual(context['matching-answer'], "john doe")
+        self.assertEqual(context['message'], 'name john doe')
 
         self.assertEqual(len(actions), 3)
         self.assertEqual(
@@ -219,12 +220,13 @@ class TestDialogue(TestCase, ObjectMaker):
             actions[1],
             ProfilingAction(**{'label': 'name', 'value': 'john doe'}))
 
-        context = Context()
+        context = Context(**{'message': "name john doe"})
         actions = Actions()
         script.get_matching_reference_and_actions("name", actions, context)
         self.assertEqual(context['dialogue-id'], '01')
         self.assertEqual(context['interaction-id'], '01-02')
         self.assertEqual(context['matching-answer'], None)
+        self.assertEqual(context['message'], 'name john doe')
 
         self.assertEqual(len(actions), 2)
         self.assertEqual(

@@ -14,7 +14,7 @@ class Context(object):
         return "Context %s" % repr(self.payload)
 
     def __repr__(self):
-        return str(self)
+        return str(self.payload)
 
     def __getitem__(self, key):
         if key not in self.payload:
