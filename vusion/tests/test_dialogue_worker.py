@@ -410,6 +410,16 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             'Now it is [time.Ip]')
         self.assertRegexpMatches(message, 'Now it is (0[1-9]|1[0-2])(AM|PM)')
     
+    def test11_customize_message_do_not_fail(self):
+        self.initialize_properties()
+        
+        message = self.worker.customize_message('Today "[context.message]" was received', fail=False)
+        self.assertEqual(message, 'Today "[context.message]" was received')
+
+        ## A failed customized content should not stop the loop on matched
+        message = self.worker.customize_message('Today "[context.message]" was received at [time.H]', fail=False)
+        self.assertRegexpMatches(message, 'Today "\[context.message\]" was received at \d\d')        
+    
     def test12_generate_message_use_template_fail(self):
         self.initialize_properties()
 

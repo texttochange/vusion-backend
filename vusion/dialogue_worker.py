@@ -1325,15 +1325,15 @@ class DialogueWorker(ApplicationWorker):
         label_indexer = dict((p['label'], p['value']) for i, p in enumerate(participant['profile']))
         return label_indexer.get(label, None)
 
-    def customize_message(self, message, participant_phone=None, context=None, fail=True):
-        try:
-            participant = None
-            custom_regexp = re.compile(r'\[(?P<domain>[^\.\]]+)\.(?P<key1>[^\.\]]+)(\.(?P<key2>[^\.\]]+))?(\.(?P<otherkey>[^\.\]]+))?\]')
-            matches = re.finditer(custom_regexp, message)
-            for match in matches:
-                match = match.groupdict() if match is not None else None
-                if match is None:
-                    continue
+    def customize_message(self, message, participant_phone=None, context=None, fail=True):        
+        participant = None
+        custom_regexp = re.compile(r'\[(?P<domain>[^\.\]]+)\.(?P<key1>[^\.\]]+)(\.(?P<key2>[^\.\]]+))?(\.(?P<otherkey>[^\.\]]+))?\]')
+        matches = re.finditer(custom_regexp, message)
+        for match in matches:
+            match = match.groupdict() if match is not None else None
+            if match is None:
+                continue
+            try:
                 if match['domain'].lower() in ['participant', 'participants']:
                     if participant_phone is None:
                         raise MissingData('No participant supplied for this message.')
@@ -1368,8 +1368,7 @@ class DialogueWorker(ApplicationWorker):
                     message = message.replace(replace_match, replace_time)
                 else:
                     self.log("Customized message domain not supported %s" % match['domain'])
-        except Exception, e:
-            if fail:
-                raise e
+            except Exception, e:
+                if fail:
+                    raise e
         return message
-    
