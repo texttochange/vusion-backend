@@ -182,72 +182,6 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertTrue(self.worker.is_enrolled(participant, '01'))
         self.assertTrue(self.worker.is_enrolled(participant, '3'))
         self.assertFalse(self.worker.is_enrolled(participant, '2'))
-
-    #def test03_multiple_dialogue_in_collection(self):
-        #self.initialize_properties()
-
-        #dNow = self.worker.get_local_time()
-        #dPast1 = datetime.now() - timedelta(minutes=30)
-        #dPast2 = datetime.now() - timedelta(minutes=60)
-        #dPast3 = datetime.now() - timedelta(minutes=70)
-
-        #dialogue = self.mkobj_dialogue_question_answer()
-
-        #dialogue['dialogue-id'] = '1'
-        #dialogue['activated'] = 1
-        #dialogue['modified'] = dPast1
-        #id_active_dialogue_one = self.collections['dialogues'].save(
-            #dialogue)
-
-        #dialogue.pop('_id')
-        #dialogue['dialogue-id'] = '1'
-        #dialogue['activated'] = 1
-        #dialogue['modified'] = dPast2
-        #self.collections['dialogues'].save(dialogue)
-
-        #dialogue.pop('_id')
-        #dialogue['dialogue-id'] = '1'
-        #dialogue['activated'] = 0
-        #dialogue['modified'] = dPast3
-        #self.collections['dialogues'].save(dialogue)
-
-        #dialogue.pop('_id')
-        #dialogue['dialogue-id'] = '2'
-        #dialogue['activated'] = 1
-        #dialogue['modified'] = dPast1
-        #id_active_dialogue_two = self.collections['dialogues'].save(dialogue)
-
-        #dialogue.pop('_id')
-        #dialogue['dialogue-id'] = '2'
-        #dialogue['activated'] = 1
-        #dialogue['modified'] = dPast2
-        #self.collections['dialogues'].save(dialogue)
-
-        #dialogue.pop('_id')
-        #dialogue['dialogue-id'] = '2'
-        #dialogue['activated'] = 0
-        #dialogue['modified'] = dPast2
-        #self.collections['dialogues'].save(dialogue)
-
-        #self.collections['participants'].save({'phone': '06'})
-
-        #dialogues = self.worker.get_active_dialogues()
-        #self.assertEqual(len(dialogues), 2)
-        #self.assertEqual(dialogues[0]['_id'],
-                         #id_active_dialogue_one)
-        #self.assertEqual(dialogues[1]['_id'],
-                         #id_active_dialogue_two)
-
-    #def test03_get_current_dialogue(self):
-        #dialogue = self.mkobj_dialogue_annoucement()
-        #dialogue['modified'] = Timestamp(datetime.now() - timedelta(minutes=1), 0)
-        #self.collections['dialogues'].save(dialogue)
-        #other_dialogue = self.mkobj_dialogue_annoucement()
-        #other_dialogue['interactions'] = []
-        #self.collections['dialogues'].save(other_dialogue)
-        #active_dialogue = self.worker.get_current_dialogue("0")
-        #self.assertTrue(active_dialogue)
-        #self.assertEqual([], active_dialogue['interactions'])
     
     def test03_get_matching_request(self):
         request_1 = self.mkobj_request_response('www info')
@@ -576,17 +510,15 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertEqual(messages[1]['content'], "How are you")
         self.assertEqual(messages[1]['to_addr'], "06")
 
-
     def test24_is_tagged(self):
         self.initialize_properties()
-            
+    
         participant = self.mkobj_participant(
             '06',
             tags=['geek', 'male'])
-        
+
         self.collections['participants'].save(participant)
-        
+
         self.assertTrue(self.worker.is_tagged('06', ['geek']))
         self.assertTrue(self.worker.is_tagged('06', ['geek', 'sometag']))        
         self.assertFalse(self.worker.is_tagged('06', ['sometag']))
-        
