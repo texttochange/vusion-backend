@@ -9,7 +9,7 @@ from twisted.trial.unittest import TestCase
 from tests.utils import ObjectMaker
 
 from vusion.component import DialogueWorkerPropertyHelper
-from vusion.persist import DialogueManager
+from vusion.persist import DialogueManager, Dialogue
 from vusion.context import Context
 from vusion.persist.action import Actions
 
@@ -79,12 +79,20 @@ class TestDialogueManager(TestCase, ObjectMaker):
         dialogue['modified'] = dPast2
         self.dialogue_manager.save(dialogue)
 
-        dialogues = self.dialogue_manager._get_active_dialogues()
+        dialogues = self.dialogue_manager.get_active_dialogues()
         self.assertEqual(len(dialogues), 2)
-        self.assertEqual(dialogues[0]['_id'],
-                         id_active_dialogue_one)
-        self.assertEqual(dialogues[1]['_id'],
-                         id_active_dialogue_two)    
+        self.assertEqual(dialogues[0]['_id'], id_active_dialogue_one)
+        self.assertEqual(dialogues[1]['_id'], id_active_dialogue_two)
+        self.assertTrue('1' in self.dialogue_manager.loaded_dialogues)
+        self.assertTrue('2' in self.dialogue_manager.loaded_dialogues)
+
+        ## Tests that removing one will make it desapear from the loaded dialogues
+        self.dialogue_manager.remove(id_active_dialogue_one)
+        dialogues = self.dialogue_manager.get_active_dialogues()
+        self.assertEqual(len(dialogues), 1)
+        self.assertEqual(dialogues[0]['_id'], id_active_dialogue_two)
+        self.assertEqual(len(self.dialogue_manager.loaded_dialogues), 1)
+        self.assertTrue('2' in self.dialogue_manager.loaded_dialogues)
     
     def test_get_matching_dialogue_actions(self):
         self.dialogue_manager.save(self.dialogue_question)
@@ -105,19 +113,21 @@ class TestDialogueManager(TestCase, ObjectMaker):
         self.assertEqual(['feel', 'fel'], self.dialogue_manager.get_all_keywords())
     
     def test_get_current_dialogue(self):
-        dialogue = self.mkobj_dialogue_annoucement()
-        dialogue['modified'] = Timestamp(datetime.now() - timedelta(minutes=1), 0)
-        dialogue['activated'] = 2
-        self.dialogue_manager.save(dialogue)
-        other_dialogue = self.mkobj_dialogue_annoucement()
-        other_dialogue['interactions'] = []
-        self.dialogue_manager.save(other_dialogue)
-        active_dialogue = self.dialogue_manager.get_current_dialogue("0")
-        self.assertTrue(active_dialogue)
-        self.assertEqual([], active_dialogue['interactions'])
+        #Save a first dialogue that is no more activated
+        dialogue_not_active = self.mkobj_dialogue_annoucement()
+        dialogue_not_active['dialogue-id'] = '0'
+        dialogue_not_active['activated'] = 2
+        self.dialogue_manager.save(dialogue_not_active)
 
-    def test_load_dialogues(self):
-        self.assertFalse(True)
+        #Save a second dialogue that is activated
+        dialogue_active = self.mkobj_dialogue_annoucement()
+        dialogue_active['dialogue-id'] = '0'
+        dialogue_active['activated'] = 1
+        dialogue_active_id = self.dialogue_manager.save(dialogue_active)
 
-    def test_load_dialogue(self):
-        self.assertFalse(True)
+        current_dialogue = self.dialogue_manager.get_current_dialogue("0")
+        self.assertTrue(current_dialogue)
+        self.assertEqual(dialogue_active_id, current_dialogue['_id'])
+        #Assert the dialogue is now loaded
+        self.assertTrue('0' in self.dialogue_manager.loaded_dialogues)
+        self.assertTrue(isinstance(self.dialogue_manager.loaded_dialogues['0'], Dialogue));

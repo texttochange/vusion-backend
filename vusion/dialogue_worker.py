@@ -246,6 +246,7 @@ class DialogueWorker(ApplicationWorker):
                 return
             if message['action'] == 'update_schedule':
                 if message['schedule_type'] == 'dialogue':
+                    self.collections['dialogues'].load_dialogue(message['object_id'])
                     self.schedule_dialogue(message['object_id'])
                     self.register_keywords_in_dispatcher()
                 elif message['schedule_type'] == 'unattach':
