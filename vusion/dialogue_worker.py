@@ -307,7 +307,7 @@ class DialogueWorker(ApplicationWorker):
     def dispatch_event(self, message):
         self.log("Event message received %s" % (message,))
         if (message['event_type'] == 'ack'):
-           status = 'ack'
+            status = 'ack'
         elif (message['event_type'] == 'delivery_report'):
             status = message['delivery_status']
             if (message['delivery_status'] == 'failed'):
@@ -319,8 +319,8 @@ class DialogueWorker(ApplicationWorker):
                       message.get('failure_reason', 'unknown')))}
         if ('transport_type' in message['transport_metadata'] 
            and message['transport_metadata']['transport_type'] == 'http_forward'):
-           self.collections['history'].update_forwarded_status(message['user_message_id'], status)
-           return
+            self.collections['history'].update_forwarded_status(message['user_message_id'], status)
+            return
         self.collections['history'].update_status(message['user_message_id'], status)
 
     def get_matching_request_actions(self, content, actions, context):
@@ -379,14 +379,14 @@ class DialogueWorker(ApplicationWorker):
             else:
             ## This is a second optin
                 if (participant['session-id'] != None):    
-                     ## Participant still optin
-                     if self.properties['double-optin-error-feedback'] is not None:
-                         self.run_action(
-                             participant_phone, 
-                             FeedbackAction(**{'content': self.properties['double-optin-error-feedback']}),
-                             context,
-                             participant_session_id)
-                         return
+                    ## Participant still optin
+                    if self.properties['double-optin-error-feedback'] is not None:
+                        self.run_action(
+                            participant_phone, 
+                            FeedbackAction(**{'content': self.properties['double-optin-error-feedback']}),
+                            context,
+                            participant_session_id)
+                        return
                 else:
                     ## Participant is re optin
                     self.collections['participants'].update(
@@ -519,13 +519,13 @@ class DialogueWorker(ApplicationWorker):
             self.run_action(participant_phone, OptoutAction())
             self.run_action(participant_phone, OptinAction())
         elif (action.get_type() == 'proportional-tagging'):
-           if self.is_tagged(participant_phone, action.get_tags()):
+            if self.is_tagged(participant_phone, action.get_tags()):
                 return
-           for tag in action.get_tags():
+            for tag in action.get_tags():
                 action.set_tag_count(tag, self.collections['participants'].find({'tags': tag}).count())
-           self.run_action(participant_phone, action.get_tagging_action())
+                self.run_action(participant_phone, action.get_tagging_action())
         elif (action.get_type() == 'url-forwarding'):
-           self.run_action_url_forwarding(participant_phone, action, context, participant_session_id)
+            self.run_action_url_forwarding(participant_phone, action, context, participant_session_id)
         elif (action.get_type() == 'sms-forwarding'):
             self.run_action_sms_forwarding(participant_phone, action, context)
         else:
@@ -534,8 +534,8 @@ class DialogueWorker(ApplicationWorker):
     @inlineCallbacks
     def run_action_url_forwarding(self, participant_phone, action, context, participant_session_id):
         if not self.properties.is_sms_forwarding_allowed():
-           self.log('SMS Forwarding not allowed, dump action')
-           return
+            self.log('SMS Forwarding not allowed, dump action')
+            return
         history = self.collections['history'].get_history(context['history_id'])
         message = TransportUserMessage(**{
            'to_addr': action['forward-url'],
@@ -1198,17 +1198,17 @@ class DialogueWorker(ApplicationWorker):
             history.update(context.get_dict_for_history(schedule))
             self.save_history(**history)
         except MissingData as e:
-           self.log("Error Missing Data: %s" % e.message)
-           history = {
-               'message-content': message_content,
-               'participant-phone': schedule['participant-phone'],
-               'message-direction': 'outgoing',
-               'message-status': 'missing-data',
-               'missing-data': [e.message],
-               'message-id': None,
-               'message-credits': 0}
-           history.update(context.get_dict_for_history(schedule))
-           self.save_history(**history)
+            self.log("Error Missing Data: %s" % e.message)
+            history = {
+                'message-content': message_content,
+                'participant-phone': schedule['participant-phone'],
+                'message-direction': 'outgoing',
+                'message-status': 'missing-data',
+                'missing-data': [e.message],
+                'message-id': None,
+                'message-credits': 0}
+            history.update(context.get_dict_for_history(schedule))
+            self.save_history(**history)
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log("Error send schedule: %r" %
@@ -1327,7 +1327,7 @@ class DialogueWorker(ApplicationWorker):
 
     def customize_message(self, message, participant_phone=None, context=None, fail=True):        
         participant = None
-        custom_regexp = re.compile(r'\[(?P<domain>[^\.\]]+)\.(?P<key1>[^\.\]]+)(\.(?P<key2>[^\.\]]+))?(\.(?P<otherkey>[^\.\]]+))?\]')
+        custom_regexp = re.compile(r'\[(?P<domain>[^\.\]]+)\.(?P<key1>[^\.\]]+)(\.(?P<key2>[^\.\]]+))?(\.(?P<key3>[^\.\]]+))?(\.(?P<otherkey>[^\.\]]+))?\]')
         matches = re.finditer(custom_regexp, message)
         for match in matches:
             match = match.groupdict() if match is not None else None
@@ -1347,12 +1347,14 @@ class DialogueWorker(ApplicationWorker):
                     message = message.replace(replace_match, participant_label_value) 
                 elif match['domain'] == 'contentVariable':
                     content_variable = self.collections['content_variables'].get_content_variable_from_match(match)
-                    if match['key2'] is not None:
-                        replace_match = '[%s.%s.%s]' % (match['domain'], match['key1'], match['key2'])
-                    else:
-                        replace_match = '[%s.%s]' % (match['domain'], match['key1'])   
+                    keys = 'contentVariable'
+                    for index in ['key1', 'key2', 'key3']:
+                        if match[index] is None:
+                            break
+                        keys = '%s.%s' % (keys, match[index])
+                    replace_match = '[%s]' % keys
                     if content_variable is None:
-                        raise MissingData("The program doesn't have a content variable %s" % replace_match)
+                        raise MissingData("The program doesn't have a content variable %s" % replace_match)                    
                     message = message.replace(replace_match, content_variable['value'])
                 elif match['domain'] == 'context':
                     if context is None:

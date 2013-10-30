@@ -1014,7 +1014,14 @@ class ObjectMaker:
             'context': context}
         return schedule_generator(**schedule).get_as_dict()
     
-    def mkobj_content_variables(self, key1='program', key2='weather', value='30 C'):
+    def mkobj_content_variables_three_keys(self, key1='mombasa', key2='chicken',
+                                           key3='price', value='30 C'):
+            return {'keys':[{'key' : key1},
+                            {'key' : key2},
+                            {'key': key3}],
+                    'value' : value}    
+    
+    def mkobj_content_variables_two_keys(self, key1='program', key2='weather', value='30 C'):
         return {'keys':[{'key' : key1},
                         {'key' : key2}],
                 'value' : value}
