@@ -1,7 +1,7 @@
 
 
 class Context(object):
-    
+
     def __init__(self, **kwargs):
         self.payload = kwargs
 
@@ -14,7 +14,7 @@ class Context(object):
         return "Context %s" % repr(self.payload)
 
     def __repr__(self):
-        return str(self)
+        return str(self.payload)
 
     def __getitem__(self, key):
         if key not in self.payload:
@@ -32,9 +32,9 @@ class Context(object):
             self.payload[key] = value
 
     def is_matching_answer(self):
-        return ('matching-answer' in self.payload 
+        return ('matching-answer' in self.payload
                 and self.payload['matching-answer'] is not None)
-    
+
     def is_matching(self):
         return ('dialogue-id' in self.payload or
                 'request-id' in self.payload)

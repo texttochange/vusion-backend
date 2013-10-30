@@ -28,7 +28,7 @@ from vusion.persist import (Dialogue, FeedbackSchedule, UnattachSchedule,
 from vusion.utils import (time_to_vusion_format, get_local_time,
                           get_local_time_as_timestamp, time_from_vusion_format,
                           get_shortcode_value, get_offset_date_time,
-                          split_keywords)
+                          split_keywords, add_char_to_pattern)
 from vusion.error import (MissingData, SendingDatePassed, VusionError,
                           MissingTemplate, MissingProperty)
 from vusion.message import DispatcherControl, WorkerControl
@@ -368,7 +368,7 @@ class DialogueWorker(ApplicationWorker):
             if self.collections['participants'].find(query).limit(1).count()==0:
                 self.log(("Participant %s doesn't satify the condition for action for %s" % (participant_phone, action,)))
                 return
-        self.log(("Run action for %s %s" % (participant_phone, action,)))
+        self.log(("Run action for %s action %s" % (participant_phone, action,)))
         if (action.get_type() == 'optin'):
             participant = self.get_participant(participant_phone)
             if not participant:                            
@@ -418,7 +418,7 @@ class DialogueWorker(ApplicationWorker):
                 'participant-phone': participant_phone,
                 'participant-session-id': participant_session_id,
                 'date-time': time_to_vusion_format(self.get_local_time()),
-                'content': action['content'],
+                'content': self.customize_message(action['content'], participant_phone, context, False),
                 'context': context.get_dict_for_history()})
             self.send_schedule(schedule)
         elif (action.get_type() == 'unmatching-answer'):
@@ -523,14 +523,16 @@ class DialogueWorker(ApplicationWorker):
                 return
             for tag in action.get_tags():
                 action.set_tag_count(tag, self.collections['participants'].find({'tags': tag}).count())
-            self.run_action(participant_phone, action.get_tagging_action())
-        elif (action.get_type() == 'message-forwarding'):
-            self.run_action_message_forwarding(participant_phone, action, context, participant_session_id)
+                self.run_action(participant_phone, action.get_tagging_action())
+        elif (action.get_type() == 'url-forwarding'):
+            self.run_action_url_forwarding(participant_phone, action, context, participant_session_id)
+        elif (action.get_type() == 'sms-forwarding'):
+            self.run_action_sms_forwarding(participant_phone, action, context)
         else:
             self.log("The action is not supported %s" % action.get_type())
 
     @inlineCallbacks
-    def run_action_message_forwarding(self, participant_phone, action, context, participant_session_id):
+    def run_action_url_forwarding(self, participant_phone, action, context, participant_session_id):
         if not self.properties.is_sms_forwarding_allowed():
             self.log('SMS Forwarding not allowed, dump action')
             return
@@ -547,6 +549,22 @@ class DialogueWorker(ApplicationWorker):
         })
         yield self.transport_publisher.publish_message(message)
         self.collections['history'].update_forwarding(context['history_id'], message['message_id'], action['forward-url'])
+
+    @inlineCallbacks
+    def run_action_sms_forwarding(self, participant_phone, action, context):
+        participants = self.get_participants({
+            'tags': action['forward-to'],
+            'session-id': {'$ne': None},
+            'phone': {'$ne': participant_phone}})
+        for participant in participants:
+            schedule = FeedbackSchedule(**{
+                'participant-phone': participant['phone'],
+                'participant-session-id': participant['session-id'],
+                'date-time': self.get_local_time('vusion'),
+                'content': self.customize_message(action['forward-content'], participant_phone, context),
+                'context': context.payload
+            })
+            yield self.send_schedule(schedule)
 
     def consume_user_message(self, message):
         self.log("User message received from %s '%s'" % (message['from_addr'],
@@ -1017,9 +1035,9 @@ class DialogueWorker(ApplicationWorker):
             'interaction-id': interaction['interaction-id']}                                                                               
         self.save_schedule(**deadline)
         
-    def get_local_time(self):
+    def get_local_time(self, date_format='datetime'):
         try:
-            return self.properties.get_local_time()
+            return self.properties.get_local_time(date_format)
         except:
             return datetime.utcnow()
 
@@ -1307,17 +1325,21 @@ class DialogueWorker(ApplicationWorker):
         label_indexer = dict((p['label'], p['value']) for i, p in enumerate(participant['profile']))
         return label_indexer.get(label, None)
 
-    def customize_message(self, message, participant_phone=None):
+    def customize_message(self, message, participant_phone=None, context=None, fail=True):        
+        participant = None
         custom_regexp = re.compile(r'\[(?P<domain>[^\.\]]+)\.(?P<key1>[^\.\]]+)(\.(?P<key2>[^\.\]]+))?(\.(?P<key3>[^\.\]]+))?(\.(?P<otherkey>[^\.\]]+))?\]')
         matches = re.finditer(custom_regexp, message)
         for match in matches:
             match = match.groupdict() if match is not None else None
-            if match is not None:
+            if match is None:
+                continue
+            try:
                 if match['domain'].lower() in ['participant', 'participants']:
                     if participant_phone is None:
                         raise MissingData('No participant supplied for this message.')
-                    participant = self.get_participant(participant_phone)
-                    participant_label_value = participant.get_participant_label_value(match['key1'])
+                    if participant is None:
+                        participant = self.get_participant(participant_phone)
+                    participant_label_value = participant.get_data(match['key1'])
                     if not participant_label_value:
                         raise MissingData("Participant %s doesn't have a label %s" % 
                                           (participant_phone, match['key1']))
@@ -1334,7 +1356,21 @@ class DialogueWorker(ApplicationWorker):
                     if content_variable is None:
                         raise MissingData("The program doesn't have a content variable %s" % replace_match)                    
                     message = message.replace(replace_match, content_variable['value'])
+                elif match['domain'] == 'context':
+                    if context is None:
+                        raise MissingData("No context for message cutomization.")
+                    replace_match = '[%s.%s]' % (match['domain'], match['key1'])
+                    if context[match['key1']] is None:
+                        raise MissingData("No context key \"%s\"" % match['key1'])
+                    message = message.replace(replace_match, context[match['key1']])
+                elif match['domain'] == 'time':
+                    local_time = self.get_local_time()
+                    replace_match = '[%s.%s]' % (match['domain'], match['key1'])
+                    replace_time = local_time.strftime(add_char_to_pattern(match['key1'], '[a-zA-Z]'))
+                    message = message.replace(replace_match, replace_time)
                 else:
-                    self.log("Dynamic content domain not supported %s" % domain)
+                    self.log("Customized message domain not supported %s" % match['domain'])
+            except Exception, e:
+                if fail:
+                    raise e
         return message
-    

@@ -267,4 +267,15 @@ class TestProportionalTaggingAction(TestCase):
         self.assertEqual(
             a.get_tagging_action(),
                TaggingAction(**{'tag': 'group 1'}))
-        
+
+
+class TestSmsForwardingAction(TestCase):
+    
+    def test_generate_action(self):
+        action = {
+            'type-action': 'sms-forwarding',
+            'forward-content': 'hello',
+            'forward-to': 'my tag'
+            }
+        a = action_generator(**action)
+        self.assertTrue(True)        

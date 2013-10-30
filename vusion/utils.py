@@ -73,6 +73,15 @@ def split_keywords(keywords):
     return [k.lower() for k in (keywords or '').split(', ')]
 
 
+def add_char_to_pattern(string, pattern):
+    regex = re.compile('[a-zA-Z]')
+    l = list(string)
+    for index, char in enumerate(l):
+        if regex.match(char):
+            l[index] = "%%%s" % char
+    return ''.join(l)
+
+
 #TODO remove DataLayerUtils in tests package
 class DataLayerUtils:
 

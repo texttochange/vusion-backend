@@ -17,6 +17,7 @@ from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from vusion.error import MissingData, MissingTemplate
 from vusion.persist.action import Actions
 from vusion.persist import Dialogue, Participant
+from vusion.context import Context
 
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 
@@ -306,7 +307,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         
         self.assertEqual(1, len(actions))
 
-    def test11_customize_message(self):
+    def test11_customize_message_participant(self):
         self.initialize_properties()
 
         participant1 = self.mkobj_participant(
@@ -334,8 +335,8 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.collections['participants'].save(participant2)
         self.collections['participants'].save(participant3)
 
-        message_one = self.worker.customize_message( 'Hello [participant.name]', '06')
-        self.assertEqual(message_one, 'Hello oliv')
+        message_one = self.worker.customize_message( 'Hello [participant.name] your phone is [participant.phone]', '06')
+        self.assertEqual(message_one, 'Hello oliv your phone is 06')
 
         self.assertRaises(MissingData,
                           self.worker.customize_message, 'Hello [participant.name]', '07')
@@ -375,15 +376,59 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         message_two_keys = self.worker.customize_message('Today the temperature is [contentVariable.program.weather]')
         self.assertEqual(message_two_keys, 'Today the temperature is 30 C')
         
-        self.assertRaises(MissingData,
-                          self.worker.customize_message, 'Today the temperature is [contentVariable.today.weather]')
+        self.assertRaises(
+            MissingData,
+            self.worker.customize_message, 
+            'Today the temperature is [contentVariable.today.weather]')
         
         message_one_key = self.worker.customize_message('Today the temperature is [contentVariable.temperature]')
         self.assertEqual(message_one_key, 'Today the temperature is 100 C')
         
         message_three_keys = self.worker.customize_message('Today the chicken cost [contentVariable.mombasa.chicken.price]')
-        self.assertEqual(message_three_keys, 'Today the chicken cost 600')        
+        self.assertEqual(message_three_keys, 'Today the chicken cost 600')
+    
+    def test11_customize_message_context(self):
+        self.initialize_properties()
+        
+        self.assertRaises(
+            MissingData,
+            self.worker.customize_message, 
+            'Today "[context.message]" was received')
+        
+        self.assertRaises(
+            MissingData,
+            self.worker.customize_message,
+            'Today  at "[context.time]" we finish',
+            context=Context())
+        
+        context = Context(**{'message': 'hello how are you',
+                             'time': '09:00'})
+        message = self.worker.customize_message(
+            'Today "[context.message]" was received at [context.time]',
+            context=context)
+        self.assertEqual(message, 'Today "hello how are you" was received at 09:00')
+    
+    def test11_customize_message_time(self):
+        self.initialize_properties()
+        
+        message = self.worker.customize_message(
+           'Now it is [time.H:M]')
+        self.assertRegexpMatches(message,'Now it is ([0-1][0-9]|2[0-3]):[0-5][0-9]')
+        
+        message = self.worker.customize_message(
+            'Now it is [time.Ip]')
+        self.assertRegexpMatches(message, 'Now it is (0[1-9]|1[0-2])(AM|PM)')
+    
+    def test11_customize_message_do_not_fail(self):
+        self.initialize_properties()
+        
+        message = self.worker.customize_message('Today "[context.message]" was received', fail=False)
+        self.assertEqual(message, 'Today "[context.message]" was received')
 
+        ## A failed customized content should not stop the loop on matched
+        message = self.worker.customize_message('Today "[context.message]" was received at [time.H]', fail=False)
+        self.assertRegexpMatches(message, 'Today "\[context.message\]" was received at \d\d')        
+    
     def test12_generate_message_use_template_fail(self):
         self.initialize_properties()
 

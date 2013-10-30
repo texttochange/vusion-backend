@@ -106,6 +106,14 @@ class Participant(VusionModel):
         label_indexer = dict((p['label'], p[field]) for i, p in enumerate(self.payload['profile']))
         return label_indexer.get(label, None)
 
+    def get_data(self, data):
+        value = self.get_participant_label_value(data)
+        if value is None:
+            value = self[data]
+        if not isinstance(value, basestring):
+            return None
+        return value;
+
     def is_optin(self):
         return self.payload['session-id'] is not None
     

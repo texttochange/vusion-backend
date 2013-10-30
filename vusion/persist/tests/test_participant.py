@@ -98,7 +98,7 @@ class TestParticipant(TestCase, ObjectMaker):
     def test_is_enrolled(self):
         pass
     
-    def test_get_label(self):
+    def test_get_participant_label_value(self):
         participant = Participant(**self.mkobj_participant())
         self.assertEqual(participant.get_participant_label_value('gender'), None)
         
@@ -114,7 +114,7 @@ class TestParticipant(TestCase, ObjectMaker):
             participant.get_participant_label_value('Some thing label'),
             'some value')
 
-    def test_get_label_raw(self):
+    def test_get_participant_label_value_raw(self):
         participant = Participant(
             **self.mkobj_participant(profile=[{'label': 'Some thing label',
                                                'value': 'some value'}]))
@@ -137,3 +137,22 @@ class TestParticipant(TestCase, ObjectMaker):
         self.assertEqual(
             participant.get_participant_label_value('Month of Pregnancy_raw'),
             'keyword 1 other content')        
+
+    def test_get_data(self):
+        participant = Participant(**self.mkobj_participant(
+            participant_phone='06',
+            session_id='01',
+            profile=[{'label': 'session-id',
+                      'value': '02'}]))
+        self.assertEqual(
+            participant.get_data('phone'),
+            '06')
+        self.assertEqual(
+            participant.get_data('session-id'),
+            '02')
+        self.assertEqual(
+            participant.get_data('tags'),
+            None)
+        self.assertEqual(
+            participant.get_data('notanAttribute'),
+            None)
