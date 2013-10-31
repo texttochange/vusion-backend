@@ -77,7 +77,7 @@ class MobtechMlHttpTransportTestCase(MessageMaker, TransportTestCase):
                 request.args["dlr-url"][0])
 
         yield self.make_resource_worker("0: Accepted for delivery", code=http.OK, callback=assert_request)
-        yield self.dispatch(self.mkmsg_out())
+        yield self.dispatch(msg)
         [smsg] = self.get_dispatched('mobtech.event')
         self.assertEqual(
             self.mkmsg_ack(
