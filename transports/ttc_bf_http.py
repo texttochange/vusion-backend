@@ -1,3 +1,6 @@
+import sys
+import traceback
+
 from urllib import urlencode
 
 from twisted.internet.defer import inlineCallbacks
@@ -73,9 +76,10 @@ class TtcBfHttpTransport(Transport):
                 failure_level='service',
                 failure_code=str(response.code),
                 failure_reason=response_body)
-    
-        except Exception as ex:
-            log.err("Unexpected error %s" % repr(ex))
+
+        except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            log.err("Unexpected error %r" % traceback.format_exception(exc_type, exc_value, exc_traceback))
 
 
 class TtcBfMoResource(Resource):
