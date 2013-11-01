@@ -9,6 +9,7 @@ from movilgate_http import MovilgateHttpTransport
 from mobtech_ml_http import MobtechMlHttpTransport
 from smsgh_smpp import SmsghSmppTransport
 from forward_http import ForwardHttp
+from ttc_bf_http import TtcBfHttpTransport
 
 __all__ = ["YoUgHttpTransport",
            "CmYoTransport",
@@ -18,6 +19,10 @@ __all__ = ["YoUgHttpTransport",
            "PushTzSmppTransport",
            "MobivateHttpTransport",
            "MovilgateHttpTransport",
+<<<<<<< HEAD
            "MobtechMlHttpTransport",
            "SmsghSmppTransport",
+=======
+           "TtcBfHttpTransport",
+>>>>>>> feature/burkina
            "ForwardHttp"]
