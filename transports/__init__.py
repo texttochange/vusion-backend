@@ -19,10 +19,7 @@ __all__ = ["YoUgHttpTransport",
            "PushTzSmppTransport",
            "MobivateHttpTransport",
            "MovilgateHttpTransport",
-<<<<<<< HEAD
            "MobtechMlHttpTransport",
            "SmsghSmppTransport",
-=======
            "TtcBfHttpTransport",
->>>>>>> feature/burkina
            "ForwardHttp"]
