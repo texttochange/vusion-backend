@@ -1,6 +1,8 @@
 import base64
 import urllib
 import re
+import sys
+import traceback
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.web import http, server
@@ -13,7 +15,7 @@ from vumi.utils import http_request_full
 
 class MobtechMlHttpTransport(Transport):
     
-    def mkres(self, cls, publish_func, path_key):
+    def make_resource_worker(self, cls, publish_func, path_key):
         resource = cls(self.config, publish_func)
         self.resources.append(resource)
         path = '%s/%s' % (self.config['receive_path'], path_key)
@@ -33,12 +35,14 @@ class MobtechMlHttpTransport(Transport):
         log.msg("Setup MobTech transport %s" %self.config)
         self.mt_response_regex = re.compile(self.config['mt_response_regex'])
         resources = [
-            self.mkres(MobtechMlMoResource,
-                       self.publish_message,
-                       self.config['mo_receive_path']),
-            self.mkres(MobtechMlDeliveryResource,
-                       self.publish_delivery_report,
-                       self.config['delivery_receive_path'])]
+            self.make_resource_worker(
+                MobtechMlMoResource,
+                self.publish_message,
+                self.config['mo_receive_path']),
+            self.make_resource_worker(
+                MobtechMlDeliveryResource,
+                self.publish_delivery_report,
+                self.config['delivery_receive_path'])]
         self.resources = yield self.start_web_resources(
             resources, self.config['receive_port'])
 
@@ -91,8 +95,9 @@ class MobtechMlHttpTransport(Transport):
             yield self.publish_ack(
                 user_message_id=message['message_id'],
                 sent_message_id=message['message_id'])
-        except Exception as ex:
-            log.err("Unexpected error %s" % repr(ex))
+        except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            log.err("Unexpected error %r" % traceback.format_exception(exc_type, exc_value, exc_traceback))
 
     def stopWorker(self):
         log.msg("Stop Mobtech transport")
