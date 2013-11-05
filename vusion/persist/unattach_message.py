@@ -1,11 +1,11 @@
 import re
 
 from vusion.error import InvalidField, MissingField
-from vusion_model import VusionModel
+from vusion.persist import Model
 
 
 ##TODO update the validation
-class UnattachMessage(VusionModel):
+class UnattachMessage(Model):
     
     MODEL_TYPE = 'unattach_message'
     MODEL_VERSION = '4'

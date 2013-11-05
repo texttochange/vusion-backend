@@ -2,47 +2,23 @@ from datetime import timedelta
 
 from bson import ObjectId
 
-from history import history_generator
+from vusion.persist.model_manager import ModelManager
 from vusion.utils import time_to_vusion_format
+from history import history_generator
 
 
-class HistoryManager(object):
+class HistoryManager(ModelManager):
 
     TIMESTAMP_LIMIT_ACK = 6          #in hours
     TIMESTAMP_LIMIT_ACK_FORWARD = 3  #in hours
 
-    def __init__(self, db, collection_name):
-        self.property_helper = None
-        if collection_name in db.collection_names():
-            self.collection = db[collection_name]
-        else:
-            self.collection = db.create_collection(collection_name)
+    def __init__(self, db, collection_name, **kwargs):
+        super(HistoryManager, self).__init__(db, collection_name, **kwargs)
         self.collection.ensure_index('timestamp',
                                      background=True)
         self.collection.ensure_index([('interaction-id', 1),('participant-session-id',1)],
                                      sparce = True,
                                      backgournd=True)
-
-    # TODO move in a manager super class
-    def set_property_helper(self, property_helper):
-        self.property_helper = property_helper
-
-    # TODO move in a manager super class
-    def __getattr__(self,attr):
-        orig_attr = self.collection.__getattribute__(attr)
-        if callable(orig_attr):
-            def hooked(*args, **kwargs):
-                result = orig_attr(*args, **kwargs)
-                # prevent wrapped_class from becoming unwrapped
-                if result == self.collection:
-                    return self
-                return result
-            return hooked
-        else:
-            return orig_attr
-
-    def get_local_time(self, date_format='datetime'):
-        return self.property_helper.get_local_time(date_format)
     
     def get_history(self, history_id):
         return self.collection.find_one({'_id': ObjectId(history_id)})

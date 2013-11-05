@@ -40,7 +40,7 @@ from vusion.persist import Request, history_generator, schedule_generator, Conte
 from vusion.component import DialogueWorkerPropertyHelper, CreditManager
 
 from vusion.persist import (Request, history_generator, schedule_generator, 
-                            HistoryManager, ContentVariableManager)
+                            HistoryManager, ContentVariableManager, DialogueManager)
 from vusion.component import (DialogueWorkerPropertyHelper, CreditManager,
                               LogManager)
 
@@ -98,6 +98,9 @@ class DialogueWorker(ApplicationWorker):
 
         self.log_manager.startup(self.properties)
         self.collections['history'].set_property_helper(self.properties)
+        self.collections['history'].set_log_helper(self.log_manager)
+        self.collections['dialogues'].set_property_helper(self.properties)
+        self.collections['dialogues'].set_log_helper(self.log_manager)
 
         self.credit_manager = CreditManager(
            self.r_key, self.r_server, 
@@ -177,48 +180,6 @@ class DialogueWorker(ApplicationWorker):
         else:
             return participant['session-id']
 
-    def get_current_dialogue(self, dialogue_id):
-        try:
-            dialogue = self.get_active_dialogues({'dialogue-id': dialogue_id})
-            if dialogue == []:
-                return None
-            return dialogue[0]
-        except:
-            self.log("Cannot get current dialogue %s" % dialogue_id)
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            self.log(
-                "Error message: %r" %
-                traceback.format_exception(exc_type, exc_value, exc_traceback))
-
-    def get_active_dialogues(self, conditions=None):
-        dialogues = self.collections['dialogues'].group(
-            ['dialogue-id'],
-            conditions,
-            {'Dialogue': 0},
-            """function(obj, prev){
-            if (obj.activated==1 &&
-            (prev.Dialogue==0 || prev.Dialogue.modified <= obj.modified))
-            prev.Dialogue = obj;}"""
-        )
-        active_dialogues = []
-        for dialogue in dialogues:
-            if dialogue['Dialogue'] == 0.0:
-                continue
-            try:
-                active_dialogues.append(Dialogue(**dialogue['Dialogue']))
-            except:
-                exc_type, exc_value, exc_traceback = sys.exc_info()
-                self.log(
-                    "Error while applying dialogue model on dialogue %s: %r" %
-                    (dialogue['Dialogue']['name'],
-                     traceback.format_exception(exc_type, exc_value, exc_traceback)))
-        return active_dialogues
-
-    def get_dialogue_obj(self, dialogue_obj_id):
-        dialogue = self.collections['dialogues'].find_one(
-            {'_id': ObjectId(dialogue_obj_id)})
-        return dialogue
-
     def get_requests(self):
         requests = []
         for request in self.collections['requests'].find():
@@ -244,7 +205,6 @@ class DialogueWorker(ApplicationWorker):
                                         safe=self.config.get('mongodb_safe', False))
         self.db = connection[self.database_name]
         self.setup_collections({
-            'dialogues': 'dialogue-id',
             'participants': 'phone',
             'schedules': 'date-time',
             'program_settings': None,
@@ -253,6 +213,7 @@ class DialogueWorker(ApplicationWorker):
 
         self.collections['history'] = HistoryManager(self.db, 'history')
         self.collections['content_variables'] = ContentVariableManager(self.db, 'content_variables')
+        self.collections['dialogues'] = DialogueManager(self.db, 'dialogues')
 
         self.collections['schedules'].ensure_index([('participant-phone',1),
                                                     ('interaction-id', 1)])
@@ -285,6 +246,7 @@ class DialogueWorker(ApplicationWorker):
                 return
             if message['action'] == 'update_schedule':
                 if message['schedule_type'] == 'dialogue':
+                    self.collections['dialogues'].load_dialogue(message['object_id'])
                     self.schedule_dialogue(message['object_id'])
                     self.register_keywords_in_dispatcher()
                 elif message['schedule_type'] == 'unattach':
@@ -292,7 +254,7 @@ class DialogueWorker(ApplicationWorker):
                 elif message['schedule_type'] == 'participant':
                     self.schedule_participant(message['object_id'])
             elif message['action'] == 'test_send_all_messages':
-                dialogue = self.get_dialogue_obj(message['dialogue_obj_id'])
+                dialogue = self.collections['dialogues'].get_dialogue_obj(message['dialogue_obj_id'])
                 self.send_all_messages(dialogue, message['phone_number'])
             elif message['action'] == 'update_registered_keywords':
                 self.register_keywords_in_dispatcher()
@@ -399,7 +361,7 @@ class DialogueWorker(ApplicationWorker):
                                   'profile': [] }},
                         safe=True)
             ## finialise the optin by enrolling and schedulling
-            for dialogue in self.get_active_dialogues({'auto-enrollment':'all'}):
+            for dialogue in self.collections['dialogues'].get_active_dialogues({'auto-enrollment':'all'}):
                 self.run_action(participant_phone,
                                 EnrollingAction(**{'enroll': dialogue['dialogue-id']}))
             self.schedule_participant(participant_phone)
@@ -462,7 +424,7 @@ class DialogueWorker(ApplicationWorker):
                 {'$push': {'enrolled': {'dialogue-id': action['enroll'],
                                         'date-time': time_to_vusion_format(self.get_local_time())}}},
                 safe=True)
-            dialogue = self.get_current_dialogue(action['enroll'])
+            dialogue = self.collections['dialogues'].get_current_dialogue(action['enroll'])
             if dialogue is None:
                 self.log(("Enrolling error: Missing Dialogue %s" % action['enroll']))
                 return
@@ -496,7 +458,7 @@ class DialogueWorker(ApplicationWorker):
                 return
             self.schedule_participant_dialogue(
                 participant,
-                self.get_current_dialogue(action['dialogue-id']))
+                self.collections['dialogues'].get_current_dialogue(action['dialogue-id']))
         elif (action.get_type() == 'remove-question'):
             self.collections['schedules'].remove({
                 'participant-phone': participant_phone,
@@ -577,13 +539,10 @@ class DialogueWorker(ApplicationWorker):
             if context.is_matching():
                 history = {'object-type': 'request-history'}
             else:
-                active_dialogues = self.get_active_dialogues()
-                for dialogue in active_dialogues:
-                    dialogue.get_matching_reference_and_actions(
-                        message['content'], actions, context)
-                    if context.is_matching():
-                        history = {'object-type': 'dialogue-history'}
-                        break
+                self.collections['dialogues'].get_matching_dialogue_actions(
+                    message['content'], actions, context)
+                if context.is_matching():
+                    history = {'object-type': 'dialogue-history'}
             # High priority to run an optin or enrolling action to get sessionId 
             if (self.get_participant_session_id(message['from_addr']) is None 
                     and (actions.contains('optin') or actions.contains('enrolling'))):
@@ -725,13 +684,6 @@ class DialogueWorker(ApplicationWorker):
                 'dialogue-id': context['dialogue-id'],
                 'interaction-id': context['interaction-id']}
             self.save_history(**history)
-    
-    def get_max_unmatching_answers_interaction(self, dialogue_id, interaction_id):
-        dialogue = self.get_current_dialogue(dialogue_id)
-        returned_interaction = dialogue.get_interaction(interaction_id)
-        if returned_interaction.has_max_unmatching_answers():
-            return returned_interaction
-        return None
 
     def daemon_process(self):
         self.load_properties()
@@ -799,7 +751,7 @@ class DialogueWorker(ApplicationWorker):
         if participant is None:
             return
         for enrolled in participant['enrolled']:
-            dialogue = self.get_current_dialogue(enrolled['dialogue-id'])
+            dialogue = self.collections['dialogues'].get_current_dialogue(enrolled['dialogue-id'])
             if dialogue is not None:
                 self.schedule_participant_dialogue(participant, dialogue)
         future_unattachs = self.get_future_unattachs()
@@ -821,7 +773,7 @@ class DialogueWorker(ApplicationWorker):
         return unattachs
 
     def schedule_dialogue(self, dialogue_id):
-        dialogue = self.get_current_dialogue(dialogue_id)
+        dialogue = self.collections['dialogues'].get_current_dialogue(dialogue_id)
         participants = self.get_participants(
             {'enrolled.dialogue-id': dialogue_id,
              'session-id': {'$ne': None}})
@@ -1043,8 +995,8 @@ class DialogueWorker(ApplicationWorker):
 
     def from_schedule_to_message(self, schedule):
         if schedule.get_type() in ['dialogue-schedule', 'reminder-schedule', 'deadline-schedule']:
-            dialogue = self.get_current_dialogue(schedule['dialogue-id'])
-            interaction = dialogue.get_interaction(schedule['interaction-id'])
+            interaction = self.collections['dialogues'].get_dialogue_interaction(
+                schedule['dialogue-id'], schedule['interaction-id'])
             context = Context(**{
                 'dialogue-id': schedule['dialogue-id'],
                 'interaction-id': schedule['interaction-id']})
@@ -1233,9 +1185,7 @@ class DialogueWorker(ApplicationWorker):
         self.log_manager.log(msg, level)
 
     def get_keywords(self):
-        keywords = []
-        for dialogue in self.get_active_dialogues():
-            keywords += dialogue.get_all_keywords()
+        keywords = self.collections['dialogues'].get_all_keywords()
         for request in self.get_requests():
             keywords += request.get_keywords()
         ## remove potential duplicate due to request exact matching

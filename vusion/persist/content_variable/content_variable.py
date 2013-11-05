@@ -1,6 +1,6 @@
-from vusion.persist import VusionModel
+from vusion.persist import Model
 
-class ContentVariable(VusionModel):
+class ContentVariable(Model):
     
     MODEL_TYPE = 'content_variable'
     MODEL_VERSION = '2'

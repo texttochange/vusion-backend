@@ -1,7 +1,7 @@
-from vusion_model import VusionModel
+from vusion.persist import Model
 
 
-class Shortcode(VusionModel):
+class Shortcode(Model):
     
     MODEL_TYPE = 'shortcode'
     MODEL_VERSION = '2'

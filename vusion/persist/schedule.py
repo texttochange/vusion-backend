@@ -3,13 +3,13 @@ from datetime import timedelta
 
 from vusion.error import VusionError, InvalidField
 from vusion.persist.action import action_generator
-from vusion.persist.vusion_model import VusionModel
+from vusion.persist import Model
 from vusion.context import Context
 from vusion.utils import time_from_vusion_format
 
 
 ##TODO update the validation
-class Schedule(VusionModel):
+class Schedule(Model):
 
     fields = {
         'participant-phone': {

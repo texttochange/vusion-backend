@@ -2,7 +2,7 @@ import json
 from vusion.error import MissingField, FailingModelUpgrade, InvalidField
 
 
-class VusionModel(object):
+class Model(object):
 
     MODEL_TYPE = None
     MODEL_VERSION = None
@@ -24,7 +24,7 @@ class VusionModel(object):
         self.validate_fields()
 
     def __eq__(self, other):
-        if isinstance(other, VusionModel):
+        if isinstance(other, Model):
             return self.payload == other.payload
         return False
 

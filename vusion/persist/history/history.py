@@ -1,10 +1,10 @@
 import re
 
-from vusion.persist.vusion_model import VusionModel
+from vusion.persist import Model
 from vusion.error import InvalidField, VusionError
 
 
-class History(VusionModel):
+class History(Model):
 
     fields = {
         'timestamp': {

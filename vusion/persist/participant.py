@@ -1,10 +1,10 @@
 import re
 
-from vusion.persist.vusion_model import VusionModel
+from vusion.persist import Model
 from vusion.error import InvalidField, MissingField
 
 ## TODO update the validation
-class Participant(VusionModel):
+class Participant(Model):
 
     MODEL_TYPE = 'participant'
     MODEL_VERSION = '4'

@@ -9,7 +9,7 @@ from twisted.internet.task import LoopingCall
 from vumi import log
 
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
-from vusion.persist import VusionModel
+from vusion.persist import Model
 from vusion.error import WrongModelInstanciation
 
 
@@ -241,7 +241,7 @@ class CreditManager(object):
 
 
 ## CreditNotification aims highligth a decision from the creditManage on to the frontend
-class CreditNotification(VusionModel):
+class CreditNotification(Model):
     
     MODEL_TYPE='credit-notification'
     MODEL_VERSION='1'
@@ -309,7 +309,7 @@ class CreditNotification(VusionModel):
         self._validate(self, self.fields)
 
 
-class CreditStatus(VusionModel):
+class CreditStatus(Model):
 
     MODEL_TYPE='credit-status'
     MODEL_VERSION='1'
