@@ -32,8 +32,8 @@ class MobtechMlHttpTransportTestCase(MessageMaker, TransportTestCase):
         self.config = {
             'transport_name': self.transport_name,
             'url': 'http://localhost:%s%s' % (self.send_port, self.send_path),
-            'user_name': 'username',
-            'password': 'password',
+            'username': 'myusername',
+            'password': 'mypassword',
             'mt_response_regex': '^(?P<status>\d+): +(?P<message>[\w\s]+)',
             'domain': self.domain,
             'receive_path': self.receive_path,
@@ -63,7 +63,8 @@ class MobtechMlHttpTransportTestCase(MessageMaker, TransportTestCase):
         def assert_request(request):
             headers = dict(request.requestHeaders.getAllRawHeaders())
             self.assertEqual(headers['Content-Type'], ['application/x-www-form-urlencoded'])
-            self.assertEqual(headers['Authorization'], ['Basic dXNlcm5hbWU6cGFzc3dvcmQ='])
+            self.assertEqual("myusername", request.args['username'][0])
+            self.assertEqual("mypassword", request.args['password'][0])
             self.assertEqual("+41791234567", request.args['to'][0])
             self.assertEqual("9292", request.args["from"][0])
             self.assertEqual("hello world", request.args["text"][0])

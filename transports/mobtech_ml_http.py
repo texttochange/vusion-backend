@@ -1,4 +1,3 @@
-import base64
 import urllib
 import re
 import sys
@@ -46,15 +45,13 @@ class MobtechMlHttpTransport(Transport):
         self.resources = yield self.start_web_resources(
             resources, self.config['receive_port'])
 
-    def get_encoded_credentials(self):
-        credentials = "%s:%s" % (self.config['user_name'], self.config['password'])
-        return base64.b64encode(credentials)
-
     @inlineCallbacks
     def handle_outbound_message(self, message):
         log.msg("Outbound message %s" % repr(message))
         try:
             params = {
+                'username': self.config['username'],
+                'password': self.config['password'],
                 'from': message['from_addr'],
                 'to': message['to_addr'],
                 'text': message['content'],
@@ -65,8 +62,7 @@ class MobtechMlHttpTransport(Transport):
                 self.config['url'],
                 urllib.urlencode(params),
                 {'User-Agent': ['Vumi Mobivate Transport'],
-                 'Content-Type': ['application/x-www-form-urlencoded'],
-                 'Authorization': ['Basic %s' % self.get_encoded_credentials()]},
+                 'Content-Type': ['application/x-www-form-urlencoded']},
                 'POST')
             
             if response.code != 200:
