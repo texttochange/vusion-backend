@@ -94,6 +94,12 @@ class MobtechMlHttpTransport(Transport):
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             log.err("Unexpected error %r" % traceback.format_exception(exc_type, exc_value, exc_traceback))
+            yield self.publish_delivery_report(
+                user_message_id=message['message_id'],
+                delivery_status='failed',
+                failure_level='transport',
+                failure_code='',
+                failure_reason=response.delivered_body)
 
     def stopWorker(self):
         log.msg("Stop Mobtech transport")

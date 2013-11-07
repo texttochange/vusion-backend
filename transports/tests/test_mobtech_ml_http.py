@@ -119,6 +119,22 @@ class MobtechMlHttpTransportTestCase(MessageMaker, TransportTestCase):
             TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks
+    def test_sending_fail_transport(self):
+        yield self.make_resource_worker("something happen", code=http.OK)
+        yield self.dispatch(self.mkmsg_out())
+        [smsg] = self.get_dispatched('mobtech.event')
+        self.assertEqual(
+            self.mkmsg_delivery(
+                transport_name='mobtech',
+                delivery_status='failed',
+                failure_level='transport',
+                failure_code='',
+                failure_reason='something happen',
+                user_message_id='1',
+                sent_message_id='1'),
+            TransportMessage.from_json(smsg.body))
+
+    @inlineCallbacks
     def test_receiving_sms(self):
         url_template = "http://localhost:%s/%s/%s"
         url = url_template % (self.receive_port, self.receive_path, self.mo_path)
