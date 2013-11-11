@@ -188,10 +188,10 @@ class WindowManager(object):
                          cleanup_callback=None):
         windows = yield self.get_windows()
         for window_id in windows:
-            log.msg("Monitor process on %s waiting=%s flighing=%s" % 
-                    (window_id,
-                     (yield self.count_waiting(window_id)),
-                     (yield self.count_in_flight(window_id))))
+            #log.msg("Monitor process on %s waiting=%s flighing=%s" % 
+                    #(window_id,
+                     #(yield self.count_waiting(window_id)),
+                     #(yield self.count_in_flight(window_id))))
             key = (yield self.get_next_key(window_id))
             while key:
                 yield key_callback(window_id, key)
