@@ -481,11 +481,7 @@ class DialogueWorker(ApplicationWorker):
             self.run_action(participant_phone, OptoutAction())
             self.run_action(participant_phone, OptinAction())
         elif (action.get_type() == 'proportional-tagging'):
-            if self.is_tagged(participant_phone, action.get_tags()):
-                return
-            for tag in action.get_tags():
-                action.set_tag_count(tag, self.collections['participants'].find({'tags': tag}).count())
-                self.run_action(participant_phone, action.get_tagging_action())
+            self.run_action_proportional_tagging(participant_phone, action)
         elif (action.get_type() == 'url-forwarding'):
             self.run_action_url_forwarding(participant_phone, action, context, participant_session_id)
         elif (action.get_type() == 'sms-forwarding'):
@@ -511,6 +507,13 @@ class DialogueWorker(ApplicationWorker):
         })
         yield self.transport_publisher.publish_message(message)
         self.collections['history'].update_forwarding(context['history_id'], message['message_id'], action['forward-url'])
+
+    def run_action_proportional_tagging(self, participant_phone, action, context=None):
+        if self.is_tagged(participant_phone, action.get_tags()):
+            return
+        for tag in action.get_tags():
+            action.set_tag_count(tag, self.collections['participants'].find({'tags': tag}).count())
+        self.run_action(participant_phone, action.get_tagging_action())
 
     @inlineCallbacks
     def run_action_sms_forwarding(self, participant_phone, action, context):
