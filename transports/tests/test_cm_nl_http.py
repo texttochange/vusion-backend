@@ -1,16 +1,106 @@
+#encoding: UTF-8
 from uuid import uuid4
 from datetime import datetime
 
 from twisted.internet.defer import inlineCallbacks
 from twisted.web import http
 from twisted.web.resource import Resource
+from twisted.trial.unittest import TestCase
 
 from vumi.transports.tests.test_base import TransportTestCase
-from transports import CmTransport
 from vumi.tests.utils import (get_stubbed_worker, TestResourceWorker,
                               RegexMatcher, UTCNearNow)
 from vumi.utils import http_request_full
 from vumi.message import TransportMessage, TransportEvent, TransportUserMessage
+
+from tests.utils import ObjectMaker
+from transports.cm_nl_http import CmTransport, CMXMLParser
+
+
+class CmParserTestCase(TestCase, ObjectMaker):
+    
+    def setUp(self):
+        config = {
+            'minimum_number_of_message_part': '1',
+            'maximum_number_of_message_part': '3'
+        }
+        self.parser = CMXMLParser(config)
+    
+    def mk_mt_request(self, from_addr="317777", to_addr="2567777", content="Hello World"):
+        return (
+            '<MESSAGES>'
+            '<CUSTOMER ID="myID" />'
+            '<USER LOGIN="myLogin" PASSWORD="myPassword" />'
+            '<MSG>'
+            '<FROM>%s</FROM>'
+            '<BODY HEADER="" TYPE="TEXT">%s</BODY>'
+            '<TO>%s</TO>'
+            '<MINIMUMNUMBEROFMESSAGEPARTS>1</MINIMUMNUMBEROFMESSAGEPARTS>'
+            '<MAXIMUMNUMBEROFMESSAGEPARTS>3</MAXIMUMNUMBEROFMESSAGEPARTS>'
+            '</MSG>'
+            '</MESSAGES>' % (from_addr, content, to_addr))
+    
+    def mk_mt_request_unicode(self, from_addr="317777", to_addr="2567777", content="Hello World"):
+        return (
+            '<MESSAGES>'
+            '<CUSTOMER ID="myID" />'
+            '<USER LOGIN="myLogin" PASSWORD="myPassword" />'
+            '<MSG>'
+            '<FROM>%s</FROM>'
+            '<DCS>8</DCS>'
+            '<BODY HEADER="" TYPE="TEXT">%s</BODY>'
+            '<TO>%s</TO>'
+            '<MINIMUMNUMBEROFMESSAGEPARTS>1</MINIMUMNUMBEROFMESSAGEPARTS>'
+            '<MAXIMUMNUMBEROFMESSAGEPARTS>6</MAXIMUMNUMBEROFMESSAGEPARTS>'
+            '</MSG>'
+            '</MESSAGES>' % (from_addr, content, to_addr))    
+    
+    def test_generate_mtrequest(self):
+        content = self.mk_content(154)
+        expected = self.mk_mt_request(content=content)
+        message_dict = {
+            'customer_id': 'myID',
+            'login': 'myLogin',
+            'password': 'myPassword',
+            'from_addr': '317777',
+            'to_addr': '2567777',
+            'content': content}
+
+        output = self.parser.build(message_dict)
+
+        self.assertEqual(expected, output)
+    
+    ## TODO require a GSM 03.38 detector
+    #def test_generate_mtrequest_ascii(self):
+        #content = 'é'
+        #expected = self.mk_mt_request(content=content)
+        #message_dict = {
+            #'customer_id': 'myID',
+            #'login': 'myLogin',
+            #'password': 'myPassword',
+            #'from_addr': '317777',
+            #'to_addr': '2567777',
+            #'content': content}
+
+        #output = self.parser.build(message_dict)
+
+        #self.assertEqual(expected, output)
+
+    ## TODO require a GSM 03.38 detector
+    #def test_generate_mtrequest_unicode(self):
+        #content = '爱'  #love in simplified chineese  
+        #expected = self.mk_mt_request_unicode(content=content)
+        #message_dict = {
+            #'customer_id': 'myID',
+            #'login': 'myLogin',
+            #'password': 'myPassword',
+            #'from_addr': '317777',
+            #'to_addr': '2567777',
+            #'content': content}
+
+        #output = self.parser.build(message_dict)
+
+        #self.assertEqual(expected, output)
 
 
 class CmTransportTestCase(TransportTestCase):
@@ -35,7 +125,9 @@ class CmTransportTestCase(TransportTestCase):
             'password': 'password',
             'customer_id': '3454',
             'receive_path': '/cm',
-            'receive_port': 9998
+            'receive_port': 9998,
+            'minimum_number_of_message_part': '1',
+            'maximum_number_of_message_part': '3'
         }
         self.worker = yield self.get_transport(self.config)
         self.today = datetime.utcnow().date()

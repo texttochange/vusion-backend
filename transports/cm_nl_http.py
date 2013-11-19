@@ -33,6 +33,7 @@ class CmTransport(Transport):
     def setup_transport(self):
         self._resources = []
         log.msg("Setup yo transport %s" % self.config)
+        self.cmparser = CMXMLParser(self.config)
         resources = [
             self.mkres(ReceiveSMSResource,
                        self.publish_message,
@@ -46,10 +47,9 @@ class CmTransport(Transport):
     def handle_outbound_message(self, message):
         log.msg("Outbound message to be processed %s" % repr(message))
         try:
-            cmparser = CMXMLParser()
             response = yield http_request_full(
                 self.config['url'],
-                cmparser.build({
+                self.cmparser.build({
                     'customer_id': self.config['customer_id'],
                     'login': self.config['login'],
                     'password': self.config['password'],
@@ -133,6 +133,10 @@ class ReceiveSMSResource(Resource):
 
 class CMXMLParser():
 
+    def __init__(self, config):
+        self.minimum_number_of_message_part = config.get('minimum_number_of_message_part', 1)
+        self.maximum_number_of_message_part = config.get('maximum_number_of_message_part', 3)
+
     def build(self, messagedict):
         messages = ElementTree.Element('MESSAGES')
         customer = ElementTree.SubElement(messages, 'CUSTOMER')
@@ -144,10 +148,14 @@ class CMXMLParser():
         origin = ElementTree.SubElement(msg, 'FROM')
         origin.text = messagedict['from_addr']
         body = ElementTree.SubElement(msg, 'BODY')
+        body.set('HEADER', '')        
         body.set('TYPE', 'TEXT')
-        body.set('HEADER', '')
         body.text = messagedict['content']
         to = ElementTree.SubElement(msg, 'TO')
         to.text = messagedict['to_addr']
+        minimum_number = ElementTree.SubElement(msg, 'MINIMUMNUMBEROFMESSAGEPARTS')
+        minimum_number.text = self.minimum_number_of_message_part
+        maximum_number = ElementTree.SubElement(msg, 'MAXIMUMNUMBEROFMESSAGEPARTS')
+        maximum_number.text = self.maximum_number_of_message_part
 
         return ElementTree.tostring(messages)
