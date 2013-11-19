@@ -83,7 +83,6 @@ class DynamicDispatchWorker(BaseDispatchWorker):
     def setup_exposed(self, name):
         log.debug("Setup exposed %s" % (name,))
         if not name in self._exposed_names:
-            self._exposed_names.append(name.encode('utf-8'))
             self.exposed_publisher[name] = yield self.publish_to(
                 ('%s.inbound' % (name,)).encode('utf-8'))
             self.exposed_event_publisher[name] = yield self.publish_to(
@@ -93,6 +92,17 @@ class DynamicDispatchWorker(BaseDispatchWorker):
                 functools.partial(self.dispatch_outbound_message,
                                   name),
                 message_class=TransportUserMessage)
+            self._exposed_names.append(name.encode('utf-8'))
+
+    ## The dynamic setting up of exposed can be slow and a incoming message can already try to be publish
+    ## to the exposed name with the publisher not yet setup. 
+    ## TODO requeue the message instead of just dumping it
+    def publish_inbound_message(self, endpoint, msg):
+        try:
+            return super(DynamicDispatchWorker, self).publish_inbound_message(endpoint, msg)
+        except Exception, e:
+            log.err("Error Publishing Inbound %s" % e.message)
+            return None
 
     @inlineCallbacks
     def remove_exposed(self, name):
