@@ -46,6 +46,7 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
 
     @inlineCallbacks
     def tearDown(self):
+        self.clear_dispatched()
         yield self.worker.stopWorker()
 
     def dispatch(self, message, rkey=None, exchange='vumi'):
@@ -134,6 +135,18 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
             [{'app': 'app1', 'keyword': 'keyword2', 'to_addr': '8181'},
              {'app': 'app1', 'keyword': 'keyword1'},
              {'app': 'app2', 'keyword': 'keyword2', 'to_addr': '8181'}])
+
+    @inlineCallbacks
+    def test_append_mapping_not_finished(self):
+        add_mappings = [
+                    {'app': 'app2',
+                     'keyword': 'keyword2',
+                     'to_addr': '8181'}]        
+        self.worker.append_mapping('app2', add_mappings)
+        in_msg = self.mkmsg_in(content='keyword2', to_addr='8181')
+        
+        yield self.dispatch(in_msg, 'transport1.inbound')
+        self.assert_no_messages('app2.inbound')
 
 
 class DummyDispatcher(object):
