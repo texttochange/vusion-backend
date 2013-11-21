@@ -68,14 +68,7 @@ class MobtechMlHttpTransportTestCase(MessageMaker, TransportTestCase):
             self.assertEqual("+41791234567", request.args['to'][0])
             self.assertEqual("9292", request.args["from"][0])
             self.assertEqual("hello world", request.args["text"][0])
-            self.assertEqual(
-                "http://%s:%s/%s/%s?messageid=%s&%s" % (self.domain,
-                                                        self.receive_port,
-                                                        self.receive_path,
-                                                        self.delivery_path,
-                                                        msg['message_id'],
-                                                        self.config['delivery_url_params']),
-                request.args["dlr-url"][0])
+            self.assertEqual("1", request.args["messageid"][0])
 
         yield self.make_resource_worker("0: Accepted for delivery", code=http.OK, callback=assert_request)
         yield self.dispatch(msg)
@@ -149,7 +142,7 @@ class MobtechMlHttpTransportTestCase(MessageMaker, TransportTestCase):
             headers={'Content-Type': ['application/x-www-form-urlencoded']},
             method='POST')
         self.assertEqual(response.code, http.OK)
-        self.assertEqual(response.delivered_body, '')
+        self.assertEqual(response.delivered_body, 'OK')
         
         [smsg] = self.get_dispatched('mobtech.inbound')
         sms_in = TransportMessage.from_json(smsg.body)
@@ -160,14 +153,22 @@ class MobtechMlHttpTransportTestCase(MessageMaker, TransportTestCase):
 
     @inlineCallbacks
     def test_delivery_report_delivered(self):
-        url_template = "http://localhost:%s/%s/%s?messageid=4345&type=titi&receiver=tata&reply=toto&time=tutu&usr=tyty&message=tete&dlr-mask=7"
-        url = url_template % (self.receive_port, self.receive_path, self.delivery_path)
+        url_template = "http://localhost:%s/%s/%s?%s"
+        url_params = {'messageid': '4345',
+                      'type': 'titi',
+                      'receiver': 'tata',
+                      'reply': 'id:c449ab9744f47b6af1879e49e75e4f40 sub:001 dlvrd:1 submit date:0610191018',
+                      'time': 'tutu',
+                      'usr': 'tyty',
+                      'message': 'tete',
+                      'dlr-mask': '7'}
+        url = url_template % (self.receive_port, self.receive_path, self.delivery_path, urllib.urlencode(url_params))
 
         response = yield http_request_full(
             url,
-            "id:c449ab9744f47b6af1879e49e75e4f40 sub:001 dlvrd:1 submit date:0610191018",
+            None,
             headers={"Content-Type": ["text/xml"]},
-            method='POST')
+            method='GET')
         self.assertEqual(response.code, http.OK)
         
         [smsg] = self.get_dispatched('mobtech.event')
@@ -180,15 +181,43 @@ class MobtechMlHttpTransportTestCase(MessageMaker, TransportTestCase):
             sms_delivery)
 
     @inlineCallbacks
-    def test_delivery_report_failed(self):
-        url_template = "http://localhost:%s/%s/%s?messageid=4345&type=titi&receiver=tata&reply=toto&time=tutu&usr=tyty&message=tete&dlr-mask=7"
-        url = url_template % (self.receive_port, self.receive_path, self.delivery_path)
+    def test_delivery_report_delivered_not_smpp_delivery(self):
+        url_template = "http://localhost:%s/%s/%s?%s"
+        url_params = {'messageid': '4345',
+                      'type': 'titi',
+                      'receiver': 'tata',
+                      'reply': 'ACK',
+                      'time': 'tutu',
+                      'usr': 'tyty',
+                      'message': 'tete',
+                      'dlr-mask': '7'}
+        url = url_template % (self.receive_port, self.receive_path, self.delivery_path, urllib.urlencode(url_params))
 
         response = yield http_request_full(
             url,
-            "id:c449ab9744f47b6af1879e49e75e4f40 sub:001 dlvrd:0 submit date:0610191018",
+            "",
             headers={"Content-Type": ["text/xml"]},
-            method='POST')
+            method='GET')
+        self.assertEqual(response.code, http.INTERNAL_SERVER_ERROR)
+
+    @inlineCallbacks
+    def test_delivery_report_failed(self):
+        url_template = "http://localhost:%s/%s/%s?%s"
+        url_params = {'messageid': '4345',
+                      'type': 'titi',
+                      'receiver': 'tata',
+                      'reply': 'id:c449ab9744f47b6af1879e49e75e4f40 sub:001 dlvrd:0 submit date:0610191018',
+                      'time': 'tutu',
+                      'usr': 'tyty',
+                      'message': 'tete',
+                      'dlr-mask': '7'}
+        url = url_template % (self.receive_port, self.receive_path, self.delivery_path, urllib.urlencode(url_params))
+        
+        response = yield http_request_full(
+            url,
+            None,
+            headers={"Content-Type": ["text/xml"]},
+            method='GET')
         self.assertEqual(response.code, http.OK)
         
         [smsg] = self.get_dispatched('mobtech.event')
@@ -205,12 +234,20 @@ class MobtechMlHttpTransportTestCase(MessageMaker, TransportTestCase):
 
     @inlineCallbacks
     def test_delivery_report_failed_stat(self):
-        url_template = "http://localhost:%s/%s/%s?messageid=4345&type=titi&receiver=tata&reply=toto&time=tutu&usr=tyty&message=tete&dlr-mask=7"
-        url = url_template % (self.receive_port, self.receive_path, self.delivery_path)
+        url_template = "http://localhost:%s/%s/%s?%s"
+        url_params = {'messageid': '4345',
+                      'type': 'titi',
+                      'receiver': 'tata',
+                      'reply': 'id:c449ab9744f47b6af1879e49e75e4f40 sub:001 dlvrd:0 submit date:0610191018 stat:REJECTD',
+                      'time': 'tutu',
+                      'usr': 'tyty',
+                      'message': 'tete',
+                      'dlr-mask': '7'}
+        url = url_template % (self.receive_port, self.receive_path, self.delivery_path, urllib.urlencode(url_params))
 
         response = yield http_request_full(
             url,
-            "id:c449ab9744f47b6af1879e49e75e4f40 sub:001 dlvrd:0 submit date:0610191018 stat:REJECTD",
+            None,
             headers={"Content-Type": ["text/xml"]},
             method='POST')
         self.assertEqual(response.code, http.OK)

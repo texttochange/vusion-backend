@@ -20,6 +20,7 @@ class MobtechMlHttpTransport(Transport):
         path = '%s/%s' % (self.config['receive_path'], path_key)
         return (resource, path)
 
+    #deprecated
     def mk_delivery_url(self, message):
         return 'http://%s:%s/%s/%s?messageid=%s&%s' % (self.config['domain'], 
                                                     self.config['receive_port'], 
@@ -55,7 +56,7 @@ class MobtechMlHttpTransport(Transport):
                 'from': message['from_addr'],
                 'to': message['to_addr'],
                 'text': message['content'],
-                'dlr-url': self.mk_delivery_url(message)}
+                'messageid': message['message_id']}
             log.msg('Hitting %s as POST with %r' % (self.config['url'], repr(params)))
             
             response = yield http_request_full(
@@ -127,10 +128,12 @@ class MobtechMlMoResource(Resource):
                 from_addr=request.args['from'][0],
                 content=request.args['text'][0])
             request.setResponseCode(http.OK)
+            request.write("OK")
         except Exception, e:
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
             headers = dict(request.requestHeaders.getAllRawHeaders())
             log.msg("Error processing the request: %s with headers %s" % (request.args, repr(headers)))
+            request.write("NOT OK")
         request.finish()
 
     def render(self, request):
@@ -152,11 +155,11 @@ class MobtechMlDeliveryResource(Resource):
     def do_render(self, request):
         log.msg("Got hit with %s" % request.args)
         try:
-            raw_delivery = request.content.read()
+            raw_delivery = request.args['reply'][0]
             delivery_match = re.search(self.delivery_regex, raw_delivery)
             if delivery_match is None:
                 log.err("Fail to read delivery report %s" % raw_delivery)
-                return
+                raise Exception("No Delivery")
             delivery_report = delivery_match.groupdict()
             if int(delivery_report['dlvrd']) >= 1:
                 yield self.publish_func(
@@ -174,11 +177,13 @@ class MobtechMlDeliveryResource(Resource):
                     failure_level='service',
                     failure_code='XX',
                     failure_reason= stat_report)
-            request.setResponseCode(http.OK)        
+            request.setResponseCode(http.OK)   
+            request.write("OK")
         except Exception, e:
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)            
             headers = dict(request.requestHeaders.getAllRawHeaders())
             log.msg("Error processing the request: %s with headers %s" % (request.args, repr(headers)))
+            request.write("NOT OK")
         request.finish()
 
     def render(self, request):
