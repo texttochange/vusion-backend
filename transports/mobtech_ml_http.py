@@ -171,13 +171,18 @@ class MobtechMlDeliveryResource(Resource):
                 if stat_match is not None:
                     stat_report = stat_match.groupdict()
                     stat_report = stat_report['stat']
-                yield self.publish_func(
-                    user_message_id=request.args['messageid'][0],
-                    delivery_status='failed',
-                    failure_level='service',
-                    failure_code='XX',
-                    failure_reason= stat_report)
-            request.setResponseCode(http.OK)   
+                if stat_report == 'DELIVRD':
+                    yield self.publish_func(
+                        user_message_id=request.args['messageid'][0],
+                        delivery_status='delivered')
+                else:
+                    yield self.publish_func(
+                        user_message_id=request.args['messageid'][0],
+                        delivery_status='failed',
+                        failure_level='service',
+                        failure_code='XX',
+                        failure_reason= stat_report)
+            request.setResponseCode(http.OK)
             request.write("OK")
         except Exception, e:
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)            

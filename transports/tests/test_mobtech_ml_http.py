@@ -152,12 +152,41 @@ class MobtechMlHttpTransportTestCase(MessageMaker, TransportTestCase):
         self.assertEqual("4444", sms_in['to_addr'])
 
     @inlineCallbacks
-    def test_delivery_report_delivered(self):
+    def test_delivery_report_delivered_dlvrd_only(self):
         url_template = "http://localhost:%s/%s/%s?%s"
         url_params = {'messageid': '4345',
                       'type': 'titi',
                       'receiver': 'tata',
                       'reply': 'id:c449ab9744f47b6af1879e49e75e4f40 sub:001 dlvrd:1 submit date:0610191018',
+                      'time': 'tutu',
+                      'usr': 'tyty',
+                      'message': 'tete',
+                      'dlr-mask': '7'}
+        url = url_template % (self.receive_port, self.receive_path, self.delivery_path, urllib.urlencode(url_params))
+
+        response = yield http_request_full(
+            url,
+            None,
+            headers={"Content-Type": ["text/xml"]},
+            method='GET')
+        self.assertEqual(response.code, http.OK)
+        
+        [smsg] = self.get_dispatched('mobtech.event')
+        sms_delivery = TransportMessage.from_json(smsg.body)
+        self.assertEqual(
+            self.mkmsg_delivery(
+                transport_name=self.transport_name,
+                delivery_status='delivered',
+                user_message_id='4345'),
+            sms_delivery)
+
+    @inlineCallbacks
+    def test_delivery_report_delivered(self):
+        url_template = "http://localhost:%s/%s/%s?%s"
+        url_params = {'messageid': '4345',
+                      'type': 'titi',
+                      'receiver': 'tata',
+                      'reply': 'id:0134231900 sub:000 dlvrd:000 submit date:1311211757 done date:1311211757 stat:DELIVRD err:000 Text:This is test 20 from',
                       'time': 'tutu',
                       'usr': 'tyty',
                       'message': 'tete',
