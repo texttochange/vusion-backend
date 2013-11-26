@@ -1,3 +1,11 @@
+import re
+import uuid
+import json
+
+
+from smpp.pdu_builder import DeliverSMResp
+from smpp.pdu_inspector import (MultipartMessage, detect_multipart,
+                                multipart_key)
 
 from vumi.log import log
 from vumi.transports.smpp import SmppTransport
@@ -28,6 +36,17 @@ class OrangeMaliEsmeTransceiverFactory(EsmeTransceiverFactory):
 
 class OrangeMaliEsmeTransceiver(EsmeTransceiver):
     
+    def detect_error_delivery(self, pdu):
+        if ('optional_parameters' in pdu['body']):
+            for optional_parameter in pdu['body']['optional_parameters']:
+                if optional_parameter['tag'] == 'network_error_code':
+                    log.msg('NETWORK ERROR CODE %s' % optional_parameter['value'])
+                    return True
+        return False    
+
+    def get_optional_parameter(self, pdu, tag):
+        return (option for option in pdu['body']['optional_parameters'] if option['tag'] == tag).next()
+
     def handle_deliver_sm(self, pdu):
         if self.state not in ['BOUND_RX', 'BOUND_TRX']:
             log.err('WARNING: Received deliver_sm in wrong state: %s' % (
@@ -35,9 +54,13 @@ class OrangeMaliEsmeTransceiver(EsmeTransceiver):
 
         if pdu['header']['command_status'] == 'ESME_ROK':
             sequence_number = pdu['header']['sequence_number']
+            #user_message_reference = self.get_optional_parameter(pdu, 'user_message_reference')
+            pdu_resp = DeliverSMResp(
+                sequence_number,
+                **self.defaults)
+            #pdu_resp.obj['body']['mandatory_parameters']['message_id'] = (user_message_reference['value'] or '')
             message_id = str(uuid.uuid4())
-            pdu_resp = DeliverSMResp(sequence_number,
-                    **self.defaults)
+            pdu_resp.obj['body']['mandatory_parameters']['message_id'] = message_id
             self.send_pdu(pdu_resp)
             pdu_params = pdu['body']['mandatory_parameters']
             delivery_report = self.config.delivery_report_re.search(

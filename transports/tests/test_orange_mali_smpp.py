@@ -78,20 +78,7 @@ class EsmeToOrangeMaliSmscTestCase(TransportTestCase):
 
     @inlineCallbacks
     def test_return_message_id_in_deliver_sm_resp(self):
-        
-        expected_pdus_1 = [
-            mk_expected_pdu("inbound", 1, "bind_transceiver"),
-            mk_expected_pdu("outbound", 1, "bind_transceiver_resp"),
-            mk_expected_pdu("inbound", 2, "enquire_link"),
-            mk_expected_pdu("outbound", 2, "enquire_link_resp"),
-        ]
-        
-        expected_pdus_3 = [
-            # a sms delivered by the smsc
-            mk_expected_pdu("outbound", 555, "deliver_sm"),
-            mk_expected_pdu("inbound", 555, "deliver_sm_resp"),
-        ]        
-        
+              
         ## Startup
         yield self.startTransport()
         yield self.transport._block_till_bind
@@ -100,25 +87,33 @@ class EsmeToOrangeMaliSmscTestCase(TransportTestCase):
         # and enquire_link pdu's are exchanged as expected
         pdu_queue = self.service.factory.smsc.pdu_queue
         
-        for expected_message in expected_pdus_1:
-            actual_message = yield pdu_queue.get()
-            self.assert_server_pdu(expected_message, actual_message)
+        for i in range(1, 5):
+            yield pdu_queue.get()
 
         pdu = DeliverSM(555,
                         short_message="SMS from server",
                         destination_addr="2772222222",
-                        source_addr="2772000000",
-                        optional_parameters=[{'user_message_reference': '23456'}])
+                        source_addr="2772000000")
+        ## Specific Orange Malie the user_message_reference need to be returned
+        pdu.obj['body']['optional_parameters'] = []        
+        pdu.obj['body']['optional_parameters'].append({
+                   'tag':'user_message_reference',
+                   'length':0,
+                   'value':'123456'})
         self.service.factory.smsc.send_pdu(pdu)
 
-        for expected_message in expected_pdus_2:
-            actual_message = yield pdu_queue.get()
-            self.assert_server_pdu(expected_message, actual_message)
+        deliver_sm = yield pdu_queue.get()
+        deliver_sm_resp = yield pdu_queue.get()
+        self.assert_server_pdu(
+            mk_expected_pdu("inbound", 555, "deliver_sm_resp"),
+            deliver_sm_resp)
+        ## Assert the user_message_reference is returned in message_id
+        self.assertEqual(
+            '123456',
+            deliver_sm_resp['pdu']['body']['mandatory_parameters']['message_id'])
         
         dispatched_messages = self.get_dispatched_messages()
-        mess = dispatched_messages[0].payload
+        msg = dispatched_messages[0].payload
 
-        self.assertEqual(mess['message_type'], 'user_message')
-        self.assertEqual(mess['transport_name'], self.transport_name)
-        self.assertEqual(mess['content'], "SMS from server")
-        self.assertEqual(mess['from_addr'], "+2772000000")
+        self.assertEqual(msg['content'], "SMS from server")
+        self.assertEqual(msg['from_addr'], "2772000000")
