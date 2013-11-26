@@ -134,8 +134,8 @@ class ReceiveSMSResource(Resource):
 class CMXMLParser():
 
     def __init__(self, config):
-        self.minimum_number_of_message_part = config.get('minimum_number_of_message_part', 1)
-        self.maximum_number_of_message_part = config.get('maximum_number_of_message_part', 3)
+        self.minimum_number_of_message_part = config.get('minimum_number_of_message_part', '1')
+        self.maximum_number_of_message_part = config.get('maximum_number_of_message_part', '3')
 
     def build(self, messagedict):
         messages = ElementTree.Element('MESSAGES')
