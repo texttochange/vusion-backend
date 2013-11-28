@@ -7,6 +7,7 @@ from vumi.middleware import setup_middlewares_from_config
 from middlewares.custom_middleware_stack import CustomMiddlewareStack, useCustomMiddleware
 from transports.enhanced_smpp.enhanced_client import EnhancedSmppTransport
 
+
 @useCustomMiddleware
 class SmsghSmppTransport(EnhancedSmppTransport):
 
