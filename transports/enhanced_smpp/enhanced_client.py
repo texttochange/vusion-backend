@@ -1,5 +1,27 @@
 from smpp.pdu_builder import SubmitSM
-from vumi.transports.smpp.clientserver.client import EsmeTransceiver
+
+from vumi.log import log
+from vumi.transports.smpp import SmppTransport
+from vumi.transports.smpp.clientserver.client import (
+    EsmeTransceiver, EsmeTransceiverFactory)
+
+
+class EnhancedSmppTransport(SmppTransport):
+    
+    def make_factory(self):
+        return EnhancedEsmeTransceiverFactory(
+            self.client_config,
+            self.r_server,
+            self.esme_callbacks)
+
+
+class EnhancedEsmeTransceiverFactory(EsmeTransceiverFactory):
+    
+    def buildProtocol(self, addr):
+        log.msg('Connected')
+        self.esme = EnhancedEsmeTransceiver(self.config, self.kvs, self.esme_callbacks)
+        self.resetDelay()
+        return self.esme
 
 
 class EnhancedEsmeTransceiver(EsmeTransceiver):
