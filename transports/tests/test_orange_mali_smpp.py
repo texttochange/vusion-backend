@@ -95,11 +95,11 @@ class EsmeToOrangeMaliSmscTestCase(TransportTestCase):
                         destination_addr="2772222222",
                         source_addr="2772000000")
         ## Specific Orange Malie the user_message_reference need to be returned
-        pdu.obj['body']['optional_parameters'] = []        
-        pdu.obj['body']['optional_parameters'].append({
-                   'tag':'user_message_reference',
-                   'length':0,
-                   'value':'123456'})
+        #pdu.obj['body']['optional_parameters'] = []        
+        #pdu.obj['body']['optional_parameters'].append({
+        #           'tag':'user_message_reference',
+        #           'length':0,
+        #           'value':'123456'})
         self.service.factory.smsc.send_pdu(pdu)
 
         deliver_sm = yield pdu_queue.get()
@@ -109,7 +109,7 @@ class EsmeToOrangeMaliSmscTestCase(TransportTestCase):
             deliver_sm_resp)
         ## Assert the user_message_reference is returned in message_id
         self.assertEqual(
-            '123456',
+            '',
             deliver_sm_resp['pdu']['body']['mandatory_parameters']['message_id'])
         
         dispatched_messages = self.get_dispatched_messages()

@@ -2,15 +2,15 @@ import re
 import uuid
 import json
 
-
 from smpp.pdu_builder import DeliverSMResp
 from smpp.pdu_inspector import (MultipartMessage, detect_multipart,
                                 multipart_key)
 
 from vumi.log import log
 from vumi.transports.smpp import SmppTransport
-from vumi.transports.smpp.clientserver.client import (
-    EsmeTransceiverFactory, EsmeTransceiver)
+from vumi.transports.smpp.clientserver.client import EsmeTransceiverFactory
+
+from transports.enhanced_smpp.enhanced_client import EnhancedEsmeTransceiver
 
 from middlewares.custom_middleware_stack import useCustomMiddleware
 
@@ -34,7 +34,7 @@ class OrangeMaliEsmeTransceiverFactory(EsmeTransceiverFactory):
         return self.esme
 
 
-class OrangeMaliEsmeTransceiver(EsmeTransceiver):
+class OrangeMaliEsmeTransceiver(EnhancedEsmeTransceiver):
     
     def detect_error_delivery(self, pdu):
         if ('optional_parameters' in pdu['body']):
@@ -60,7 +60,7 @@ class OrangeMaliEsmeTransceiver(EsmeTransceiver):
                 **self.defaults)
             #pdu_resp.obj['body']['mandatory_parameters']['message_id'] = (user_message_reference['value'] or '')
             message_id = str(uuid.uuid4())
-            pdu_resp.obj['body']['mandatory_parameters']['message_id'] = message_id
+            #pdu_resp.obj['body']['mandatory_parameters']['message_id'] = message_id
             self.send_pdu(pdu_resp)
             pdu_params = pdu['body']['mandatory_parameters']
             delivery_report = self.config.delivery_report_re.search(
