@@ -1,14 +1,15 @@
 from twisted.internet.defer import inlineCallbacks
 
-from vumi.transports.smpp import SmppTransport
 from vumi.log import log
 from vumi.utils import get_operator_number
 from vumi.middleware import setup_middlewares_from_config
 
 from middlewares.custom_middleware_stack import CustomMiddlewareStack, useCustomMiddleware
+from transports.enhanced_smpp.enhanced_client import EnhancedSmppTransport
+
 
 @useCustomMiddleware
-class SmsghSmppTransport(SmppTransport):
+class SmsghSmppTransport(EnhancedSmppTransport):
 
     def send_smpp(self, message):
         log.msg("Sending SMPP message: %s" % (message))

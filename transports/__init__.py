@@ -10,6 +10,7 @@ from mobtech_ml_http import MobtechMlHttpTransport
 from smsgh_smpp import SmsghSmppTransport
 from forward_http import ForwardHttp
 from ttc_bf_http import TtcBfHttpTransport
+from orange_mali_smpp import OrangeMaliSmppTransport
 
 __all__ = ["YoUgHttpTransport",
            "CmYoTransport",
@@ -22,4 +23,5 @@ __all__ = ["YoUgHttpTransport",
            "MobtechMlHttpTransport",
            "SmsghSmppTransport",
            "TtcBfHttpTransport",
-           "ForwardHttp"]
+           "ForwardHttp",
+           "OrangeMaliSmppTransport"]
