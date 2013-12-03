@@ -106,9 +106,11 @@ class VumiRedisClientFactory(txr.RedisClientFactory):
 class WindowManagerMiddleware(BaseMiddleware):
 
     def get_redis(self, r_config):
-        f = VumiRedisClientFactory(**r_config)
-        d = f.deferred.addCallback(lambda r: r.connected_d)
-        reactor.connectTCP('localhost', 6379, f)
+        host = r_config.pop('host', 'locahost')
+        port = r_config.pop('port', 6379)
+        factory = VumiRedisClientFactory(**r_config)
+        d = factory.deferred.addCallback(lambda r: r.connected_d)
+        reactor.connectTCP(host, port, factory)
         return d
 
     @inlineCallbacks
