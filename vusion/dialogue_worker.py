@@ -71,7 +71,7 @@ class DialogueWorker(ApplicationWorker):
         self.transport_name = self.config['transport_name']
         self.control_name = self.config['control_name']
         self.transport_type = 'sms'
-        self.r_config = self.config.get('redis', {})
+        self.r_config = self.config.get('redis_config', {})
         self.r_prefix = "%(control_name)s:" % self.config
 
         #Initializing
