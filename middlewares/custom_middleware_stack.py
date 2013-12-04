@@ -1,5 +1,6 @@
 from twisted.internet.defer import inlineCallbacks, returnValue, maybeDeferred
 
+from vumi.log import log
 from vumi.message import TransportUserMessage
 from vumi.transports import Transport
 from vumi.middleware import MiddlewareStack, setup_middlewares_from_config
