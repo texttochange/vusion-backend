@@ -1,3 +1,4 @@
+from copy import deepcopy
 from twisted.internet.defer import (
     inlineCallbacks, returnValue, DeferredList, succeed, Deferred)
 from twisted.internet import reactor
@@ -106,6 +107,7 @@ class VumiRedisClientFactory(txr.RedisClientFactory):
 class WindowManagerMiddleware(BaseMiddleware):
 
     def get_redis(self, r_config):
+        r_config = deepcopy(r_config)
         host = r_config.pop('host', 'locahost')
         port = r_config.pop('port', 6379)
         factory = VumiRedisClientFactory(**r_config)
