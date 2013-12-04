@@ -113,9 +113,17 @@ class WindowManagerMiddleware(BaseMiddleware):
         reactor.connectTCP(host, port, factory)
         return d
 
+    def get_r_config(self):
+        r_config = self.config.get('redis_config', {})
+        if r_config != {} or not hasattr(self.worker, 'config'):
+            return r_config
+        if self.worker.config.has_key('redis'):
+            return self.worker.config.get('redis', {})
+        return self.worker.config.get('redis_config', {})
+
     @inlineCallbacks
     def setup_middleware(self, r_server=None):
-        r_config = self.config.get('redis_config', {})
+        r_config = self.get_r_config()
         if r_server is None:
             r_server = yield self.get_redis(r_config)
         self.transport_name = self.worker.transport_name
