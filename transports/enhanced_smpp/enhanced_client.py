@@ -9,6 +9,24 @@ from vumi.transports.smpp.clientserver.client import (
 
 class EnhancedSmppTransport(SmppTransport):
     
+    DELIVERY_REPORT_STATUS_MAPPING = {
+        # Output values should map to themselves:
+        'delivered': 'delivered',
+        'failed': 'failed',
+        'pending': 'pending',
+        # SMPP `message_state` values:
+        'ENROUTE': 'pending',
+        'DELIVERED': 'delivered',
+        'EXPIRED': 'failed',
+        'DELETED': 'failed',
+        'UNDELIVERABLE': 'failed',
+        'ACCEPTED': 'delivered',
+        'UNKNOWN': 'pending',
+        'REJECTED': 'failed',
+        # From the most common regex-extracted format:
+        'DELIVRD': 'delivered',
+        'REJECTD': 'failed'}    
+    
     def setup_transport(self):
         self.submit_sm_encoding = self.config.get("submit_sm_encoding", 'utf-8')
         self.submit_sm_data_encoding = self.config.get("submit_sm_data_encoding", 0)
@@ -19,6 +37,9 @@ class EnhancedSmppTransport(SmppTransport):
             self.client_config,
             self.r_server,
             self.esme_callbacks)
+    
+    def delivery_status(self, stat):
+        return self.DELIVERY_REPORT_STATUS_MAPPING.get('stat', pending)
     
     def send_smpp(self, message):
         log.msg("Sending SMPP message: %s" % (message))
