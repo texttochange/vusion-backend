@@ -25,7 +25,7 @@ class EnhancedSmppTransport(SmppTransport):
         'REJECTED': 'failed',
         # From the most common regex-extracted format:
         'DELIVRD': 'delivered',
-        'REJECTD': 'failed'}    
+        'REJECTD': 'failed'}
     
     def setup_transport(self):
         self.submit_sm_encoding = self.config.get("submit_sm_encoding", 'utf-8')
@@ -39,7 +39,7 @@ class EnhancedSmppTransport(SmppTransport):
             self.esme_callbacks)
     
     def delivery_status(self, stat):
-        return self.DELIVERY_REPORT_STATUS_MAPPING.get('stat', pending)
+        return self.DELIVERY_REPORT_STATUS_MAPPING.get(stat, 'pending')
     
     def send_smpp(self, message):
         log.msg("Sending SMPP message: %s" % (message))
