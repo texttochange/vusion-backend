@@ -30,6 +30,28 @@ class PushTzSmppTransport(SmppTransport):
     
     regex_plus = re.compile("^\+")
     
+    DELIVERY_REPORT_STATUS_MAPPING = {
+        # Output values should map to themselves:
+        'delivered': 'delivered',
+        'failed': 'failed',
+        'pending': 'pending',
+        # SMPP `message_state` values:
+        'ENROUTE': 'pending',
+        'DELIVERED': 'delivered',
+        'EXPIRED': 'failed',
+        'DELETED': 'failed',
+        'UNDELIVERABLE': 'failed',
+        'ACCEPTED': 'delivered',
+        'UNKNOWN': 'pending',
+        'REJECTED': 'failed',
+        # From the most common regex-extracted format:
+        'DELIVRD': 'delivered',
+        'REJECTD': 'failed',
+        'UNDELIV': 'failed'}    
+
+    def delivery_status(self, stat):
+        return self.DELIVERY_REPORT_STATUS_MAPPING.get(stat, 'pending')
+    
     def make_factory(self):
         return PushTzEsmeTransceiverFactory(self.client_config,
                                             self.r_server,
