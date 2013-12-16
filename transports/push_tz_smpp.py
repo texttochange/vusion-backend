@@ -46,7 +46,8 @@ class PushTzSmppTransport(SmppTransport):
         'REJECTED': 'failed',
         # From the most common regex-extracted format:
         'DELIVRD': 'delivered',
-        'REJECTD': 'failed'}    
+        'REJECTD': 'failed',
+        'UNDELIV': 'failed'}    
 
     def delivery_status(self, stat):
         return self.DELIVERY_REPORT_STATUS_MAPPING.get(stat, 'pending')

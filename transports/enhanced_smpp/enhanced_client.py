@@ -25,7 +25,8 @@ class EnhancedSmppTransport(SmppTransport):
         'REJECTED': 'failed',
         # From the most common regex-extracted format:
         'DELIVRD': 'delivered',
-        'REJECTD': 'failed'}
+        'REJECTD': 'failed',
+        'UNDELIV': 'failed'}
     
     def setup_transport(self):
         self.submit_sm_encoding = self.config.get("submit_sm_encoding", 'utf-8')
