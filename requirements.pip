@@ -19,3 +19,4 @@ https://github.com/dustin/twitty-twister/tarball/master#egg=twittytwister-0.1.1
 
 ##Vusion
 pymongo==2.2
+Unidecode==0.04.14
