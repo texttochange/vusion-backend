@@ -4,6 +4,11 @@ from utils.keyword import clean_keyword
 
 class TestCleanKeyword(TestCase):
     
+    def test_str(self):
+        self.assertEqual(
+            clean_keyword('STRUFF'),
+            'struff')
+    
     def test_french_accent(self):
         self.assertEqual(
             clean_keyword(u'áàâä éèêë íîï óô úùûü'),

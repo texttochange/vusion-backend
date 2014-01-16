@@ -1,8 +1,10 @@
+#encoding: utf-8
 from twisted.internet.defer import inlineCallbacks
 
 from vumi.dispatchers.base import (BaseDispatchWorker)
 from vumi.tests.utils import FakeRedis
 from vumi.dispatchers.tests.test_base import DispatcherTestCase
+
 
 class TestPriorityContentKeywordRouter(DispatcherTestCase):
     
@@ -29,7 +31,7 @@ class TestPriorityContentKeywordRouter(DispatcherTestCase):
                         'prioritized': 'transport2-priority'}}},
             'exposed_names': ['app1', 'app2', 'app3', 'fallback_app'],
             'rules': [{'app': 'app1',
-                       'keyword': 'KEYWORD1',
+                       'keyword': 'espanol',
                        'to_addr': '8181',
                        'prefix': '+256',
                        },
@@ -127,10 +129,18 @@ class TestPriorityContentKeywordRouter(DispatcherTestCase):
         
         transport1_msgs = self.get_dispatched_messages('transport-http',
                                                       direction='outbound')
-        self.assertEqual(transport1_msgs, [msg])        
+        self.assertEqual(transport1_msgs, [msg])
+
+    @inlineCallbacks
+    def test_inbound_message_not_accent_sensitive(self):
+        msg = self.mkmsg_in(content=u'espaÑol join',
+                             to_addr='8181',
+                             from_addr='+256453')
         
+        yield self.dispatch(msg,
+                            transport_name='transport1',
+                            direction='inbound')
         
-        
-        
-        
-        
+        app1_msgs = self.get_dispatched_messages('app1', direction='inbound')
+        self.assertEqual(app1_msgs, [msg])        
+    
