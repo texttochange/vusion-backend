@@ -9,20 +9,9 @@ from twisted.internet.defer import inlineCallbacks
 from vumi.dispatchers.base import SimpleDispatchRouter, BaseDispatchWorker
 from vumi import log
 from vumi.message import Message, TransportUserMessage
+from vumi.utils import get_first_word
 
 from vusion.message import DispatcherControl
-
-
-def get_first_word(content, delimiter=' '):
-    """
-    splits a string to get the first word
-
-    >>>get_first_word('KEYWORD rest of message')
-    'KEYWORD'
-    >>>
-
-    """
-    return (content or '').split(delimiter)[0]
 
 
 class DynamicDispatchWorker(BaseDispatchWorker):
