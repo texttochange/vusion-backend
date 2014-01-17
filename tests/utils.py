@@ -745,7 +745,7 @@ class ObjectMaker:
         return dialogue
 
     def mkobj_request_join(self):
-        return {
+        return Request(**{
             'keyword': 'www join, www',
             'responses': [
                 {'content': 'thankyou of joining'},
@@ -755,25 +755,22 @@ class ObjectMaker:
                 {'type-action': 'enrolling',
                  'enroll': '01'}],
             'object-type': 'request',
-            'model-version': '1'}
-
-    request_tag = {
-        'keyword': 'www tagme',
-        'actions': [
-            {'type-action': 'tagging',
-             'tag': 'onetag'}],
-        'responses': [ 
-            {'content': 'you are tagged'}],
-        'object-type': 'request',
-        'model-version': '1'}
-    
+            'model-version': '1'}).get_as_dict()
+  
     def mkobj_request_tag(self):
-        return deepcopy(self.request_tag)
+        return Request(**{
+            'keyword': 'www tagme',
+            'actions': [
+                {'type-action': 'tagging',
+                 'tag': 'onetag'}],
+            'responses': [ 
+                {'content': 'you are tagged'}],
+            'object-type': 'request',
+            'model-version': '1'}).get_as_dict()
 
     def mkobj_request_reponse_lazy_matching(self, keyword):
         request = self.mkobj_request_response(keyword)
         request['set-no-request-matching-try-keyword-only'] = 'no-request-matching-try-keyword-only'
-        request['model-version'] = '2'
         return request
 
     def mkobj_request_response(self, keyword='www info'):
@@ -785,16 +782,14 @@ class ObjectMaker:
             'object-type': 'request',
             'model-version': '1'}).get_as_dict()
 
-    request_leave = {
-        'keyword': 'www quit, Quit, quit now, quitnow',
-        'responses': [],
-        'actions': [
-            {'type-action': 'optout'}],
-        'object-type': 'request',
-        'model-version': '1'}
-
     def mkobj_request_leave(self):
-        return deepcopy(self.request_leave)
+        return Request(**{
+            'keyword': 'www quit, Quit, quit now, quitnow',
+            'responses': [],
+            'actions': [
+                {'type-action': 'optout'}],
+            'object-type': 'request',
+            'model-version': '1'}).get_as_dict()
 
     def mkobj_unattach_message_1(self, recipient='all participants',
                                content='Hello everyone',
