@@ -6,8 +6,7 @@ from vusion.persist.action import (UnMatchingAnswerAction, FeedbackAction,
                                    action_generator, ProfilingAction,
                                    OffsetConditionAction, RemoveRemindersAction,
                                    RemoveDeadlineAction, RemoveQuestionAction)
-from vusion.persist import Model
-from vusion.persist.interaction import Interaction
+from vusion.persist import Model, Interaction
 
 
 ## TODO update the validation
@@ -51,13 +50,15 @@ class Dialogue(Model):
         if self.payload['interactions'] is None:
             return None, None
         for interaction in self.interactions:
-            if interaction['type-interaction'] == 'question-answer-keyword':
-                for answer_keyword in interaction['answer-keywords']:
-                    if keyword in self.split_keywords(answer_keyword['keyword']):
-                        return self.payload['dialogue-id'], interaction
-            elif interaction['type-interaction'] == 'question-answer':
-                if keyword in interaction.get_interaction_keywords():
-                    return self.payload['dialogue-id'], interaction
+            if interaction.is_matching(keyword):
+                return self.payload['dialogue-id'], interaction
+            #if interaction['type-interaction'] == 'question-answer-keyword':
+                #for answer_keyword in interaction['answer-keywords']:
+                    #if keyword in self.split_keywords(answer_keyword['keyword']):
+                        #return self.payload['dialogue-id'], interaction
+            #elif interaction['type-interaction'] == 'question-answer':
+                #if keyword in interaction.get_interaction_keywords():
+                    #return self.payload['dialogue-id'], interaction
         return None, None
 
     def get_offset_condition_interactions(self, interaction_id):

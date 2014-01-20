@@ -1,3 +1,4 @@
+#encoding=utf-8
 from copy import deepcopy
 from datetime import datetime
 import time
@@ -5,7 +6,6 @@ from copy import deepcopy
 
 from bson.timestamp import Timestamp
 
-#from vumi.tests.utils import UTCNearNow
 from vumi.message import (TransportEvent, TransportMessage,
                           TransportUserMessage, Message)
 from vumi.transports.failures import FailureMessage
@@ -15,7 +15,7 @@ from vusion.message import DispatcherControl, WorkerControl
 
 from vusion.persist import (Dialogue, DialogueHistory, UnattachHistory,
                             history_generator, schedule_generator, Participant,
-                            UnattachMessage, Request)
+                            UnattachMessage, Request, Interaction)
 
 
 class DataLayerUtils:
@@ -690,7 +690,60 @@ class ObjectMaker:
              }
         ]
     }
+    
+    def mkobj_interaction_question_answer_nospace(self, keywords='GEN'):
+        return Interaction(**{'activated': 1,
+             'type-schedule': 'offset-time',
+             'minutes': '2',
+             "type-interaction": "question-answer",
+             "type-question": "closed-question",
+             "set-use-template": "use-template",
+             "content": "What is your gender?",
+             'label-for-participant-profiling': 'gender',
+             "keyword": keywords,
+             "set-answer-accept-no-space": "answer-accept-no-space",
+             "answers": [
+                 {"choice": "Mâle"},
+                 {"choice": "Bad"}],
+             "interaction-id": "script.dialogues[0].interactions[2]"
+             }).get_as_dict()
 
+    def mkobj_interaction_question_multikeyword(self):
+        return Interaction(**{
+            'activated': 1,
+            'interaction-id': '05',
+            'type-interaction': 'question-answer-keyword',
+            'type-schedule': 'offset-time',
+            'minutes': '15',
+            'content': 'What is your gender?\n male or female',
+            'label-for-participant-profiling': 'gender',
+            "answer-keywords": [
+                {"keyword": "maLe"},
+                {"keyword": "fÉmale"}]}).get_as_dict()
+
+    def mkobj_interaction_question_answer(self):
+        return Interaction(**{
+            'activated': 1,
+            'type-schedule': 'offset-time',
+            'minutes': '2',
+            "type-interaction": "question-answer",
+            "type-question": "closed-question",
+            "content": "How are you [participant.name]?",
+            "keyword": "Fool",
+            "set-use-template": "use-template",
+            "type-reminder": "no-reminder",
+            "type-question": "closed-question",
+            "answers": [
+                {"choice": "Good",
+                 "feedbacks": [
+                     {"content": "So have a nice day [participant.name]"}]},
+                {"choice": "Bâd",
+                 "feedbacks": [
+                     {"content": "Come one [participant.name], you can get over it!"}]}
+                ],
+            "interaction-id": "script.dialogues[0].interactions[0]"
+        }).get_as_dict()
+    
     def mkobj_dialogue_question_answer(self):
         return Dialogue(**deepcopy(self.dialogue_question_answer)).get_as_dict()
 
