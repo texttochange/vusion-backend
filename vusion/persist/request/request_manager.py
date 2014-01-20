@@ -27,27 +27,32 @@ class RequestManager(ModelManager):
             request = Request(**request)
             self.loaded_requests.update({request_id: request})
 
+    def get_requests(self):
+        if len(self.loaded_requests) != self.count():
+            self.load_requests()
+        return self.loaded_requests
+
     def get_all_keywords(self):
-        pass
+        keywords = []
+        requests = self.get_requests()
+        for request_id, request in requests.iteritems():
+            for keyword in request.get_keywords():
+                if keyword not in keywords:
+                    keywords.append(keyword)
+        return keywords
 
     def get_matching_request_actions(self, message_content, actions, context):
-        # exact matching
-        exact_regex = re.compile(('(,\s|^)%s($|,)' % content), re.IGNORECASE)
-        matching_request = self.collections['requests'].find_one(
-            {'keyword': {'$regex': exact_regex}})
-        if matching_request:
-            request = Request(**matching_request)
-            request.append_actions(actions)
-            context.update({'request-id': matching_request['_id']})
-            return
-        # lazy keyword matching
-        lazy_regex = re.compile(
-            ('(,\s|^)%s(\s.*|$|,)' % get_first_word(content)), re.IGNORECASE)
-        matching_request = self.collections['requests'].find_one(
-            {'keyword': {'$regex': lazy_regex},
-             'set-no-request-matching-try-keyword-only': 'no-request-matching-try-keyword-only'})
-        if matching_request:
-            request = Request(**matching_request)
-            request.append_actions(actions)
-            context.update({'request-id': matching_request['_id']})
-        
+        requests = self.get_requests()
+        # keyphrase matching
+        for request_id, request in requests.iteritems():
+            if request.is_matching(message_content):
+                actions.extend(request.get_actions())
+                context.update({'request-id': ObjectId(request_id)})  
+                return
+
+        # keyword/lazy matching
+        for request_id, request in requests.iteritems():
+            if request.is_matching(message_content, False):
+                actions.extend(request.get_actions())
+                context.update({'request-id': ObjectId(request_id)})
+                return

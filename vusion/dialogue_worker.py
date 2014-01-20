@@ -40,7 +40,8 @@ from vusion.persist import Request, history_generator, schedule_generator, Conte
 from vusion.component import DialogueWorkerPropertyHelper, CreditManager
 
 from vusion.persist import (Request, history_generator, schedule_generator, 
-                            HistoryManager, ContentVariableManager, DialogueManager)
+                            HistoryManager, ContentVariableManager, DialogueManager,
+                            RequestManager)
 from vusion.component import (DialogueWorkerPropertyHelper, CreditManager,
                               LogManager)
 
@@ -208,12 +209,12 @@ class DialogueWorker(ApplicationWorker):
             'participants': 'phone',
             'schedules': 'date-time',
             'program_settings': None,
-            'unattached_messages': None,
-            'requests': None})
+            'unattached_messages': None})
 
         self.collections['history'] = HistoryManager(self.db, 'history')
         self.collections['content_variables'] = ContentVariableManager(self.db, 'content_variables')
         self.collections['dialogues'] = DialogueManager(self.db, 'dialogues')
+        self.collections['requests'] = RequestManager(self.db, 'requests')
 
         self.collections['schedules'].ensure_index([('participant-phone',1),
                                                     ('interaction-id', 1)])
@@ -284,27 +285,6 @@ class DialogueWorker(ApplicationWorker):
             self.collections['history'].update_forwarded_status(message['user_message_id'], status)
             return
         self.collections['history'].update_status(message['user_message_id'], status)
-
-    def get_matching_request_actions(self, content, actions, context):
-        # exact matching
-        exact_regex = re.compile(('(,\s|^)%s($|,)' % content), re.IGNORECASE)
-        matching_request = self.collections['requests'].find_one(
-            {'keyword': {'$regex': exact_regex}})
-        if matching_request:
-            request = Request(**matching_request)
-            request.append_actions(actions)
-            context.update({'request-id': matching_request['_id']})
-            return
-        # lazy keyword matching
-        lazy_regex = re.compile(
-            ('(,\s|^)%s(\s.*|$|,)' % get_first_word(content)), re.IGNORECASE)
-        matching_request = self.collections['requests'].find_one(
-            {'keyword': {'$regex': lazy_regex},
-             'set-no-request-matching-try-keyword-only': 'no-request-matching-try-keyword-only'})
-        if matching_request:
-            request = Request(**matching_request)
-            request.append_actions(actions)
-            context.update({'request-id': matching_request['_id']})
 
     def create_participant(self, participant_phone):
         return Participant(**{
@@ -538,7 +518,8 @@ class DialogueWorker(ApplicationWorker):
             history = {'object-type': 'unmatching-history'}
             context = Context(**{'message': message['content']})
             actions = Actions()
-            self.get_matching_request_actions(message['content'], actions, context)
+            self.collections['requests'].get_matching_request_actions(
+                message['content'], actions, context)
             if context.is_matching():
                 history = {'object-type': 'request-history'}
             else:
@@ -1189,9 +1170,7 @@ class DialogueWorker(ApplicationWorker):
 
     def get_keywords(self):
         keywords = self.collections['dialogues'].get_all_keywords()
-        for request in self.get_requests():
-            keywords += request.get_keywords()
-        ## remove potential duplicate due to request exact matching
+        keywords += self.collections['requests'].get_all_keywords()
         return sorted(set(keywords))
     
     @inlineCallbacks
