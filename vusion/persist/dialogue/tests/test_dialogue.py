@@ -288,22 +288,23 @@ class TestDialogue(TestCase, ObjectMaker):
             dialogue_helper.get_all_keywords(),
             [])
 
-    def test_get_all_keywords(self):
-        dialogue_helper = Dialogue(**self.mkobj_dialogue_question_answer())
-
+    def test_get_all_keywords_question_answer(self):
+        dialogue = Dialogue(**self.mkobj_dialogue_question_answer())
         self.assertEqual(
-            dialogue_helper.get_all_keywords(),
+            dialogue.get_all_keywords(),
             ['feel', 'fel', 'name'])
 
-        dialogue_helper = Dialogue(**self.mkobj_dialogue_answer_not_space_supported())
-
+    def test_get_all_keywords_question_answer_no_space(self):
+        dialogue = Dialogue(**self.mkobj_dialogue_answer_not_space_supported())
         self.assertEqual(
-            dialogue_helper.get_all_keywords(),
+            dialogue.get_all_keywords(),
             ['fool', 'gen', 'genmale', 'genbad'])
 
     def test_get_all_keywords_question_multi_keyword(self):
-        dialogue_helper = Dialogue(**self.mkobj_dialogue_question_multi_keyword())
-        self.assertEqual(dialogue_helper.get_all_keywords(), ['male', 'female'])
+        dialogue = Dialogue(**self.mkobj_dialogue_question_multi_keyword())
+        self.assertEqual(
+            dialogue.get_all_keywords(),
+            ['male', 'female'])
 
     def test_get_offset_condition_action(self):
         script = Dialogue(**self.mkobj_dialogue_question_offset_conditional())
