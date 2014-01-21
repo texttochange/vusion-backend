@@ -2,6 +2,9 @@ from copy import copy
 
 from vumi import log
 from vumi.utils import get_first_word
+
+from utils.keyword import clean_keyword
+
 from vusion.persist.action import (UnMatchingAnswerAction, FeedbackAction,
                                    action_generator, ProfilingAction,
                                    OffsetConditionAction, RemoveRemindersAction,
@@ -70,8 +73,8 @@ class Dialogue(Model):
         return offset_condition_interactions
 
     def get_matching_reference_and_actions(self, message, actions, context):
-        keyword = get_first_word(message).lower()
-        reply = self.get_reply(message).lower()
+        keyword = clean_keyword(get_first_word(message))
+        reply = clean_keyword(self.get_reply(message))
         dialogue_id, interaction = self.get_matching_interaction(keyword)
 
         if not interaction:

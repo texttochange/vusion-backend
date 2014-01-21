@@ -729,7 +729,7 @@ class ObjectMaker:
             "type-interaction": "question-answer",
             "type-question": "closed-question",
             "content": "How are you [participant.name]?",
-            "keyword": "Fool",
+            "keyword": "Feel",
             "set-use-template": "use-template",
             "type-reminder": "no-reminder",
             "type-question": "closed-question",
