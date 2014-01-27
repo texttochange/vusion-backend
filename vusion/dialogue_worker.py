@@ -256,6 +256,7 @@ class DialogueWorker(ApplicationWorker):
                     self.schedule_participant(message['object_id'])
             elif message['action'] == 'reload_request':
                 self.collections['requests'].load_request(message['object_id'])
+                self.register_keywords_in_dispatcher()
             elif message['action'] == 'test_send_all_messages':
                 dialogue = self.collections['dialogues'].get_dialogue_obj(message['dialogue_obj_id'])
                 self.send_all_messages(dialogue, message['phone_number'])
