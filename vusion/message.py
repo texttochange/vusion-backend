@@ -17,6 +17,8 @@ class WorkerControl(Message):
         'test_send_all_messages': {
             'dialogue_obj_id': lambda v: v is not None,
             'phone_number': lambda v: v is not None},
+        'reload_request': {
+            'object_id': lambda v: v is not None},
         'update_registered_keywords': {},
         'reload_program_settings': {}
     }
