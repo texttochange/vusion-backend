@@ -25,7 +25,7 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
     def get_worker(self):
         config = {
             'dispatcher_name': 'vusion',
-            'router_class': 'dispatchers.PriorityContentKeywordRouter',
+            'router_class': 'dispatchers.VusionMainRouter',
             'exposed_names': ['app1', 'fallback_app'],
             'keyword_mappings': {'app1': 'keyword1'},
             'rules': [{

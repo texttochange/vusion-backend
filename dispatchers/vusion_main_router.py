@@ -4,13 +4,15 @@ from twisted.internet.defer import inlineCallbacks
 
 from vumi.dispatchers.base import ContentKeywordRouter
 from vumi import log
+
 from utils.keyword import clean_keyword
 
-# PriorityContentKeywordRouter manages: 
-#    1- different priority during outbound rounting. 
-#    2- non case sensitive, non accent sensitive, non ligature sensitive of 
-#       inbound routing
-class PriorityContentKeywordRouter(ContentKeywordRouter):
+
+## this router apply the following rules
+## inbound => keyword match on content
+## event => exact match on message_id
+##
+class VusionMainRouter(ContentKeywordRouter):
     
     @inlineCallbacks
     def dispatch_outbound_message(self, msg):
@@ -37,14 +39,9 @@ class PriorityContentKeywordRouter(ContentKeywordRouter):
             return None
         if isinstance(match_transport_name, str):
             return match_transport_name
-        if isinstance(match_transport_name, dict):
-            if ('priority' in msg['transport_metadata']
-                    and msg['transport_metadata']['priority'] in match_transport_name):
-                return match_transport_name[msg['transport_metadata']['priority']]
-            return match_transport_name['default']
         return None
 
     def is_msg_matching_routing_rules(self, keyword, msg, rule):
         rule['keyword'] = clean_keyword(rule['keyword'])
-        return super(PriorityContentKeywordRouter, self).is_msg_matching_routing_rules(
+        return super(VusionMainRouter, self).is_msg_matching_routing_rules(
             clean_keyword(keyword), msg, rule)
