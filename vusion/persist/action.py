@@ -430,6 +430,10 @@ class Actions():
         else:
             self.actions.append(action)
 
+    def extend(self, actions):
+        for action in actions:
+            self.append(action)
+
     def contains(self, action_type):
         for action in self.actions:
             if action.get_type() == action_type:

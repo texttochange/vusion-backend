@@ -1,3 +1,4 @@
+#encoding=utf-8
 from copy import deepcopy
 from datetime import datetime
 import time
@@ -5,7 +6,6 @@ from copy import deepcopy
 
 from bson.timestamp import Timestamp
 
-#from vumi.tests.utils import UTCNearNow
 from vumi.message import (TransportEvent, TransportMessage,
                           TransportUserMessage, Message)
 from vumi.transports.failures import FailureMessage
@@ -15,7 +15,7 @@ from vusion.message import DispatcherControl, WorkerControl
 
 from vusion.persist import (Dialogue, DialogueHistory, UnattachHistory,
                             history_generator, schedule_generator, Participant,
-                            UnattachMessage, Request)
+                            UnattachMessage, Request, Interaction)
 
 
 class DataLayerUtils:
@@ -690,7 +690,60 @@ class ObjectMaker:
              }
         ]
     }
+    
+    def mkobj_interaction_question_answer_nospace(self, keywords='GEN'):
+        return Interaction(**{'activated': 1,
+             'type-schedule': 'offset-time',
+             'minutes': '2',
+             "type-interaction": "question-answer",
+             "type-question": "closed-question",
+             "set-use-template": "use-template",
+             "content": "What is your gender?",
+             'label-for-participant-profiling': 'gender',
+             "keyword": keywords,
+             "set-answer-accept-no-space": "answer-accept-no-space",
+             "answers": [
+                 {"choice": "Mâle"},
+                 {"choice": "Bad"}],
+             "interaction-id": "script.dialogues[0].interactions[2]"
+             }).get_as_dict()
 
+    def mkobj_interaction_question_multikeyword(self):
+        return Interaction(**{
+            'activated': 1,
+            'interaction-id': '05',
+            'type-interaction': 'question-answer-keyword',
+            'type-schedule': 'offset-time',
+            'minutes': '15',
+            'content': 'What is your gender?\n male or female',
+            'label-for-participant-profiling': 'gender',
+            "answer-keywords": [
+                {"keyword": "maLe"},
+                {"keyword": "fÉmale"}]}).get_as_dict()
+
+    def mkobj_interaction_question_answer(self):
+        return Interaction(**{
+            'activated': 1,
+            'type-schedule': 'offset-time',
+            'minutes': '2',
+            "type-interaction": "question-answer",
+            "type-question": "closed-question",
+            "content": "How are you [participant.name]?",
+            "keyword": "Feel",
+            "set-use-template": "use-template",
+            "type-reminder": "no-reminder",
+            "type-question": "closed-question",
+            "answers": [
+                {"choice": "Good",
+                 "feedbacks": [
+                     {"content": "So have a nice day [participant.name]"}]},
+                {"choice": "Bâd",
+                 "feedbacks": [
+                     {"content": "Come one [participant.name], you can get over it!"}]}
+                ],
+            "interaction-id": "script.dialogues[0].interactions[0]"
+        }).get_as_dict()
+    
     def mkobj_dialogue_question_answer(self):
         return Dialogue(**deepcopy(self.dialogue_question_answer)).get_as_dict()
 
@@ -745,7 +798,7 @@ class ObjectMaker:
         return dialogue
 
     def mkobj_request_join(self):
-        return {
+        return Request(**{
             'keyword': 'www join, www',
             'responses': [
                 {'content': 'thankyou of joining'},
@@ -755,25 +808,22 @@ class ObjectMaker:
                 {'type-action': 'enrolling',
                  'enroll': '01'}],
             'object-type': 'request',
-            'model-version': '1'}
-
-    request_tag = {
-        'keyword': 'www tagme',
-        'actions': [
-            {'type-action': 'tagging',
-             'tag': 'onetag'}],
-        'responses': [ 
-            {'content': 'you are tagged'}],
-        'object-type': 'request',
-        'model-version': '1'}
-    
+            'model-version': '1'}).get_as_dict()
+  
     def mkobj_request_tag(self):
-        return deepcopy(self.request_tag)
+        return Request(**{
+            'keyword': 'www tagme',
+            'actions': [
+                {'type-action': 'tagging',
+                 'tag': 'onetag'}],
+            'responses': [ 
+                {'content': 'you are tagged'}],
+            'object-type': 'request',
+            'model-version': '1'}).get_as_dict()
 
     def mkobj_request_reponse_lazy_matching(self, keyword):
         request = self.mkobj_request_response(keyword)
         request['set-no-request-matching-try-keyword-only'] = 'no-request-matching-try-keyword-only'
-        request['model-version'] = '2'
         return request
 
     def mkobj_request_response(self, keyword='www info'):
@@ -785,16 +835,14 @@ class ObjectMaker:
             'object-type': 'request',
             'model-version': '1'}).get_as_dict()
 
-    request_leave = {
-        'keyword': 'www quit, Quit, quit now, quitnow',
-        'responses': [],
-        'actions': [
-            {'type-action': 'optout'}],
-        'object-type': 'request',
-        'model-version': '1'}
-
     def mkobj_request_leave(self):
-        return deepcopy(self.request_leave)
+        return Request(**{
+            'keyword': 'www quit, Quit, quit now, quitnow',
+            'responses': [],
+            'actions': [
+                {'type-action': 'optout'}],
+            'object-type': 'request',
+            'model-version': '1'}).get_as_dict()
 
     def mkobj_unattach_message_1(self, recipient='all participants',
                                content='Hello everyone',

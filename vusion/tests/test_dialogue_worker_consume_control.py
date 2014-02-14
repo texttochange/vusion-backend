@@ -98,6 +98,24 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
         self.assertEqual(len(messages), 1)
     
     @inlineCallbacks
+    def test_consume_control_reload_request(self):
+        self.initialize_properties()
+        self.broker.dispatched = {}
+    
+        join_id = self.collections['requests'].save(self.mkobj_request_join())
+    
+        event = self.mkmsg_dialogueworker_control(**{
+            'action': 'reload_request', 'object_id': str(join_id)})
+        yield self.send(event, 'control')
+        
+        messages = self.broker.get_messages('vumi', 'dispatcher.control')
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0]['action'], 'add_exposed')
+        self.assertEqual(messages[0]['exposed_name'], 'test')
+        self.assertEqual(messages[0]['rules'], [{
+            'app': 'test', 'keyword':'www', 'prefix':'+256', 'to_addr': '8181'}])
+
+    @inlineCallbacks
     def test_consume_control_reload_program_settings(self):
         self.initialize_properties()
     

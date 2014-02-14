@@ -4,6 +4,8 @@ from datetime import timedelta, datetime, time
 
 from vumi.utils import get_first_word
 
+from utils.keyword import clean_keyword
+
 from vusion.persist import Model
 from vusion.error import InvalidField, MissingField
 from vusion.persist.action import (action_generator, FeedbackAction,
@@ -102,6 +104,10 @@ class Interaction(Model):
         'max-unmatching-answer-actions',
         'reminder-actions'
         }
+    
+    def __init__(self, **kwargs):
+        super(Interaction, self).__init__(**kwargs)
+        self.keywords = self._get_keywords()
     
     @staticmethod
     def validate_actions(actions):
@@ -228,6 +234,9 @@ class Interaction(Model):
             return False
         return self['prioritized']
 
+    def is_matching(self, keyword):
+        return keyword in self.keywords
+
     def generate_reminder_times(self, interaction_date_time):
         if not self.has_reminder:
             return None
@@ -250,11 +259,11 @@ class Interaction(Model):
     def get_reminder_times(self, interaction_date_time):
         times = self.generate_reminder_times(interaction_date_time)
         return times[:-1] if times is not None else None
-    
+
     def get_deadline_time(self, interaction_date_time):
         times = self.generate_reminder_times(interaction_date_time)
         return times[-1] if times is not None else None
-    
+
     def has_max_unmatching_answers(self):
         if 'set-max-unmatching-answers' not in self.payload:
             return False
@@ -268,7 +277,7 @@ class Interaction(Model):
             actions.append(FeedbackAction(**{'content': self.payload['unmatching-feedback-content']}))
         elif self.payload['type-unmatching-feedback'] == 'program-unmatching-feedback':
             actions.append(UnMatchingAnswerAction(**{'answer': answer}))
-            
+
     def get_max_unmatching_action(self, dialogue_id, actions):
         if self.has_reminder():
             actions.append(RemoveRemindersAction(**{
@@ -289,12 +298,12 @@ class Interaction(Model):
         for answer in self.payload['answers']:
             generated_answer += self.get_answer_keywords(keywords, answer)
         return generated_answer
-    
+
     def split_keywords(self, keywords):
-        return [k.lower() for k in (keywords or '').split(', ')]
+        return [clean_keyword(k) for k in (keywords or '').split(', ')]
 
     def get_answer_keywords(self, keywords, answer):
-        return [("%s%s" % (keyword, answer['choice'])).lower() for keyword in keywords]
+        return [clean_keyword("%s%s" % (keyword, answer['choice'].replace(" ",""))) for keyword in keywords]
 
     def get_actions_from_matching_answer(self, dialogue_id, matching_answer, matching_value, actions):
         for feedback in matching_answer['feedbacks']:
@@ -304,7 +313,7 @@ class Interaction(Model):
             for matching_answer_action in matching_answer['answer-actions']:
                 actions.append(action_generator(**matching_answer_action))
         return actions
-    
+
     def get_actions_from_interaction(self, dialogue_id, matching_value, actions):
         if self.has_reminder():
             actions.append(RemoveRemindersAction(**{
@@ -330,7 +339,7 @@ class Interaction(Model):
             for feedback in self.payload['feedbacks']:
                 action = FeedbackAction(**{'content': feedback['content']})
                 actions.append(action)
-        
+
     def get_actions(self, dialogue_id, msg, msg_keyword, msg_reply, reference_metadata, actions):
         actions.append(RemoveQuestionAction(**{
             'dialogue-id': dialogue_id,
@@ -381,7 +390,7 @@ class Interaction(Model):
                     reference_metadata['matching-answer'],
                     actions)
                 return reference_metadata, actions
-     
+
     def get_matching_answer_keyword(self, answer_keywords, msg_keyword):
         for answer_keyword in answer_keywords:
             if msg_keyword in self.split_keywords(answer_keyword['keyword']):
@@ -395,10 +404,12 @@ class Interaction(Model):
             for answer in answers:
                 if keyword in self.get_answer_keywords(keywords, answer):
                     return answer
+        if reply is None:
+            return None
         for answer in answers:
-            regex_CHOICE = re.compile(("^%s(\s|$)" % answer['choice']), re.IGNORECASE)
+            regex_CHOICE = re.compile(("^%s(\s|$)" % clean_keyword(answer['choice'])))
             if re.match(regex_CHOICE, reply) is not None:
-                return answer        
+                return answer
         try:
             probable_index = get_first_word(reply)
             index = int(probable_index) - 1
@@ -412,7 +423,7 @@ class Interaction(Model):
         words = (message or '').split(' ')
         return " ".join(words[1:])
 
-    def get_keywords(self):
+    def _get_keywords(self):
         keywords = []
         if self.payload['type-interaction'] == 'announcement':
             return keywords
@@ -429,8 +440,8 @@ class Interaction(Model):
             generated_answer += self.get_answer_keywords(keywords, answer)
         return generated_answer    
 
-    def get_answer_keywords(self, keywords, answer):
-        return [("%s%s" % (keyword, answer['choice'].replace(" ",""))).lower() for keyword in keywords]
+    def get_keywords(self):
+        return self.keywords
 
     def get_offset_time_delta(self):
         if self['type-schedule'] != 'offset-time':

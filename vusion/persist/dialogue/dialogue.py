@@ -2,12 +2,14 @@ from copy import copy
 
 from vumi import log
 from vumi.utils import get_first_word
+
+from utils.keyword import clean_keyword
+
 from vusion.persist.action import (UnMatchingAnswerAction, FeedbackAction,
                                    action_generator, ProfilingAction,
                                    OffsetConditionAction, RemoveRemindersAction,
                                    RemoveDeadlineAction, RemoveQuestionAction)
-from vusion.persist import Model
-from vusion.persist.interaction import Interaction
+from vusion.persist import Model, Interaction
 
 
 ## TODO update the validation
@@ -51,13 +53,15 @@ class Dialogue(Model):
         if self.payload['interactions'] is None:
             return None, None
         for interaction in self.interactions:
-            if interaction['type-interaction'] == 'question-answer-keyword':
-                for answer_keyword in interaction['answer-keywords']:
-                    if keyword in self.split_keywords(answer_keyword['keyword']):
-                        return self.payload['dialogue-id'], interaction
-            elif interaction['type-interaction'] == 'question-answer':
-                if keyword in interaction.get_interaction_keywords():
-                    return self.payload['dialogue-id'], interaction
+            if interaction.is_matching(keyword):
+                return self.payload['dialogue-id'], interaction
+            #if interaction['type-interaction'] == 'question-answer-keyword':
+                #for answer_keyword in interaction['answer-keywords']:
+                    #if keyword in self.split_keywords(answer_keyword['keyword']):
+                        #return self.payload['dialogue-id'], interaction
+            #elif interaction['type-interaction'] == 'question-answer':
+                #if keyword in interaction.get_interaction_keywords():
+                    #return self.payload['dialogue-id'], interaction
         return None, None
 
     def get_offset_condition_interactions(self, interaction_id):
@@ -69,8 +73,8 @@ class Dialogue(Model):
         return offset_condition_interactions
 
     def get_matching_reference_and_actions(self, message, actions, context):
-        keyword = get_first_word(message).lower()
-        reply = self.get_reply(message).lower()
+        keyword = clean_keyword(get_first_word(message))
+        reply = clean_keyword(self.get_reply(message))
         dialogue_id, interaction = self.get_matching_interaction(keyword)
 
         if not interaction:
