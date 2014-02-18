@@ -1,0 +1,9 @@
+transport_name: 256-8282-yo
+
+url: http://localhost:9100/sendsms
+ybsacctno: login
+password: password
+default_origin: 8282
+
+receive_path: /yo
+receive_port: 2222

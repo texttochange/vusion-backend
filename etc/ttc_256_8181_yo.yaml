@@ -1,0 +1,22 @@
+transport_name: 256-8181-yo
+
+url: http://localhost:9100/sendsms
+ybsacctno: login
+password: password
+default_origin: 8181
+
+receive_path: /yo
+receive_port: 2221
+
+
+#middleware:
+#       - mw1: middlewares.vusion_address_middleware.VusionAddressMiddleware
+#       - wm: middlewares.window_manager_middleware.WindowManagerMiddleware
+wm:
+      window_size: 1
+      flight_lifetime: 2
+      monitor_loop: 3
+      gc_interval: 15
+
+mw1:
+       trim_plus_outbound: Y

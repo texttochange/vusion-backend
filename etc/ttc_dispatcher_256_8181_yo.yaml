@@ -1,0 +1,10 @@
+dispatcher_name: 256-8181-yo-dispatcher
+router_class: dispatchers.TransportMetadataRouter
+exposed_names:
+        - 256-8181-yo-dispatcher
+transport_names:
+    - 256-8181-yo
+    - 256-8181-yo-bulk
+transport_mappings:
+    priority: 256-8181-yo
+transport_fallback: 256-8181-yo-bulk

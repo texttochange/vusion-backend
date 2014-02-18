@@ -1,0 +1,9 @@
+transport_name: 256-8181-mtn
+
+url: http://localhost:9100/sendsms
+ybsacctno: login
+password: password
+default_origin: 8181
+
+receive_path: /mtn
+receive_port: 2224

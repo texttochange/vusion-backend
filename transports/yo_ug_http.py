@@ -87,13 +87,19 @@ class YoUgHttpTransport(Transport):
                 )
                 return
 
-            yield self.publish_delivery_report(
+            yield self.publish_ack(
                 user_message_id=message['message_id'],
-                delivery_status='delivered'
+                sent_message_id=message['message_id']
             )
-        except:
+        except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             log.msg("Unexpected error %r" % traceback.format_exception(exc_type, exc_value, exc_traceback))
+            yield self.publish_delivery_report(
+                user_message_id=message['message_id'],
+                delivery_status='failed',
+                failure_level='unexpected',
+                failure_code='',
+                failure_reason=e.message)
 
     def stopWorker(self):
         log.msg("stop yo transport")
