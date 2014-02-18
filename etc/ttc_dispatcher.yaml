@@ -1,36 +1,18 @@
 dispatcher_name: dispatcher
-#router_class: vumi.dispatchers.ContentKeywordRouter
-router_class: dispatchers.priority_router.PriorityContentKeywordRouter
+router_class: dispatchers.VusionMainRouter
 transport_names: 
-        - yo-256-8181
-        - yo-256-8282
-        - cm-31-3669
-        - cm-31-642500021
-        - push-255-15001
-        - push-255-15001-bulk
-        - push-255-15012
-        - push-255-15014
-        - push-254-4127
-        - yo-254-4127-in
+        - 256-8181-dispatcher
+        - 256-8282-yo
         - forward-http
 transport_mappings:
     http_forward: forward-http
-    sms:     
-        '256-8282': yo-256-8282
-        '256-8181': yo-256-8181
-        '31-3669': cm-31-3669
-        '31-642500021': cm-31-642500021
-#        '255-15001': push-255-15001
-        '255-15001':
-               'default': push-255-15001-bulk
-               'prioritized': push-255-15001
-        '255-15012': push-255-15012
-        '255-15014': push-255-15014
-        '254-4127': push-254-4127
-#        '254-4127-in': yo-254-4127-in
+    sms:
+        '256-8181': 256-8181-dispatcher
+        '256-8282': 256-8282-yo
 exposed_names: 
         - garbage
 fallback_application: garbage
 expire_routing_memory: 20
+
 middleware: 
        - mw1: middlewares.triming_middleware.TrimingMiddleware

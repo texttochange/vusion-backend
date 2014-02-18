@@ -1,0 +1,13 @@
+dispatcher_name: 256-8181-dispatcher
+router_class: dispatchers.ToAddrRouter
+exposed_names:
+        - 256-8181-dispatcher
+transport_names: 
+        - 256-8181-mtn
+        - 256-8181-yo-dispatcher
+country_code: 256
+transport_mappings:
+    256-8181-mtn:
+        - '[1-3]'
+        - '45'
+transport_fallback: 256-8181-yo-dispatcher
