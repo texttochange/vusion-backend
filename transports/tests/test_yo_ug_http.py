@@ -57,8 +57,7 @@ class YoUgHttpTransportTestCase(MessageMaker, TransportTestCase):
         yield self.dispatch(self.mkmsg_out())
         [smsg] = self.get_dispatched('yo.event')
         self.assertEqual(
-            self.mkmsg_delivery(
-                transport_name=self.transport_name,
+            self.mkmsg_ack(
                 user_message_id='1',
                 sent_message_id='1'),
             TransportMessage.from_json(smsg.body))
@@ -73,8 +72,7 @@ class YoUgHttpTransportTestCase(MessageMaker, TransportTestCase):
         yield self.dispatch(self.mkmsg_out(content='für me'))
         [smsg] = self.get_dispatched('yo.event')
         self.assertEqual(
-            self.mkmsg_delivery(
-                transport_name=self.transport_name,
+            self.mkmsg_ack(
                 user_message_id='1',
                 sent_message_id='1'),
             TransportMessage.from_json(smsg.body))
@@ -90,9 +88,9 @@ class YoUgHttpTransportTestCase(MessageMaker, TransportTestCase):
             self.mkmsg_out(transport_metadata={'customized_id': 'myid'}))
         [smsg] = self.get_dispatched('yo.event')
         self.assertEqual(
-            self.mkmsg_delivery(
-                transport_name=self.transport_name,
-                user_message_id='1'),
+            self.mkmsg_ack(
+                user_message_id='1',
+                sent_message_id='1'),
             TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks
