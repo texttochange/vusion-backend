@@ -31,9 +31,9 @@ class ToAddrRouter(BaseDispatchRouter):
             self.dispatcher.publish_outbound_message(transport_name, msg)
 
     def dispatch_inbound_message(self, msg):
-         names = self.config.get('exposed_names', [])
-         for name in names:
-             self.dispatcher.publish_inbound_message(name, msg)
+        names = self.config.get('exposed_names', [])
+        for name in names:
+            self.dispatcher.publish_inbound_message(name, msg)
  
     def dispatch_inbound_event(self, msg):
         names = self.config.get('exposed_names', [])
