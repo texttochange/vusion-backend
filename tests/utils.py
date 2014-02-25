@@ -353,12 +353,12 @@ class ObjectMaker:
             'minutes': '50'})
         return Dialogue(**dialogue).get_as_dict()
 
-    def mkobj_dialogue_annoucement(self):
+    def mkobj_dialogue_annoucement(self, dialogue_id='0'):
         return deepcopy({
             'activated': 1,
             'auto-enrollment': 'all',
             'name': 'test dialogue',
-            'dialogue-id': '0',
+            'dialogue-id': dialogue_id,
             'interactions': [
                 {'activated': 0,
                  'type-interaction': 'announcement',
