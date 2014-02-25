@@ -11,6 +11,7 @@ class Participant(Model):
 
     REGEX_RAW = re.compile('.*_raw$')
 
+    #TODO wrong naming convention for transport_metadata
     fields = [
         'phone',
         'session-id', 
@@ -85,19 +86,15 @@ class Participant(Model):
         if field in self.FIELDS_THAT_SHOULD_BE_ARRAY and self[field] is None:
             self[field] = []
 
+    #TODO move code from dialogue worker
     def enroll(self, dialogue_id, time):
         pass
 
-    def is_enrolled(self, dialogue_id):
-        for enrolled in self.payload['enrolled']:
-            if enrolled['dialogue-id']==dialogue_id:
-                return True
-        return False
-
+    #TODO move code from dialogue worker
     def tag(self, tag):
         pass
-    
-    def get_participant_label_value(self, label):
+
+    def get_label_value(self, label):
         if re.match(self.REGEX_RAW, label):
             field = 'raw'
             label = label[:-4]
@@ -107,7 +104,7 @@ class Participant(Model):
         return label_indexer.get(label, None)
 
     def get_data(self, data):
-        value = self.get_participant_label_value(data)
+        value = self.get_label_value(data)
         if value is None:
             value = self[data]
         if not isinstance(value, basestring):
@@ -125,3 +122,23 @@ class Participant(Model):
 
     def get_transport_metadata(self):
         return self['transport_metadata']
+
+    def get_session_id(self):
+        return self['session-id']
+
+    def get_enrolled(self, dialogue_id):
+        for enrolled in self.payload['enrolled']:
+            if enrolled['dialogue-id']==dialogue_id:
+                return enrolled
+        return None
+
+    def is_enrolled(self, dialogue_id):
+        if self.get_enrolled(dialogue_id) is not None:
+            return True
+        return False
+
+    def get_enrolled_time(self, dialogue_id):
+        enrolled = self.get_enrolled(dialogue_id)
+        if enrolled is None:
+            return None
+        return enrolled['date-time']
