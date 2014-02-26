@@ -105,6 +105,16 @@ class TestParticipantManager(TestCase, ObjectMaker):
              {'label': 'name','value': 'Olivier', 'raw': 'name Olivier'}],
             participant['profile'])
 
+    def test_save_transport_medadata(self):
+        participant = self.mkobj_participant('1')
+        self.manager.save(participant)
+        self.manager.save_transport_metadata('1', {'token': '11'})
+        participant = self.manager.get_participant('1')
+        self.assertEqual(
+            {'token': '11'},
+            participant['transport_metadata'])
+        
+
     def test_get_participant(self):
         self.manager.save(self.mkobj_participant('1'))
         self.assertTrue(isinstance(self.manager.get_participant('1'), Participant))
@@ -134,3 +144,26 @@ class TestParticipantManager(TestCase, ObjectMaker):
         self.assertEqual(self.manager.is_optin('1'), True)
         self.assertEqual(self.manager.is_optin('2'), False)
         self.assertEqual(self.manager.is_optin('3'), False)
+
+    def test_is_matching(self):
+        participant = self.mkobj_participant(
+            '1',
+            tags=['geek'])
+        self.manager.save(participant)
+
+        self.assertTrue(self.manager.is_matching({'phone': '1', 'tags': 'geek'}))
+        self.assertFalse(self.manager.is_matching({'phone': '1', 'tags': 'male'}))
+
+    def test_count_tag(self):
+        participant = self.mkobj_participant(
+            '1',
+            tags=['geek', 'male'])
+        self.manager.save(participant)
+        participant = self.mkobj_participant(
+                    '2',
+                    tags=['geek'])
+        self.manager.save(participant)
+
+        self.assertEqual(2, self.manager.count_tag('geek'))
+        self.assertEqual(1, self.manager.count_tag('male'))
+        self.assertEqual(0, self.manager.count_tag('somethingelse'))        

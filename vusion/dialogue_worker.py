@@ -3,8 +3,6 @@ import sys
 import traceback
 import re
 
-from uuid import uuid4
-
 from twisted.internet.defer import inlineCallbacks, Deferred, returnValue
 from twisted.internet import task, reactor
 
@@ -23,8 +21,6 @@ from vumi import log
 from vumi.utils import get_first_word
 from vumi.errors import VumiError
 
-from vusion.persist import (Dialogue, FeedbackSchedule, UnattachSchedule,
-                            schedule_generator, Participant, UnattachMessage)
 from vusion.utils import (time_to_vusion_format, get_local_time,
                           get_local_time_as_timestamp, time_from_vusion_format,
                           get_shortcode_value, get_offset_date_time,
@@ -32,18 +28,19 @@ from vusion.utils import (time_to_vusion_format, get_local_time,
 from vusion.error import (MissingData, SendingDatePassed, VusionError,
                           MissingTemplate, MissingProperty)
 from vusion.message import DispatcherControl, WorkerControl
+from vusion.context import Context
+from vusion.component import (DialogueWorkerPropertyHelper, CreditManager,
+                              LogManager)
+
 from vusion.persist.action import (Actions, action_generator,FeedbackAction,
                                    EnrollingAction, OptinAction, OptoutAction,
                                    RemoveRemindersAction)
-from vusion.context import Context
-from vusion.persist import Request, history_generator, schedule_generator, ContentVariable
-from vusion.component import DialogueWorkerPropertyHelper, CreditManager
-
-from vusion.persist import (Request, history_generator, schedule_generator, 
-                            HistoryManager, ContentVariableManager, DialogueManager,
-                            RequestManager)
-from vusion.component import (DialogueWorkerPropertyHelper, CreditManager,
-                              LogManager)
+from vusion.persist import (Request, ContentVariable, Dialogue,
+                            FeedbackSchedule, UnattachSchedule,
+                            Participant, UnattachMessage,
+                            history_generator, schedule_generator, 
+                            HistoryManager, ContentVariableManager,
+                            DialogueManager, RequestManager, ParticipantManager)
 
 
 class DialogueWorker(ApplicationWorker):
@@ -98,10 +95,19 @@ class DialogueWorker(ApplicationWorker):
            self.collections['shortcodes'])
 
         self.log_manager.startup(self.properties)
+
+        #TODO replace by a loop
         self.collections['history'].set_property_helper(self.properties)
         self.collections['history'].set_log_helper(self.log_manager)
         self.collections['dialogues'].set_property_helper(self.properties)
         self.collections['dialogues'].set_log_helper(self.log_manager)
+        self.collections['participants'].set_property_helper(self.properties)
+        self.collections['participants'].set_log_helper(self.log_manager)
+        self.collections['requests'].set_property_helper(self.properties)
+        self.collections['requests'].set_log_helper(self.log_manager)
+        self.collections['content_variables'].set_property_helper(self.properties)
+        self.collections['content_variables'].set_log_helper(self.log_manager)        
+
 
         self.credit_manager = CreditManager(
            self.r_key, self.r_server, 
@@ -145,41 +151,41 @@ class DialogueWorker(ApplicationWorker):
     def save_history(self, **kwargs):
         return self.collections['history'].save_history(**kwargs)
 
-    def get_participant(self, participant_phone, only_optin=False):
-        try:
-            query = {'phone':participant_phone}
-            if only_optin:
-                query.update({'session-id':{'$ne': None}})
-            return Participant(**self.collections['participants'].find_one(query))
-        except TypeError:
-            self.log("Participant %s is either not optin or not in collection." % participant_phone)
-            return None
-        except:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            self.log(
-                "Error while retriving participant %s  %r" %
-                (participant_phone,
-                 traceback.format_exception(exc_type, exc_value, exc_traceback)))
-            return None
+    #def get_participant(self, participant_phone, only_optin=False):
+        #try:
+            #query = {'phone':participant_phone}
+            #if only_optin:
+                #query.update({'session-id':{'$ne': None}})
+            #return Participant(**self.collections['participants'].find_one(query))
+        #except TypeError:
+            #self.log("Participant %s is either not optin or not in collection." % participant_phone)
+            #return None
+        #except:
+            #exc_type, exc_value, exc_traceback = sys.exc_info()
+            #self.log(
+                #"Error while retriving participant %s  %r" %
+                #(participant_phone,
+                 #traceback.format_exception(exc_type, exc_value, exc_traceback)))
+            #return None
 
-    def get_participants(self, query):
-        participants = []
-        for participant in self.collections['participants'].find(query):
-            try:
-                participants.append(Participant(**participant))
-            except:
-                exc_type, exc_value, exc_traceback = sys.exc_info()
-                self.log(
-                    "Error while retriving participant %r" %
-                     traceback.format_exception(exc_type, exc_value, exc_traceback))
-        return participants
+    #def get_participants(self, query):
+        #participants = []
+        #for participant in self.collections['participants'].find(query):
+            #try:
+                #participants.append(Participant(**participant))
+            #except:
+                #exc_type, exc_value, exc_traceback = sys.exc_info()
+                #self.log(
+                    #"Error while retriving participant %r" %
+                     #traceback.format_exception(exc_type, exc_value, exc_traceback))
+        #return participants
 
-    def get_participant_session_id(self, participant_phone):
-        participant = self.get_participant(participant_phone, only_optin=True)
-        if participant is None:
-            return None
-        else:
-            return participant['session-id']
+    #def get_participant_session_id(self, participant_phone):
+        #participant = self.get_participant(participant_phone, only_optin=True)
+        #if participant is None:
+            #return None
+        #else:
+            #return participant['session-id']
 
     def get_requests(self):
         requests = []
@@ -206,7 +212,6 @@ class DialogueWorker(ApplicationWorker):
                                         safe=self.config.get('mongodb_safe', False))
         self.db = connection[self.database_name]
         self.setup_collections({
-            'participants': 'phone',
             'schedules': 'date-time',
             'program_settings': None,
             'unattached_messages': None})
@@ -215,6 +220,7 @@ class DialogueWorker(ApplicationWorker):
         self.collections['content_variables'] = ContentVariableManager(self.db, 'content_variables')
         self.collections['dialogues'] = DialogueManager(self.db, 'dialogues')
         self.collections['requests'] = RequestManager(self.db, 'requests')
+        self.collections['participants'] = ParticipantManager(self.db, 'participants')
 
         self.collections['schedules'].ensure_index([('participant-phone',1),
                                                     ('interaction-id', 1)])
@@ -247,6 +253,10 @@ class DialogueWorker(ApplicationWorker):
                 return
             if message['action'] == 'update_schedule':
                 if message['schedule_type'] == 'dialogue':
+                    #This function should now 
+                    #1) remove schedule
+                    #2) enroll participant 
+                    #3) schedule new dialogue
                     self.collections['dialogues'].load_dialogue(message['object_id'])
                     self.schedule_dialogue(message['object_id'])
                     self.register_keywords_in_dispatcher()
@@ -289,40 +299,37 @@ class DialogueWorker(ApplicationWorker):
             return
         self.collections['history'].update_status(message['user_message_id'], status)
 
-    def create_participant(self, participant_phone):
-        return Participant(**{
-            'model-version': '3',
-            'phone': participant_phone,
-            'session-id': uuid4().get_hex(), 
-            'last-optin-date': time_to_vusion_format(self.get_local_time()),
-            'last-optout-date': None,
-            'tags': [],
-            'enrolled':[],
-            'profile':[]}).get_as_dict()
+    #def create_participant(self, participant_phone):
+        #return Participant(**{
+            #'model-version': '3',
+            #'phone': participant_phone,
+            #'session-id': uuid4().get_hex(), 
+            #'last-optin-date': time_to_vusion_format(self.get_local_time()),
+            #'last-optout-date': None,
+            #'tags': [],
+            #'enrolled':[],
+            #'profile':[]}).get_as_dict()
 
     def update_participant_transport_metadata(self, message):
         if message['transport_metadata'] is not {}:
-            self.collections['participants'].update(
-                {'phone': message['from_addr']},
-                {'$set': {'transport_metadata': message['transport_metadata']}})
+            self.collections['participants'].save_transport_metadata(
+                message['from_addr'], message['transport_metadata'])
 
     def run_action(self, participant_phone, action, context=Context(),
                    participant_session_id=None):
         if action.has_condition():
             query = action.get_condition_mongodb_for(participant_phone, participant_session_id)
-            if self.collections['participants'].find(query).limit(1).count()==0:
+            if not self.collections['participants'].is_matching(query):
                 self.log(("Participant %s doesn't satify the condition for action for %s" % (participant_phone, action,)))
                 return
         self.log(("Run action for %s action %s" % (participant_phone, action,)))
         if (action.get_type() == 'optin'):
-            participant = self.get_participant(participant_phone)
+            participant = self.collections['participants'].get_participant(participant_phone)
             if not participant:                            
                 ## This is the first optin
-                self.collections['participants'].save(
-                    self.create_participant(participant_phone),
-                    safe=True)
+                self.collections['participants'].opting_in(participant_phone, True)
             else:
-            ## This is a second optin
+                ## This is a second optin
                 if (participant['session-id'] != None):    
                     ## Participant still optin
                     if self.properties['double-optin-error-feedback'] is not None:
@@ -334,26 +341,28 @@ class DialogueWorker(ApplicationWorker):
                         return
                 else:
                     ## Participant is re optin
-                    self.collections['participants'].update(
-                        {'phone': participant_phone},
-                        {'$set': {'session-id': uuid4().get_hex(), 
-                                  'last-optin-date': time_to_vusion_format(self.get_local_time()),
-                                  'last-optout-date': None,
-                                  'tags': [],
-                                  'enrolled': [],
-                                  'profile': [] }},
-                        safe=True)
+                    self.collections['participants'].opting_in_again(participant_phone)
+                    #update(
+                        #{'phone': participant_phone},
+                        #{'$set': {'session-id': uuid4().get_hex(), 
+                                  #'last-optin-date': time_to_vusion_format(self.get_local_time()),
+                                  #'last-optout-date': None,
+                                  #'tags': [],
+                                  #'enrolled': [],
+                                  #'profile': [] }},
+                        #safe=True)
             ## finialise the optin by enrolling and schedulling
             for dialogue in self.collections['dialogues'].get_active_dialogues({'auto-enrollment':'all'}):
                 self.run_action(participant_phone,
                                 EnrollingAction(**{'enroll': dialogue['dialogue-id']}))
             self.schedule_participant(participant_phone)
         elif (action.get_type() == 'optout'):
-            self.collections['participants'].update(
-                {'phone': participant_phone},
-                {'$set': {'session-id': None,
-                          'last-optout-date': time_to_vusion_format(self.get_local_time())}},
-                safe=True)
+            self.collections['participants'].opting_out(participant_phone)
+            #update(
+                #{'phone': participant_phone},
+                #{'$set': {'session-id': None,
+                          #'last-optout-date': time_to_vusion_format(self.get_local_time())}},
+                #safe=True)
             self.collections['schedules'].remove({
                 'participant-phone': participant_phone,
                 'object-type': {'$ne': 'feedback-schedule'}})
@@ -388,30 +397,33 @@ class DialogueWorker(ApplicationWorker):
                 'context': context.get_dict_for_history()})
             self.send_schedule(schedule)
         elif (action.get_type() == 'tagging'):
-            self.collections['participants'].update(
-                {'phone': participant_phone,
-                 'session-id': {'$ne': None},
-                 'tags': {'$ne': action['tag']}},
-                {'$push': {'tags': action['tag']}},
-                safe=True)
+            self.collections['participants'].tagging(participant_phone, action['tag'])
+            #update(
+                #{'phone': participant_phone,
+                 #'session-id': {'$ne': None},
+                 #'tags': {'$ne': action['tag']}},
+                #{'$push': {'tags': action['tag']}},
+                #safe=True)
         elif (action.get_type() == 'enrolling'):
-            if not self.is_optin(participant_phone):
+            if not self.collections['participants'].is_optin(participant_phone):
                 self.run_action(
                     participant_phone, 
                     OptinAction(), 
                     context, 
                     participant_session_id)
-            self.collections['participants'].update(
-                {'phone': participant_phone,
-                 'enrolled.dialogue-id': {'$ne': action['enroll']}},
-                {'$push': {'enrolled': {'dialogue-id': action['enroll'],
-                                        'date-time': time_to_vusion_format(self.get_local_time())}}},
-                safe=True)
+            self.collections['participants'].enrolling(
+                participant_phone, action['enroll'])
+            #.update(
+                #{'phone': participant_phone,
+                 #'enrolled.dialogue-id': {'$ne': action['enroll']}},
+                #{'$push': {'enrolled': {'dialogue-id': action['enroll'],
+                                        #'date-time': time_to_vusion_format(self.get_local_time())}}},
+                #safe=True)
             dialogue = self.collections['dialogues'].get_current_dialogue(action['enroll'])
             if dialogue is None:
                 self.log(("Enrolling error: Missing Dialogue %s" % action['enroll']))
                 return
-            participant = self.get_participant(participant_phone)
+            participant = self.collections['participants'].get_participant(participant_phone)
             self.schedule_participant_dialogue(participant, dialogue)
         elif (action.get_type() == 'delayed-enrolling'):
             schedule_time = get_offset_date_time(
@@ -428,15 +440,17 @@ class DialogueWorker(ApplicationWorker):
                 'context': context.get_dict_for_history()}
             self.save_schedule(**schedule)
         elif (action.get_type() == 'profiling'):
-            self.collections['participants'].update(
-                {'phone': participant_phone,
-                 'session-id': {'$ne': None}},
-                {'$push': {'profile': {'label': action['label'],
-                                        'value': action['value'],
-                                        'raw': context['message']}}},
-                safe=True)
+            self.collections['participants'].labelling(
+                participant_phone, action['label'], action['value'], context['message'])
+            #.update(
+                #{'phone': participant_phone,
+                 #'session-id': {'$ne': None}},
+                #{'$push': {'profile': {'label': action['label'],
+                                        #'value': action['value'],
+                                        #'raw': context['message']}}},
+                #safe=True)
         elif (action.get_type() == 'offset-conditioning'):
-            participant = self.get_participant(participant_phone, True)
+            participant = self.collections['participants'].get_participant(participant_phone, True)
             if participant is None:
                 return
             self.schedule_participant_dialogue(
@@ -492,15 +506,15 @@ class DialogueWorker(ApplicationWorker):
         self.collections['history'].update_forwarding(context['history_id'], message['message_id'], action['forward-url'])
 
     def run_action_proportional_tagging(self, participant_phone, action, context=None):
-        if self.is_tagged(participant_phone, action.get_tags()):
+        if self.collections['participants'].is_tagged(participant_phone, action.get_tags()):
             return
         for tag in action.get_tags():
-            action.set_tag_count(tag, self.collections['participants'].find({'tags': tag}).count())
+            action.set_tag_count(tag, self.collections['participants'].count_tag(tag))
         self.run_action(participant_phone, action.get_tagging_action())
 
     @inlineCallbacks
     def run_action_sms_forwarding(self, participant_phone, action, context):
-        participants = self.get_participants({
+        participants = self.collections['participants'].get_participants({
             'tags': action['forward-to'],
             'session-id': {'$ne': None},
             'phone': {'$ne': participant_phone}})
@@ -531,14 +545,14 @@ class DialogueWorker(ApplicationWorker):
                 if context.is_matching():
                     history = {'object-type': 'dialogue-history'}
             # High priority to run an optin or enrolling action to get sessionId 
-            if (self.get_participant_session_id(message['from_addr']) is None 
+            if (not self.collections['participants'].is_optin(message['from_addr']) 
                     and (actions.contains('optin') or actions.contains('enrolling'))):
                 self.run_action(message['from_addr'], actions.get_priority_action(), context)
-            participant = self.get_participant(message['from_addr'], only_optin=True)
+            participant = self.collections['participants'].get_participant(message['from_addr'], only_optin=True)
             message_credits = self.properties.use_credits(message['content'])
             history.update({
                 'participant-phone': message['from_addr'],
-                'participant-session-id': (participant['session-id'] if participant else None),        
+                'participant-session-id': (participant['session-id'] if participant else None),
                 'message-content': message['content'],
                 'message-direction': 'incoming',
                 'message-credits': message_credits})
@@ -590,23 +604,7 @@ class DialogueWorker(ApplicationWorker):
             if self.properties['double-matching-answer-feedback'] is not None:
                 actions.append(FeedbackAction(**{'content': self.properties['double-matching-answer-feedback']}))
 
-    def is_tagged(self, participant_phone, tags):
-        query = {'phone':participant_phone,
-                 'tags': {'$in': tags}}
-        result = self.collections['participants'].find(query).limit(1).count()
-        return 0 < self.collections['participants'].find(query).limit(1).count()
-
-    def is_enrolled(self, participant, dialogue_id):
-        for enrolled in participant['enrolled']:
-            if enrolled['dialogue-id']==dialogue_id:
-                return True
-        return False
-
-    def is_optin(self, participant_phone):
-        query = {'phone':participant_phone,
-                 'session-id': {'$ne': None}}
-        return (0 != self.collections['participants'].find(query).limit(1).count())
-
+    #TODO: move to History Manager
     def has_already_valid_answer(self, participant, dialogue_id, interaction_id, number=1):
         query = {'participant-phone': participant['phone'],
                  'participant-session-id':participant['session-id'],
@@ -618,18 +616,6 @@ class DialogueWorker(ApplicationWorker):
         if history is None or history.count() <= number:
             return False
         return True        
-
-    def has_one_way_marker(self, participant, dialogue_id, interaction_id):
-        query = {
-            'object-type': 'oneway-marker-history',
-            'participant-phone': participant['phone'],
-            'participant-session-id':participant['session-id'],
-            'dialogue-id': dialogue_id,
-            'interaction-id': interaction_id}
-        history = self.collections['history'].find_one(query)
-        if history is None:
-            return False
-        return True
     
     def participant_has_max_unmatching_answers(self, participant, dialogue_id, interaction):
         if (not interaction.has_max_unmatching_answers()):
@@ -645,6 +631,22 @@ class DialogueWorker(ApplicationWorker):
             return True
         return False
     
+    #TODO: move to History Manager
+    #TODO: DRY with has_oneway_marker
+    def has_one_way_marker(self, participant, dialogue_id, interaction_id):
+        query = {
+            'object-type': 'oneway-marker-history',
+            'participant-phone': participant['phone'],
+            'participant-session-id':participant['session-id'],
+            'dialogue-id': dialogue_id,
+            'interaction-id': interaction_id}
+        history = self.collections['history'].find_one(query)
+        if history is None:
+            return False
+        return True    
+    
+    #TODO: move to History Manager
+    #TODO: DRY with has_one_way_marker
     def has_oneway_marker(self, participant_phone, participant_session_id,
                           context):
         return self.collections['history'].find_one({
@@ -654,6 +656,7 @@ class DialogueWorker(ApplicationWorker):
             'dialogue-id': context['dialogue-id'],
             'interaction-id': context['interaction-id']}) is not None
     
+    #TODO: move to History Manager
     def add_oneway_marker(self, participant_phone, participant_session_id,
                           context):
         history = self.collections['history'].find_one({
@@ -734,7 +737,7 @@ class DialogueWorker(ApplicationWorker):
         return self.properties.is_ready()
 
     def schedule_participant(self, participant_phone):
-        participant = self.get_participant(participant_phone, True)
+        participant = self.collections['participants'].get_participant(participant_phone, True)
         if participant is None:
             return
         for enrolled in participant['enrolled']:
@@ -761,7 +764,7 @@ class DialogueWorker(ApplicationWorker):
 
     def schedule_dialogue(self, dialogue_id):
         dialogue = self.collections['dialogues'].get_current_dialogue(dialogue_id)
-        participants = self.get_participants(
+        participants = self.collections['participants'].get_participants(
             {'enrolled.dialogue-id': dialogue_id,
              'session-id': {'$ne': None}})
         self.schedule_participants_dialogue(participants, dialogue)
@@ -783,7 +786,7 @@ class DialogueWorker(ApplicationWorker):
         selectors = unattach.get_selector_as_query()
         query = {'session-id': {'$ne': None}}
         query.update(selectors)
-        participants = self.get_participants(query)
+        participants = self.collections['participants'].get_participants(query)
         self.schedule_participants_unattach(participants, unattach)
 
     def schedule_participants_unattach(self, participants, unattach):
@@ -816,9 +819,9 @@ class DialogueWorker(ApplicationWorker):
         for participant in participants:
             self.schedule_participant_dialogue(participant, dialogue)
 
-    def get_enrollment_time(self, participant, dialogue):
-        return ((enroll for enroll in participant['enrolled'] 
-                 if enroll['dialogue-id'] == dialogue['dialogue-id']).next())
+    #def get_enrollment_time(self, participant, dialogue):
+        #return ((enroll for enroll in participant['enrolled'] 
+                 #if enroll['dialogue-id'] == dialogue['dialogue-id']).next())
 
     #TODO: decide which id should be in an schedule object
     def schedule_participant_dialogue(self, participant, dialogue):
@@ -845,14 +848,14 @@ class DialogueWorker(ApplicationWorker):
                     continue
                 
                 if (interaction['type-schedule'] == 'offset-days'):
-                    enrolled = self.get_enrollment_time(participant, dialogue)
+                    enrolled_time = participant.get_enrolled_time(dialogue['dialogue-id'])
                     sending_date_time = get_offset_date_time(
-                        time_from_vusion_format(enrolled['date-time']),
+                        time_from_vusion_format(enrolled_time),
                         interaction['days'],
                         interaction['at-time'])
                 elif (interaction['type-schedule'] == 'offset-time'):
-                    enrolled = self.get_enrollment_time(participant, dialogue)
-                    sending_date_time = time_from_vusion_format(enrolled['date-time']) + interaction.get_offset_time_delta()
+                    enrolled_time = participant.get_enrolled_time(dialogue['dialogue-id'])
+                    sending_date_time = time_from_vusion_format(enrolled_time) + interaction.get_offset_time_delta()
                 elif (interaction['type-schedule'] == 'fixed-time'):
                     sending_date_time = time_from_vusion_format(interaction['date-time'])
                 elif (interaction['type-schedule'] == 'offset-condition'):
@@ -1109,7 +1112,7 @@ class DialogueWorker(ApplicationWorker):
 
             ## Necessary for some transport that require tocken to be reuse for MT message
             #TODO only fetch when participant has transport metadata...
-            participant = self.get_participant(schedule['participant-phone'])
+            participant = self.collections['participants'].get_participant(schedule['participant-phone'])
             if (participant['transport_metadata'] is not {}):
                 message['transport_metadata'].update(participant['transport_metadata'])
             
@@ -1255,10 +1258,10 @@ class DialogueWorker(ApplicationWorker):
             message = re.sub(regex_Breakline, '\n', message)
         return message
 
-    # TODO more to the Participant class
-    def get_participant_label_value(self, participant, label):
-        label_indexer = dict((p['label'], p['value']) for i, p in enumerate(participant['profile']))
-        return label_indexer.get(label, None)
+    ## TODO more to the Participant class
+    #def get_participant_label_value(self, participant, label):
+        #label_indexer = dict((p['label'], p['value']) for i, p in enumerate(participant['profile']))
+        #return label_indexer.get(label, None)
 
     def customize_message(self, message, participant_phone=None, context=None, fail=True):        
         participant = None
@@ -1273,7 +1276,7 @@ class DialogueWorker(ApplicationWorker):
                     if participant_phone is None:
                         raise MissingData('No participant supplied for this message.')
                     if participant is None:
-                        participant = self.get_participant(participant_phone)
+                        participant = self.collections['participants'].get_participant(participant_phone)
                     participant_label_value = participant.get_data(match['key1'])
                     if not participant_label_value:
                         raise MissingData("Participant %s doesn't have a label %s" % 

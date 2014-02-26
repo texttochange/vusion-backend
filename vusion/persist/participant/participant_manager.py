@@ -55,7 +55,7 @@ class ParticipantManager(ModelManager):
             {'$push': {'enrolled': {
                 'dialogue-id': dialogue_id,
                 'date-time': time_to_vusion_format(self.get_local_time())}}},
-            safe=True)
+            safe=safe)
     
     def labelling(self, participant_phone, label, value, raw, safe=True):
         self.collection.update(
@@ -64,7 +64,13 @@ class ParticipantManager(ModelManager):
             {'$push': {'profile': {'label': label,
                                    'value': value,
                                    'raw': raw}}},
-            safe=True)
+            safe=safe)
+
+    def save_transport_metadata(self, participant_phone, transport_metadata, safe=True):
+        self.collection.update(
+            {'phone': participant_phone},
+            {'$set': {'transport_metadata': transport_metadata}},
+            safe=safe)
 
     def save_participant(self, participant, safe=False):
         if isinstance(participant, Participant):
@@ -111,3 +117,9 @@ class ParticipantManager(ModelManager):
                  'session-id': {'$ne': None}}
         return 0 != self.collection.find(query).limit(1).count()
 
+    def is_matching(self, query):
+        return 1 == self.collection.find(query).limit(1).count()
+
+    def count_tag(self, tag):
+        return self.collection.find({'tags': tag}).count()
+    

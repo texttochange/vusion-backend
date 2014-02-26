@@ -8,32 +8,32 @@ from vusion.tests.test_dialogue_worker import DialogueWorkerTestCase
 
 class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
     
-    #TODO: last 2 tests are not isolate, somehow the starting of the worker
-    # is called later which is breacking the other tests
-    #TODO: reduce the scope of the update-schedule
+    def test_consume_control_update_schedule_participant(self):
+        self.fail()
+
     @inlineCallbacks
-    def test_consume_control_update_schedule(self):
+    def test_consume_control_update_schedule_dialogue_new_dialogue(self):
         self.initialize_properties()
         self.broker.dispatched = {}
         dNow = self.worker.get_local_time()
     
+        #save dialogues
         dialogue_1 = self.mkobj_dialogue_announcement_offset_days()
         dialogue_2 = self.mkobj_dialogue_question_offset_days()
         self.collections['dialogues'].save(dialogue_1)
         self.collections['dialogues'].save(dialogue_2)
+
+        #save participants
         self.collections['participants'].save(
             self.mkobj_participant(
                 participant_phone='08',
-                enrolled=[{'dialogue-id': '0',
-                           'date-time': time_to_vusion_format(dNow)}]))
+                enrolled=[]))
         self.collections['participants'].save(
             self.mkobj_participant(
                 participant_phone='09',
-                enrolled=[{'dialogue-id': '01',
-                           'date-time': time_to_vusion_format(dNow)},
-                          {'dialogue-id': '0',
-                           'date-time': time_to_vusion_format(dNow)}]))
-        ##optout
+                enrolled=[]))
+
+        #save optout participants
         self.collections['participants'].save(
             self.mkobj_participant(participant_phone='10', session_id=None))
         self.collections['participants'].save(
@@ -51,6 +51,8 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
             'object_id': dialogue_1['dialogue-id']})
         yield self.send(event, 'control')
         self.assertEqual(4, self.collections['schedules'].count())
+        enrolled_participant = self.collections['participant'].find()
+        #self.assertEqual(2, self.collections['participant'].)
     
         event = self.mkmsg_dialogueworker_control(**{
             'action':'update_schedule',
@@ -59,15 +61,25 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
         yield self.send(event, 'control')
         self.assertEqual(5, self.collections['schedules'].count())
     
+    @inlineCallbacks
+    def test_consume_control_update_schedule_unattached(self):
+        self.initialize_properties()
+        self.broker.dispatched = {}
+        dNow = self.worker.get_local_time()
+
+        self.collections['participants'].save(
+            self.mkobj_participant(participant_phone='10'))
+        self.collections['participants'].save(
+            self.mkobj_participant(participant_phone='11', session_id=None))
         unattach = self.mkobj_unattach_message_1()
         unattach_id = self.collections['unattached_messages'].save(unattach)
-    
+
         event = self.mkmsg_dialogueworker_control(**{
             'action':'update_schedule',
             'schedule_type': 'unattach',
             'object_id': str(unattach_id)})
         yield self.send(event, 'control')
-        self.assertEqual(7, self.collections['schedules'].count())
+        self.assertEqual(1, self.collections['schedules'].count())
     
     @inlineCallbacks
     def test_consume_control_test_send_all_messages(self):

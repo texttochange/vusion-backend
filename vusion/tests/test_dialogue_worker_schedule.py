@@ -14,7 +14,7 @@ from vusion.utils import time_to_vusion_format, time_from_vusion_format
 
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 from vusion.tests.test_dialogue_worker import DialogueWorkerTestCase
-from vusion.persist import Dialogue
+from vusion.persist import Dialogue, Participant
 
 
 class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
@@ -26,10 +26,10 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         dPast = dNow - timedelta(minutes=30)
 
         dialogue = Dialogue(**self.mkobj_dialogue_announcement_offset_days())
-        participant = self.mkobj_participant(
+        participant = Participant(**self.mkobj_participant(
             '06',
             last_optin_date=time_to_vusion_format(dPast - timedelta(days=1)),
-            enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dPast)}])
+            enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dPast)}]))
 
         self.worker.schedule_participant_dialogue(participant, dialogue)
 
@@ -60,11 +60,11 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
 
         dialogue = Dialogue(**self.mkobj_dialogue_announcement_offset_time())
 
-        participant = self.mkobj_participant(
+        participant = Participant(**self.mkobj_participant(
             '06',
             last_optin_date=time_to_vusion_format(dPast - timedelta(minutes=60)),
             enrolled=[{'dialogue-id': '0',
-                       'date-time': time_to_vusion_format(dPast)}])
+                       'date-time': time_to_vusion_format(dPast)}]))
 
         self.worker.schedule_participant_dialogue(
             participant, dialogue)
@@ -90,10 +90,10 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         dPast = dNow - timedelta(minutes=30)
 
         dialogue = Dialogue(**self.mkobj_dialogue_announcement_offset_days())
-        participant = self.mkobj_participant(
+        participant = Participant(**self.mkobj_participant(
             '06',
             last_optin_date=time_to_vusion_format(dPast - timedelta(days=1)),
-            enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dPast)}])
+            enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dPast)}]))
 
         self.save_history(
             timestamp=dPast,
@@ -173,8 +173,8 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         dPast = dNow - timedelta(days=2)
 
         dialogue = Dialogue(**self.mkobj_dialogue_annoucement())
-        participant = self.mkobj_participant(
-            enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dPast)}])
+        participant = Participant(**self.mkobj_participant(
+            enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dPast)}]))
 
         self.worker.schedule_participant_dialogue(
             participant, dialogue)
@@ -189,8 +189,8 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         dPast = dNow - timedelta(minutes=60)
 
         dialogue = Dialogue(**self.mkobj_dialogue_announcement_offset_time())
-        participant = self.mkobj_participant(
-            enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dPast)}])
+        participant = Participant(**self.mkobj_participant(
+            enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dPast)}]))
 
         self.worker.schedule_participant_dialogue(
             participant, dialogue)
@@ -624,10 +624,11 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         dialogue = Dialogue(**self.mkobj_dialogue_open_question_reminder())
         interaction = dialogue['interactions'][0]
         
-        participant = self.mkobj_participant(
-            participant_phone='06',
-            enrolled=[{'dialogue-id': dialogue['dialogue-id'],
-                       'date-time': time_to_vusion_format(d_enrolled)}])
+        participant = Participant(
+            **self.mkobj_participant(
+                participant_phone='06',
+                enrolled=[{'dialogue-id': dialogue['dialogue-id'],
+                           'date-time': time_to_vusion_format(d_enrolled)}]))
         
         schedule = self.mkobj_schedule(
             dialogue_id=dialogue['dialogue-id'],
