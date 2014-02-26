@@ -682,4 +682,3 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(self.collections['history'].count(), 1)
         history = self.collections['history'].find_one()
         self.assertEqual(history['object-type'], 'request-history')
-        
