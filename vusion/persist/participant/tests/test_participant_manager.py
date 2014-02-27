@@ -141,9 +141,10 @@ class TestParticipantManager(TestCase, ObjectMaker):
         self.manager.save(self.mkobj_participant('1', tags=['geek']))
         self.manager.save(self.mkobj_participant('2', tags=[]))
         participants = self.manager.get_participants({'tags': 'geek'})
-        self.assertEqual(len(participants), 1)
-        self.assertEqual(participants[0]['phone'], '1')
-        self.assertTrue(isinstance(participants[0], Participant))
+        self.assertEqual(participants.count(), 1)
+        participant = participants.next()
+        self.assertEqual(participant['phone'], '1')
+        self.assertTrue(isinstance(participant, Participant))
 
     def test_is_participant_tagged(self):
         participant = self.mkobj_participant(

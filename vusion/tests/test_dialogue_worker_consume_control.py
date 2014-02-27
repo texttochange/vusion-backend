@@ -135,4 +135,3 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
         event = Message(**{'action': 'reload-program_settings'})
         yield self.send(event, 'control')
         self.assertEqual(self.worker.properties['timezone'], 'Africa/Kampala')
-        

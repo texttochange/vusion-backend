@@ -28,6 +28,7 @@ from worker_config import WorkerConfig
 
 from unattach_message import UnattachMessage
 
+from cursor_instanciator import CursorInstanciator
 
 __all__ = ["Model", "ModelManager",
            "Dialogue", "DialogueManager", 
@@ -42,4 +43,5 @@ __all__ = ["Model", "ModelManager",
            "WorkerConfig",
            "Participant", "ParticipantManager",
            "UnattachMessage",
-           "ContentVariable", "ContentVariableManager"]
+           "ContentVariable", "ContentVariableManager",
+           "CursorInstanciator"]
