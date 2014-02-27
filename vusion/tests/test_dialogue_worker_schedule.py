@@ -809,3 +809,58 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         self.worker.schedule_participant('06')
         
         self.assertEqual(self.collections['schedules'].count(), 3)
+
+    def test_schedule_dialogue(self):
+        self.initialize_properties()
+        
+        now = self.worker.get_local_time()
+        past = now - timedelta(days=1)
+        more_past = now - timedelta(days=2)
+        future = now + timedelta(days=1)
+        
+        #save dialogues
+        dialogue = self.mkobj_dialogue_announcement_offset_days()
+        self.collections['dialogues'].save(dialogue)
+
+        #save participants
+        self.collections['participants'].save(
+            self.mkobj_participant(
+                participant_phone='01',
+                enrolled=[]))
+        #already enrolled participant with schedule and history
+        self.collections['participants'].save(
+            self.mkobj_participant(
+                participant_phone='02',
+                session_id='x',
+                enrolled=[{
+                    'dialogue-id': '0',
+                    'date-time': time_to_vusion_format(more_past)}]))
+        self.collections['history'].save(
+            self.mkobj_history_dialogue(
+                dialogue_id='0', 
+                interaction_id='0',
+                timestamp=time_to_vusion_format(past),
+                participant_phone='02',
+                participant_session_id='x'))
+        self.collections['schedules'].save(
+            self.mkobj_schedule(
+                participant_phone='02', 
+                participant_session_id='x',
+                date_time=time_to_vusion_format(future),
+                dialogue_id='0',
+                interaction_id='1'))
+
+        #optout participants
+        self.collections['participants'].save(
+            self.mkobj_participant(
+                participant_phone='03',
+                session_id=None))
+        
+        self.worker.schedule_dialogue('0')
+        
+        self.assertEqual(3, self.collections['schedules'].count())
+        self.assertEqual(
+            2, self.collections['schedules'].find({'participant-phone': '01'}).count())
+        self.assertEqual(
+            1, self.collections['schedules'].find({'participant-phone': '02'}).count())
+        

@@ -374,3 +374,7 @@ class TestDialogue(TestCase, ObjectMaker):
         
         self.assertTrue(dialogue is not None)
         self.assertEqual(Dialogue.MODEL_VERSION, dialogue['model-version'])
+
+    def test_get_auto_enrollment_as_query(self):
+        dialogue = Dialogue(**self.mkobj_dialogue_open_question())
+        self.assertEqual({}, dialogue.get_auto_enrollment_as_query())

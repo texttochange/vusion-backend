@@ -90,6 +90,23 @@ class TestParticipantManager(TestCase, ObjectMaker):
         participant = self.manager.get_participant('1')
         self.assertTrue(participant.is_enrolled('2'))
 
+    def test_enrolling_participants(self):
+        participant = self.mkobj_participant('1')
+        self.manager.save(participant)
+        participant = self.mkobj_participant('2')
+        self.manager.save(participant)
+        participant = self.mkobj_participant('3', session_id=None)
+        self.manager.save(participant)
+
+        self.manager.enrolling_participants({}, 'dialogueID')
+        
+        participant = self.manager.get_participant('1')
+        self.assertTrue(participant.is_enrolled('dialogueID'))
+        participant = self.manager.get_participant('2')
+        self.assertTrue(participant.is_enrolled('dialogueID'))
+        participant = self.manager.get_participant('3')
+        self.assertFalse(participant.is_enrolled('dialogueID'))        
+
     #TODO: check default behavior, shouldn't be like tagging?
     def test_labelling(self):
         participant = self.mkobj_participant(

@@ -10,6 +10,7 @@ from vusion.persist.action import (UnMatchingAnswerAction, FeedbackAction,
                                    OffsetConditionAction, RemoveRemindersAction,
                                    RemoveDeadlineAction, RemoveQuestionAction)
 from vusion.persist import Model, Interaction
+from vusion.error import VusionError
 
 
 ## TODO update the validation
@@ -48,20 +49,12 @@ class Dialogue(Model):
     def split_keywords(self, keywords):
         return [k.lower() for k in (keywords or '').split(', ')]
 
-    # refactor with interaction
     def get_matching_interaction(self, keyword):
         if self.payload['interactions'] is None:
             return None, None
         for interaction in self.interactions:
             if interaction.is_matching(keyword):
                 return self.payload['dialogue-id'], interaction
-            #if interaction['type-interaction'] == 'question-answer-keyword':
-                #for answer_keyword in interaction['answer-keywords']:
-                    #if keyword in self.split_keywords(answer_keyword['keyword']):
-                        #return self.payload['dialogue-id'], interaction
-            #elif interaction['type-interaction'] == 'question-answer':
-                #if keyword in interaction.get_interaction_keywords():
-                    #return self.payload['dialogue-id'], interaction
         return None, None
 
     def get_offset_condition_interactions(self, interaction_id):
@@ -108,3 +101,8 @@ class Dialogue(Model):
             if interaction_id == interaction['interaction-id']:
                 return interaction
         return None
+
+    def get_auto_enrollment_as_query(self):
+        if self['auto-enrollment'] == 'all':
+            return {}
+        return None   # 'none' case

@@ -213,10 +213,6 @@ class DialogueWorker(ApplicationWorker):
                 return
             if message['action'] == 'update_schedule':
                 if message['schedule_type'] == 'dialogue':
-                    #This function should now 
-                    #1) remove schedule
-                    #2) enroll participant 
-                    #3) schedule new dialogue
                     self.collections['dialogues'].load_dialogue(message['object_id'])
                     self.schedule_dialogue(message['object_id'])
                     self.register_keywords_in_dispatcher()
@@ -661,7 +657,14 @@ class DialogueWorker(ApplicationWorker):
         return unattachs
 
     def schedule_dialogue(self, dialogue_id):
+        #remove schedule
+        self.collections['schedules'].remove_dialogue(dialogue_id)
         dialogue = self.collections['dialogues'].get_current_dialogue(dialogue_id)
+        #enroll if they are not already enrolled in auto-enrollment
+        query = dialogue.get_auto_enrollment_as_query()
+        if query is not None:
+            self.collections['participants'].enrolling_participants(query, dialogue_id)
+        #use the cusor to avod loading them in memory
         participants = self.collections['participants'].get_participants(
             {'enrolled.dialogue-id': dialogue_id,
              'session-id': {'$ne': None}})

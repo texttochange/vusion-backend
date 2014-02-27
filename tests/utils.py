@@ -523,7 +523,7 @@ class ObjectMaker:
 
     dialogue_open_question = {
         'name': 'test dialogue',
-        'auto-enrollment': None,
+        'auto-enrollment': 'all',
         'activated': 1,
         'dialogue-id': '04',
         'interactions': [
