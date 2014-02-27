@@ -14,7 +14,9 @@ class CursorInstanciator(object):
         try:
             item = self.cursor.next()
             return self.instanciator_callback(**item)
-        except VusionError as e:
+        except StopIteration as e:
+            raise e
+        except Exception as e:
             for failure_callback in self.failure_callbacks:
                 failure_callback(e, item)
 
