@@ -40,7 +40,8 @@ from vusion.persist import (Request, ContentVariable, Dialogue,
                             Participant, UnattachMessage,
                             history_generator, schedule_generator, 
                             HistoryManager, ContentVariableManager,
-                            DialogueManager, RequestManager, ParticipantManager)
+                            DialogueManager, RequestManager, ParticipantManager,
+                            ScheduleManager)
 
 
 class DialogueWorker(ApplicationWorker):
@@ -107,7 +108,8 @@ class DialogueWorker(ApplicationWorker):
         self.collections['requests'].set_log_helper(self.log_manager)
         self.collections['content_variables'].set_property_helper(self.properties)
         self.collections['content_variables'].set_log_helper(self.log_manager)        
-
+        self.collections['schedules'].set_property_helper(self.properties)
+        self.collections['schedules'].set_log_helper(self.log_manager)        
 
         self.credit_manager = CreditManager(
            self.r_key, self.r_server, 
@@ -142,11 +144,11 @@ class DialogueWorker(ApplicationWorker):
         if (self.sender.active()):
             self.sender.cancel()
 
-    def save_schedule(self, **kwargs):
-        if 'date-time' in kwargs:
-            kwargs['date-time'] = time_to_vusion_format(kwargs['date-time'])
-        schedule = schedule_generator(**kwargs)
-        self.collections['schedules'].save(schedule.get_as_dict())
+    #def save_schedule(self, **kwargs):
+        #if 'date-time' in kwargs:
+            #kwargs['date-time'] = time_to_vusion_format(kwargs['date-time'])
+        #schedule = schedule_generator(**kwargs)
+        #self.collections['schedules'].save(schedule.get_as_dict())
 
     def save_history(self, **kwargs):
         return self.collections['history'].save_history(**kwargs)
@@ -176,7 +178,6 @@ class DialogueWorker(ApplicationWorker):
                                         safe=self.config.get('mongodb_safe', False))
         self.db = connection[self.database_name]
         self.setup_collections({
-            'schedules': 'date-time',
             'program_settings': None,
             'unattached_messages': None})
 
@@ -185,9 +186,8 @@ class DialogueWorker(ApplicationWorker):
         self.collections['dialogues'] = DialogueManager(self.db, 'dialogues')
         self.collections['requests'] = RequestManager(self.db, 'requests')
         self.collections['participants'] = ParticipantManager(self.db, 'participants')
+        self.collections['schedules'] = ScheduleManager(self.db, 'schedules')
 
-        self.collections['schedules'].ensure_index([('participant-phone',1),
-                                                    ('interaction-id', 1)])
         self.db = connection[self.vusion_database_name]
         self.setup_collections({'templates': None})
         self.setup_collections({'shortcodes': 'shortcode'})
@@ -302,9 +302,10 @@ class DialogueWorker(ApplicationWorker):
             self.schedule_participant(participant_phone)
         elif (action.get_type() == 'optout'):
             self.collections['participants'].opting_out(participant_phone)
-            self.collections['schedules'].remove({
-                'participant-phone': participant_phone,
-                'object-type': {'$ne': 'feedback-schedule'}})
+            self.collections['schedules'].remove_schedules(participant_phone)
+            #.remove({
+                #'participant-phone': participant_phone,
+                #'object-type': {'$ne': 'feedback-schedule'}})
         elif (action.get_type() == 'feedback'):
             schedule = FeedbackSchedule(**{
                 'model-version': '2',
@@ -357,15 +358,14 @@ class DialogueWorker(ApplicationWorker):
                 self.get_local_time(), 
                 action['offset-days']['days'],
                 action['offset-days']['at-time'])
-            schedule = {
+            schedule = schedule_generator(**{
                 'object-type': 'action-schedule',
-                'model-version': '2',
                 'participant-phone': participant_phone,
                 'participant-session-id': participant_session_id,
                 'date-time': schedule_time,
                 'action': EnrollingAction(**{'enroll': action['enroll']}).get_as_dict(),
-                'context': context.get_dict_for_history()}
-            self.save_schedule(**schedule)
+                'context': context.get_dict_for_history()})
+            self.collections['schedules'].save_schedule(schedule)
         elif (action.get_type() == 'profiling'):
             self.collections['participants'].labelling(
                 participant_phone, action['label'], action['value'], context['message'])
@@ -377,23 +377,14 @@ class DialogueWorker(ApplicationWorker):
                 participant,
                 self.collections['dialogues'].get_current_dialogue(action['dialogue-id']))
         elif (action.get_type() == 'remove-question'):
-            self.collections['schedules'].remove({
-                'participant-phone': participant_phone,
-                'dialogue-id': action['dialogue-id'],
-                'interaction-id': action['interaction-id'],
-                'object-type': 'dialogue-schedule'})
+            self.collections['schedules'].remove_interaction(
+                participant_phone, action['dialogue-id'], action['interaction-id'])
         elif (action.get_type() == 'remove-reminders'):
-            self.collections['schedules'].remove({
-                'participant-phone': participant_phone,
-                'dialogue-id': action['dialogue-id'],
-                'interaction-id': action['interaction-id'],
-                'object-type': 'reminder-schedule'})
+            self.collections['schedules'].remove_reminders(
+                participant_phone, action['dialogue-id'], action['interaction-id'])
         elif (action.get_type() == 'remove-deadline'):
-            self.collections['schedules'].remove({
-                'participant-phone': participant_phone,
-                'dialogue-id': action['dialogue-id'],
-                'interaction-id': action['interaction-id'],
-                'object-type': 'deadline-schedule'})
+            self.collections['schedules'].remove_deadline(
+                participant_phone, action['dialogue-id'], action['interaction-id'])
         elif (action.get_type() == 'reset'):
             self.run_action(participant_phone, OptoutAction())
             self.run_action(participant_phone, OptinAction())
@@ -608,10 +599,7 @@ class DialogueWorker(ApplicationWorker):
 
     def get_time_next_daemon_iteration(self):
         try:
-            schedule = schedule_generator(**self.collections['schedules'].find(
-                sort=[('date-time', 1)],
-                limit=1)[0])
-            schedule_time = schedule.get_schedule_time()
+            schedule_time = self.collections['schedules'].get_next_schedule_time()
             delta = schedule_time - self.get_local_time()
             if delta < timedelta():
                 return 1
@@ -699,7 +687,7 @@ class DialogueWorker(ApplicationWorker):
         
     def schedule_unattach(self, unattach_id):
         #clear all schedule
-        self.collections['schedules'].remove({'unattach-id': unattach_id})
+        self.collections['schedules'].remove_unattach(unattach_id)
         unattach = self.get_unattach_message(unattach_id)
         if unattach is None:
             return
@@ -719,20 +707,18 @@ class DialogueWorker(ApplicationWorker):
             'unattach-id': str(unattach['_id'])})
         if history is not None:
             return
-        schedule = self.collections['schedules'].find_one({
-            'participant-phone': participant['phone'],
-            'unattach-id': str(unattach['_id'])})
+        schedule = self.collections['schedules'].get_unattach(
+            participant['phone'], unattach['_id'])        
         if schedule is None:
-            schedule = UnattachSchedule(**{
-                    'model-version': '2',
+            schedule = schedule_generator(**{
+                    'object-type': 'unattach-schedule',
                     'participant-phone': participant['phone'],
                     'participant-session-id': participant['session-id'],
                     'unattach-id': str(unattach['_id']),
                     'date-time': unattach['fixed-time']})
         else:
-            schedule = schedule_generator(**schedule)
             schedule['date-time'] = unattach['fixed-time']
-        self.collections['schedules'].save(schedule.get_as_dict())
+        self.collections['schedules'].save_schedule(schedule)
         self.update_time_next_daemon_iteration()
 
     def schedule_participants_dialogue(self, participants, dialogue):
@@ -788,11 +774,8 @@ class DialogueWorker(ApplicationWorker):
                         continue
                     sending_date_time = self.get_local_time()
 
-                schedule = self.collections['schedules'].find_one({
-                    "participant-phone": participant['phone'],
-                    "object-type": 'dialogue-schedule',
-                    "dialogue-id": dialogue["dialogue-id"],
-                    "interaction-id": interaction["interaction-id"]})        
+                schedule = self.collections['schedules'].get_interaction(
+                    participant['phone'], dialogue["dialogue-id"], interaction["interaction-id"])
 
                 #Scheduling a date already in the past is forbidden.
                 if (sending_date_time + timedelta(minutes=5) < self.get_local_time()):
@@ -805,20 +788,20 @@ class DialogueWorker(ApplicationWorker):
                         'scheduled-date-time': time_to_vusion_format(sending_date_time)}
                     self.save_history(**history)
                     if (schedule):
-                        self.collections['schedules'].remove(schedule['_id'])
+                        self.collections['schedules'].remove_schedule(schedule)
                     continue
 
                 if (not schedule):
-                    schedule = {
+                    schedule = schedule_generator(**{
                         'object-type': 'dialogue-schedule', 
-                        'model-version': '2',
+                        'date-time': sending_date_time,
                         'participant-phone': participant['phone'],
                         'participant-session-id': participant['session-id'],
                         'dialogue-id': dialogue['dialogue-id'],
-                        'interaction-id': interaction["interaction-id"]}
-                schedule.update(
-                    {'date-time': sending_date_time})
-                self.save_schedule(**schedule)
+                        'interaction-id': interaction["interaction-id"]})
+                else:
+                    schedule['date-time'] = sending_date_time
+                self.collections['schedules'].save_schedule(schedule)
                 self.schedule_participant_reminders(participant, dialogue, interaction, sending_date_time)
                 self.update_time_next_daemon_iteration()
         except:
@@ -837,18 +820,14 @@ class DialogueWorker(ApplicationWorker):
         if self.has_already_valid_answer(participant, dialogue['dialogue-id'], interaction['interaction-id'], 0):
             return
         
-        schedules = self.collections['schedules'].find({
-            "participant-phone": participant['phone'],
-            "$or":[{"object-type":'reminder-schedule'},
-                   {"object-type": 'deadline-schedule'}],
-            "dialogue-id": dialogue["dialogue-id"],
-            "interaction-id": interaction["interaction-id"]})
+        schedules = self.collections['schedules'].get_reminder_tail(
+            participant['phone'], dialogue["dialogue-id"], interaction["interaction-id"])
         
         #remove all reminder(s)/deadline for this interaction
         has_active_reminders = False
         for reminder_schedule_to_be_deleted in schedules:
             has_active_reminders = True
-            self.collections['schedules'].remove(reminder_schedule_to_be_deleted['_id'])
+            self.collections['schedules'].remove_schedule(reminder_schedule_to_be_deleted)
             
         if not interaction.has_reminder():
             return
@@ -868,30 +847,28 @@ class DialogueWorker(ApplicationWorker):
         #adding reminders
         reminder_times = interaction.get_reminder_times(interaction_date_time)
         for reminder_time in reminder_times[already_send_reminder_count:]:
-            reminder = {
+            reminder = schedule_generator(**{
                 'object-type': 'reminder-schedule',
-                'model-version': '2',
                 'participant-phone': participant['phone'],
                 'participant-session-id': participant['session-id'],
                 'date-time': reminder_time,
                 'dialogue-id': dialogue['dialogue-id'],
-                'interaction-id': interaction['interaction-id']}                                                                               
-            self.save_schedule(**reminder)
+                'interaction-id': interaction['interaction-id']})
+            self.collections['schedules'].save_schedule(reminder)
         
         #adding deadline
         deadline_time = interaction.get_deadline_time(interaction_date_time)
         #We don't schedule deadline in the past
         if deadline_time < self.get_local_time():
             deadline_time = self.get_local_time()
-        deadline = {
+        deadline = schedule_generator(**{
             'object-type': 'deadline-schedule',
-            'model-version': '2',
             'participant-phone': participant['phone'],
             'participant-session-id': participant['session-id'],
             'date-time': interaction.get_deadline_time(interaction_date_time),
             'dialogue-id': dialogue['dialogue-id'],
-            'interaction-id': interaction['interaction-id']}                                                                               
-        self.save_schedule(**deadline)
+            'interaction-id': interaction['interaction-id']})
+        self.collections['schedules'].save_schedule(deadline)
         
     def get_local_time(self, date_format='datetime'):
         try:
@@ -928,14 +905,10 @@ class DialogueWorker(ApplicationWorker):
     def send_scheduled(self):
         try:
             self.log('Checking the schedule list...')
-            local_time = self.get_local_time()
-            due_schedules = self.collections['schedules'].find(
-                spec={'date-time': {'$lt': time_to_vusion_format(local_time)}},
-                sort=[('date-time', 1)], limit=100)
+            due_schedules = self.collections['schedules'].get_due_schedules()
             for due_schedule in due_schedules:
-                self.collections['schedules'].remove(
-                    {'_id': due_schedule['_id']})
-                yield self.send_schedule(schedule_generator(**due_schedule))
+                self.collections['schedules'].remove_schedule(due_schedule)
+                yield self.send_schedule(due_schedule)
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log("Error send_scheduled: %r" %

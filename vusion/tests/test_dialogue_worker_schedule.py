@@ -14,7 +14,7 @@ from vusion.utils import time_to_vusion_format, time_from_vusion_format
 
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 from vusion.tests.test_dialogue_worker import DialogueWorkerTestCase
-from vusion.persist import Dialogue, Participant
+from vusion.persist import Dialogue, Participant, schedule_generator
 
 
 class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
@@ -121,17 +121,16 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
 
         dialogue = self.mkobj_dialogue_announcement_offset_days()
         dialogue['interactions'][1]['type-schedule'] = 'fixed-time'
-        dialogue['interactions'][1]['date-time'] = dLaterFuture.strftime(
-            self.time_format)
+        dialogue['interactions'][1]['date-time'] = time_to_vusion_format(dLaterFuture)
         dialogue = Dialogue(**dialogue)
 
         #Declare collection for scheduling messages
-        self.collections['schedules'].save({
-            'date-time': dFuture.strftime(self.time_format),
-            'participant-phone': '06',
-            'object-type': 'dialogue-schedule',
-            'interaction-id': '1',
-            'dialogue-id': '0'})
+        
+        self.collections['schedules'].save(self.mkobj_schedule(
+            date_time=time_to_vusion_format(dFuture),
+            participant_phone='06',
+            interaction_id='1',
+            dialogue_id='0'))
         self.save_history(
             timestamp=dPast,
             participant_phone='06',
@@ -145,8 +144,8 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
 
         self.assertEqual(self.collections['history'].count(), 1)
         self.assertEqual(self.collections['schedules'].count(), 1)
-        schedule = self.collections['schedules'].find_one()
-        self.assertEqual(schedule['date-time'], dLaterFuture.strftime(self.time_format))
+        schedule = schedule_generator(**self.collections['schedules'].find_one())
+        self.assertTrue(schedule.get_schedule_time() - dLaterFuture < timedelta(seconds=1))
 
     def test_schedule_interaction_fixed_time_expired(self):
         self.initialize_properties()
@@ -204,8 +203,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         dFuture = datetime.now() + timedelta(days=2, minutes=30)
 
         dialogue = self.mkobj_dialogue_announcement_fixedtime()
-        dialogue['interactions'][0]['date-time'] = dFuture.strftime(
-            self.time_format)
+        dialogue['interactions'][0]['date-time'] = time_to_vusion_format(dFuture)
         dialogue = Dialogue(**dialogue)
 
         participant = self.mkobj_participant('06')

@@ -8,7 +8,8 @@ from tests.utils import ObjectMaker
 
 from vusion.component import DialogueWorkerPropertyHelper
 from vusion.persist import (ScheduleManager, schedule_generator, 
-                            ReminderSchedule, DialogueSchedule)
+                            ReminderSchedule, DialogueSchedule,
+                            UnattachSchedule)
 from vusion.utils import time_to_vusion_format
 
 
@@ -145,3 +146,49 @@ class TestScheduleManager(TestCase, ObjectMaker):
         schedule_time = self.manager.get_next_schedule_time()
         self.assertTrue(future - schedule_time < timedelta(seconds=1))
         self.assertEqual(2, self.manager.count())
+
+    def test_remove_unattach(self):
+        schedule_1 = schedule_generator(**self.mkobj_schedule_unattach(
+            participant_phone='1', unattach_id='1'))
+        self.manager.save_schedule(schedule_1)
+        schedule_2 = schedule_generator(**self.mkobj_schedule_unattach(
+            participant_phone='1', unattach_id='2'))
+        self.manager.save_schedule(schedule_2)
+        
+        self.manager.remove_unattach('1')
+        self.assertEqual(1, self.manager.count())
+        self.assertEqual(1, self.manager.find({'unattach-id': '2'}).count())
+
+    def test_get_unattach(self):
+        schedule_1 = schedule_generator(**self.mkobj_schedule_unattach(
+            participant_phone='1', unattach_id='1'))
+        self.manager.save_schedule(schedule_1)
+        schedule_2 = schedule_generator(**self.mkobj_schedule_unattach(
+            participant_phone='1', unattach_id='2'))
+        self.manager.save_schedule(schedule_2)
+        
+        schedule = self.manager.get_unattach('1', '1')
+        self.assertIsInstance(schedule, UnattachSchedule)
+        self.assertEqual('1', schedule['unattach-id'])
+
+    def test_get_interaction(self):
+        schedule_1 = schedule_generator(**self.mkobj_schedule(
+            participant_phone='1', object_type='dialogue-schedule', dialogue_id='1', interaction_id='2'))
+        schedule_2 = schedule_generator(**self.mkobj_schedule(
+            participant_phone='1', object_type='dialogue-schedule', dialogue_id='1',interaction_id='3'))
+        self.manager.save_schedule(schedule_1)
+        self.manager.save_schedule(schedule_2)
+        
+        interaction = self.manager.get_interaction('1', '1', '2')
+        self.assertIsInstance(interaction, DialogueSchedule)
+
+    def test_remove_dialogue(self):
+        schedule_1 = schedule_generator(**self.mkobj_schedule(
+            participant_phone='1', dialogue_id='1', interaction_id='1'))
+        self.manager.save_schedule(schedule_1)
+        schedule_2 = schedule_generator(**self.mkobj_schedule(
+            participant_phone='1', dialogue_id='1', interaction_id='2'))
+        self.manager.save_schedule(schedule_2) 
+        
+        self.manager.remove_dialogue('1')
+        self.assertEqual(0, self.manager.count())

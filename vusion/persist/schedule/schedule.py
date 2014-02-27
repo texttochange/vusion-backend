@@ -1,11 +1,11 @@
 import re
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from vusion.error import VusionError, InvalidField
 from vusion.persist.action import action_generator
 from vusion.persist import Model
 from vusion.context import Context
-from vusion.utils import time_from_vusion_format
+from vusion.utils import time_from_vusion_format, time_to_vusion_format
 
 
 ##TODO update the validation
@@ -47,6 +47,11 @@ class Schedule(Model):
             kwargs['participant-session-id'] = kwargs['participant-session-id'] if 'participant-session-id' in kwargs else None
             kwargs['model-version'] = '2'
         return kwargs
+
+    def process_field(self, key, value):
+        if key == 'date-time' and isinstance(value, datetime):
+            return time_to_vusion_format(value)
+        return value
 
 
 class MessageSchedule(Schedule):
