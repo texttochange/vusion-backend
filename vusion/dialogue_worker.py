@@ -36,9 +36,10 @@ from vusion.persist.action import (Actions, action_generator,FeedbackAction,
                                    EnrollingAction, OptinAction, OptoutAction,
                                    RemoveRemindersAction)
 from vusion.persist import (Request, ContentVariable, Dialogue,
-                            FeedbackSchedule, UnattachSchedule,
+                            FeedbackSchedule, UnattachSchedule, ActionSchedule,
+                            DialogueSchedule, ReminderSchedule, DeadlineSchedule,
                             Participant, UnattachMessage,
-                            history_generator, schedule_generator, 
+                            history_generator,
                             HistoryManager, ContentVariableManager,
                             DialogueManager, RequestManager, ParticipantManager,
                             ScheduleManager)
@@ -46,6 +47,7 @@ from vusion.persist import (Request, ContentVariable, Dialogue,
 
 class DialogueWorker(ApplicationWorker):
     
+    #TODO: deprecated, to remove
     INCOMING = "incoming"
     OUTGOING = "outgoing"
     
@@ -143,12 +145,6 @@ class DialogueWorker(ApplicationWorker):
             yield self.unregister_from_dispatcher()
         if (self.sender.active()):
             self.sender.cancel()
-
-    #def save_schedule(self, **kwargs):
-        #if 'date-time' in kwargs:
-            #kwargs['date-time'] = time_to_vusion_format(kwargs['date-time'])
-        #schedule = schedule_generator(**kwargs)
-        #self.collections['schedules'].save(schedule.get_as_dict())
 
     def save_history(self, **kwargs):
         return self.collections['history'].save_history(**kwargs)
@@ -303,12 +299,8 @@ class DialogueWorker(ApplicationWorker):
         elif (action.get_type() == 'optout'):
             self.collections['participants'].opting_out(participant_phone)
             self.collections['schedules'].remove_schedules(participant_phone)
-            #.remove({
-                #'participant-phone': participant_phone,
-                #'object-type': {'$ne': 'feedback-schedule'}})
         elif (action.get_type() == 'feedback'):
             schedule = FeedbackSchedule(**{
-                'model-version': '2',
                 'participant-phone': participant_phone,
                 'participant-session-id': participant_session_id,
                 'date-time': time_to_vusion_format(self.get_local_time()),
@@ -329,7 +321,6 @@ class DialogueWorker(ApplicationWorker):
                                    action['answer'],
                                    template['template'])
             schedule = FeedbackSchedule(**{
-                'model-version': '2',
                 'participant-phone': participant_phone,
                 'participant-session-id': participant_session_id,
                 'date-time': time_to_vusion_format(self.get_local_time()),
@@ -358,8 +349,7 @@ class DialogueWorker(ApplicationWorker):
                 self.get_local_time(), 
                 action['offset-days']['days'],
                 action['offset-days']['at-time'])
-            schedule = schedule_generator(**{
-                'object-type': 'action-schedule',
+            schedule = ActionSchedule(**{
                 'participant-phone': participant_phone,
                 'participant-session-id': participant_session_id,
                 'date-time': schedule_time,
@@ -710,8 +700,7 @@ class DialogueWorker(ApplicationWorker):
         schedule = self.collections['schedules'].get_unattach(
             participant['phone'], unattach['_id'])        
         if schedule is None:
-            schedule = schedule_generator(**{
-                    'object-type': 'unattach-schedule',
+            schedule = UnattachSchedule(**{
                     'participant-phone': participant['phone'],
                     'participant-session-id': participant['session-id'],
                     'unattach-id': str(unattach['_id']),
@@ -792,8 +781,7 @@ class DialogueWorker(ApplicationWorker):
                     continue
 
                 if (not schedule):
-                    schedule = schedule_generator(**{
-                        'object-type': 'dialogue-schedule', 
+                    schedule = DialogueSchedule(**{
                         'date-time': sending_date_time,
                         'participant-phone': participant['phone'],
                         'participant-session-id': participant['session-id'],
@@ -847,8 +835,7 @@ class DialogueWorker(ApplicationWorker):
         #adding reminders
         reminder_times = interaction.get_reminder_times(interaction_date_time)
         for reminder_time in reminder_times[already_send_reminder_count:]:
-            reminder = schedule_generator(**{
-                'object-type': 'reminder-schedule',
+            reminder = ReminderSchedule(**{
                 'participant-phone': participant['phone'],
                 'participant-session-id': participant['session-id'],
                 'date-time': reminder_time,
@@ -861,8 +848,7 @@ class DialogueWorker(ApplicationWorker):
         #We don't schedule deadline in the past
         if deadline_time < self.get_local_time():
             deadline_time = self.get_local_time()
-        deadline = schedule_generator(**{
-            'object-type': 'deadline-schedule',
+        deadline = DeadlineSchedule(**{
             'participant-phone': participant['phone'],
             'participant-session-id': participant['session-id'],
             'date-time': interaction.get_deadline_time(interaction_date_time),
@@ -938,14 +924,14 @@ class DialogueWorker(ApplicationWorker):
                     schedule['participant-session-id'])
                 return
 
-        ## Get source unattached, interaction or request
+            ## Get source unattached, interaction or request
             interaction, context = self.from_schedule_to_message(schedule)
             
             if not interaction:
                 self.log("Sender failure, cannot build process %r" % schedule)
                 return
 
-        ## Run the Deadline
+            ## Run the Deadline
             if schedule.get_type() == 'deadline-schedule':
                 actions = Actions()
                 if interaction.has_reminder():
