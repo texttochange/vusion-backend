@@ -88,6 +88,7 @@ class TestParticipantManager(TestCase, ObjectMaker):
         #not enrolled
         self.manager.enrolling('1', '2')
         participant = self.manager.get_participant('1')
+        self.assertTrue(participant.is_enrolled('1'))
         self.assertTrue(participant.is_enrolled('2'))
 
     def test_enrolling_participants(self):

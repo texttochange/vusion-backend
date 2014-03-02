@@ -267,9 +267,9 @@ class DialogueWorker(ApplicationWorker):
                     ## Participant is re optin
                     self.collections['participants'].opting_in_again(participant_phone)
             ## finialise the optin by enrolling and schedulling
-            for dialogue in self.collections['dialogues'].get_active_dialogues({'auto-enrollment':'all'}):
-                self.run_action(participant_phone,
-                                EnrollingAction(**{'enroll': dialogue['dialogue-id']}))
+            #for dialogue in self.collections['dialogues'].get_active_dialogues({'auto-enrollment':'all'}):
+                #self.run_action(participant_phone,
+                                #EnrollingAction(**{'enroll': dialogue['dialogue-id']}))
             self.schedule_participant(participant_phone)
         elif (action.get_type() == 'optout'):
             self.collections['participants'].opting_out(participant_phone)
@@ -613,10 +613,17 @@ class DialogueWorker(ApplicationWorker):
         participant = self.collections['participants'].get_participant(participant_phone, True)
         if participant is None:
             return
-        for enrolled in participant['enrolled']:
-            dialogue = self.collections['dialogues'].get_current_dialogue(enrolled['dialogue-id'])
-            if dialogue is not None:
+        ## schedule dialogues
+        for dialogue in self.collections['dialogues'].get_active_dialogues():
+            if dialogue.is_enrollable(participant):
+                self.collections['participants'].enrolling(
+                    participant['phone'], dialogue['dialogue-id'])
+                #Require to load again the participant in order to get the enrollment time
+                participant = self.collections['participants'].get_participant(participant_phone)
+            # participant could be manually enrolled
+            if participant.is_enrolled(dialogue['dialogue-id']):
                 self.schedule_participant_dialogue(participant, dialogue)
+        ## schedule unattach message s       
         future_unattachs = self.get_future_unattachs()
         for unattach in future_unattachs:
             if unattach.is_selectable(participant):

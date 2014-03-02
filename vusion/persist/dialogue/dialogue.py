@@ -106,3 +106,8 @@ class Dialogue(Model):
         if self['auto-enrollment'] == 'all':
             return {}
         return None   # 'none' case
+
+    def is_enrollable(self, participant):
+        if self['auto-enrollment'] == 'all':
+            return True
+        return False

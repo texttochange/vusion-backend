@@ -378,3 +378,8 @@ class TestDialogue(TestCase, ObjectMaker):
     def test_get_auto_enrollment_as_query(self):
         dialogue = Dialogue(**self.mkobj_dialogue_open_question())
         self.assertEqual({}, dialogue.get_auto_enrollment_as_query())
+
+    def test_is_enrollable(self):
+        participant = self.mkobj_participant()
+        dialogue = Dialogue(**self.mkobj_dialogue_open_question())        
+        self.assertTrue(dialogue.is_enrollable(participant))

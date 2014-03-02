@@ -792,17 +792,15 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         dNow = self.worker.get_local_time()
         dPast = dNow - timedelta(minutes=55)
         dialogue_1 = self.mkobj_dialogue_announcement_offset_time()
-        dialogue_2 = self.mkobj_dialogue_announcement_2()
         self.collections['dialogues'].save(dialogue_1)
-        self.collections['dialogues'].save(dialogue_2)        
+        dialogue_2 = self.mkobj_dialogue_announcement_2()
+        self.collections['dialogues'].save(dialogue_2)         
+        
         participant = self.mkobj_participant(
-            '06', 
-            tags=['geek'],
-            enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dPast)}])
+            '06', enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dPast)}])
         self.collections['participants'].save(participant)
-        
         self.worker.schedule_participant('06')
-        
+                
         participant['enrolled'] = [{'dialogue-id': '0', 'date-time': time_to_vusion_format(dPast)},
                                    {'dialogue-id': '2', 'date-time': time_to_vusion_format(dNow)}]
         self.collections['participants'].save(participant)

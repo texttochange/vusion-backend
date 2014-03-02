@@ -50,18 +50,19 @@ class ParticipantManager(ModelManager):
             safe=safe)
 
     def enrolling(self, participant_phone, dialogue_id, safe=True):
-        self.enrolling_participants({'phone': participant_phone}, dialogue_id, safe)
+        self.enrolling_participants(
+            {'phone': participant_phone}, dialogue_id, safe)
 
-    def enrolling_participants(self, query, dialogue_id, safe=True):
+    def enrolling_participants(self, query, dialogue_id, safe=True, multi=True):
         query.update({'enrolled.dialogue-id': {'$ne': dialogue_id},
                       'session-id':{'$ne': None}})
         self.collection.update(
             query,
             {'$push': {'enrolled': {
                 'dialogue-id': dialogue_id,
-                'date-time': time_to_vusion_format(self.get_local_time())}}},
+                'date-time': self.get_local_time("vusion")}}},
             safe=safe,
-            multi=True)
+            multi=multi)
     
     def labelling(self, participant_phone, label, value, raw, safe=True):
         self.collection.update(
