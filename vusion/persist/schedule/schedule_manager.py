@@ -1,5 +1,6 @@
 import sys, traceback
 
+from vusion.persist.cursor_instanciator import CursorInstanciator
 from vusion.persist import ModelManager, schedule_generator
 from vusion.persist.schedule.schedule import Schedule
 
@@ -29,27 +30,29 @@ class ScheduleManager(ModelManager):
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log(
-                "Error while retriving schedule %r" %
+                "Exception while intanciating schedule %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
             if remove_failure:
-                self.collection.remove(raw_schedule['_id'])
+                self._remove_failure(raw_schedule)
         return None
 
-    def _generate_schedules(self, raw_schedules):
-        schedules = []
-        for raw_schedule in raw_schedules:
-            schedule = self._generate_schedule(raw_schedule)
-            if schedule is not None:
-                schedules.append(schedule)
-        return schedules
+    def _remove_failure(self, exception, item):
+        self.log("Deleting schedule from collection")
+        self.collection.remove(item['_id'])
+
+    def _wrap_cursor_schedules(self, cursor):
+        def log(exception, item):
+            self.log("Exception %s while intanciating a schedule %r" % (exception, item))        
+        return CursorInstanciator(cursor, schedule_generator, log)        
 
     def get_reminder_tail(self, participant_phone, dialogue_id, interaction_id):
-        return self._generate_schedules(self.collection.find({
+        cursor = self.collection.find({
             "participant-phone": participant_phone,
             "$or":[{"object-type":'reminder-schedule'},
                    {"object-type": 'deadline-schedule'}],
             "dialogue-id": dialogue_id,
-            "interaction-id": interaction_id}))
+            "interaction-id": interaction_id})
+        return self._wrap_cursor_schedules(cursor)
 
     def get_unattach(self, participant_phone, unattach_id):
         return self._generate_schedule(self.collection.find_one({
@@ -64,49 +67,44 @@ class ScheduleManager(ModelManager):
             "interaction-id": interaction_id}))
 
     def get_next_schedule_time(self):
-        while(True):
-            schedules = self.collection.find(
+        schedules = self._wrap_cursor_schedules(
+            self.collection.find(
                 sort=[('date-time', 1)],
-                limit=1)
-            if schedules.count() == 0:
-                return None
-            schedule = self._generate_schedule(schedules[0])
+                limit=100))
+        schedules.add_failure_callback(self._remove_failure)
+        for schedule in schedules:
             if schedule is not None:
                 return schedule.get_schedule_time()
-    
-    #TODO shall we also remove them at the same time
+        return None
+
     def get_due_schedules(self, limit=100):
-        return self._generate_schedules(
-            self.collection.find(
-                spec={'date-time': {'$lt': self.get_local_time('vusion')}},
-                sort=[('date-time', 1)], limit=limit))
+        cursor = self.collection.find(
+            spec={'date-time': {'$lt': self.get_local_time('vusion')}},
+            sort=[('date-time', 1)], limit=limit)
+        return self._wrap_cursor_schedules(cursor)
     
-    #TODO rename with "participant"
-    def remove_reminders(self, participant_phone, dialogue_id, interaction_id):
+    def remove_participant_reminders(self, participant_phone, dialogue_id, interaction_id):
         self.collection.remove({
             'participant-phone': participant_phone,
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id,
             'object-type': 'reminder-schedule'})
 
-    #TODO rename with "participant"    
-    def remove_deadline(self, participant_phone, dialogue_id, interaction_id):
+    def remove_participant_deadline(self, participant_phone, dialogue_id, interaction_id):
         self.remove({
             'participant-phone': participant_phone,
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id,
             'object-type': 'deadline-schedule'})        
     
-    #TODO rename with "participant"    
-    def remove_interaction(self, participant_phone, dialogue_id, interaction_id):
+    def remove_participant_interaction(self, participant_phone, dialogue_id, interaction_id):
         self.collection.remove({
             'participant-phone': participant_phone,
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id,
             'object-type': 'dialogue-schedule'})
 
-    #TODO rename with "participant"    
-    def remove_schedules(self, participant_phone):
+    def remove_participant_schedules(self, participant_phone):
         self.collection.remove({
             'participant-phone': participant_phone,
             'object-type': {'$ne': 'feedback-schedule'}})    

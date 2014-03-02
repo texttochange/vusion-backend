@@ -148,19 +148,6 @@ class DialogueWorker(ApplicationWorker):
 
     def save_history(self, **kwargs):
         return self.collections['history'].save_history(**kwargs)
-
-    def get_requests(self):
-        requests = []
-        for request in self.collections['requests'].find():
-            try:
-                requests.append(Request(**request))
-            except:
-                exc_type, exc_value, exc_traceback = sys.exc_info()
-                self.log(
-                    "Error while applying request model %s: %r" %
-                    (request['keyword'],
-                        traceback.format_exception(exc_type, exc_value, exc_traceback)))
-        return requests
   
     def init_program_db(self, database_name, vusion_database_name):
         self.log("Initialization of the program")
@@ -294,7 +281,7 @@ class DialogueWorker(ApplicationWorker):
             self.schedule_participant(participant_phone)
         elif (action.get_type() == 'optout'):
             self.collections['participants'].opting_out(participant_phone)
-            self.collections['schedules'].remove_schedules(participant_phone)
+            self.collections['schedules'].remove_participant_schedules(participant_phone)
         elif (action.get_type() == 'feedback'):
             schedule = FeedbackSchedule(**{
                 'participant-phone': participant_phone,
@@ -363,13 +350,13 @@ class DialogueWorker(ApplicationWorker):
                 participant,
                 self.collections['dialogues'].get_current_dialogue(action['dialogue-id']))
         elif (action.get_type() == 'remove-question'):
-            self.collections['schedules'].remove_interaction(
+            self.collections['schedules'].remove_participant_interaction(
                 participant_phone, action['dialogue-id'], action['interaction-id'])
         elif (action.get_type() == 'remove-reminders'):
-            self.collections['schedules'].remove_reminders(
+            self.collections['schedules'].remove_participant_reminders(
                 participant_phone, action['dialogue-id'], action['interaction-id'])
         elif (action.get_type() == 'remove-deadline'):
-            self.collections['schedules'].remove_deadline(
+            self.collections['schedules'].remove_participant_deadline(
                 participant_phone, action['dialogue-id'], action['interaction-id'])
         elif (action.get_type() == 'reset'):
             self.run_action(participant_phone, OptoutAction())
@@ -656,20 +643,7 @@ class DialogueWorker(ApplicationWorker):
                          traceback.format_exception(exc_type, exc_value, exc_traceback))
         return unattachs
 
-    def schedule_dialogue(self, dialogue_id):
-        #remove schedule
-        self.collections['schedules'].remove_dialogue(dialogue_id)
-        dialogue = self.collections['dialogues'].get_current_dialogue(dialogue_id)
-        #enroll if they are not already enrolled in auto-enrollment
-        query = dialogue.get_auto_enrollment_as_query()
-        if query is not None:
-            self.collections['participants'].enrolling_participants(query, dialogue_id)
-        #use the cusor to avod loading them in memory
-        participants = self.collections['participants'].get_participants(
-            {'enrolled.dialogue-id': dialogue_id,
-             'session-id': {'$ne': None}})
-        self.schedule_participants_dialogue(participants, dialogue)
-
+    #TODO: move into unattach message manager
     def get_unattach_message(self, unattach_id):
         try:
             return UnattachMessage(**self.collections['unattached_messages'].find_one({
@@ -677,7 +651,8 @@ class DialogueWorker(ApplicationWorker):
         except TypeError:
             self.log("Error unattach message %s cannot be found" % unattach_id)
             return None
-        
+
+    ## Scheduling of unattach messages
     def schedule_unattach(self, unattach_id):
         #clear all schedule
         self.collections['schedules'].remove_unattach(unattach_id)
@@ -712,6 +687,20 @@ class DialogueWorker(ApplicationWorker):
             schedule['date-time'] = unattach['fixed-time']
         self.collections['schedules'].save_schedule(schedule)
         self.update_time_next_daemon_iteration()
+
+    ## Scheduling of Dialogue
+    def schedule_dialogue(self, dialogue_id):
+        #remove schedule
+        self.collections['schedules'].remove_dialogue(dialogue_id)
+        dialogue = self.collections['dialogues'].get_current_dialogue(dialogue_id)
+        #enroll if they are not already enrolled in auto-enrollment
+        query = dialogue.get_auto_enrollment_as_query()
+        if query is not None:
+            self.collections['participants'].enrolling_participants(query, dialogue_id)
+        participants = self.collections['participants'].get_participants(
+            {'enrolled.dialogue-id': dialogue_id,
+             'session-id': {'$ne': None}})
+        self.schedule_participants_dialogue(participants, dialogue)
 
     def schedule_participants_dialogue(self, participants, dialogue):
         for participant in participants:
@@ -858,7 +847,8 @@ class DialogueWorker(ApplicationWorker):
             'dialogue-id': dialogue['dialogue-id'],
             'interaction-id': interaction['interaction-id']})
         self.collections['schedules'].save_schedule(deadline)
-        
+    
+    # TODO move to the properties helper
     def get_local_time(self, date_format='datetime'):
         try:
             return self.properties.get_local_time(date_format)
@@ -888,7 +878,7 @@ class DialogueWorker(ApplicationWorker):
             return None, Context()
         return interaction, context
 
-    #TODO: fire error feedback if the ddialogue do not exit anymore
+    #TODO: fire error feedback if the dialogue do not exit anymore
     #TODO fire action scheduled by reminder if no reply is sent for any reminder
     @inlineCallbacks
     def send_scheduled(self):

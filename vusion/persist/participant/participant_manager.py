@@ -5,6 +5,7 @@ from vusion.utils import time_to_vusion_format
 from vusion.persist import Participant, ModelManager
 from vusion.persist.cursor_instanciator import CursorInstanciator
 
+
 class ParticipantManager(ModelManager):
     
     def __init__(self, db, collection_name, **kwargs):
@@ -101,18 +102,8 @@ class ParticipantManager(ModelManager):
 
     def get_participants(self, query):
         def log(exception, item):
-            self.log("Exception %s while retriving participant %r" % (exception, item))    
+            self.log("Exception %s while instanciating a participant %r" % (exception, item))    
         return CursorInstanciator(self.collection.find(query), Participant, [log])
-        #participants = []
-        #for participant in self.collection.find(query):
-            #try:
-                #participants.append(Participant(**participant))
-            #except:
-                #exc_type, exc_value, exc_traceback = sys.exc_info()
-                #self.log(
-                    #"Error while retriving participant %r" %
-                     #traceback.format_exception(exc_type, exc_value, exc_traceback))
-        #return participants
     
     def is_tagged(self, participant_phone, tags):
         query = {'phone':participant_phone,

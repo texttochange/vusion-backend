@@ -8,7 +8,6 @@ from vusion.context import Context
 from vusion.utils import time_from_vusion_format, time_to_vusion_format
 
 
-##TODO update the validation
 class Schedule(Model):
 
     fields = {

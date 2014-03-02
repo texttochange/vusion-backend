@@ -54,7 +54,7 @@ class TestScheduleManager(TestCase, ObjectMaker):
             participant_phone='2'))
         self.manager.save_schedule(schedule_2)
         
-        self.manager.remove_schedules('1')
+        self.manager.remove_participant_schedules('1')
         self.assertEqual(1, self.manager.count())
         self.assertEqual(1, self.manager.find({'participant-phone': '2'}).count())
 
@@ -67,7 +67,7 @@ class TestScheduleManager(TestCase, ObjectMaker):
             dialogue_id='1', interaction_id='1'))
         self.manager.save_schedule(schedule_2) 
         
-        self.manager.remove_interaction('1', '1', '1')
+        self.manager.remove_participant_interaction('1', '1', '1')
         self.assertEqual(1, self.manager.count())
         self.assertEqual(1, self.manager.find({'object-type': 'reminder-schedule'}).count())
 
@@ -81,7 +81,7 @@ class TestScheduleManager(TestCase, ObjectMaker):
             dialogue_id='1', interaction_id='1'))
         self.manager.save_schedule(schedule_2) 
         
-        self.manager.remove_reminders('1', '1', '1')
+        self.manager.remove_participant_reminders('1', '1', '1')
         self.assertEqual(1, self.manager.count())
         self.assertEqual(1, self.manager.find({'object-type': 'deadline-schedule'}).count())
 
@@ -95,7 +95,7 @@ class TestScheduleManager(TestCase, ObjectMaker):
             dialogue_id='1', interaction_id='1'))
         self.manager.save_schedule(schedule_2) 
         
-        self.manager.remove_deadline('1', '1', '1')
+        self.manager.remove_participant_deadline('1', '1', '1')
         self.assertEqual(1, self.manager.count())
         self.assertEqual(1, self.manager.find({'object-type': 'reminder-schedule'}).count())
 
@@ -108,8 +108,9 @@ class TestScheduleManager(TestCase, ObjectMaker):
         self.manager.save_schedule(schedule_2)
         
         reminders = self.manager.get_reminder_tail('1', '1', '2')
-        self.assertEqual(1, len(reminders))
-        self.assertIsInstance(reminders[0], ReminderSchedule)
+        self.assertEqual(1, reminders.count())
+        reminder = reminders.next()
+        self.assertIsInstance(reminder, ReminderSchedule)
 
     def test_get_due_schedules(self):
         now = self.manager.get_local_time()
@@ -124,9 +125,12 @@ class TestScheduleManager(TestCase, ObjectMaker):
         self.manager.save_schedule(schedule)
         
         schedules = self.manager.get_due_schedules(limit=1)
-        self.assertEqual(1, len(schedules))
-        self.assertIsInstance(schedules[0], DialogueSchedule)
-        self.assertEqual('2', schedules[0]['participant-phone'])
+        # the count is still 2 event if the cursor will only iterate over the first one
+        self.assertEqual(2, schedules.count())
+        self.assertEqual(1, schedules.count(True)) 
+        schedule = schedules.next()
+        self.assertIsInstance(schedule, DialogueSchedule)
+        self.assertEqual('2', schedule['participant-phone'])
 
     def test_get_next_schedule_time(self):
         now = self.manager.get_local_time()
@@ -145,6 +149,7 @@ class TestScheduleManager(TestCase, ObjectMaker):
 
         schedule_time = self.manager.get_next_schedule_time()
         self.assertTrue(future - schedule_time < timedelta(seconds=1))
+        #the invalid_schedule has been removed
         self.assertEqual(2, self.manager.count())
 
     def test_remove_unattach(self):

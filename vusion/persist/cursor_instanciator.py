@@ -5,7 +5,9 @@ class CursorInstanciator(object):
     def __init__(self, cursor, instanciator_callback, failure_callbacks=[]):
         self.cursor = cursor
         self.instanciator_callback = instanciator_callback
-        self.failure_callbacks = failure_callbacks
+        self.failure_callbacks = (failure_callbacks 
+                                  if isinstance(failure_callbacks, list) 
+                                  else [failure_callbacks])
 
     def __iter__(self):
         return self
