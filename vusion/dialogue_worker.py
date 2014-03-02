@@ -100,18 +100,10 @@ class DialogueWorker(ApplicationWorker):
         self.log_manager.startup(self.properties)
 
         #TODO replace by a loop
-        self.collections['history'].set_property_helper(self.properties)
-        self.collections['history'].set_log_helper(self.log_manager)
-        self.collections['dialogues'].set_property_helper(self.properties)
-        self.collections['dialogues'].set_log_helper(self.log_manager)
-        self.collections['participants'].set_property_helper(self.properties)
-        self.collections['participants'].set_log_helper(self.log_manager)
-        self.collections['requests'].set_property_helper(self.properties)
-        self.collections['requests'].set_log_helper(self.log_manager)
-        self.collections['content_variables'].set_property_helper(self.properties)
-        self.collections['content_variables'].set_log_helper(self.log_manager)        
-        self.collections['schedules'].set_property_helper(self.properties)
-        self.collections['schedules'].set_log_helper(self.log_manager)        
+        for collection in ['history', 'dialogues', 'requests', 'participants', 
+                           'content_variables', 'schedules']:
+            self.collections[collection].set_property_helper(self.properties)
+            self.collections[collection].set_log_helper(self.log_manager)
 
         self.credit_manager = CreditManager(
            self.r_key, self.r_server, 
