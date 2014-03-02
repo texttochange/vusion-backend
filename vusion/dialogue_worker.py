@@ -250,26 +250,20 @@ class DialogueWorker(ApplicationWorker):
         if (action.get_type() == 'optin'):
             participant = self.collections['participants'].get_participant(participant_phone)
             if not participant:                            
-                ## This is the first optin
+                ## The participant is opting in for the first time
                 self.collections['participants'].opting_in(participant_phone, True)
+            elif participant['session-id'] is None:
+                ## The participant is optout and opting in again
+                self.collections['participants'].opting_in_again(participant_phone)
             else:
-                ## This is a second optin
-                if (participant['session-id'] != None):    
-                    ## Participant still optin
-                    if self.properties['double-optin-error-feedback'] is not None:
-                        self.run_action(
-                            participant_phone, 
-                            FeedbackAction(**{'content': self.properties['double-optin-error-feedback']}),
-                            context,
-                            participant_session_id)
-                        return
-                else:
-                    ## Participant is re optin
-                    self.collections['participants'].opting_in_again(participant_phone)
-            ## finialise the optin by enrolling and schedulling
-            #for dialogue in self.collections['dialogues'].get_active_dialogues({'auto-enrollment':'all'}):
-                #self.run_action(participant_phone,
-                                #EnrollingAction(**{'enroll': dialogue['dialogue-id']}))
+                ## The participant is still optin and opting in again
+                if self.properties['double-optin-error-feedback'] is not None:
+                    self.run_action(
+                        participant_phone, 
+                        FeedbackAction(**{'content': self.properties['double-optin-error-feedback']}),
+                        context,
+                        participant_session_id)
+                    return   #participant should not be resheduled
             self.schedule_participant(participant_phone)
         elif (action.get_type() == 'optout'):
             self.collections['participants'].opting_out(participant_phone)
