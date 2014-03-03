@@ -10,7 +10,7 @@ from vusion.component import DialogueWorkerPropertyHelper
 from vusion.persist import (ScheduleManager, schedule_generator, 
                             ReminderSchedule, DialogueSchedule,
                             UnattachSchedule)
-from vusion.utils import time_to_vusion_format
+from vusion.utils import time_to_vusion_format, time_from_vusion_format
 
 
 class TestScheduleManager(TestCase, ObjectMaker):
@@ -36,9 +36,12 @@ class TestScheduleManager(TestCase, ObjectMaker):
         self.manager.drop()
 
     def test_save_schedule(self):
-        schedule = schedule_generator(**self.mkobj_schedule())
+        sometime = time_from_vusion_format('2014-10-02T10:00:00')
+        schedule = schedule_generator(**self.mkobj_schedule(date_time=sometime))
         self.manager.save_schedule(schedule)
         self.assertEqual(1, self.manager.count())
+        saved_schedule = schedule_generator(**self.manager.find_one())
+        self.assertEqual('2014-10-02T10:00:00', saved_schedule['date-time'])
 
     def test_remove_schedule(self):
         schedule = schedule_generator(**self.mkobj_schedule())
@@ -46,7 +49,7 @@ class TestScheduleManager(TestCase, ObjectMaker):
         self.manager.remove_schedule(schedule)
         self.assertEqual(0, self.manager.count())
     
-    def test_remove_schedules(self):
+    def test_remove_participant_schedules(self):
         schedule_1 = schedule_generator(**self.mkobj_schedule(
             participant_phone='1'))
         self.manager.save_schedule(schedule_1)
@@ -58,7 +61,7 @@ class TestScheduleManager(TestCase, ObjectMaker):
         self.assertEqual(1, self.manager.count())
         self.assertEqual(1, self.manager.find({'participant-phone': '2'}).count())
 
-    def test_remove_interaction(self):
+    def test_remove_participant_interaction(self):
         schedule_1 = schedule_generator(**self.mkobj_schedule(
             participant_phone='1', dialogue_id='1', interaction_id='1'))
         self.manager.save_schedule(schedule_1)
@@ -71,7 +74,7 @@ class TestScheduleManager(TestCase, ObjectMaker):
         self.assertEqual(1, self.manager.count())
         self.assertEqual(1, self.manager.find({'object-type': 'reminder-schedule'}).count())
 
-    def test_remove_reminders(self):
+    def test_remove_participant_reminders(self):
         schedule_1 = schedule_generator(**self.mkobj_schedule(
             participant_phone='1', object_type='deadline-schedule', 
             dialogue_id='1', interaction_id='1'))
@@ -85,7 +88,7 @@ class TestScheduleManager(TestCase, ObjectMaker):
         self.assertEqual(1, self.manager.count())
         self.assertEqual(1, self.manager.find({'object-type': 'deadline-schedule'}).count())
 
-    def test_remove_deadline(self):
+    def test_remove_participant_deadline(self):
         schedule_1 = schedule_generator(**self.mkobj_schedule(
             participant_phone='1', object_type='deadline-schedule', 
             dialogue_id='1', interaction_id='1'))
@@ -99,7 +102,7 @@ class TestScheduleManager(TestCase, ObjectMaker):
         self.assertEqual(1, self.manager.count())
         self.assertEqual(1, self.manager.find({'object-type': 'reminder-schedule'}).count())
 
-    def test_get_reminder_tail(self):
+    def test_get_participant_reminder_tail(self):
         schedule_1 = schedule_generator(**self.mkobj_schedule(
             participant_phone='1', object_type='reminder-schedule', dialogue_id='1', interaction_id='2'))
         schedule_2 = schedule_generator(**self.mkobj_schedule(
@@ -107,7 +110,7 @@ class TestScheduleManager(TestCase, ObjectMaker):
         self.manager.save_schedule(schedule_1)
         self.manager.save_schedule(schedule_2)
         
-        reminders = self.manager.get_reminder_tail('1', '1', '2')
+        reminders = self.manager.get_participant_reminder_tail('1', '1', '2')
         self.assertEqual(1, reminders.count())
         reminder = reminders.next()
         self.assertIsInstance(reminder, ReminderSchedule)
@@ -164,7 +167,7 @@ class TestScheduleManager(TestCase, ObjectMaker):
         self.assertEqual(1, self.manager.count())
         self.assertEqual(1, self.manager.find({'unattach-id': '2'}).count())
 
-    def test_get_unattach(self):
+    def test_get_participant_unattach(self):
         schedule_1 = schedule_generator(**self.mkobj_schedule_unattach(
             participant_phone='1', unattach_id='1'))
         self.manager.save_schedule(schedule_1)
@@ -172,7 +175,7 @@ class TestScheduleManager(TestCase, ObjectMaker):
             participant_phone='1', unattach_id='2'))
         self.manager.save_schedule(schedule_2)
         
-        schedule = self.manager.get_unattach('1', '1')
+        schedule = self.manager.get_participant_unattach('1', '1')
         self.assertIsInstance(schedule, UnattachSchedule)
         self.assertEqual('1', schedule['unattach-id'])
 
@@ -184,7 +187,7 @@ class TestScheduleManager(TestCase, ObjectMaker):
         self.manager.save_schedule(schedule_1)
         self.manager.save_schedule(schedule_2)
         
-        interaction = self.manager.get_interaction('1', '1', '2')
+        interaction = self.manager.get_participant_interaction('1', '1', '2')
         self.assertIsInstance(interaction, DialogueSchedule)
 
     def test_remove_dialogue(self):

@@ -668,7 +668,7 @@ class DialogueWorker(ApplicationWorker):
             'unattach-id': str(unattach['_id'])})
         if history is not None:
             return
-        schedule = self.collections['schedules'].get_unattach(
+        schedule = self.collections['schedules'].get_participant_unattach(
             participant['phone'], unattach['_id'])        
         if schedule is None:
             schedule = UnattachSchedule(**{
@@ -683,8 +683,6 @@ class DialogueWorker(ApplicationWorker):
 
     ## Scheduling of Dialogue
     def schedule_dialogue(self, dialogue_id):
-        #remove schedule
-        self.collections['schedules'].remove_dialogue(dialogue_id)
         dialogue = self.collections['dialogues'].get_current_dialogue(dialogue_id)
         #enroll if they are not already enrolled in auto-enrollment
         query = dialogue.get_auto_enrollment_as_query()
@@ -748,7 +746,7 @@ class DialogueWorker(ApplicationWorker):
                         continue
                     sending_date_time = self.get_local_time()
 
-                schedule = self.collections['schedules'].get_interaction(
+                schedule = self.collections['schedules'].get_participant_interaction(
                     participant['phone'], dialogue["dialogue-id"], interaction["interaction-id"])
 
                 #Scheduling a date already in the past is forbidden.
@@ -793,7 +791,7 @@ class DialogueWorker(ApplicationWorker):
         if self.has_already_valid_answer(participant, dialogue['dialogue-id'], interaction['interaction-id'], 0):
             return
         
-        schedules = self.collections['schedules'].get_reminder_tail(
+        schedules = self.collections['schedules'].get_participant_reminder_tail(
             participant['phone'], dialogue["dialogue-id"], interaction["interaction-id"])
         
         #remove all reminder(s)/deadline for this interaction

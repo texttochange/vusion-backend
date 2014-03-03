@@ -14,8 +14,9 @@ class ScheduleManager(ModelManager):
             ('participant-phone',1), ('interaction-id', 1)], backgroun=True)
 
     def save_schedule(self, schedule):
-        if isinstance(schedule, Schedule):
-            schedule = schedule.get_as_dict()
+        if not isinstance(schedule, Schedule):
+            schedule = schedule_generator(**schedule)
+        schedule = schedule.get_as_dict()
         self.collection.save(schedule)
 
     def remove_schedule(self, schedule):
@@ -45,7 +46,7 @@ class ScheduleManager(ModelManager):
             self.log("Exception %s while intanciating a schedule %r" % (exception, item))        
         return CursorInstanciator(cursor, schedule_generator, log)        
 
-    def get_reminder_tail(self, participant_phone, dialogue_id, interaction_id):
+    def get_participant_reminder_tail(self, participant_phone, dialogue_id, interaction_id):
         cursor = self.collection.find({
             "participant-phone": participant_phone,
             "$or":[{"object-type":'reminder-schedule'},
@@ -54,12 +55,12 @@ class ScheduleManager(ModelManager):
             "interaction-id": interaction_id})
         return self._wrap_cursor_schedules(cursor)
 
-    def get_unattach(self, participant_phone, unattach_id):
+    def get_participant_unattach(self, participant_phone, unattach_id):
         return self._generate_schedule(self.collection.find_one({
             'participant-phone': participant_phone,
             'unattach-id': str(unattach_id)}))
 
-    def get_interaction(self, participant_phone, dialogue_id, interaction_id):
+    def get_participant_interaction(self, participant_phone, dialogue_id, interaction_id):
         return self._generate_schedule(self.collection.find_one({
             "participant-phone": participant_phone,
             "object-type": 'dialogue-schedule',

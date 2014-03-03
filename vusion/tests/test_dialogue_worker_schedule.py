@@ -367,7 +367,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         
         self.assertEqual(2, self.collections['schedules'].count())
         self.assertEqual(2, self.collections['history'].count())
-
+        
         schedules = self.collections['schedules'].find()
         self.assertEqual('reminder-schedule', schedules[0]['object-type'])        
         self.assertEqual('deadline-schedule', schedules[1]['object-type'])
@@ -562,6 +562,12 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         
         self.assertEqual(schedules[0]['object-type'], 'reminder-schedule')
         self.assertEqual(schedules[1]['object-type'], 'deadline-schedule')
+
+    def test_reschedule_interaction_as_dialogue_updated(self):
+        self.fail()
+
+    def test_reschedule_interaction_as_participant_updated(self):
+        self.fail()
 
     def test_reschedule_reminder_removing_reminder(self):
         self.initialize_properties()
