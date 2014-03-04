@@ -3,7 +3,7 @@ from copy import copy
 from vumi import log
 from vumi.utils import get_first_word
 
-from utils.keyword import clean_keyword
+from vusion.utils import clean_keyword
 
 from vusion.persist.action import (UnMatchingAnswerAction, FeedbackAction,
                                    action_generator, ProfilingAction,

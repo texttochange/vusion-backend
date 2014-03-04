@@ -4,7 +4,7 @@ from datetime import timedelta, datetime, time
 
 from vumi.utils import get_first_word
 
-from utils.keyword import clean_keyword
+from vusion.utils import clean_keyword
 
 from vusion.persist import Model
 from vusion.error import InvalidField, MissingField

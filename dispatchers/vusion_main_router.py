@@ -5,7 +5,7 @@ from twisted.internet.defer import inlineCallbacks
 from vumi.dispatchers.base import ContentKeywordRouter
 from vumi import log
 
-from utils.keyword import clean_keyword
+from vusion import clean_keyword
 
 
 ## this router apply the following rules
