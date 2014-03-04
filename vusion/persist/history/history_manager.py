@@ -31,7 +31,7 @@ class HistoryManager(ModelManager):
         if 'interaction' in kwargs:
             kwargs.pop('interaction')
         history = history_generator(**kwargs)
-        return self.collection.save(history.get_as_dict())
+        return self.save_document(history)
 
     def update_status(self, message_id, status):
         message_status = None

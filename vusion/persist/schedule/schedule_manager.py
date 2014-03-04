@@ -16,8 +16,7 @@ class ScheduleManager(ModelManager):
     def save_schedule(self, schedule):
         if not isinstance(schedule, Schedule):
             schedule = schedule_generator(**schedule)
-        schedule = schedule.get_as_dict()
-        self.collection.save(schedule)
+        self.save_document(schedule)
 
     def remove_schedule(self, schedule):
         self.collection.remove(schedule['_id'])
@@ -31,7 +30,7 @@ class ScheduleManager(ModelManager):
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log(
-                "Exception while intanciating schedule %r" %
+                "Exception while instanciating schedule %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
             if remove_failure:
                 self._remove_failure(raw_schedule)

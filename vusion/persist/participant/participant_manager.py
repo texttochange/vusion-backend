@@ -16,12 +16,12 @@ class ParticipantManager(ModelManager):
         participant = Participant(**{
             'phone': participant_phone,
             'session-id': uuid4().get_hex(), 
-            'last-optin-date': time_to_vusion_format(self.get_local_time()),
+            'last-optin-date': self.get_local_time(),
             'last-optout-date': None,
             'tags': [],
             'enrolled':[],
             'profile':[]})
-        return self.save_participant(participant, safe)
+        return self.save_participant(participant, safe=safe)
 
     def opting_in_again(self, participant_phone, safe=True):
         self.collection.update(
@@ -80,9 +80,9 @@ class ParticipantManager(ModelManager):
             safe=safe)
 
     def save_participant(self, participant, safe=False):
-        if isinstance(participant, Participant):
-            participant = participant.get_as_dict()
-        return self.collection.save(participant, safe)
+        if not isinstance(participant, Participant):
+            participant = Participant(**participant)
+        return self.save_document(participant, safe=safe)
 
     def get_participant(self, participant_phone, only_optin=False):
         try:

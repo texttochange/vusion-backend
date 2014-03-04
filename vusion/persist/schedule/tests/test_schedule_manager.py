@@ -11,6 +11,7 @@ from vusion.persist import (ScheduleManager, schedule_generator,
                             ReminderSchedule, DialogueSchedule,
                             UnattachSchedule)
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
+from vusion.error import InvalidField
 
 
 class TestScheduleManager(TestCase, ObjectMaker):
@@ -42,6 +43,17 @@ class TestScheduleManager(TestCase, ObjectMaker):
         self.assertEqual(1, self.manager.count())
         saved_schedule = schedule_generator(**self.manager.find_one())
         self.assertEqual('2014-10-02T10:00:00', saved_schedule['date-time'])
+
+    def test_save_schedule_fail(self):
+        sometime = time_from_vusion_format('2014-10-02T10:00:00')
+        schedule = schedule_generator(**self.mkobj_schedule())
+        schedule['date-time'] = sometime
+        try:
+            self.manager.save_schedule(schedule)
+            self.fail()
+        except InvalidField:
+            return
+        self.fail()
 
     def test_remove_schedule(self):
         schedule = schedule_generator(**self.mkobj_schedule())

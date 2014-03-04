@@ -10,7 +10,8 @@ from twisted.internet.defer import inlineCallbacks
 from twisted.trial.unittest import TestCase
 
 from vusion.dialogue_worker import DialogueWorker
-from vusion.utils import time_to_vusion_format, time_from_vusion_format
+from vusion.utils import (time_to_vusion_format, time_from_vusion_format,
+                          get_offset_date_time)
 
 from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
 from vusion.tests.test_dialogue_worker import DialogueWorkerTestCase
@@ -564,10 +565,28 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         self.assertEqual(schedules[1]['object-type'], 'deadline-schedule')
 
     def test_reschedule_interaction_as_dialogue_updated(self):
-        self.fail()
+        self.initialize_properties()        
 
-    def test_reschedule_interaction_as_participant_updated(self):
-        self.fail()
+        now = self.worker.get_local_time()
+        
+        dialogue = Dialogue(**self.mkobj_dialogue_announcement_offset_days())
+        self.collections['dialogues'].save(dialogue.get_as_dict())
+        participant = self.mkobj_participant(
+            '01', last_optin_date=time_to_vusion_format(now))
+        self.collections['participants'].save(participant)
+        self.worker.schedule_participant('01')
+        self.assertEqual(2, self.collections['schedules'].count())
+        
+        dialogue['interactions'][0]['at-time'] = '23:30'
+        self.collections['dialogues'].save(dialogue.get_as_dict())
+        self.worker.collections['dialogues'].load_dialogues()
+        self.worker.schedule_participant('01')
+        self.assertEqual(2, self.collections['schedules'].count())
+        schedule = schedule_generator(
+            **self.collections['schedules'].find_one({'interaction-id': '0'}))
+        self.assertTrue(isinstance(schedule['date-time'], basestring))
+        new_time = get_offset_date_time(now, '1', '23:30')
+        self.assertTrue(schedule['date-time'], time_to_vusion_format(new_time))
 
     def test_reschedule_reminder_removing_reminder(self):
         self.initialize_properties()

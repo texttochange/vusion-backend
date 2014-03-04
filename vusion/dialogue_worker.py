@@ -677,7 +677,7 @@ class DialogueWorker(ApplicationWorker):
                     'unattach-id': str(unattach['_id']),
                     'date-time': unattach['fixed-time']})
         else:
-            schedule['date-time'] = unattach['fixed-time']
+            schedule.set_time(unattach['fixed-time'])
         self.collections['schedules'].save_schedule(schedule)
         self.update_time_next_daemon_iteration()
 
@@ -771,7 +771,7 @@ class DialogueWorker(ApplicationWorker):
                         'dialogue-id': dialogue['dialogue-id'],
                         'interaction-id': interaction["interaction-id"]})
                 else:
-                    schedule['date-time'] = sending_date_time
+                    schedule.set_time(sending_date_time)
                 self.collections['schedules'].save_schedule(schedule)
                 self.schedule_participant_reminders(participant, dialogue, interaction, sending_date_time)
                 self.update_time_next_daemon_iteration()

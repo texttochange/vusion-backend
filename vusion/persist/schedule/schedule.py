@@ -20,6 +20,7 @@ class Schedule(Model):
             },
         'date-time': {
             'required': True,
+            'valid_string': lambda v: isinstance(v['date-time'], basestring),
             'valid_value': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)T0?(\d+):0?(\d+)(:0?(\d+))$'), v['date-time'])
             },
         }
@@ -34,6 +35,12 @@ class Schedule(Model):
 
     def get_schedule_time(self):
         return time_from_vusion_format(self['date-time'])
+
+    def set_time(self, date_time):
+        if isinstance(date_time, datetime):
+            date_time = time_to_vusion_format(date_time)
+        self['date-time'] = date_time
+        self.validate_fields()
 
     def is_message(self):
         return False
@@ -74,7 +81,7 @@ class DialogueSchedule(MessageSchedule):
         }
 
     def validate_fields(self):
-        super(DialogueSchedule, self).validate_fields()        
+        super(DialogueSchedule, self).validate_fields()
         self._validate(self, DialogueSchedule.fields)
 
     def get_history_type(self):

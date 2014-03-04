@@ -1,7 +1,9 @@
 import re
+from datetime import datetime
 
 from vusion.persist import Model
 from vusion.error import InvalidField, MissingField
+from vusion.utils import time_to_vusion_format
 
 ## TODO update the validation
 class Participant(Model):
@@ -86,13 +88,10 @@ class Participant(Model):
         if field in self.FIELDS_THAT_SHOULD_BE_ARRAY and self[field] is None:
             self[field] = []
 
-    #TODO move code from dialogue worker
-    def enroll(self, dialogue_id, time):
-        pass
-
-    #TODO move code from dialogue worker
-    def tag(self, tag):
-        pass
+    def process_field(self, key, value):
+        if key in ['last-optout-date', 'last-optin-date'] and isinstance(value, datetime):
+            return time_to_vusion_format(value)
+        return value    
 
     def get_label_value(self, label):
         if re.match(self.REGEX_RAW, label):
