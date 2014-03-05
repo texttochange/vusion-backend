@@ -1,6 +1,7 @@
 #encoding: utf-8
 from twisted.trial.unittest import TestCase
-from utils.keyword import clean_keyword
+from vusion import clean_keyword
+
 
 class TestCleanKeyword(TestCase):
     

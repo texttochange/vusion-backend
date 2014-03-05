@@ -1,8 +1,9 @@
-from utils.keyword import clean_keyword
 from vumi.utils import get_first_word
 
+from vusion.utils import clean_keyword
 from vusion.persist import Model
 from vusion.persist.action import Actions, action_generator, FeedbackAction
+
 
 ## TODO: update the validation
 class Request(Model):
