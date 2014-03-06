@@ -130,14 +130,13 @@ class WindowManagerMiddleware(BaseMiddleware):
             r_server = yield self.get_redis(r_config)
         self.transport_name = self.worker.transport_name
 
-        r_key = ':'.join(['middlewarewindows', self.transport_name])
-
         self.wm = WindowManager(
             r_server,
             window_size=self.config.get('window_size', 10),
             flight_lifetime=self.config.get('flight_lifetime', 1),
             gc_interval=self.config.get('gc_interval', 1),
-            window_key=r_key)
+            window_key='middlewarewindows',
+            remove_expired=True)
 
         self.wm.monitor(
             self.send_outbound,
@@ -153,6 +152,7 @@ class WindowManagerMiddleware(BaseMiddleware):
     @inlineCallbacks
     def handle_event(self, event, endpoint):
         log.msg("handle event %r" % event)
+        #other event could maybe remove the key
         if event["event_type"] in ['ack', 'nack']:
             yield self.wm.remove_key(
                 self.transport_name,
