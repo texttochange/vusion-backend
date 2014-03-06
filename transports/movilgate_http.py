@@ -40,33 +40,26 @@ class MovilgateHttpTransport(Transport):
         if hasattr(self, 'receipt_resource'):
             return self.receipt_resource.stopListening()
 
-    def validate_transport_metadata(self, message):
-        for field in self.mandatory_metadata_fields:
-            if not field in message['transport_metadata']:
-                self.publish_delivery_report(
-                    user_message_id=message['message_id'],
-                    delivery_status='failed',
-                    failure_level='service',
-                    failure_code='0',
-                    failure_reason='Missing %s metadata for sending to Movilgate' % field)
-                return False
-        return True                
-
     @inlineCallbacks
     def handle_outbound_message(self, message):
         log.msg("Outbound message to be processed %s" % repr(message))
         try:
-            if not self.validate_transport_metadata(message):
-                return
             movilgate_parser = MovilgateXMLParser()
+            servicio_id = message['transport_metadata'].get('servicio_id', "")
+            if servicio_id != "":
+                id_tran = message['transport_metadata'].get('telefono_id_tran', "0")
+            else:
+                id_tran = "0"
             mobilgate_msg = movilgate_parser.build({
             'proveedor': {
                 'id': self.config['proveedor_id'],
                 'password': self.config['proveedor_password']},
-            'servicio': {'id': message['transport_metadata']['servicio_id']},
+            'servicio': {
+                'id': servicio_id,
+                'short_number': message['from_addr']},
             'telephono': {
                 'msisdn': message['to_addr'],
-                'id_tran': message['transport_metadata']['telefono_id_tran']},
+                'id_tran': id_tran},
             'contenido': message['content']})
             
             response = yield http_request_full(
@@ -79,12 +72,22 @@ class MovilgateHttpTransport(Transport):
             if response.code != 200:
                 log.msg("Http Error %s: %s"
                         % (response.code, response.delivered_body))
-                yield self.publish_delivery_report(
-                    user_message_id=message['message_id'],
-                    delivery_status='failed',
-                    failure_level='http',
-                    failure_code=response.code,
-                    failure_reason=response.delivered_body)
+                if response.code == 500:
+                    headers = dict(response.headers.getAllRawHeaders())
+                    [reason] = headers.get('X-Movilgate-Status', '')
+                    yield self.publish_delivery_report(
+                        user_message_id=message['message_id'],
+                        delivery_status='failed',
+                        failure_level='service',
+                        failure_code='',
+                        failure_reason=reason)
+                else:
+                    yield self.publish_delivery_report(
+                        user_message_id=message['message_id'],
+                        delivery_status='failed',
+                        failure_level='http',
+                        failure_code=response.code,
+                        failure_reason=response.delivered_body)
                 return
             
             resp = ElementTree.fromstring(response.delivered_body)
@@ -173,6 +176,8 @@ class MovilgateXMLParser():
         servicio.set('Id', messagedict['servicio']['id'])
         servicio.set('ContentType', "0")
         servicio.set('CreateSession', "0")
+        if (messagedict['servicio']['id'] == ""):
+            servicio.set('ShortNumber', messagedict['servicio']['short_number'])
         telephono = ElementTree.SubElement(messages, 'Telefono')
         telephono.set('msisdn', messagedict['telephono']['msisdn'])
         telephono.set('IdTran', messagedict['telephono']['id_tran'])
