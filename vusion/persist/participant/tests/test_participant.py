@@ -140,7 +140,7 @@ class TestParticipant(TestCase, ObjectMaker):
             participant.get_label_value('Some thing label'),
             'some value')
 
-    def test_get_participant_label_value_raw(self):
+    def test_get_label_value_raw(self):
         participant = Participant(
             **self.mkobj_participant(profile=[{'label': 'Some thing label',
                                                'value': 'some value'}]))
