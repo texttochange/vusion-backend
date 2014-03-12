@@ -106,6 +106,8 @@ class VumiRedisClientFactory(txr.RedisClientFactory):
 
 class WindowManagerMiddleware(BaseMiddleware):
 
+    queue_name = 'outbound'
+
     def get_redis(self, r_config):
         r_config = deepcopy(r_config)
         host = r_config.pop('host', 'locahost')
@@ -130,12 +132,14 @@ class WindowManagerMiddleware(BaseMiddleware):
             r_server = yield self.get_redis(r_config)
         self.transport_name = self.worker.transport_name
 
+        r_key = ':'.join(['middlewarewindows', self.transport_name])
+        
         self.wm = WindowManager(
             r_server,
             window_size=self.config.get('window_size', 10),
             flight_lifetime=self.config.get('flight_lifetime', 1),
             gc_interval=self.config.get('gc_interval', 1),
-            window_key='middlewarewindows',
+            window_key=r_key,
             remove_expired=True)
 
         self.wm.monitor(
@@ -143,8 +147,8 @@ class WindowManagerMiddleware(BaseMiddleware):
             self.config.get('monitor_loop', 1),
             False)
         
-        if not (yield self.wm.window_exists(self.transport_name)):
-            yield self.wm.create_window(self.transport_name)
+        if not (yield self.wm.window_exists(self.queue_name)):
+            yield self.wm.create_window(self.queue_name)
 
     def teardown_middleware(self):
         self.wm.stop()
@@ -155,13 +159,13 @@ class WindowManagerMiddleware(BaseMiddleware):
         #other event could maybe remove the key
         if event["event_type"] in ['ack', 'nack']:
             yield self.wm.remove_key(
-                self.transport_name,
-                event['user_message_id'])
+                self.queue_name, event['user_message_id'])
         returnValue(event)
 
     @inlineCallbacks
     def handle_outbound(self, msg, endpoint):
-        yield self.wm.add(self.transport_name, msg.to_json(), msg["message_id"])
+        yield self.wm.add(
+            self.queue_name, msg.to_json(), msg["message_id"])
         raise StopPropagation()
 
     @inlineCallbacks
