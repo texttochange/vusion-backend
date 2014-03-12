@@ -28,7 +28,6 @@ class WindowManager(object):
         self.gc = LoopingCall(self.clear_expired_flight_keys)
         self.gc.clock = self.clock
         self.gc.start(gc_interval)
-        #self.gc.remove_expired = remove_expired
         if window_key is not None:
             self.WINDOW_KEY = window_key
         self._monitor = None
