@@ -46,7 +46,8 @@ class EnhancedSmppTransportTestCase(TransportTestCase, ObjectMaker):
             "transport_name": self.transport_name,
             "transport_type": "smpp",
             "submit_sm_encoding": "latin1",
-            "submit_sm_data_encoding": 3
+            "submit_sm_data_encoding": 3,
+            "service_type": "OPSOD"
         }
         self.service = SmppService(None, config=self.config)
         yield self.service.startWorker()
@@ -148,3 +149,41 @@ class EnhancedSmppTransportTestCase(TransportTestCase, ObjectMaker):
             long_message['pdu']['body']['mandatory_parameters']['short_message'])
         self.assertTrue(
             'value' in long_message['pdu']['body']['optional_parameters'][0])
+
+    @inlineCallbacks
+    def test_submit_sm_service_type(self):
+        
+        expected_body_parameters = {
+            "service_type": "OPSOD",
+        }
+      
+        ## Startup
+        yield self.startTransport()
+        yield self.transport._block_till_bind
+
+        # First we make sure the Client binds to the Server
+        # and enquire_link pdu's are exchanged as expected
+        pdu_queue = self.service.factory.smsc.pdu_queue
+
+        # Next the Client submits a SMS to the Server
+        # and recieves an ack and a delivery_report
+
+        msg = TransportUserMessage(
+                to_addr="2772222222",
+                from_addr="2772000000",
+                content='hello @ world',
+                transport_name=self.transport_name,
+                transport_type='smpp',
+                rkey='%s.outbound' % self.transport_name,
+                timestamp='0',
+                )
+        yield self.dispatch(msg)
+
+        #dump the connection setup
+        for i in range(1, 5):
+            yield pdu_queue.get()
+
+        actual_message = yield pdu_queue.get()
+        self.assertEqual(
+            expected_body_parameters['service_type'], 
+            actual_message['pdu']['body']['mandatory_parameters']['service_type'])

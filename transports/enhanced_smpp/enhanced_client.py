@@ -58,7 +58,8 @@ class EnhancedSmppTransport(SmppTransport):
                 short_message=text.encode(self.submit_sm_encoding),
                 data_coding=self.submit_sm_data_encoding,
                 destination_addr=str(to_addr),
-                source_addr=route)
+                source_addr=route,
+                service_type=self.config.get("service_type", ""))
         return sequence_number
 
 
