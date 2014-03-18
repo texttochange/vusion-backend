@@ -153,7 +153,8 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
             encoded_msg = ElementTree.fromstring(body)
             self.assertEqual(encoded_msg.find('Servicio').attrib['Id'], "")
             self.assertEqual(encoded_msg.find('Servicio').attrib['ShortNumber'], "229")
-            self.assertEqual(encoded_msg.find('Telefono').attrib['IdTran'], "0")
+            idTran = re.compile("^[0-9]{5,}$");
+            self.assertTrue(idTran.match(encoded_msg.find('Telefono').attrib['IdTran']))
             
         yield self.make_resource_worker(
             self.mk_mt_response_ok(), 
@@ -239,7 +240,8 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
             encoded_msg = ElementTree.fromstring(body)
             self.assertEqual(encoded_msg.find('Servicio').attrib['Id'], "")
             self.assertEqual(encoded_msg.find('Servicio').attrib['ShortNumber'], "229")
-            self.assertEqual(encoded_msg.find('Telefono').attrib['IdTran'], "0")
+            idTran = re.compile("^[0-9]{5,}$");
+            self.assertTrue(idTran.match(encoded_msg.find('Telefono').attrib['IdTran']))
             
         yield self.make_resource_worker(
             self.mk_mt_response_ok(), 

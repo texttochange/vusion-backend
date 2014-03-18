@@ -49,7 +49,7 @@ class MovilgateHttpTransport(Transport):
             if servicio_id != "":
                 id_tran = message['transport_metadata'].get('telefono_id_tran', "0")
             else:
-                id_tran = "0"
+                id_tran = str(hash(message['to_addr']) % ((sys.maxsize + 1) * 2))
             mobilgate_msg = movilgate_parser.build({
             'proveedor': {
                 'id': self.config['proveedor_id'],
