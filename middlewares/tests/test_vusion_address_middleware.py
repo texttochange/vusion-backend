@@ -77,13 +77,34 @@ class VusionAddressRemovePlusTestCase(TestCase, MessageMaker):
         self.assertEqual(msg_2['to_addr'], '256')
 
 
+class VusionAddressRemoveInternationalPrefixTestCase(TestCase, MessageMaker):
+    
+    def setUp(self):
+        dummy_worker = object()
+        self.mw = VusionAddressMiddleware(
+            'mw1',
+            {'international_prefix': '256',
+             'trim_international_prefix_outbound': True},
+            dummy_worker)
+        self.mw.setup_middleware()
+
+    def test_handle_outbound(self):
+        msg_1 = self.mkmsg_out(to_addr="+2561111")
+        msg_1 = self.mw.handle_outbound(msg_1 , 'dummy_endpoint')
+        self.assertEqual(msg_1['to_addr'], '1111')
+        
+        msg_2 = self.mkmsg_out(to_addr="2561111")
+        msg_2 = self.mw.handle_outbound(msg_2 , 'dummy_endpoint')
+        self.assertEqual(msg_2['to_addr'], '1111')
+
+
 class VusionAddressAddInternationalPrefix(TestCase, MessageMaker):
     
     def setUp(self):
         dummy_worker = object()
         self.mw = VusionAddressMiddleware(
             'mw1',
-            {'ensure_international_prefix': '254'},
+            {'international_prefix': '254'},
             dummy_worker)
         self.mw.setup_middleware()
 
