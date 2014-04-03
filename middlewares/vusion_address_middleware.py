@@ -15,7 +15,6 @@ class VusionAddressMiddleware(BaseMiddleware):
         self.international_prefix = self.config.get('international_prefix', False)
         self.trim_plus_outbound = self.config.get('trim_plus_outbound', False)
         self.trim_international_prefix_outbound = self.config.get('trim_international_prefix_outbound', False)
-        #self.ensure_international_prefix_inbound = self.config.get('ensure_international_prefix', False)
         if self.international_prefix is not None:
             self.regex_internation_prefix = re.compile(("^\+?%s" % self.international_prefix))
     

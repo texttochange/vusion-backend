@@ -96,6 +96,7 @@ class VusionAddressRemoveInternationalPrefixTestCase(TestCase, MessageMaker):
         msg_2 = self.mkmsg_out(to_addr="2561111")
         msg_2 = self.mw.handle_outbound(msg_2 , 'dummy_endpoint')
         self.assertEqual(msg_2['to_addr'], '1111')
+    
 
 
 class VusionAddressAddInternationalPrefix(TestCase, MessageMaker):
