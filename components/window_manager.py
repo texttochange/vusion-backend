@@ -20,7 +20,7 @@ class WindowManager(object):
     MAP_KEY = 'keymap'
 
     def __init__(self, redis, window_size=100, flight_lifetime=None,
-                gc_interval=10, window_key=None):
+                gc_interval=10, window_key=None, remove_expired = False):
         self.window_size = window_size
         self.flight_lifetime = flight_lifetime or (gc_interval * window_size)
         self.redis = redis
@@ -31,6 +31,7 @@ class WindowManager(object):
         if window_key is not None:
             self.WINDOW_KEY = window_key
         self._monitor = None
+        self.remove_expired = remove_expired
 
     def noop(self, *args, **kwargs):
         pass
@@ -138,11 +139,16 @@ class WindowManager(object):
         for window_id in windows:
             expired_keys = yield self.get_expired_flight_keys(window_id)
             for key in expired_keys:
-                yield self.redis.lrem(self.flight_key(window_id), key, 1)
+                if self.remove_expired is False:
+                    yield self.redis.lrem(self.flight_key(window_id), key, 1)
+                else:
+                    yield self.remove_key(window_id, key)
 
     @inlineCallbacks
     def get_data(self, window_id, key):
         json_data = yield self.redis.get(self.window_key(window_id, key))
+        if json_data is None:
+            return
         returnValue(json.loads(json_data))
 
     @inlineCallbacks

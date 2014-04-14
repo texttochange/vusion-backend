@@ -3,6 +3,17 @@ import pytz
 from time import mktime
 import iso8601
 import re
+from unidecode import unidecode
+
+
+def get_local_code(from_addr):
+     return (from_addr or '').split('-')[1]
+
+
+def clean_keyword(keyword):
+    if isinstance(keyword, str):
+        keyword = keyword.decode('utf-8')
+    return unidecode(keyword).lower()
 
 
 def time_to_vusion_format(timestamp):
