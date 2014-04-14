@@ -24,13 +24,12 @@ class GarbageWorker(ApplicationWorker):
         super(GarbageWorker, self).startWorker()
 
         connection = pymongo.Connection(self.config['mongodb_host'],
-                                        self.config['mongodb_port'])
+                                        self.config['mongodb_port'],
+                                        safe=self.config.get('mongodb_safe', False))
         db = connection[self.config['database_name']]
         if not 'unmatchable_reply' in db.collection_names():
             db.create_collection('unmatchable_reply')
         self.unmatchable_reply_collection = db['unmatchable_reply']
-        #if not 'shortcodes' in db.collection_names():
-            #db.create_collection('shortcodes')
         self.shortcodes_collection = db['shortcodes']
         self.templates_collection = db['templates']
 

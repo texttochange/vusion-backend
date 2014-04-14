@@ -174,53 +174,6 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertTrue(self.worker.has_already_valid_answer(
             participant, '1', '1'))
 
-    def test02_is_enrolled(self):
-        participant = self.mkobj_participant(enrolled=[{
-            'dialogue-id': '01',
-            'date-time': 'someting'},
-            {'dialogue-id': '3',
-             'date-time': 'something'}])
-        self.assertTrue(self.worker.is_enrolled(participant, '01'))
-        self.assertTrue(self.worker.is_enrolled(participant, '3'))
-        self.assertFalse(self.worker.is_enrolled(participant, '2'))
-    
-    #def test03_get_matching_request(self):
-        #request_1 = self.mkobj_request_response('www info')
-        #request_2 = self.mkobj_request_reponse_lazy_matching('www')
-        #request_1_id = self.collections['requests'].save(request_1)
-        #request_2_id = self.collections['requests'].save(request_2)
-
-        #context = {}
-        #self.worker.get_matching_request_actions('www info', Actions(), context)
-        #self.assertEqual(context['request-id'], request_1_id)
-       
-        #context = {}
-        #self.worker.get_matching_request_actions('www', Actions(), context)
-        #self.assertEqual(context['request-id'], request_2_id)
-        
-        #context = {}
-        #actions = Actions()
-        #self.worker.get_matching_request_actions('www tata', actions, context)
-        #self.assertTrue(context != {})
-        #self.assertEqual(context['request-id'], request_2_id)
-        #self.assertTrue(actions.contains('feedback'))
-        
-        #context = {}
-        #self.worker.get_matching_request_actions('ww tata', Actions(), context)
-        #self.assertTrue(context == {})
-        
-        #context = {}
-        #self.worker.get_matching_request_actions('ww', Actions(), context)
-        #self.assertTrue(context == {})
-
-    def test04_create_participant(self):
-        self.initialize_properties()
-        
-        participant = self.worker.create_participant('06')
-        
-        self.assertEqual(participant['model-version'], Participant.MODEL_VERSION)
-
-
     def test06_get_program_actions(self):
         self.initialize_properties()
         self.collections['program_settings'].save({
@@ -553,16 +506,3 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertEqual(messages[0]['to_addr'], "06")
         self.assertEqual(messages[1]['content'], "How are you")
         self.assertEqual(messages[1]['to_addr'], "06")
-
-    def test24_is_tagged(self):
-        self.initialize_properties()
-    
-        participant = self.mkobj_participant(
-            '06',
-            tags=['geek', 'male'])
-
-        self.collections['participants'].save(participant)
-
-        self.assertTrue(self.worker.is_tagged('06', ['geek']))
-        self.assertTrue(self.worker.is_tagged('06', ['geek', 'sometag']))        
-        self.assertFalse(self.worker.is_tagged('06', ['sometag']))

@@ -13,26 +13,35 @@ from history.history import (DialogueHistory, RequestHistory, UnattachHistory,
                      history_generator)
 from history.history_manager import HistoryManager
 
+from participant.participant import Participant
+from participant.participant_manager import ParticipantManager
+
 from request.request import Request
 from request.request_manager import RequestManager
 
-from worker_config import WorkerConfig
-from schedule import (FeedbackSchedule, DeadlineSchedule, ReminderSchedule,
+from schedule.schedule import (FeedbackSchedule, DeadlineSchedule, ReminderSchedule,
                       DialogueSchedule, UnattachSchedule, ActionSchedule,
                       schedule_generator)
-from participant import Participant
+from schedule.schedule_manager import ScheduleManager
+
+from worker_config import WorkerConfig
+
 from unattach_message import UnattachMessage
 
+from cursor_instanciator import CursorInstanciator
 
-__all__ = ["Model", "ModelManager", "Dialogue", "DialogueManager", 
+__all__ = ["Model", "ModelManager",
+           "Dialogue", "DialogueManager", 
            "Interaction",
            "DialogueHistory", "RequestHistory", "UnattachHistory",
            "OnewayMarkerHistory", "DatePassedActionMarkerHistory",
            "history_generator", "HistoryManager",
            "schedule_generator", "FeedbackSchedule",
            "DeadlineSchedule","ReminderSchedule", "DialogueSchedule",
-           "UnattachSchedule", "ActionSchedule",
-           "Request", "WorkerConfig",
-           "Participant",
+           "UnattachSchedule", "ActionSchedule", "ScheduleManager"
+           "Request", 
+           "WorkerConfig",
+           "Participant", "ParticipantManager",
            "UnattachMessage",
-           "ContentVariable", "ContentVariableManager"]
+           "ContentVariable", "ContentVariableManager",
+           "CursorInstanciator"]

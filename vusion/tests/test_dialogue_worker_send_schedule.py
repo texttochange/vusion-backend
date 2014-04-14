@@ -33,19 +33,19 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
         })
         self.collections['schedules'].save(
             self.mkobj_schedule(
-                date_time=dPast.strftime(self.time_format),
+                date_time=time_to_vusion_format(dPast),
                 dialogue_id='2',
                 interaction_id='0',
                 participant_phone='09'))
         self.collections['schedules'].save(
             self.mkobj_schedule(
-                date_time=dNow.strftime(self.time_format),
+                date_time=time_to_vusion_format(dNow),
                 dialogue_id='2',
                 interaction_id='1',
                 participant_phone='09'))
         self.collections['schedules'].save(
             self.mkobj_schedule(
-                date_time=dFuture.strftime(self.time_format),
+                date_time=time_to_vusion_format(dFuture),
                 dialogue_id='2',
                 interaction_id='2',
                 participant_phone='09'))
@@ -96,19 +96,19 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
         
         self.collections['schedules'].save(
             self.mkobj_schedule(
-                date_time=dNow.strftime(self.time_format),
+                date_time=time_to_vusion_format(dNow),
                 dialogue_id='2',
                 interaction_id='0',
                 participant_phone='10'))
         self.collections['schedules'].save(
             self.mkobj_schedule(
-                date_time=dNow.strftime(self.time_format),
+                date_time=time_to_vusion_format(dNow),
                 dialogue_id='2',
                 interaction_id='1',
                 participant_phone='10'))
         self.collections['schedules'].save(
             self.mkobj_schedule(
-                date_time=dNow.strftime(self.time_format),
+                date_time=time_to_vusion_format(dNow),
                 dialogue_id='2',
                 interaction_id='2',
                 participant_phone='10'))
@@ -154,8 +154,7 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
         self.collections['participants'].save(participant)
         schedule = schedule_generator(**{
             'object-type': 'deadline-schedule',
-            'model-version': '2',
-            'date-time': dPast.strftime(self.time_format),
+            'date-time': dPast,
             'dialogue-id': '04',
             'interaction-id': '01-01',
             'participant-phone': '06',
@@ -187,7 +186,7 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
         self.collections['participants'].save(participant)
         schedule = schedule_generator(**{
             'participant-phone': '06',
-            'date-time': dPast.strftime(self.time_format),
+            'date-time': dPast,
             'object-type': 'action-schedule',
             'action': {'type-action': 'enrolling',
                        'enroll': '04'},
@@ -212,7 +211,7 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
         self.collections['participants'].save(participant)
         schedule = schedule_generator(**{
             'participant-phone': '06',
-            'date-time': dPast.strftime(self.time_format),
+            'date-time': dPast,
             'object-type': 'action-schedule',
             'action': {'type-action': 'enrolling',
                        'enroll': '04'},
@@ -239,7 +238,7 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
         self.collections['participants'].save(participant)
         self.collections['schedules'].save(
             self.mkobj_schedule(
-                date_time=dPast.strftime(self.time_format),
+                date_time=time_to_vusion_format(dPast),
                 dialogue_id='05',
                 interaction_id='05',
                 participant_phone='06'))

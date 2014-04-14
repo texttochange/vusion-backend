@@ -10,6 +10,10 @@ class ModelManager(object):
         else:
             self.collection = db.create_collection(collection_name)        
     
+    def save_document(self, document, safe=False):
+        document.validate_fields()
+        return self.collection.save(document.get_as_dict(), safe=safe)
+    
     def set_property_helper(self, property_helper):
         self.property_helper = property_helper
 

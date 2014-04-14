@@ -91,35 +91,61 @@ class TestParticipant(TestCase, ObjectMaker):
         self.assertEqual({"SomeKey": "SomeValue"}, p['transport_metadata'])
 
     def test_validation_fail(self):
-        participant= Participant(**self.mkobj_participant(profile=[{'label': 'gender',
-                                                       'value': 'Female'}]))        
+        participant= Participant(
+            **self.mkobj_participant(
+                profile=[{'label': 'gender',
+                          'value': 'Female'}]))        
         self.assertIsInstance(participant, Participant)
     
     def test_is_enrolled(self):
-        pass
-    
-    def test_get_participant_label_value(self):
+        participant = Participant(
+            **self.mkobj_participant(
+                enrolled=[
+                    {'dialogue-id': '3',
+                     'date-time': '2014-02-12T10:00:00'},
+                    {'dialogue-id': '1',
+                     'date-time': '2014-02-12T10:00:00'}]))
+        self.assertTrue(participant.is_enrolled('1'))
+        self.assertFalse(participant.is_enrolled('2'))
+
+    def test_get_enrolled_time(self):
+        participant = Participant(
+                    **self.mkobj_participant(
+                        enrolled=[
+                            {'dialogue-id': '3',
+                             'date-time': '2014-02-12T10:00:00'},
+                            {'dialogue-id': '1',
+                             'date-time': '2014-02-10T10:00:00'}]))
+        self.assertEqual(
+            '2014-02-10T10:00:00',
+            participant.get_enrolled_time('1'))
+
+    def test_get_session_id(self):
+        participant = Participant(**self.mkobj_participant(session_id='1'))
+        self.assertEqual('1', participant.get_session_id())
+
+    def test_get_label_value(self):
         participant = Participant(**self.mkobj_participant())
-        self.assertEqual(participant.get_participant_label_value('gender'), None)
+        self.assertEqual(participant.get_label_value('gender'), None)
         
         participant = Participant(
             **self.mkobj_participant(profile=[{'label': 'gender',
                                                'value': 'Female'}]))
-        self.assertEqual(participant.get_participant_label_value('gender'), 'Female')
+        self.assertEqual(participant.get_label_value('gender'), 'Female')
 
         participant = Participant(
             **self.mkobj_participant(profile=[{'label': 'Some thing label',
                                                'value': 'some value'}]))
         self.assertEqual(
-            participant.get_participant_label_value('Some thing label'),
+            participant.get_label_value('Some thing label'),
             'some value')
 
-    def test_get_participant_label_value_raw(self):
+    def test_get_label_value_raw(self):
         participant = Participant(
             **self.mkobj_participant(profile=[{'label': 'Some thing label',
                                                'value': 'some value'}]))
         self.assertEqual(
-            participant.get_participant_label_value('Some thing label_raw'),
+            participant.get_label_value('Some thing label_raw'),
             None)                
         
         participant = Participant(
@@ -127,7 +153,7 @@ class TestParticipant(TestCase, ObjectMaker):
                                                'value': 'some value',
                                                'raw': 'keyword 1 other content'}]))
         self.assertEqual(
-            participant.get_participant_label_value('Some thing label_raw'),
+            participant.get_label_value('Some thing label_raw'),
             'keyword 1 other content')
         
         participant = Participant(
@@ -135,7 +161,7 @@ class TestParticipant(TestCase, ObjectMaker):
                                                   'value': 'some value',
                                                   'raw': 'keyword 1 other content'}]))
         self.assertEqual(
-            participant.get_participant_label_value('Month of Pregnancy_raw'),
+            participant.get_label_value('Month of Pregnancy_raw'),
             'keyword 1 other content')        
 
     def test_get_data(self):

@@ -1,14 +1,13 @@
 import re
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from vusion.error import VusionError, InvalidField
 from vusion.persist.action import action_generator
 from vusion.persist import Model
 from vusion.context import Context
-from vusion.utils import time_from_vusion_format
+from vusion.utils import time_from_vusion_format, time_to_vusion_format
 
 
-##TODO update the validation
 class Schedule(Model):
 
     fields = {
@@ -21,6 +20,7 @@ class Schedule(Model):
             },
         'date-time': {
             'required': True,
+            'valid_string': lambda v: isinstance(v['date-time'], basestring),
             'valid_value': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)T0?(\d+):0?(\d+)(:0?(\d+))$'), v['date-time'])
             },
         }
@@ -36,6 +36,12 @@ class Schedule(Model):
     def get_schedule_time(self):
         return time_from_vusion_format(self['date-time'])
 
+    def set_time(self, date_time):
+        if isinstance(date_time, datetime):
+            date_time = time_to_vusion_format(date_time)
+        self['date-time'] = date_time
+        self.validate_fields()
+
     def is_message(self):
         return False
 
@@ -47,6 +53,11 @@ class Schedule(Model):
             kwargs['participant-session-id'] = kwargs['participant-session-id'] if 'participant-session-id' in kwargs else None
             kwargs['model-version'] = '2'
         return kwargs
+
+    def process_field(self, key, value):
+        if key == 'date-time' and isinstance(value, datetime):
+            return time_to_vusion_format(value)
+        return value
 
 
 class MessageSchedule(Schedule):
@@ -70,7 +81,7 @@ class DialogueSchedule(MessageSchedule):
         }
 
     def validate_fields(self):
-        super(DialogueSchedule, self).validate_fields()        
+        super(DialogueSchedule, self).validate_fields()
         self._validate(self, DialogueSchedule.fields)
 
     def get_history_type(self):

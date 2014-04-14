@@ -4,70 +4,65 @@ from vumi.message import Message
 
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from vusion.tests.test_dialogue_worker import DialogueWorkerTestCase
+from vusion.persist import Participant
 
 
 class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
-    
-    #TODO: last 2 tests are not isolate, somehow the starting of the worker
-    # is called later which is breacking the other tests
-    #TODO: reduce the scope of the update-schedule
+
     @inlineCallbacks
-    def test_consume_control_update_schedule(self):
+    def test_consume_control_update_schedule_dialogue(self):
         self.initialize_properties()
         self.broker.dispatched = {}
         dNow = self.worker.get_local_time()
     
+        #save dialogues
         dialogue_1 = self.mkobj_dialogue_announcement_offset_days()
         dialogue_2 = self.mkobj_dialogue_question_offset_days()
         self.collections['dialogues'].save(dialogue_1)
         self.collections['dialogues'].save(dialogue_2)
+
+        #save participant
         self.collections['participants'].save(
             self.mkobj_participant(
-                participant_phone='08',
-                enrolled=[{'dialogue-id': '0',
-                           'date-time': time_to_vusion_format(dNow)}]))
-        self.collections['participants'].save(
-            self.mkobj_participant(
-                participant_phone='09',
-                enrolled=[{'dialogue-id': '01',
-                           'date-time': time_to_vusion_format(dNow)},
-                          {'dialogue-id': '0',
-                           'date-time': time_to_vusion_format(dNow)}]))
-        ##optout
-        self.collections['participants'].save(
-            self.mkobj_participant(participant_phone='10', session_id=None))
-        self.collections['participants'].save(
-            self.mkobj_participant(
-                participant_phone='11',
-                session_id=None,
-                enrolled=[{'dialogue-id': '01',
-                           'date-time': time_to_vusion_format(dNow)},
-                          {'dialogue-id': '0',
-                           'date-time': time_to_vusion_format(dNow)}]))
+                participant_phone='08'))
     
         event = self.mkmsg_dialogueworker_control(**{
             'action':'update_schedule',
             'schedule_type': 'dialogue',
             'object_id': dialogue_1['dialogue-id']})
         yield self.send(event, 'control')
-        self.assertEqual(4, self.collections['schedules'].count())
+        
+        self.assertEqual(2, self.collections['schedules'].count())
+        enrolled_participant = Participant(**self.collections['participants'].find_one())
+        self.assertTrue(enrolled_participant.is_enrolled('0'))
     
+        # the second dialogue is auto-enrollment = 'none'
         event = self.mkmsg_dialogueworker_control(**{
             'action':'update_schedule',
             'schedule_type': 'dialogue',
             'object_id': dialogue_2['dialogue-id']})
         yield self.send(event, 'control')
-        self.assertEqual(5, self.collections['schedules'].count())
+        self.assertEqual(2, self.collections['schedules'].count())
     
+    @inlineCallbacks
+    def test_consume_control_update_schedule_unattached(self):
+        self.initialize_properties()
+        self.broker.dispatched = {}
+        dNow = self.worker.get_local_time()
+
+        self.collections['participants'].save(
+            self.mkobj_participant(participant_phone='10'))
+        self.collections['participants'].save(
+            self.mkobj_participant(participant_phone='11', session_id=None))
         unattach = self.mkobj_unattach_message_1()
         unattach_id = self.collections['unattached_messages'].save(unattach)
-    
+
         event = self.mkmsg_dialogueworker_control(**{
             'action':'update_schedule',
             'schedule_type': 'unattach',
             'object_id': str(unattach_id)})
         yield self.send(event, 'control')
-        self.assertEqual(7, self.collections['schedules'].count())
+        self.assertEqual(1, self.collections['schedules'].count())
     
     @inlineCallbacks
     def test_consume_control_test_send_all_messages(self):
@@ -140,4 +135,3 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
         event = Message(**{'action': 'reload-program_settings'})
         yield self.send(event, 'control')
         self.assertEqual(self.worker.properties['timezone'], 'Africa/Kampala')
-        
