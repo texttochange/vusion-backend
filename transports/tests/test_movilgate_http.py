@@ -133,10 +133,10 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
             'receive_port': 9998}
         self.worker = yield self.get_transport(self.config)
         
-    def make_resource_worker(self, response=None, code=http.OK, callback=None):
+    def make_resource_worker(self, response=None, code=http.OK, callback=None, headers={}):
         w = get_stubbed_worker(TestResourceWorker, {})
         w.set_resources([
-            (self.send_path, TestResource, (response, code, callback))
+            (self.send_path, TestResource, (response, code, callback, headers))
         ])
         self._workers.append(w)
         return w.startWorker()
@@ -145,11 +145,64 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
         return self._amqp.get_dispatched('vumi', rkey)
 
     @inlineCallbacks
-    def test_sending_one_sms_ok(self):
-        def assert_request(request):              #this is a closure, ie it can access the variable in the function where it has been defined, here we are using the self
+    def test_sending_mt_ok_shortnumber(self):
+        def assert_request(request):              
             headers = dict(request.requestHeaders.getAllRawHeaders())
             self.assertEqual(headers['Content-Type'], ['text/xml; charset=UTF-8'])
             body = request.content.read()
+            encoded_msg = ElementTree.fromstring(body)
+            self.assertEqual(encoded_msg.find('Servicio').attrib['Id'], "")
+            self.assertEqual(encoded_msg.find('Servicio').attrib['ShortNumber'], "229")
+            idTran = re.compile("^[0-9]{5,}$");
+            self.assertTrue(idTran.match(encoded_msg.find('Telefono').attrib['IdTran']))
+            
+        yield self.make_resource_worker(
+            self.mk_mt_response_ok(), 
+            code=http.OK, 
+            callback=assert_request,
+            headers={'X-Movilgate-Carrier': '2229.tigo.bo'})
+        
+        yield self.dispatch(self.mkmsg_out(from_addr='229'))
+        [smsg] = self.get_dispatched('movilgate.event')
+        self.assertEqual(
+            self.mkmsg_ack(
+                user_message_id='1',
+                sent_message_id='1'),
+            TransportMessage.from_json(smsg.body))
+
+    @inlineCallbacks
+    def test_sending_mt_fail_shortnumber_unknown(self):
+        def assert_request(request):              
+            pass
+            
+        yield self.make_resource_worker(
+            self.mk_mt_response_ok(), 
+            code=http.INTERNAL_SERVER_ERROR, 
+            callback=assert_request,
+            headers={'X-Movilgate-Status': 'ERROR_NO_CARRIERDETECT'})
+        
+        yield self.dispatch(self.mkmsg_out(from_addr='229'))
+        [smsg] = self.get_dispatched('movilgate.event')
+        self.assertEqual(
+            self.mkmsg_delivery(
+                transport_name=self.transport_name,
+                sent_message_id='1',
+                delivery_status='failed',
+                failure_level='service',
+                failure_code='',
+                failure_reason='ERROR_NO_CARRIERDETECT'),
+            TransportMessage.from_json(smsg.body))
+
+    @inlineCallbacks
+    def test_sending_mt_ok(self):
+        def assert_request(request):              
+            headers = dict(request.requestHeaders.getAllRawHeaders())
+            self.assertEqual(headers['Content-Type'], ['text/xml; charset=UTF-8'])
+            body = request.content.read()
+            encoded_msg = ElementTree.fromstring(body)
+            self.assertEqual(encoded_msg.find('Servicio').attrib['Id'],"2229.tigo.bo")
+            self.assertTrue('ShortNumber' not in encoded_msg.find('Servicio').attrib)
+            self.assertEqual(encoded_msg.find('Telefono').attrib['IdTran'],"12345678") 
             
         yield self.make_resource_worker(self.mk_mt_response_ok(), code=http.OK, callback=assert_request)
         transport_metadata = {'telefono_id_tran': '12345678', 'servicio_id': '2229.tigo.bo'}
@@ -162,13 +215,13 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
             TransportMessage.from_json(smsg.body))
     
     @inlineCallbacks
-    def test_sending_one_sms_foreign_language_ok(self):
-        def assert_request(request):              #this is a closure, ie it can access the variable in the function where it has been defined, here we are using the self
+    def test_sending_mt_ok_foreign_language(self):
+        def assert_request(request):
             headers = dict(request.requestHeaders.getAllRawHeaders())
             self.assertEqual(headers['Content-Type'], ['text/xml; charset=UTF-8'])
             body = request.content.read()
             encoded_msg = ElementTree.fromstring(body)
-            self.assertTrue(isinstance(encoded_msg.find('Contenido').text,unicode))
+            self.assertTrue(isinstance(encoded_msg.find('Contenido').text, unicode))
             
         yield self.make_resource_worker(self.mk_mt_response_ok(), code=http.OK, callback=assert_request)
         transport_metadata = {'telefono_id_tran': '12345678', 'servicio_id': '2229.tigo.bo'}
@@ -181,38 +234,57 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
             TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks
-    def test_sending_one_sms_fail_missing_servicioid(self):
-        yield self.dispatch(self.mkmsg_out())
+    def test_sending_mt_ok_servicioid_missing(self):
+        def assert_request(request):
+            body = request.content.read()
+            encoded_msg = ElementTree.fromstring(body)
+            self.assertEqual(encoded_msg.find('Servicio').attrib['Id'], "")
+            self.assertEqual(encoded_msg.find('Servicio').attrib['ShortNumber'], "229")
+            idTran = re.compile("^[0-9]{5,}$");
+            self.assertTrue(idTran.match(encoded_msg.find('Telefono').attrib['IdTran']))
+            
+        yield self.make_resource_worker(
+            self.mk_mt_response_ok(), 
+            code=http.OK, 
+            callback=assert_request,
+            headers={'X-Movilgate-Carrier': '2229.tigo.bo'})
+        
+        transport_metadata = {'telefono_id_tran': '12345678'}
+        yield self.dispatch(self.mkmsg_out(from_addr='229', transport_metadata=transport_metadata))
         [smsg] = self.get_dispatched('movilgate.event')
         self.assertEqual(
-            self.mkmsg_delivery(
-                transport_name=self.transport_name,
-                sent_message_id='1',
-                delivery_status='failed',
-                failure_level='service',
-                failure_code='0',
-                failure_reason='Missing servicio_id metadata for sending to Movilgate'),
+            self.mkmsg_ack(
+                user_message_id='1',
+                sent_message_id='1'),
             TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks
-    def test_sending_one_sms_fail_missing_idtran(self):
+    def test_sending_mt_ok_idtran_missing(self):
+        def assert_request(request):
+            body = request.content.read()
+            encoded_msg = ElementTree.fromstring(body)
+            self.assertEqual(encoded_msg.find('Servicio').attrib['Id'], "2229.tigo.bo")
+            self.assertTrue('ShortNumber' not in encoded_msg.find('Servicio').attrib)
+            self.assertEqual(encoded_msg.find('Telefono').attrib['IdTran'], "0")
+            
+        yield self.make_resource_worker(
+            self.mk_mt_response_ok(), 
+            code=http.OK, 
+            callback=assert_request)
+        
         transport_metadata = {'servicio_id': '2229.tigo.bo'}
-        yield self.dispatch(self.mkmsg_out(transport_metadata=transport_metadata))
+        yield self.dispatch(self.mkmsg_out(from_addr='229', transport_metadata=transport_metadata))
         [smsg] = self.get_dispatched('movilgate.event')
         self.assertEqual(
-            self.mkmsg_delivery(
-                transport_name=self.transport_name,
-                sent_message_id='1',
-                delivery_status='failed',
-                failure_level='service',
-                failure_code='0',
-                failure_reason='Missing telefono_id_tran metadata for sending to Movilgate'),
+            self.mkmsg_ack(
+                user_message_id='1',
+                sent_message_id='1'),
             TransportMessage.from_json(smsg.body))
         
     @inlineCallbacks
-    def test_sending_one_sms_fail(self):
+    def test_sending_mt_fail(self):
         yield self.make_resource_worker(self.mk_mt_response_fail())
-        transport_metadata = {'telefono_id_tran': '12345678', 'servicio_id': '2229.tigo.bo'}        
+        transport_metadata = {'telefono_id_tran': '12345678', 'servicio_id': '2229.tigo.bo'}
         yield self.dispatch(self.mkmsg_out(transport_metadata=transport_metadata))
         [smsg] = self.get_dispatched('movilgate.event')
         self.assertEqual(
@@ -226,7 +298,7 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
             TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks
-    def test_receiving_one_mo(self):
+    def test_receiving_mo(self):
         url = ("http://localhost:%s%s"
                % (self.config['receive_port'], self.config['receive_path']))
         response = yield http_request_full(url, data=self.mk_mo_request())
@@ -251,13 +323,16 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
 class TestResource(Resource):
     isLeaf = True
     
-    def __init__(self, response, code=http.OK, callback=None):
+    def __init__(self, response, code=http.OK, callback=None, headers={}):
         self.response = response
         self.code = code
         self.callback = callback       #this is the test function containing all the assertions (a closure)
+        self.headers = headers
 
     def render_POST(self, request):
         if self.callback is not None:
             self.callback(request)    # this callback function has 1 parameter: the request
         request.setResponseCode(self.code)
+        for key, value in self.headers.iteritems():
+            request.setHeader(key, value)
         return self.response
