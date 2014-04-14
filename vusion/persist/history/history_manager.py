@@ -16,9 +16,10 @@ class HistoryManager(ModelManager):
         super(HistoryManager, self).__init__(db, collection_name, **kwargs)
         self.collection.ensure_index('timestamp',
                                      background=True)
+        self.collection.ensure_index('participant-phone')
         self.collection.ensure_index([('interaction-id', 1),('participant-session-id',1)],
                                      sparce = True,
-                                     backgournd=True)
+                                     background=True)
     
     def get_history(self, history_id):
         return self.collection.find_one({'_id': ObjectId(history_id)})
