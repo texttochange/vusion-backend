@@ -19,36 +19,18 @@ from smpp.pdu_inspector import (MultipartMessage,
                                 multipart_key,
                                 )
 from vumi.message import TransportUserMessage
-from vumi.transports.smpp import SmppTransport
 from vumi.transports.smpp.clientserver.client import EsmeTransceiver, EsmeTransceiverFactory
 
 from middlewares.custom_middleware_stack import CustomMiddlewareStack, useCustomMiddleware
-
+from transports.enhanced_smpp.enhanced_client import (EnhancedSmppTransport, 
+                                                      EnhancedEsmeTransceiver,
+                                                      EnhancedEsmeTransceiverFactory)
 
 @useCustomMiddleware
-class PushTzSmppTransport(SmppTransport):
+class PushTzSmppTransport(EnhancedSmppTransport):
     
     regex_plus = re.compile("^\+")
     
-    DELIVERY_REPORT_STATUS_MAPPING = {
-        # Output values should map to themselves:
-        'delivered': 'delivered',
-        'failed': 'failed',
-        'pending': 'pending',
-        # SMPP `message_state` values:
-        'ENROUTE': 'pending',
-        'DELIVERED': 'delivered',
-        'EXPIRED': 'failed',
-        'DELETED': 'failed',
-        'UNDELIVERABLE': 'failed',
-        'ACCEPTED': 'delivered',
-        'UNKNOWN': 'pending',
-        'REJECTED': 'failed',
-        # From the most common regex-extracted format:
-        'DELIVRD': 'delivered',
-        'REJECTD': 'failed',
-        'UNDELIV': 'failed'}    
-
     def delivery_status(self, stat):
         return self.DELIVERY_REPORT_STATUS_MAPPING.get(stat, 'pending')
     
@@ -67,7 +49,7 @@ class PushTzSmppTransport(SmppTransport):
         super(PushTzSmppTransport, self).deliver_sm(*args, **kwargs)
 
 
-class PushTzEsmeTransceiverFactory(EsmeTransceiverFactory):
+class PushTzEsmeTransceiverFactory(EnhancedEsmeTransceiverFactory):
     
     def buildProtocol(self, addr):
         log.msg('Connected')
@@ -76,7 +58,7 @@ class PushTzEsmeTransceiverFactory(EsmeTransceiverFactory):
         return self.esme
 
 
-class PushTzEsmeTransceiver(EsmeTransceiver):
+class PushTzEsmeTransceiver(EnhancedEsmeTransceiver):
     
     def detect_error_delivery(self, pdu):
         if ('optional_parameters' in pdu['body']):
@@ -146,20 +128,3 @@ class PushTzEsmeTransceiver(EsmeTransceiver):
                         message_id=message_id,
                         )
     
-    def submit_sm(self, **kwargs):
-        if self.state not in ['BOUND_TX', 'BOUND_TRX']:
-            log.err(('WARNING: submit_sm in wrong state: %s, '
-                            'dropping message: %s' % (self.state, kwargs)))
-            return 0
-        else:
-            sequence_number = self.get_seq()
-            pdu = SubmitSM(sequence_number, **dict(self.defaults, **kwargs))
-            self.get_next_seq()
-
-            message = kwargs['short_message']
-            if len(message) > 254:
-                pdu.add_message_payload(''.join('%02x' % ord(c) for c in message))
-    
-            self.send_pdu(pdu)
-            self.push_unacked(sequence_number)
-            return sequence_number
