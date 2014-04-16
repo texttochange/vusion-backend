@@ -6,6 +6,10 @@ import re
 from unidecode import unidecode
 
 
+def get_default(kwargs, field, default_value):
+    return kwargs[field] if field in kwargs else default_value
+
+
 def get_local_code(from_addr):
      return (from_addr or '').split('-')[1]
 
