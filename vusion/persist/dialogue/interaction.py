@@ -80,6 +80,16 @@ class Interaction(Model):
                  'open-question': ['answer-label',
                                    'feedbacks']})
             },
+        'set-matching-answer-actions': {
+            'required': False,
+            'valid_value': lambda v: v['set-matching-answer-action'] in [
+                None,
+                'matching-answer-actions'],
+            },
+        'matching-answer-actions': {
+            'required': False,
+            'valid_actions': lambda v: Interaction.validate_actions(v['matching-answer-actions'])
+            },
         'type-unmatching-feedback': {
             'required': False,
             'value_value': lambda v: v['type-unmatching-feedback'] in [
@@ -384,23 +394,36 @@ class Interaction(Model):
             actions.append(RemoveDeadlineAction(**{
                 'dialogue-id': dialogue_id,
                 'interaction-id': self.payload['interaction-id']}))
-        if ('label-for-participant-profiling' in self.payload 
-                and not self.payload['label-for-participant-profiling'] in [None, '']):
+        if self.has_closed_question_profiling():
             action = ProfilingAction(**{
                 'label': self.payload['label-for-participant-profiling'],
                 'value': matching_value})
             actions.append(action)
-        elif ('answer-label' in self.payload 
-                and not self.payload['answer-label'] in [None, '']):
+        elif self.has_open_question_profiling():
             action = ProfilingAction(**{
                 'label': self.payload['answer-label'],
                 'value': matching_value})
             actions.append(action)            
-        if ('feedbacks' in self.payload 
-                and self.payload['feedbacks'] is not None):
+        if self.has_feedbacks():
             for feedback in self.payload['feedbacks']:
                 action = FeedbackAction(**{'content': feedback['content']})
                 actions.append(action)
+        if self.has_matching_answer_actions():
+            for matching_answer_action in self['matching-answer-actions']:
+                actions.append(action_generator(**matching_answer_action))
+
+    def has_closed_question_profiling(self):
+        return ('label-for-participant-profiling' in self.payload 
+                and not self['label-for-participant-profiling'] in [None, ''])
+
+    def has_open_question_profiling(self):
+        return 'answer-label' in self.payload and not self['answer-label'] in [None, '']
+
+    def has_feedbacks(self):
+        return 'feedbacks' in self.payload and self['feedbacks'] is not None
+    
+    def has_matching_answer_actions(self):
+        return self['set-matching-answer-actions'] == 'matching-answer-actions'
 
     def get_actions(self, dialogue_id, msg, msg_keyword, msg_reply, reference_metadata, actions):
         actions.append(RemoveQuestionAction(**{
@@ -411,7 +434,7 @@ class Interaction(Model):
             matching_answer_keyword = self.get_matching_answer_keyword(self.payload['answer-keywords'], msg_keyword)
             if matching_answer_keyword is None:
                 self.get_unmatching_action(msg, actions)
-            else:                
+            else:
                 reference_metadata['matching-answer'] = matching_answer_keyword['keyword']
                 self.get_actions_from_interaction(
                     dialogue_id,

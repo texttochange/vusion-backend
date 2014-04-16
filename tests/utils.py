@@ -538,7 +538,11 @@ class ObjectMaker:
              'type-schedule': 'offset-days',
              'feedbacks': None,
              'days': '1',
-            'at-time': '22:30'}]}
+             'at-time': '22:30',
+             'set-matching-answer-actions': 'matching-answer-actions',
+             'matching-answer-actions': [{'type-action': 'tagging',
+                                          'tag': 'answer name'}]}
+        ]}
 
     def mkobj_dialogue_question_multi_keyword(self):
         return Dialogue(**{

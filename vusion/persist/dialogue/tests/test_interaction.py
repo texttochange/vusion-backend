@@ -177,7 +177,7 @@ class TestInteraction(TestCase, ObjectMaker):
             dialogue['dialogue-id'],
             'olivier',
             actions)
-        self.assertEqual(1, len(actions))
+        self.assertEqual(2, len(actions))
         self.assertEqual('profiling', actions[0].get_type())
 
     def test_get_offset_time_delta(self):
