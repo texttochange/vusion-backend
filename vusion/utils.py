@@ -20,6 +20,10 @@ def time_to_vusion_format(timestamp):
     return timestamp.strftime('%Y-%m-%dT%H:%M:%S')
 
 
+def time_to_vusion_format_date(timestamp):
+    return timestamp.strftime('%Y-%m-%d')
+
+
 def get_now_timestamp():
     return time_to_vusion_format(datetime.now())
 

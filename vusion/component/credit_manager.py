@@ -85,7 +85,7 @@ class CreditManager(object):
         if self.credit_type == 'outgoing-incoming':
             self.redis.incr(self.used_credit_counter_key(), message_credits)
 
-    ## Should go quite fast
+    # TODO
     def is_allowed(self, message_credits, schedule=None):
         #log.msg('[credit manager] is allowed %r' % schedule)
         if not self.has_limit():
@@ -158,7 +158,7 @@ class CreditManager(object):
                 estimation = self.estimate_unattached_required_credit(message_credits, schedule)
                 return used_credit_counter + estimation <= self.credit_number
         return int(used_credit_counter) + message_credits <= self.credit_number
-        
+
     ## This is just a rought estimation based on the message send to the first participant
     def estimate_unattached_required_credit(self, message_credits, schedule):
         conditions = {
@@ -219,6 +219,7 @@ class CreditManager(object):
         if self.has_limit():
             self.get_used_credit_counter()
 
+    #tobe update to use the credit collection in vusion
     def get_used_credit_counter_mongo(self):
         reducer = Code("function(obj, prev) {"
                        "    if ('message-credits' in obj) {"

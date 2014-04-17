@@ -24,6 +24,9 @@ from schedule.schedule import (FeedbackSchedule, DeadlineSchedule, ReminderSched
                       schedule_generator)
 from schedule.schedule_manager import ScheduleManager
 
+from credit_log.credit_log import CreditLog
+from credit_log.credit_log_manager import CreditLogManager
+
 from worker_config import WorkerConfig
 
 from unattach_message import UnattachMessage
@@ -38,7 +41,8 @@ __all__ = ["Model", "ModelManager",
            "history_generator", "HistoryManager",
            "schedule_generator", "FeedbackSchedule",
            "DeadlineSchedule","ReminderSchedule", "DialogueSchedule",
-           "UnattachSchedule", "ActionSchedule", "ScheduleManager"
+           "UnattachSchedule", "ActionSchedule", "ScheduleManager",
+           "CreditLog", "CreditLogManager",
            "Request", 
            "WorkerConfig",
            "Participant", "ParticipantManager",
