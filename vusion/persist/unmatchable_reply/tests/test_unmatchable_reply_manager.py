@@ -4,17 +4,17 @@ from twisted.trial.unittest import TestCase
 
 from tests.utils import ObjectMaker
 
-from vusion.persist import ShortcodeManager
+from vusion.persist import UnmatchableReplyManager
 
 
-class TestShortcodeManager(TestCase, ObjectMaker):
+class TestUnmatchableReplyManager(TestCase, ObjectMaker):
     
     def setUp(self):
         self.database_name = 'test_vusion_db'
         c = pymongo.Connection()
         c.safe = True
         db = c[self.database_name]
-        self.manager = ShortcodeManager(db, 'shortcodes')
+        self.manager = UnmatchableReplyManager(db, 'unmatchable_reply')
         self.clearData()
 
     def tearDown(self):

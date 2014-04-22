@@ -6,7 +6,7 @@ class Shortcode(Model):
     MODEL_TYPE = 'shortcode'
     MODEL_VERSION = '2'
     
-    fields= {
+    fields = {
         'shortcode': {
             'required': True,
             },

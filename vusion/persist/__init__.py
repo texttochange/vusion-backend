@@ -30,6 +30,12 @@ from credit_log.credit_log_manager import CreditLogManager
 from shortcode.shortcode import Shortcode
 from shortcode.shortcode_manager import ShortcodeManager
 
+from unmatchable_reply.unmatchable_reply import UnmatchableReply
+from unmatchable_reply.unmatchable_reply_manager import UnmatchableReplyManager
+
+from template.template import Template
+from template.template_manager import TemplateManager
+
 from worker_config import WorkerConfig
 
 from unattach_message import UnattachMessage
@@ -51,5 +57,7 @@ __all__ = ["Model", "ModelManager",
            "WorkerConfig",
            "Participant", "ParticipantManager",
            "UnattachMessage",
+           "UnmatchableReply", "UnmatchableReplyManager",
+           "Template", "TemplateManager",
            "ContentVariable", "ContentVariableManager",
            "CursorInstanciator"]
