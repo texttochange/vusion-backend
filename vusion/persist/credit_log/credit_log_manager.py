@@ -24,40 +24,43 @@ class CreditLogManager(ModelManager):
                                      'program-database': program_database,
                                      'code': code}).count()
 
-    def increment_incoming(self, credit_number):
-        self._increment_counter('incoming', credit_number)
+    def increment_incoming(self, credit_number, date=None):
+        self._increment_counter('incoming', credit_number, date)
 
-    def increment_outgoing(self, credit_number):
-        self._increment_counter('outgoing', credit_number)
+    def increment_outgoing(self, credit_number, date=None):
+        self._increment_counter('outgoing', credit_number, date)
 
-    def increment_acked(self, credit_number):
-        self._increment_counter('outgoing-acked', credit_number)
+    def increment_acked(self, credit_number, date=None):
+        self._increment_counter('outgoing-acked', credit_number, date)
     
-    def increment_delivered(self, credit_number):
-        self._increment_counter('outgoing-delivered', credit_number)
+    def increment_delivered(self, credit_number, date=None):
+        self._increment_counter('outgoing-delivered', credit_number, date)
 
-    def increment_failed(self, credit_number):
-        self._increment_counter('outgoing-failed', credit_number)
+    def increment_failed(self, credit_number, date=None):
+        self._increment_counter('outgoing-failed', credit_number, date)
 
-    def _increment_counter(self, credit_type, credit_number):
+    def _increment_counter(self, credit_type, credit_number, date=None):
         #get date, code from the programSettingHelper
-        today = self.property_helper.get_local_time("iso_date")
+        if date is None:
+            date = self.property_helper.get_local_time("iso_date")
+        else:
+            date = time_to_vusion_format_date(date)
         code = self.property_helper['shortcode']
-        if self._has_today_credit_log(today, self.program_database, code) == 0:
+        if self._has_today_credit_log(date, self.program_database, code) == 0:
             credit_log = CreditLog(**{
-                'date': today,
+                'date': date,
                 'program-database': self.program_database,
                 'code': code,
                 'incoming': 0,
                 'outgoing': 0})
             self.save_document(credit_log, safe=True)
         self.collection.update(
-            {'date': today,
+            {'date': date,
              'program-database': self.program_database,
              'code': code},
             {'$inc': {credit_type: credit_number}})
 
-    def get_count(self, from_date, count_type='outgoing-incoming', to_date=None):
+    def get_count(self, from_date, to_date=None, count_type='outgoing-incoming'):
         if count_type == 'outgoing-incoming':
             reducer = Code(
                 "function(obj, prev) {"

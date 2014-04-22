@@ -9,7 +9,7 @@ from twisted.internet.task import LoopingCall
 from vumi import log
 
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
-from vusion.persist import Model
+from vusion.persist import Model, CreditLogManager
 from vusion.error import WrongModelInstanciation
 
 
@@ -28,15 +28,20 @@ class CreditManager(object):
     
     last_status = None
     
-    def __init__(self, prefix_key, redis, history, schedule,
+    def __init__(self, prefix_key, redis,
+                 credit_log, history, schedule,
                  property_helper, log_manager):
+        ##Shared with worker
         self.prefix_key = prefix_key
         self.redis = redis
+        self.credit_log_collection = credit_log
         self.history_collection = history
         self.schedule_collection = schedule
         self.last_status = self.redis.get(self.status_key())
         self.property_helper = property_helper
         self.log_manager = log_manager
+
+        
         self.set_limit()
 
     ## in case the program settings are changing
@@ -48,7 +53,7 @@ class CreditManager(object):
         new_credit_from_date = property_helper['credit-from-date']
         if property_helper['credit-to-date'] is not None:
             ## the timeframe include the last day
-            new_credit_to_date = time_to_vusion_format(time_from_vusion_format(property_helper['credit-to-date']) + timedelta(days=1))
+            new_credit_to_date = property_helper['credit-to-date']
         else: 
             new_credit_to_date = None
         if (self.credit_type != new_credit_type 
@@ -80,12 +85,11 @@ class CreditManager(object):
     def notification_key(self):
         return ':'.join([self.credit_manager_key(), self.NOTIFICATION_KEY])
 
-    ## To keep some counting correct even in between sync
     def received_message(self, message_credits):
+        self.credit_log_collection.increment_incoming(message_credits)
         if self.credit_type == 'outgoing-incoming':
             self.redis.incr(self.used_credit_counter_key(), message_credits)
 
-    # TODO
     def is_allowed(self, message_credits, schedule=None):
         #log.msg('[credit manager] is allowed %r' % schedule)
         if not self.has_limit():
@@ -107,10 +111,11 @@ class CreditManager(object):
         return False
 
     def increase_used_credit_counter(self, message_credits):
+        self.credit_log_collection.increment_outgoing(message_credits)
         self.redis.incr(self.used_credit_counter_key(), message_credits)        
 
     def is_timeframed(self):
-        local_time = self.property_helper.get_local_time('vusion')
+        local_time = self.property_helper.get_local_time('iso_date')
         #log.msg("[credit manager] is timeframed %s < %s < %s" % (self.credit_from_date, local_time, self.credit_to_date))
         return (self.credit_from_date <= local_time
                 and local_time <= self.credit_to_date)
@@ -191,7 +196,6 @@ class CreditManager(object):
             1,
             get_local_time_as_timestamp(remove_older_than))
 
-
     def set_whitecard(self, schedule):
         self.cache_card(schedule, 'white')
 
@@ -219,26 +223,29 @@ class CreditManager(object):
         if self.has_limit():
             self.get_used_credit_counter()
 
-    #tobe update to use the credit collection in vusion
     def get_used_credit_counter_mongo(self):
-        reducer = Code("function(obj, prev) {"
-                       "    if ('message-credits' in obj) {"
-                       "        prev.count = prev.count + obj['message-credits'];"
-                       "    } else {"
-                       "        prev.count = prev.count + 1;"
-                       "    }"
-                       " }")
-        condition = {
-            "timestamp": {
-                "$gt": self.credit_from_date,
-                "$lt": self.credit_to_date},
-            "object-type": {"$in": ["dialogue-history", "unattach-history", "request-history"]}}
-        if self.credit_type == 'outgoing-only':
-            condition.update({'message-direction': 'outgoing'})
-        result = self.history_collection.group(None, condition, {"count":0}, reducer)
-        if len(result) != 0:
-            return int(float(result[0]['count']))
-        return 0
+        return self.credit_log_collection.get_count(
+            from_date=time_from_vusion_format(self.credit_from_date), 
+            to_date=time_from_vusion_format(self.credit_to_date),
+            count_type=self.credit_type)
+        #reducer = Code("function(obj, prev) {"
+                       #"    if ('message-credits' in obj) {"
+                       #"        prev.count = prev.count + obj['message-credits'];"
+                       #"    } else {"
+                       #"        prev.count = prev.count + 1;"
+                       #"    }"
+                       #" }")
+        #condition = {
+            #"timestamp": {
+                #"$gt": self.credit_from_date,
+                #"$lt": self.credit_to_date},
+            #"object-type": {"$in": ["dialogue-history", "unattach-history", "request-history"]}}
+        #if self.credit_type == 'outgoing-only':
+            #condition.update({'message-direction': 'outgoing'})
+        #result = self.history_collection.group(None, condition, {"count":0}, reducer)
+        #if len(result) != 0:
+            #return int(float(result[0]['count']))
+        #return 0
 
 
 ## CreditNotification aims highligth a decision from the creditManage on to the frontend
