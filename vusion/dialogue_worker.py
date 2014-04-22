@@ -42,7 +42,8 @@ from vusion.persist import (Request, ContentVariable, Dialogue,
                             history_generator,
                             HistoryManager, ContentVariableManager,
                             DialogueManager, RequestManager, ParticipantManager,
-                            ScheduleManager, CreditLogManager)
+                            ScheduleManager, CreditLogManager,
+                            ShortcodeManager)
 
 
 class DialogueWorker(ApplicationWorker):
@@ -101,7 +102,7 @@ class DialogueWorker(ApplicationWorker):
 
         #TODO replace by a loop
         for collection in ['history', 'dialogues', 'requests', 'participants', 
-                           'content_variables', 'schedules', 'credit_logs']:
+                           'content_variables', 'schedules', 'credit_logs', 'shortcodes']:
             self.collections[collection].set_property_helper(self.properties)
             self.collections[collection].set_log_helper(self.log_manager)
 
@@ -167,7 +168,9 @@ class DialogueWorker(ApplicationWorker):
         ## Vusion 
         vusion_db = connection[self.vusion_database_name]
         self.setup_collections(vusion_db, {'templates': None})
-        self.setup_collections(vusion_db, {'shortcodes': 'shortcode'})
+        #self.setup_collections(vusion_db, {'shortcodes': 'shortcode'})
+        self.collections['shortcodes'] = ShortcodeManager(
+            vusion_db, 'shortcodes')
         self.collections['credit_logs'] = CreditLogManager(
             vusion_db, 'credit_logs', self.database_name)
 

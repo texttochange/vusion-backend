@@ -1,7 +1,7 @@
 from datetime import datetime
 from twisted.trial.unittest import TestCase
 from tests.utils import ObjectMaker
-from vusion.persist.shortcode import Shortcode
+from vusion.persist import Shortcode
 
 class TestShortcode(TestCase, ObjectMaker):
     

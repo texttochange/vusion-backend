@@ -27,6 +27,9 @@ from schedule.schedule_manager import ScheduleManager
 from credit_log.credit_log import CreditLog
 from credit_log.credit_log_manager import CreditLogManager
 
+from shortcode.shortcode import Shortcode
+from shortcode.shortcode_manager import ShortcodeManager
+
 from worker_config import WorkerConfig
 
 from unattach_message import UnattachMessage
@@ -43,6 +46,7 @@ __all__ = ["Model", "ModelManager",
            "DeadlineSchedule","ReminderSchedule", "DialogueSchedule",
            "UnattachSchedule", "ActionSchedule", "ScheduleManager",
            "CreditLog", "CreditLogManager",
+           "Shortcode", "ShortcodeManager",
            "Request", 
            "WorkerConfig",
            "Participant", "ParticipantManager",

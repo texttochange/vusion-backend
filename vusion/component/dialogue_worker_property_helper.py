@@ -9,7 +9,7 @@ from vusion.utils import (get_shortcode_value, is_shortcode_address,
                           get_shortcode_international_prefix, time_to_vusion_format,
                           time_to_vusion_format_date)
 from vusion.error import MissingCode, MissingLocalTime
-from vusion.persist.shortcode import Shortcode
+from vusion.persist import Shortcode
 
 
 class DialogueWorkerPropertyHelper(object):
