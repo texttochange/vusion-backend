@@ -42,7 +42,7 @@ from vusion.persist import (Request, ContentVariable, Dialogue,
                             history_generator,
                             HistoryManager, ContentVariableManager,
                             DialogueManager, RequestManager, ParticipantManager,
-                            ScheduleManager)
+                            ScheduleManager, CreditLogManager)
 
 
 class DialogueWorker(ApplicationWorker):
@@ -101,12 +101,13 @@ class DialogueWorker(ApplicationWorker):
 
         #TODO replace by a loop
         for collection in ['history', 'dialogues', 'requests', 'participants', 
-                           'content_variables', 'schedules']:
+                           'content_variables', 'schedules', 'credit_logs']:
             self.collections[collection].set_property_helper(self.properties)
             self.collections[collection].set_log_helper(self.log_manager)
 
         self.credit_manager = CreditManager(
-           self.r_key, self.r_server, 
+           self.r_key, self.r_server,
+           self.collections['credit_logs'],
            self.collections['history'], 
            self.collections['schedules'],
            self.properties, 
@@ -151,31 +152,34 @@ class DialogueWorker(ApplicationWorker):
         connection = pymongo.Connection(self.config['mongodb_host'],
                                         self.config['mongodb_port'],
                                         safe=self.config.get('mongodb_safe', False))
-        self.db = connection[self.database_name]
-        self.setup_collections({
-            'program_settings': None,
-            'unattached_messages': None})
 
-        self.collections['history'] = HistoryManager(self.db, 'history')
-        self.collections['content_variables'] = ContentVariableManager(self.db, 'content_variables')
-        self.collections['dialogues'] = DialogueManager(self.db, 'dialogues')
-        self.collections['requests'] = RequestManager(self.db, 'requests')
-        self.collections['participants'] = ParticipantManager(self.db, 'participants')
-        self.collections['schedules'] = ScheduleManager(self.db, 'schedules')
+        ## Program specific
+        program_db = connection[self.database_name]
+        self.setup_collections(program_db, {'program_settings': None,
+                                            'unattached_messages': None})
+        self.collections['history'] = HistoryManager(program_db, 'history')
+        self.collections['content_variables'] = ContentVariableManager(program_db, 'content_variables')
+        self.collections['dialogues'] = DialogueManager(program_db, 'dialogues')
+        self.collections['requests'] = RequestManager(program_db, 'requests')
+        self.collections['participants'] = ParticipantManager(program_db, 'participants')
+        self.collections['schedules'] = ScheduleManager(program_db, 'schedules')
 
-        self.db = connection[self.vusion_database_name]
-        self.setup_collections({'templates': None})
-        self.setup_collections({'shortcodes': 'shortcode'})
+        ## Vusion 
+        vusion_db = connection[self.vusion_database_name]
+        self.setup_collections(vusion_db, {'templates': None})
+        self.setup_collections(vusion_db, {'shortcodes': 'shortcode'})
+        self.collections['credit_logs'] = CreditLogManager(
+            vusion_db, 'credit_logs', self.database_name)
 
-    def setup_collections(self, names):
+    def setup_collections(self, db, names):
         for name, index in names.items():
-            self.setup_collection(name, index)
+            self.setup_collection(db, name, index)
 
-    def setup_collection(self, name, index):
-        if name in self.db.collection_names():
-            self.collections[name] = self.db[name]
+    def setup_collection(self, db, name, index):
+        if name in db.collection_names():
+            self.collections[name] = db[name]
         else:
-            self.collections[name] = self.db.create_collection(name)
+            self.collections[name] = db.create_collection(name)
         if index is not None:
             self.collections[name].ensure_index(index, background=True)
         self.log("Collection initialised: %s" % name)
