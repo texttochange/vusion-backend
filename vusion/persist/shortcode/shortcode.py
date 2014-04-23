@@ -1,3 +1,5 @@
+from math import ceil
+
 from vusion.persist import Model
 
 
@@ -41,3 +43,14 @@ class Shortcode(Model):
 
     def validate_fields(self):
         self._validate(self, self.fields)
+
+    def get_message_credits(self, message_content):
+        if message_content is None or len(message_content) == 0:
+            return 1
+        return int(ceil(float(len(message_content)) / float(self['max-character-per-sms'])))
+
+    def get_vusion_reference(self):
+        if self['supported-internationally'] == 1:
+            return self['shortcode']
+        else:
+            return ("%s-%s" % (self['international-prefix'], self['shortcode']))

@@ -11,8 +11,8 @@ class CreditLog(Model):
     fields = {
         'date': {
             'required': True,
-            'valid_string': lambda v: isinstance(v['date'], basestring),
-            'valid_value': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)$'), v['date'])
+            '1_valid_string': lambda v: isinstance(v['date'], basestring),
+            '2_valid_value': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)$'), v['date'])
             },
         'program-database': {
             'required': True,
@@ -20,7 +20,8 @@ class CreditLog(Model):
             },
         'code': {
             'required': True,
-            'not_none': lambda v: v['code'] is not None
+            '1_not_none': lambda v: v['code'] is not None,
+            '2_valid_format': lambda v: re.match(re.compile('^(\+[0-9]*|[0-9]*\-[0-9]*)$'), v['code']),
             },
         'incoming': {
             'required': True,

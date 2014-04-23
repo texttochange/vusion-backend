@@ -353,4 +353,4 @@ class CreditStatus(Model):
             return False 
 
     def validate_fields(self):
-        self._validate(self, self.fields)    
+        self._validate(self, self.fields)

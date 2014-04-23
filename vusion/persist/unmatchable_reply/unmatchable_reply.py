@@ -2,7 +2,7 @@ import re
 
 from vusion.persist import Model
 
-
+#TODO convert time to vusion timestamp at before validate
 class UnmatchableReply(Model):
     
     MODEL_TYPE = 'unmatchable-reply'
@@ -27,6 +27,6 @@ class UnmatchableReply(Model):
             'valid_value': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)T0?(\d+):0?(\d+):0?(\d+)$'), v['timestamp'])
             },
     }
-    
+   
     def validate_fields(self):
-        self._validate(self, self.fields)    
+        self._validate(self, self.fields)

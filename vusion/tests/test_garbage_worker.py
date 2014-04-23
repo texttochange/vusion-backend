@@ -1,14 +1,14 @@
+import pymongo
 
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import inlineCallbacks
 
-import pymongo
-
 from vumi.message import TransportUserMessage
 from vumi.tests.utils import get_stubbed_worker, UTCNearNow
 
-from tests.utils import MessageMaker
-from tests.utils import ObjectMaker
+from tests.utils import MessageMaker, ObjectMaker
+from vusion.persist import (UnmatchableReplyManager, ShortcodeManager,
+                            CreditLogManager, TemplateManager)
 from vusion import GarbageWorker
 
 
@@ -27,12 +27,15 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
         connection = pymongo.Connection('localhost', 27017)
         connection.safe = True
         db = connection[self.config['database_name']]
-        self.unmatchable_replies_collection = db['unmatchable_reply']
-        self.unmatchable_replies_collection.drop()
-        self.templates_collection = db['templates']
-        self.templates_collection.drop()
-        self.shortcodes_collection = db['shortcodes']
-        self.shortcodes_collection.drop()
+        self.collections = {}
+        self.collections['unmatchable_reply'] = UnmatchableReplyManager(
+            db, 'unmatchable_reply')
+        self.collections['template'] = TemplateManager(
+            db, 'templates')
+        self.collections['shortcodes'] = ShortcodeManager(
+            db,'shortcodes')
+        self.collections['credit_log'] = CreditLogManager(
+            db, 'credit_logs', self.config['transport_name'])
 
         self.worker = get_stubbed_worker(GarbageWorker,
                                          config=self.config)
@@ -42,9 +45,11 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
 
     def tearDown(self):
         self.broker.dispatched = {}
-        self.unmatchable_replies_collection.drop()
-        self.shortcodes_collection.drop()
-        self.templates_collection.drop()
+        self.clearData()
+
+    def clearData(self):
+        for collection in self.collections.itervalues():
+            collection.drop()
 
     @inlineCallbacks
     def send(self, msg):
@@ -55,11 +60,11 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
     @inlineCallbacks
     def test_receive_user_message_without_error_template(self):
         msg = self.mkmsg_in(to_addr='8282')
-        self.shortcodes_collection.save(self.mkobj_shortcode(code='8282'))
+        self.collections['shortcodes'].save(self.mkobj_shortcode(code='8282'))
 
         yield self.send(msg)
 
-        self.assertEqual(1, self.unmatchable_replies_collection.count())
+        self.assertEqual(1, self.collections['unmatchable_reply'].count())
         messages = self.broker.get_messages('vumi', 'garbage.outbound')
         self.assertEqual(len(messages), 0)
 
@@ -67,14 +72,14 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
     def test_receive_user_message_with_one_error_template_matching_to_addr(self):
         participant_transport_metadata = {'some_key': 'some_value'}
         msg = self.mkmsg_in(content='Gen 2', to_addr='8181', transport_metadata=participant_transport_metadata)
-        template_id = self.templates_collection.save(
+        template_id = self.collections['template'].save(
             self.mkobj_template_unmatching_keyword()
         )
-        self.shortcodes_collection.save(self.mkobj_shortcode(error_template=template_id))
+        self.collections['shortcodes'].save(self.mkobj_shortcode(error_template=template_id))
 
         yield self.send(msg)
 
-        self.assertTrue(2, self.unmatchable_replies_collection.count())
+        self.assertTrue(2, self.collections['unmatchable_reply'].count())
         messages = self.broker.get_messages('vumi', 'garbage.outbound')
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['content'],
@@ -86,19 +91,19 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
     @inlineCallbacks
     def test_receive_user_message_with_two_error_template_matching_to_addr(self):
         msg = self.mkmsg_in(content='Gen 2', to_addr='8282')
-        template_1_id = self.templates_collection.save(
+        template_1_id = self.collections['template'].save(
             self.mkobj_template_unmatching_keyword())
         shortcode_1 = self.mkobj_shortcode(error_template=template_1_id, code='8181')
-        self.shortcodes_collection.save(shortcode_1)
+        self.collections['shortcodes'].save(shortcode_1)
 
-        template_2_id = self.templates_collection.save(
+        template_2_id = self.collections['template'].save(
             self.mkobj_template_unmatching_keyword(message="KEYWORD is not good."))
         shortcode_2 = self.mkobj_shortcode(error_template=template_2_id, code='8282')
-        self.shortcodes_collection.save(shortcode_2)
+        self.collections['shortcodes'].save(shortcode_2)
 
         yield self.send(msg)
 
-        self.assertEqual(2, self.unmatchable_replies_collection.count())
+        self.assertEqual(2, self.collections['unmatchable_reply'].count())
         messages = self.broker.get_messages('vumi', 'garbage.outbound')
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['content'],

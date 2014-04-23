@@ -24,28 +24,30 @@ class CreditLogManager(ModelManager):
                                      'program-database': program_database,
                                      'code': code}).count()
 
-    def increment_incoming(self, credit_number, date=None):
-        self._increment_counter('incoming', credit_number, date)
+    def increment_incoming(self, credit_number, date=None, code=None):
+        self._increment_counter('incoming', credit_number, date=date, code=code)
 
-    def increment_outgoing(self, credit_number, date=None):
-        self._increment_counter('outgoing', credit_number, date)
+    def increment_outgoing(self, credit_number, date=None, code=None):
+        self._increment_counter('outgoing', credit_number, date=date, code=code)
 
-    def increment_acked(self, credit_number, date=None):
-        self._increment_counter('outgoing-acked', credit_number, date)
+    def increment_acked(self, credit_number, date=None, code=None):
+        self._increment_counter('outgoing-acked', credit_number, date=date, code=code)
     
-    def increment_delivered(self, credit_number, date=None):
-        self._increment_counter('outgoing-delivered', credit_number, date)
+    def increment_delivered(self, credit_number, date=None, code=None):
+        self._increment_counter('outgoing-delivered', credit_number, date=date, code=code)
 
-    def increment_failed(self, credit_number, date=None):
-        self._increment_counter('outgoing-failed', credit_number, date)
+    def increment_failed(self, credit_number, date=None, code=None):
+        self._increment_counter('outgoing-failed', credit_number, date=date, code=code)
 
-    def _increment_counter(self, credit_type, credit_number, date=None):
-        #get date, code from the programSettingHelper
+    def _increment_counter(self, credit_type, credit_number, date=None, code=None):
         if date is None:
             date = self.property_helper.get_local_time("iso_date")
         else:
             date = time_to_vusion_format_date(date)
-        code = self.property_helper['shortcode']
+
+        if code is None:
+            code = self.property_helper['shortcode']
+
         if self._has_today_credit_log(date, self.program_database, code) == 0:
             credit_log = CreditLog(**{
                 'date': date,
