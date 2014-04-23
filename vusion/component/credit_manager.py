@@ -9,7 +9,7 @@ from twisted.internet.task import LoopingCall
 from vumi import log
 
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
-from vusion.persist import Model, CreditLogManager
+from vusion.persist import Model
 from vusion.error import WrongModelInstanciation
 
 
@@ -116,7 +116,6 @@ class CreditManager(object):
 
     def is_timeframed(self):
         local_time = self.property_helper.get_local_time('iso_date')
-        #log.msg("[credit manager] is timeframed %s < %s < %s" % (self.credit_from_date, local_time, self.credit_to_date))
         return (self.credit_from_date <= local_time
                 and local_time <= self.credit_to_date)
 
@@ -141,18 +140,14 @@ class CreditManager(object):
                 'status': 'ok',
                 'since': local_time,
             })
-        #log.msg('[credit manager] old status %r' % self.last_status)
         if self.last_status is not None and self.last_status == status:
-            #log.msg('[credit manager] not updating the status')
             return self.last_status
         self.last_status = status
-        #log.msg('[credit manager] save new status %r' % status)
         self.redis.set(self.status_key(), self.last_status.get_as_json())
         return self.last_status
 
     def can_be_sent(self, message_credits, schedule=None):
         used_credit_counter = self.get_used_credit_counter()
-        #log.msg("[credit manager] can be sent %r" % schedule)
         if schedule is not None and schedule.get_type() == 'unattach-schedule':
             card = self.get_card(schedule)
             if card == 'white':

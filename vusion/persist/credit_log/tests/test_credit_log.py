@@ -33,9 +33,10 @@ class TestCreditLog(TestCase):
         except:
             self.fail()
 
-    def test_validation(self):
+    def test_validation_program(self):
         CreditLog(**{
             'date': '2014-03-02',
+            'logger': 'program',
             'program-database': 'test-database',
             'code': '256-8282',
             'incoming': 0,
@@ -43,7 +44,16 @@ class TestCreditLog(TestCase):
    
         CreditLog(**{
             'date': '2014-03-02',
+            'logger': 'program',
             'program-database': 'test-database',
             'code': '+3175847332',
             'incoming': 0,
-            'outgoing': 0})        
+            'outgoing': 0})
+
+    def test_validation_garbage(self):
+        CreditLog(**{
+            'date': '2014-03-02',
+            'logger': 'garbage',
+            'code': '256-8282',
+            'incoming': 0,
+            'outgoing': 0})

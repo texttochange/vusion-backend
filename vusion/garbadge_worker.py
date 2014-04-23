@@ -17,7 +17,7 @@ from vusion.utils import (time_to_vusion_format, get_shortcode_value,
                           get_shortcode_address)
 from vusion.persist import (TemplateManager, ShortcodeManager, 
                             UnmatchableReplyManager, UnmatchableReply,
-                            CreditLogManager)
+                            GarbageCreditLogManager)
 
 
 class GarbageWorker(ApplicationWorker):
@@ -37,7 +37,7 @@ class GarbageWorker(ApplicationWorker):
             db, 'unmatchable_reply')
         self.collections['shortcode'] = ShortcodeManager(db, 'shortcodes')
         self.collections['template'] = TemplateManager(db, 'templates')
-        self.collections['credit_log'] = CreditLogManager(db, 'credit_logs', self.transport_name)
+        self.collections['credit_log'] = GarbageCreditLogManager(db, 'credit_logs')
 
         self.log_manager = Logger()        
         for manager in self.collections.itervalues():
@@ -52,7 +52,7 @@ class GarbageWorker(ApplicationWorker):
                 'to': msg['to_addr'],
                 'direction': 'incoming',
                 'message-content': msg['content'],
-                'timestamp': time_to_vusion_format(msg['timestamp'])})
+                'timestamp': msg['timestamp']})
             self.collections['unmatchable_reply'].save_document(unmatchable_reply)
 
             matching_code = self.collections['shortcode'].get_shortcode(
@@ -62,8 +62,7 @@ class GarbageWorker(ApplicationWorker):
                 return
             self.collections['credit_log'].increment_incoming(
                 matching_code.get_message_credits(msg['content']),
-                msg['timestamp'],
-                matching_code.get_vusion_reference())
+                code=matching_code.get_vusion_reference())
 
             template = self.collections['template'].find_one({
                 '_id': ObjectId(matching_code['error-template'])})
@@ -87,12 +86,11 @@ class GarbageWorker(ApplicationWorker):
                 'to': error_message['to_addr'],
                 'direction': 'outgoing',
                 'message-content': error_message['content'],
-                'timestamp': time_to_vusion_format(msg['timestamp'])})
+                'timestamp': msg['timestamp']})
             self.collections['unmatchable_reply'].save_document(response)
             self.collections['credit_log'].increment_outgoing(
                 matching_code.get_message_credits(error_message['content']),
-                            msg['timestamp'],
-                            matching_code.get_vusion_reference())
+                code=matching_code.get_vusion_reference())
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log_manager.log(

@@ -14,8 +14,16 @@ class CreditLog(Model):
             '1_valid_string': lambda v: isinstance(v['date'], basestring),
             '2_valid_value': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)$'), v['date'])
             },
-        'program-database': {
+        'logger': {
             'required': True,
+            'valid_value': lambda v: v['logger'] in ['program', 'garbage'],
+            'required_subfields': lambda v: getattr(v, 'required_subfields') (
+                v['logger'],
+                {'program': ['program-database'],
+                 'garbage': []})
+            },
+        'program-database': {
+            'required': False,
             'not_none': lambda v: v['program-database'] is not None
             },
         'code': {

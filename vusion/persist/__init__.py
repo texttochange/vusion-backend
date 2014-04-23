@@ -25,7 +25,8 @@ from schedule.schedule import (FeedbackSchedule, DeadlineSchedule, ReminderSched
 from schedule.schedule_manager import ScheduleManager
 
 from credit_log.credit_log import CreditLog
-from credit_log.credit_log_manager import CreditLogManager
+from credit_log.credit_log_manager import (ProgramCreditLogManager,
+                                           GarbageCreditLogManager)
 
 from shortcode.shortcode import Shortcode
 from shortcode.shortcode_manager import ShortcodeManager
@@ -51,7 +52,7 @@ __all__ = ["Model", "ModelManager",
            "schedule_generator", "FeedbackSchedule",
            "DeadlineSchedule","ReminderSchedule", "DialogueSchedule",
            "UnattachSchedule", "ActionSchedule", "ScheduleManager",
-           "CreditLog", "CreditLogManager",
+           "CreditLog", "ProgramCreditLogManager", "GarbageCreditLogManager",
            "Shortcode", "ShortcodeManager",
            "Request", 
            "WorkerConfig",

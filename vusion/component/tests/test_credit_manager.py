@@ -9,7 +9,7 @@ from tests.utils import ObjectMaker, DumbLogManager
 from vusion.utils import (time_to_vusion_format, time_from_vusion_format,
                           time_to_vusion_format_date)
 from vusion.persist import (HistoryManager, ScheduleManager, UnattachSchedule,
-                            CreditLogManager)
+                            ProgramCreditLogManager)
 from vusion.component import (CreditManager, CreditStatus, 
                               DialogueWorkerPropertyHelper, LogManager)
 
@@ -29,7 +29,7 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.collections['history'] = HistoryManager(db, 'history')
         self.collections['schedules'] = ScheduleManager(db, 'schedules')
         db = c[self.vusion_database_name]
-        self.collections['credit_logs'] = CreditLogManager(
+        self.collections['credit_logs'] = ProgramCreditLogManager(
             db, 'credit_logs', self.database_name)
         self.clearData()
 
@@ -123,20 +123,17 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.property_helper['credit-to-date'] = time_to_vusion_format(future)
         self.cm.set_limit()
 
-        ## Out of the timeframe histories
-        self.collections['credit_logs'].increment_outgoing(1, more_past)
-        self.collections['credit_logs'].increment_outgoing(1, more_future)
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 0)        
-
         ## Count dialogue history
-        self.collections['credit_logs'].increment_outgoing(1, now)
+        credit_log = self.mkobj_program_credit_log(now,
+                                                   program_database=self.database_name)        
+        self.collections['credit_logs'].save_document(credit_log)
         self.assertEqual(self.cm.get_used_credit_counter_mongo(), 1)
 
-        self.collections['credit_logs'].increment_outgoing(2, now)
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 3)
+        credit_log = self.mkobj_program_credit_log(past,
+                                                   program_database=self.database_name)        
+        self.collections['credit_logs'].save_document(credit_log)
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 2)
 
-        self.collections['credit_logs'].increment_incoming(2, now)
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 3)
 
     def test_sync_history_outgoing_incoming(self):
         now = datetime.now()
@@ -152,25 +149,25 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.cm.set_limit()
 
         ## Out of the timeframe histories
-        self.collections['credit_logs'].increment_outgoing(1, more_past)
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 0)
-        
-        self.collections['credit_logs'].increment_outgoing(1, more_future)
+        credit_log = self.mkobj_program_credit_log(more_past,
+                                                   program_database=self.database_name)
+        self.collections['credit_logs'].save_document(credit_log)
+        credit_log = self.mkobj_program_credit_log(more_future,
+                                                   program_database=self.database_name)
+        self.collections['credit_logs'].save_document(credit_log)
         self.assertEqual(self.cm.get_used_credit_counter_mongo(), 0)
 
         ## Count dialogue history
-        self.collections['credit_logs'].increment_outgoing(1, now)
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 1)
+        credit_log = self.mkobj_program_credit_log(now,
+                                                   program_database=self.database_name)        
+        self.collections['credit_logs'].save_document(credit_log)
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 2)
 
-        self.collections['credit_logs'].increment_incoming(2, now)
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 3)
+        credit_log = self.mkobj_program_credit_log(past,
+                                                   program_database=self.database_name)        
+        self.collections['credit_logs'].save_document(credit_log)
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 4)
 
-        ## Count request
-        self.collections['credit_logs'].increment_outgoing(2, now)
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 5)
-
-        self.collections['credit_logs'].increment_incoming(2, now)
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 7)
 
     def test_set_whitecard_unattach_schedule(self):
         now = datetime.now()

@@ -15,7 +15,9 @@ from vusion.message import DispatcherControl, WorkerControl
 
 from vusion.persist import (Dialogue, DialogueHistory, UnattachHistory,
                             history_generator, schedule_generator, Participant,
-                            UnattachMessage, Request, Interaction)
+                            UnattachMessage, Request, Interaction, CreditLog)
+
+from vusion.utils import time_to_vusion_format_date
 
 
 class DataLayerUtils:
@@ -1089,3 +1091,12 @@ class ObjectMaker:
             content = content + template
         return content[0:length]
 
+    def mkobj_program_credit_log(self, date, code='256-8181', program_database='m4rh', incoming=1, outgoing=1):
+        credit_log = {
+            'date': time_to_vusion_format_date(date),
+            'code': code,
+            'logger': 'program',
+            'program-database': program_database,
+            'incoming': incoming,
+            'outgoing': outgoing}
+        return CreditLog(**credit_log)

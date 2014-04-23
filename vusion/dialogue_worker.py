@@ -42,7 +42,7 @@ from vusion.persist import (Request, ContentVariable, Dialogue,
                             history_generator,
                             HistoryManager, ContentVariableManager,
                             DialogueManager, RequestManager, ParticipantManager,
-                            ScheduleManager, CreditLogManager,
+                            ScheduleManager, ProgramCreditLogManager,
                             ShortcodeManager)
 
 
@@ -171,7 +171,7 @@ class DialogueWorker(ApplicationWorker):
         #self.setup_collections(vusion_db, {'shortcodes': 'shortcode'})
         self.collections['shortcodes'] = ShortcodeManager(
             vusion_db, 'shortcodes')
-        self.collections['credit_logs'] = CreditLogManager(
+        self.collections['credit_logs'] = ProgramCreditLogManager(
             vusion_db, 'credit_logs', self.database_name)
 
     def setup_collections(self, db, names):
