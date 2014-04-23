@@ -30,7 +30,7 @@ from vusion.error import (MissingData, SendingDatePassed, VusionError,
 from vusion.message import DispatcherControl, WorkerControl
 from vusion.context import Context
 from vusion.component import (DialogueWorkerPropertyHelper, CreditManager,
-                              LogManager)
+                              RedisLogger)
 
 from vusion.persist.action import (Actions, action_generator,FeedbackAction,
                                    EnrollingAction, OptinAction, OptoutAction,
@@ -84,7 +84,7 @@ class DialogueWorker(ApplicationWorker):
         self._d.callback(None)
 
         # Component / Manager initialization
-        self.log_manager = LogManager(
+        self.logger = RedisLogger(
            self.config['database_name'], 
            self.r_key,
            self.r_server)
@@ -98,13 +98,13 @@ class DialogueWorker(ApplicationWorker):
            self.collections['program_settings'],
            self.collections['shortcodes'])
 
-        self.log_manager.startup(self.properties)
+        self.logger.startup(self.properties)
 
         #TODO replace by a loop
         for collection in ['history', 'dialogues', 'requests', 'participants', 
                            'content_variables', 'schedules', 'credit_logs', 'shortcodes']:
             self.collections[collection].set_property_helper(self.properties)
-            self.collections[collection].set_log_helper(self.log_manager)
+            self.collections[collection].set_log_helper(self.logger)
 
         self.credit_manager = CreditManager(
            self.r_key, self.r_server,
@@ -112,9 +112,9 @@ class DialogueWorker(ApplicationWorker):
            self.collections['history'], 
            self.collections['schedules'],
            self.properties, 
-           self.log_manager)
+           self.logger)
 
-        self.log_manager.log("Dialogue Worker is starting")
+        self.logger.log("Dialogue Worker is starting")
         #Set up dispatcher publisher
         self.dispatcher_publisher = yield self.publish_to(
             '%(dispatcher_name)s.control' % self.config)
@@ -134,7 +134,7 @@ class DialogueWorker(ApplicationWorker):
     @inlineCallbacks
     def teardown_application(self):
         self.log("Worker is stopped.")
-        self.log_manager.stop()
+        self.logger.stop()
         if self.is_ready():
             yield self.unregister_from_dispatcher()
         if (self.sender.active()):
@@ -597,7 +597,7 @@ class DialogueWorker(ApplicationWorker):
                 'credit-number': self.credit_manager.set_limit,
                 'credit-from-date': self.credit_manager.set_limit,
                 'credit-to-date': self.credit_manager.set_limit,
-               'timezone': self.log_manager.clear_logs}
+               'timezone': self.logger.clear_logs}
             if if_needed_register_keywords == True:
                 callbacks.update({'shortcode': self.register_keywords_in_dispatcher})
             self.properties.load(callbacks)
@@ -1038,7 +1038,7 @@ class DialogueWorker(ApplicationWorker):
                      % (message['to_addr'], message['content'],))
 
     def log(self, msg, level='msg'):
-        self.log_manager.log(msg, level)
+        self.logger.log(msg, level)
 
     def get_keywords(self):
         keywords = self.collections['dialogues'].get_all_keywords()

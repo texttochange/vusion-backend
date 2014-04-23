@@ -18,6 +18,7 @@ from vusion.utils import (time_to_vusion_format, get_shortcode_value,
 from vusion.persist import (TemplateManager, ShortcodeManager, 
                             UnmatchableReplyManager, UnmatchableReply,
                             GarbageCreditLogManager)
+from vusion.component import BasicLogger
 
 
 class GarbageWorker(ApplicationWorker):
@@ -39,13 +40,13 @@ class GarbageWorker(ApplicationWorker):
         self.collections['template'] = TemplateManager(db, 'templates')
         self.collections['credit_log'] = GarbageCreditLogManager(db, 'credit_logs')
 
-        self.log_manager = Logger()        
+        self.logger = BasicLogger()        
         for manager in self.collections.itervalues():
-            manager.set_log_helper(self.log_manager)
+            manager.set_log_helper(self.logger)
 
     @inlineCallbacks
     def consume_user_message(self, msg):
-        self.log_manager.log("Consumer user message %s" % (msg,), 'debug')        
+        self.logger.log("Consumer user message %s" % (msg,), 'debug')        
         try:
             unmatchable_reply = UnmatchableReply(**{
                 'participant-phone': msg['from_addr'],
@@ -58,7 +59,7 @@ class GarbageWorker(ApplicationWorker):
             matching_code = self.collections['shortcode'].get_shortcode(
                 msg['to_addr'], msg['from_addr'])
             if matching_code is None:
-                self.log_manager.log("Incoming message not matching any shorcode to %s from %s" % (msg['to_addr'], msg['from_addr']), 'err')
+                self.logger.log("Incoming message not matching any shorcode to %s from %s" % (msg['to_addr'], msg['from_addr']), 'err')
                 return
             self.collections['credit_log'].increment_incoming(
                 matching_code.get_message_credits(msg['content']),
@@ -93,21 +94,10 @@ class GarbageWorker(ApplicationWorker):
                 code=matching_code.get_vusion_reference())
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            self.log_manager.log(
+            self.logger.log(
                 "Error during consume user message: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback),
                 'err')
 
     def dispatch_event(self, msg):
         pass
-
-
-class Logger(object):
-    
-    def log(self, msg, level='msg'):
-        if level == 'err':
-            log.err(msg)
-        elif level == 'debug':
-            log.debug(msg)
-        else:
-            log.msg(msg)

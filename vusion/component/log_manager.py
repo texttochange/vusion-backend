@@ -6,7 +6,7 @@ from twisted.internet.task import LoopingCall
 from vumi import log
 
 
-class LogManager(object):
+class RedisLogger(object):
     
     LOGS_KEY = 'logs'
 
@@ -68,3 +68,14 @@ class LogManager(object):
 
     def clear_logs(self):
         self.redis.delete(self.logs_key())
+
+
+class BasicLogger(object):
+    
+    def log(self, msg, level='msg'):
+        if level == 'err':
+            log.err(msg)
+        elif level == 'debug':
+            log.debug(msg)
+        else:
+            log.msg(msg)

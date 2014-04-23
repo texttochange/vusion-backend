@@ -11,7 +11,7 @@ from vusion.utils import (time_to_vusion_format, time_from_vusion_format,
 from vusion.persist import (HistoryManager, ScheduleManager, UnattachSchedule,
                             ProgramCreditLogManager)
 from vusion.component import (CreditManager, CreditStatus, 
-                              DialogueWorkerPropertyHelper, LogManager)
+                              DialogueWorkerPropertyHelper)
 
 
 class CreditManagerTestCase(TestCase, ObjectMaker):

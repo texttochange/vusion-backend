@@ -37,7 +37,8 @@ from unmatchable_reply.unmatchable_reply_manager import UnmatchableReplyManager
 from template.template import Template
 from template.template_manager import TemplateManager
 
-from worker_config import WorkerConfig
+from worker_config.worker_config import WorkerConfig
+from worker_config.worker_config_manager import WorkerConfigManager
 
 from unattach_message import UnattachMessage
 
@@ -55,7 +56,7 @@ __all__ = ["Model", "ModelManager",
            "CreditLog", "ProgramCreditLogManager", "GarbageCreditLogManager",
            "Shortcode", "ShortcodeManager",
            "Request", 
-           "WorkerConfig",
+           "WorkerConfig", "WorkerConfigManager"
            "Participant", "ParticipantManager",
            "UnattachMessage",
            "UnmatchableReply", "UnmatchableReplyManager",

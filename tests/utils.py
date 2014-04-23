@@ -15,7 +15,8 @@ from vusion.message import DispatcherControl, WorkerControl
 
 from vusion.persist import (Dialogue, DialogueHistory, UnattachHistory,
                             history_generator, schedule_generator, Participant,
-                            UnattachMessage, Request, Interaction, CreditLog)
+                            UnattachMessage, Request, Interaction, CreditLog,
+                            WorkerConfig)
 
 from vusion.utils import time_to_vusion_format_date
 
@@ -1100,3 +1101,16 @@ class ObjectMaker:
             'incoming': incoming,
             'outgoing': outgoing}
         return CreditLog(**credit_log)
+
+    def mkobj_worker_config(self, name='worker1', 
+                            worker_class='vusion.DialogueWorker'):
+        worker_config = {
+            'name': name,
+            'class': worker_class,
+            'config': {
+                'control_name': 'test2',
+                'transport_name': 'test2',
+                'database_name': 'test2',
+            }
+        }
+        return WorkerConfig(**worker_config)

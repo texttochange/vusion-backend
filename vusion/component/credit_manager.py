@@ -30,7 +30,7 @@ class CreditManager(object):
     
     def __init__(self, prefix_key, redis,
                  credit_log, history, schedule,
-                 property_helper, log_manager):
+                 property_helper, logger):
         ##Shared with worker
         self.prefix_key = prefix_key
         self.redis = redis
@@ -39,8 +39,7 @@ class CreditManager(object):
         self.schedule_collection = schedule
         self.last_status = self.redis.get(self.status_key())
         self.property_helper = property_helper
-        self.log_manager = log_manager
-
+        self.logger = logger
         
         self.set_limit()
 
