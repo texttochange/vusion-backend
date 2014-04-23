@@ -12,97 +12,210 @@ from vusion.persist.action import (action_generator, FeedbackAction,
                                    UnMatchingAnswerAction, ProfilingAction,
                                    RemoveDeadlineAction, RemoveQuestionAction,
                                    RemoveRemindersAction)
-from vusion.utils import time_from_vusion_format, time_to_vusion_format
+from vusion.utils import (time_from_vusion_format, time_to_vusion_format,
+                          get_default)
 
 
-## TODO Update the validation
 class Interaction(Model):
     
     MODEL_TYPE = 'interaction'
-    MODEL_VERSION = '3'
+    MODEL_VERSION = '4'
     
-    fields = [
-        'interaction-id',
-        'type-schedule',
-        'type-interaction',
-        'activated',
-        'prioritized']
-              
-    SCHEDULE_TYPES = {
-        'fixed-time': {
-            'date-time': lambda v: v is not None},
-        'offset-days': {
-            'days': lambda v: v>=1,
-            'at-time': lambda v: v is not None},
-        'offset-time': {
-            'minutes': lambda v: re.match(re.compile('^\d{1,4}(:\d{2})?$'), v)},
-        'offset-condition': {
-            'offset-condition-interaction-id': lambda v: v is not None}}
-    
-    UNMATCHING_FEEDBACK_TYPE = frozenset((
-        'no-unmatching-feedback',
-        'program-unmatching-feedback',
-        'interaction-unmatching-feedback'))
-    
-    INTERACTION_TYPE = {
-        'announcement': {
-            'content': lambda v: v is not None},
-        'question-answer': {
-            'content': lambda v: v is not None,
-            'keyword': lambda v: v is not None,
-            'set-use-template': lambda v: True,
-            'type-question': lambda v: True,
-            'type-unmatching-feedback': lambda v: v in Interaction.UNMATCHING_FEEDBACK_TYPE,
-            'set-max-unmatching-answers': lambda v: v in [None, '', 'max-unmatching-answers'],
-            'set-reminder': lambda v: v in [None, '', 'reminder']},
-        'question-answer-keyword': {
-            'content': lambda v: v is not None,
-            'label-for-participant-profiling': lambda v: v is not None,
-            'answer-keywords': lambda v: isinstance(v, list),
-            'set-reminder': lambda v: True}}
+    fields = {
+        'interaction-id': {
+            'required': True,
+            },
+        'type-schedule': {
+            'required': True,
+            'valid_value': lambda v: v['type-schedule'] in [
+                'fixed-time',
+                'offset-time',
+                'offset-days',
+                'offset-condition'],
+            'required_subfield': lambda v: getattr(v, 'required_subfields') (
+                v['type-schedule'],
+                {'fixed-time':['date-time'],
+                 'offset-time': ['minutes'],
+                 'offset-days': ['days', 'at-time'],
+                 'offset-condition': ['offset-condition-interaction-id']})                
+            },
+        'type-interaction': {
+            'required': True,
+            'valid_value': lambda v: v['type-interaction'] in [
+                'announcement',
+                'question-answer',
+                'question-answer-keyword'],
+            'required_subfield': lambda v: getattr(v, 'required_subfields') (
+                v['type-interaction'],
+                {'announcement': ['content'],
+                 'question-answer': ['content',
+                                     'keyword',
+                                     'set-use-template',
+                                     'type-question',
+                                     'set-matching-answer-actions',
+                                     'set-max-unmatching-answers',
+                                     'type-unmatching-feedback',
+                                     'set-reminder'],
+                 'question-answer-keyword': ['content',
+                                             'label-for-participant-profiling',
+                                             'answer-keywords',
+                                             'set-reminder']})
+            },
+        'activated': {
+            'required': True,
+            },
+        'prioritized': {
+            'required': True,
+            },
+        'question-type': {
+            'required': False,
+            'valid_value': lambda v: v['question-type'] in [
+                'closed-question',
+                'open-question'],
+            'required_subfield': lambda v: getattr(v, 'required_subfields') (
+                v['question-type'],
+                {'closed-question': ['label-for-participant-profiling',
+                                     'set-answer-accept-no-space',
+                                     'answers'],
+                 'open-question': ['answer-label',
+                                   'feedbacks']})
+            },
+        'set-matching-answer-actions': {
+            'required': False,
+            'valid_value': lambda v: v['set-matching-answer-action'] in [
+                None,
+                'matching-answer-actions'],
+            },
+        'matching-answer-actions': {
+            'required': False,
+            'valid_actions': lambda v: Interaction.validate_actions(v['matching-answer-actions'])
+            },
+        'type-unmatching-feedback': {
+            'required': False,
+            'value_value': lambda v: v['type-unmatching-feedback'] in [
+                'no-unmatching-feedback',
+                'program-unmatching-feedback',
+                'interaction-unmatching-feedback']
+            },
+        'set-max-unmatching-answers': {
+            'required': False,
+            'value_value': lambda v: v['set-max-unmatching-answers'] in [
+                None, 
+                '', 
+                'max-unmatching-answers']},
+        'answers': {
+            'required': False,
+            'valid_type': lambda v: isinstance(v['answers'], list),
+            'valid_answers': lambda v: getattr(v, 'validate_answers') (v['answers'])
+            },
+        'answer-keywords': {
+            'required': False,
+            'valid_type': lambda v: isinstance(v['answer-keywords'], list),
+            'valid_answer-keywords': lambda v: getattr(v, 'validate_answer_keywords') (v['answer-keywords'])
+            },
+        'content': {
+            'required': False,
+            'is_not_null': lambda v: v['content'] is not None
+            },
+        'keyword': {
+            'required': False,
+            'is_not_null': lambda v: v['keyword'] is not None
+            },
+        'feedbacks': {
+            'required': False,
+            'valid_type': lambda v: isinstance(v['feedbacks'], list)
+            },
+        'max-unmatching-answer-number': {
+            'required': False,
+            'valid_value': lambda v: v['max-unmatching-answer-number']>=1
+        },
+        'max-unmatching-answer-actions': {
+            'required': False,
+            'valid_actions': lambda v: Interaction.validate_actions(v['max-unmatching-answer-actions'])
+        },
+        'set-reminder': {
+            'required': False,
+            'valid_value': lambda v: v['set-reminder'] in [
+                None,
+                '',
+                'reminder'],
+            'valid_subfields': lambda v: getattr(v, 'required_subfields') (
+                v['set-reminder'],
+                {'reminder': [
+                    'type-schedule-reminder',
+                    'reminder-number',
+                    'reminder-actions']})
+            },
+        'type-schedule-reminder': {
+            'required': False,
+            'valid_value': lambda v: v['type-schedule-reminder'] in [
+                'reminder-offset-days',
+                'reminder-offset-time'],
+            'valid_subfields': lambda v: getattr(v, 'required_subfields') (
+                v['type-schedule-reminder'],
+                {'reminder-offset-days': ['reminder-days',
+                                          'reminder-at-time'],
+                 'reminder-offset-time': ['reminder-minutes']})
+            },
+        'reminder-days': {
+            'required': False,
+            'valid_value': lambda v: v['reminder-days'] >=1,
+            },
+        'reminder-at-time':{
+            'required': False,
+            'valid_value': lambda v: v['reminder-at-time'] is not None
+            },
+        'reminder-minutes': {
+            'required': False,
+            'valid_value': lambda v: v['reminder-minutes']>=1
+            },
+        'reminder-number': {
+            'required': False,
+            'valid_value': lambda v: v['reminder-number'] >=1
+            },
+        'reminder-actions': {
+            'required': False,
+            'valid_actions': lambda v: Interaction.validate_actions(v['reminder-actions'])
+            }
+    }
 
-    QUESTION_TYPE = {
-        'closed-question': {
-            'label-for-participant-profiling': lambda v: True,
-            'set-answer-accept-no-space': lambda v: True,
-            'answers': lambda v: isinstance(v, list)},
-        'open-question': {
-            'answer-label': lambda v: v is not None,
-            'feedbacks': lambda v: isinstance(v, list)}}
+    answer_fields = {
+        'choice': {
+            'required': True,
+            'valid_value': lambda v: v['choice'] is not None,
+            },
+        'feedbacks': {
+            'required': True,
+            'valid_value': lambda v: isinstance(v['feedbacks'], list)
+            },
+        'answer-actions': {
+            'required': True,
+            'valid_actions': lambda v: Interaction.validate_actions(v['answer-actions'])
+        },
+    }
     
-    MAX_UNMATCHING_ANSWER_FIELDS = {
-          'max-unmatching-answer-number': lambda v: v>=1,
-          'max-unmatching-answer-actions': lambda v: Interaction.validate_actions(v)}
+    answer_keyword_fields = {
+        'keyword': {
+            'required': True,
+            'valid_value': lambda v: v['keyword'] is not None,
+            },
+        'feedbacks': {
+            'required': True,
+            'valid_value': lambda v: isinstance(v['feedbacks'], list),
+            },
+        'answer-actions': {
+            'required': True,
+            'valid_actions': lambda v: Interaction.validate_actions(v['answer-actions'])
+        }
+    }
 
-    REMINDER_FIELDS = {
-         'type-schedule-reminder': lambda v: True,
-         'reminder-number': lambda v: v >=1,
-         'reminder-actions': lambda v: Interaction.validate_actions(v)}
-
-    REMINDER_SCHEDULE_TYPE = {
-        'reminder-offset-days': {
-            'reminder-days': lambda v: v >=1,
-            'reminder-at-time': lambda v: v is not None},
-        'reminder-offset-time': {
-            'reminder-minutes': lambda v: v>=1}}
-            
-    ANSWER_KEYWORD = {
-        'keyword': lambda v: v is not None,
-        'feedbacks': lambda v: isinstance(v, list),
-        'answer-actions': lambda v: Interaction.validate_actions(v)}
-    
-    ANSWER = {
-        'choice' : lambda v: v is not None,
-        'feedbacks': lambda v: isinstance(v, list),
-        'answer-actions': lambda v: Interaction.validate_actions(v)}
-
-    FIELD_THAT_SHOULD_BE_ARRAY = {
-        'feedbacks',
-        'answers',
-        'answer-keywords',
-        'answer-actions',
-        'max-unmatching-answer-actions',
-        'reminder-actions'
+    FIELD_DEFAULT_VALUE = {
+        'feedbacks': [],
+        'answers': [],
+        'answer-keywords': [],
+        'answer-actions': [],
+        'max-unmatching-answer-actions': [],
+        'reminder-actions':[]
         }
     
     def __init__(self, **kwargs):
@@ -117,77 +230,32 @@ class Interaction(Model):
             action_generator(**action)
         return True
 
-    def modify_field_that_should_be_array(self, field):
-        if field in self.FIELD_THAT_SHOULD_BE_ARRAY and self[field] is None:
-            self[field] = []
+    def validate_answers(self, answers):
+        for answer in answers:
+            self._validate(answer, self.answer_fields)
+        return True
+    
+    def validate_answer_keywords(self, answer_keywords):
+        for answer_keyword in answer_keywords:
+            self._validate(answer_keyword, self.answer_keyword_fields)
+        return True
+
+    def _modify_none_to_default(self, obj):
+        for key in obj:
+            if isinstance(obj[key], list):
+                for elt in obj[key]:
+                    self._modify_none_to_default(elt)
+            if isinstance(obj[key], dict):
+                self._modify_none_to_default(obj[key])
+            if key in self.FIELD_DEFAULT_VALUE and obj[key] is None:
+                obj[key] = self.FIELD_DEFAULT_VALUE[key]
+
+    def before_validate(self):
+        #fix mongodb that change [] into None
+        self._modify_none_to_default(self.payload)
 
     def validate_fields(self):
-        super(Interaction, self).validate_fields()
-        # Check schedule type
-        type_schedule = self.payload['type-schedule']
-        if type_schedule not in self.SCHEDULE_TYPES:
-            raise InvalidField("Unknown schedule_type %r" % (type_schedule,))
-        for extra_field, check in self.SCHEDULE_TYPES[type_schedule].items():
-            self.assert_field_present(extra_field)
-            if not check(self[extra_field]):
-                raise InvalidField(extra_field)
-        # Check interaction type
-        type_interaction = self.payload['type-interaction']
-        if type_interaction not in self.INTERACTION_TYPE:
-            raise InvalidField("Unknow interaction type %r" % (type_interaction,))
-        for extra_field, check in self.INTERACTION_TYPE[type_interaction].items():
-            self.assert_field_present(extra_field)
-            if not check(self[extra_field]):
-                raise InvalidField(extra_field)
-        if self.payload['type-interaction'] == 'announcement':
-            return
-        # Check question type
-        if self.payload['type-interaction'] == 'question-answer':
-            question_type = self.payload['type-question'] 
-            if question_type not in self.QUESTION_TYPE:
-                raise InvalidField("Unknow question type %r" % (question_type,))
-            for extra_field, check in self.QUESTION_TYPE[question_type].items():
-                self.assert_field_present(extra_field)
-                self.modify_field_that_should_be_array(extra_field)
-                if not check(self[extra_field]):
-                    raise InvalidField(extra_field)
-            # check max-unmatching-answers
-            if self.payload['set-max-unmatching-answers'] == 'max-unmatching-answers':
-                for extra_field, check in self.MAX_UNMATCHING_ANSWER_FIELDS.items():
-                    self.assert_field_present(extra_field)
-                    self.modify_field_that_should_be_array(extra_field)
-                    if not check(self[extra_field]):
-                        raise InvalidField(extra_field)  
-        # Check reminder
-        if self.payload['set-reminder'] == 'reminder':
-            for extra_field, check in self.REMINDER_FIELDS.items():
-                self.assert_field_present(extra_field)
-                self.modify_field_that_should_be_array(extra_field)
-                if not check(self[extra_field]):
-                    raise InvalidField(extra_field)
-            for extra_field, check in self.REMINDER_SCHEDULE_TYPE[self[extra_field]].items():
-                self.assert_field_present(extra_field)
-                self.modify_field_that_should_be_array(extra_field)
-                if not check(self[extra_field]):
-                    raise InvalidField(extra_field)
-        # Check answers
-        if self.payload['type-interaction'] == 'question-answer-keyword':
-            self.modify_field_that_should_be_array('answer-keywords')
-            self.validate_answers(self.payload['answer-keywords'], self.ANSWER_KEYWORD)
-        elif (self.payload['type-interaction'] == 'question-answer'
-                  and self.payload['type-question'] == 'closed-question'):
-            self.modify_field_that_should_be_array('answers')
-            self.validate_answers(self.payload['answers'], self.ANSWER)
-            
-    def validate_answers(self, answers, validation_rules):
-        for answer in answers:
-            for extra_field, check in validation_rules.items():
-                if not extra_field in answer:
-                    raise MissingField(extra_field)
-                if extra_field in self.FIELD_THAT_SHOULD_BE_ARRAY and answer[extra_field] is None:
-                    answer[extra_field] = []
-                if not check(answer[extra_field]):
-                    raise InvalidField(extra_field)
+        self._validate(self, self.fields)
 
     def upgrade(self, **kwargs):
         if kwargs['model-version'] == '1':
@@ -222,6 +290,10 @@ class Interaction(Model):
         elif kwargs['model-version'] == '2':
             kwargs['prioritized'] = kwargs['prioritized'] if 'prioritized' in kwargs else None
             kwargs['model-version'] = '3'
+            return self.upgrade(**kwargs)
+        elif kwargs['model-version'] == '3':
+            kwargs['set-matching-answer-actions'] = get_default(kwargs, 'set-matching-answer-actions', None)
+            kwargs['model-version'] = '4'
         return kwargs
 
     def has_reminder(self):
@@ -322,23 +394,36 @@ class Interaction(Model):
             actions.append(RemoveDeadlineAction(**{
                 'dialogue-id': dialogue_id,
                 'interaction-id': self.payload['interaction-id']}))
-        if ('label-for-participant-profiling' in self.payload 
-                and not self.payload['label-for-participant-profiling'] in [None, '']):
+        if self.has_closed_question_profiling():
             action = ProfilingAction(**{
                 'label': self.payload['label-for-participant-profiling'],
                 'value': matching_value})
             actions.append(action)
-        elif ('answer-label' in self.payload 
-                and not self.payload['answer-label'] in [None, '']):
+        elif self.has_open_question_profiling():
             action = ProfilingAction(**{
                 'label': self.payload['answer-label'],
                 'value': matching_value})
             actions.append(action)            
-        if ('feedbacks' in self.payload 
-                and self.payload['feedbacks'] is not None):
+        if self.has_feedbacks():
             for feedback in self.payload['feedbacks']:
                 action = FeedbackAction(**{'content': feedback['content']})
                 actions.append(action)
+        if self.has_matching_answer_actions():
+            for matching_answer_action in self['matching-answer-actions']:
+                actions.append(action_generator(**matching_answer_action))
+
+    def has_closed_question_profiling(self):
+        return ('label-for-participant-profiling' in self.payload 
+                and not self['label-for-participant-profiling'] in [None, ''])
+
+    def has_open_question_profiling(self):
+        return 'answer-label' in self.payload and not self['answer-label'] in [None, '']
+
+    def has_feedbacks(self):
+        return 'feedbacks' in self.payload and self['feedbacks'] is not None
+    
+    def has_matching_answer_actions(self):
+        return self['set-matching-answer-actions'] == 'matching-answer-actions'
 
     def get_actions(self, dialogue_id, msg, msg_keyword, msg_reply, reference_metadata, actions):
         actions.append(RemoveQuestionAction(**{
@@ -349,7 +434,7 @@ class Interaction(Model):
             matching_answer_keyword = self.get_matching_answer_keyword(self.payload['answer-keywords'], msg_keyword)
             if matching_answer_keyword is None:
                 self.get_unmatching_action(msg, actions)
-            else:                
+            else:
                 reference_metadata['matching-answer'] = matching_answer_keyword['keyword']
                 self.get_actions_from_interaction(
                     dialogue_id,

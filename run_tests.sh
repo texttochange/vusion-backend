@@ -10,6 +10,8 @@ find dispatchers/ -name '*.pyc' -delete
 echo "=== Erasing previous coverage data..."
 rm test_results.xml
 coverage erase
+echo "=== Installing any library ==="
+pip install -r requirements.pip
 echo "=== Running trial tests..."
 coverage run --include='vusion/*','transports/*','dispatchers/*, middlewares/*' --omit='*/tests/*,*/__init__*' `which trial` --reporter=subunit middlewares dispatchers transports vusion | tee results.txt | subunit2pyunit
 subunit2junitxml <results.txt >test_results.xml

@@ -21,6 +21,7 @@ class Model(object):
         for key in kwargs:
             kwargs[key] = self.process_field(key, kwargs[key])
         self.payload = kwargs
+        self.before_validate()
         self.validate_fields()
 
     def __eq__(self, other):
@@ -89,6 +90,9 @@ class Model(object):
 
     def is_already_saved(self):
         return '_id' in self.payload
+
+    def before_validate(self):
+        pass    
 
     def _validate(self, data, field_rules):
         for field, rules in field_rules.items():
