@@ -1,12 +1,10 @@
 import re
 
 from vusion.persist import Model
+from vusion.error import VusionError
 
 
 class CreditLog(Model):
-    
-    MODEL_TYPE = 'credit-log'
-    MODEL_VERSION = '1'
     
     fields = {
         'date': {
@@ -14,18 +12,15 @@ class CreditLog(Model):
             '1_valid_string': lambda v: isinstance(v['date'], basestring),
             '2_valid_value': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)$'), v['date'])
             },
-        'logger': {
-            'required': True,
-            'valid_value': lambda v: v['logger'] in ['program', 'garbage'],
-            'required_subfields': lambda v: getattr(v, 'required_subfields') (
-                v['logger'],
-                {'program': ['program-database'],
-                 'garbage': []})
-            },
-        'program-database': {
-            'required': False,
-            'not_none': lambda v: v['program-database'] is not None
-            },
+        #'logger': {
+            #'required': True,
+            #'valid_value': lambda v: v['logger'] in ['program', 'garbage'],
+            #'required_subfields': lambda v: getattr(v, 'required_subfields') (
+                #v['logger'],
+                #{'program': ['program-database'],
+                 #'garbage': []})
+            #},
+
         'code': {
             'required': True,
             '1_not_none': lambda v: v['code'] is not None,
@@ -58,4 +53,37 @@ class CreditLog(Model):
         }
 
     def validate_fields(self):
-        self._validate(self, self.fields)
+        self._validate(self, CreditLog.fields)
+
+    @staticmethod
+    def instanciate(**kwargs):
+        if 'object-type' not in kwargs:
+            raise VusionError("CreditLog is abstract subtype not defined %r" % kwargs)
+    
+        if kwargs['object-type'] == 'garbage-credit-log':
+            return GarbageCreditLog(**kwargs)
+        elif kwargs['object-type'] == 'program-credit-log':
+            return ProgramCreditLog(**kwargs)
+        raise VusionError("%s not supported" % kwargs['object-type'])
+
+class GarbageCreditLog(CreditLog):
+    
+    MODEL_TYPE = 'garbage-credit-log'
+    MODEL_VERSION = '1'
+
+
+class ProgramCreditLog(CreditLog):
+    
+    MODEL_TYPE = 'program-credit-log'
+    MODEL_VERSION = '1'    
+    
+    fields = {
+        'program-database': {
+            'required': True,
+            'not_none': lambda v: v['program-database'] is not None
+        }
+    }
+    
+    def validate_fields(self):
+        super(ProgramCreditLog, self).validate_fields()
+        self._validate(self, ProgramCreditLog.fields)    

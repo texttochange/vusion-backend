@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 from datetime import datetime
 
 from vusion.persist.model_manager import ModelManager
-from vusion.persist import CreditLog
+from vusion.persist import CreditLog, GarbageCreditLog, ProgramCreditLog
 from vusion.utils import time_to_vusion_format, time_to_vusion_format_date
 
 
@@ -94,9 +94,8 @@ class ProgramCreditLogManager(CreditLogManager):
              }).count()
     
     def _create_today_credit_log(self):
-        return CreditLog(**{
+        return ProgramCreditLog(**{
             'date': self.property_helper.get_local_time("iso_date"),
-            'logger': 'program',
             'program-database': self.program_database,
             'code': self.property_helper['shortcode'],
             'incoming': 0,
@@ -126,22 +125,21 @@ class GarbageCreditLogManager(CreditLogManager):
 
     def _has_today_credit_log(self, code):
         return 0 == self.collection.find({
+            'object-type': 'garbage-credit-log',
             'date': time_to_vusion_format_date(datetime.now()),
-            'logger': 'garbage',
             'code': code}).count()
     
     def _create_today_credit_log(self, code):
-        return CreditLog(**{
+        return GarbageCreditLog(**{
             'date': time_to_vusion_format_date(datetime.now()),
-            'logger': 'garbage',
             'code': code,
             'incoming': 0,
             'outgoing': 0})
     
     def _update_credit_log_counter(self, credit_type, credit_number, code):
         self.collection.update(
-            {'date': time_to_vusion_format_date(datetime.now()),
-             'logger': 'garbage',
+            {'object-type': 'garbage-credit-log',
+             'date': time_to_vusion_format_date(datetime.now()),
              'code': code},
             {'$inc': {credit_type: credit_number}})
 
@@ -154,5 +152,5 @@ class GarbageCreditLogManager(CreditLogManager):
                 '$lte': time_to_vusion_format_date(to_date)
                 },
             'code': code,
-            'logger': 'garbage'
+            'object-type': 'garbage-credit-log'
         }
