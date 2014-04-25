@@ -228,3 +228,42 @@ class TestHistoryManager(TestCase, ObjectMaker):
                           "outgoing-failed": 1,
                           "outgoing-delivered": 1}, 
                          result)
+
+    def test_get_older_date(self):
+        now = self.property_helper.get_local_time()
+        past = self.property_helper.get_local_time() - timedelta(days=1)
+        past_more = past - timedelta(days=1)
+        past_more_more = past_more - timedelta(days=2)
+
+        history = self.mkobj_history_unattach(
+            '4',
+            time_to_vusion_format(now))
+        self.history_manager.save(history)
+        
+        history = self.mkobj_history_unattach(
+            '4',
+            time_to_vusion_format(past))
+        self.history_manager.save(history)
+
+        history = self.mkobj_history_unattach(
+            '4',
+            time_to_vusion_format(past_more))
+        self.history_manager.save(history)
+
+        history = self.mkobj_history_unattach(
+            '4',
+            time_to_vusion_format(past_more_more))
+        self.history_manager.save(history)
+        
+        date = self.history_manager.get_older_date()
+        self.assertEqual(date.date(), now.date())
+        
+        date = self.history_manager.get_older_date(now)
+        self.assertEqual(date.date(), past.date())
+        
+        date = self.history_manager.get_older_date(past_more)
+        self.assertEqual(date.date(), past_more_more.date())
+        
+        date = self.history_manager.get_older_date(past_more_more)
+        self.assertTrue(date is None)
+        

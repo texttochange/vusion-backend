@@ -3,7 +3,8 @@ from datetime import timedelta
 from bson import ObjectId, Code
 
 from vusion.persist.model_manager import ModelManager
-from vusion.utils import time_to_vusion_format, time_to_vusion_format_date
+from vusion.utils import (time_to_vusion_format, time_to_vusion_format_date, 
+                          date_from_vusion_format)
 from history import history_generator
 
 
@@ -125,5 +126,14 @@ class HistoryManager(ModelManager):
         counters = result[0]
         return {k : int(float(counters[k])) for k in counters.iterkeys()}
 
-    def get_oldest_date(self):
-        pass
+    def get_older_date(self, date=None):
+        if date is None:
+            date = self.get_local_time() + timedelta(days=1)
+        date = date.replace(hour=0, minute=0, second=0)
+        cursor = self.find(
+            {'timestamp': {'$lte': time_to_vusion_format(date)}}).sort('timestamp', -1).limit(1)
+        if cursor.count() == 0:
+            return None
+        history = history_generator(**cursor.next())
+        return date_from_vusion_format(history['timestamp'])
+        
