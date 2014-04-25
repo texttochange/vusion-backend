@@ -1,3 +1,4 @@
+from datetime import datetime
 
 
 class ModelManager(object):
@@ -34,6 +35,8 @@ class ModelManager(object):
             return orig_attr
 
     def get_local_time(self, date_format='datetime'):
+        if self.property_helper is None:
+            return datetime.now()
         return self.property_helper.get_local_time(date_format)
 
     def log(self, msg, level='msg'):

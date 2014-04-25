@@ -136,4 +136,3 @@ class HistoryManager(ModelManager):
             return None
         history = history_generator(**cursor.next())
         return date_from_vusion_format(history['timestamp'])
-        

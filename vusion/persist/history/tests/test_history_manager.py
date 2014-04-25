@@ -266,4 +266,3 @@ class TestHistoryManager(TestCase, ObjectMaker):
         
         date = self.history_manager.get_older_date(past_more_more)
         self.assertTrue(date is None)
-        

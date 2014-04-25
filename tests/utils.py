@@ -16,7 +16,7 @@ from vusion.message import DispatcherControl, WorkerControl
 from vusion.persist import (Dialogue, DialogueHistory, UnattachHistory,
                             history_generator, schedule_generator, Participant,
                             UnattachMessage, Request, Interaction, ProgramCreditLog,
-                            WorkerConfig)
+                            WorkerConfig, UnmatchableReply)
 
 from vusion.utils import time_to_vusion_format_date
 
@@ -1019,6 +1019,16 @@ class ObjectMaker:
             'message-status': 'delivered',
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id}).get_as_dict()
+
+    def mkobj_unmatchable_reply(self, participant_phone='+25611111',
+                                to='256-8181', direction='incoming', 
+                                timestamp='2014-01-01T10:10:00'):
+            return UnmatchableReply(**{
+                'participant-phone': participant_phone,
+                'to': to,
+                'direction': direction,
+                'message-content': 'Hello',
+                'timestamp': timestamp})
 
     def mkobj_participant(self, participant_phone='06',
                           last_optin_date='2012-02-01T18:30', session_id='1',
