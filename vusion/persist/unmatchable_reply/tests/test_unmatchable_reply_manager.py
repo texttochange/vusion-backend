@@ -32,32 +32,39 @@ class TestUnmatchableReplyManager(TestCase, ObjectMaker):
         past_more_more = past_more - timedelta(days=2)
 
         um = self.mkobj_unmatchable_reply(
-            timestamp=now)
+            timestamp=now, to='256-8181')
         self.manager.save_document(um)
         
         um = self.mkobj_unmatchable_reply(
-            timestamp=past)
+            timestamp=past, to='256-8181')
         self.manager.save_document(um)
         
         um = self.mkobj_unmatchable_reply(
-            timestamp=past_more)
+            timestamp=past_more, to='256-8181')
         self.manager.save_document(um)
 
         um = self.mkobj_unmatchable_reply(
-            timestamp=past_more_more)
+            timestamp=past_more_more, to='256-8181')
         self.manager.save_document(um)
         
-        date = self.manager.get_older_date()
+        um = self.mkobj_unmatchable_reply(
+            timestamp=past, to='256-8282')
+        self.manager.save_document(um)
+        
+        date = self.manager.get_older_date(code='256-8181')
         self.assertEqual(date.date(), now.date())
         
-        date = self.manager.get_older_date(now)
+        date = self.manager.get_older_date(now, code='256-8181')
         self.assertEqual(date.date(), past.date())
         
-        date = self.manager.get_older_date(past_more)
+        date = self.manager.get_older_date(past_more, code='256-8181')
         self.assertEqual(date.date(), past_more_more.date())
         
-        date = self.manager.get_older_date(past_more_more)
+        date = self.manager.get_older_date(past_more_more, code='256-8181')
         self.assertTrue(date is None)
+        
+        date = self.manager.get_older_date(code='256-8282')
+        self.assertEqual(date.date(), past.date())   
 
     def test_count_day_credits(self):
         now = datetime.now()
@@ -65,22 +72,28 @@ class TestUnmatchableReplyManager(TestCase, ObjectMaker):
         past_more = past - timedelta(days=1)
         
         um = self.mkobj_unmatchable_reply(
-            timestamp=now)
+            timestamp=now, to="256-8181")
         self.manager.save_document(um)
         
+        um = self.mkobj_unmatchable_reply(
+            timestamp=now, to="256-8282")
+        self.manager.save_document(um)
+
         um = self.mkobj_unmatchable_reply(
             timestamp=past,
-            direction='outgoing')
+            direction='outgoing',
+            to="256-8181")
         self.manager.save_document(um)
         
         um = self.mkobj_unmatchable_reply(
-            timestamp=past_more)
+            timestamp=past_more,
+            to="256-8181")
         self.manager.save_document(um)
 
         self.assertEqual(
             {'incoming':1, 'outgoing': 1},
-            self.manager.count_day_credits(now))
+            self.manager.count_day_credits(now, code="256-8181"))
         
         self.assertEqual(
             {'incoming':1, 'outgoing': 0},
-            self.manager.count_day_credits(past_more))
+            self.manager.count_day_credits(past_more, "256-8181"))

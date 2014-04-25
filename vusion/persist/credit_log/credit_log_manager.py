@@ -12,9 +12,8 @@ class CreditLogManager(ModelManager):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, db, collection_name, logger, **kwargs):
+    def __init__(self, db, collection_name, **kwargs):
         super(CreditLogManager, self).__init__(db, collection_name, **kwargs)
-        self.logger = logger
         #self.program_database = program_database
         ##As default filter index
         self.collection.ensure_index(
@@ -100,7 +99,7 @@ class CreditLogManager(ModelManager):
 class ProgramCreditLogManager(CreditLogManager):
 
     def __init__(self, db, collection_name, program_database, **kwargs):
-        super(ProgramCreditLogManager, self).__init__(db, collection_name, 'program', **kwargs)
+        super(ProgramCreditLogManager, self).__init__(db, collection_name, **kwargs)
         self.program_database = program_database
         self.collection.ensure_index(
             [('date', 1), ('program-database', 1)],
@@ -155,7 +154,7 @@ class ProgramCreditLogManager(CreditLogManager):
 class GarbageCreditLogManager(CreditLogManager):
     
     def __init__(self, db, collection_name, **kwargs):
-        super(GarbageCreditLogManager, self).__init__(db, collection_name, 'garbage', **kwargs)
+        super(GarbageCreditLogManager, self).__init__(db, collection_name, **kwargs)
 
     def _has_today_credit_log(self, code, date=None):
         if date is None:
@@ -197,5 +196,4 @@ class GarbageCreditLogManager(CreditLogManager):
                 '$lte': time_to_vusion_format_date(to_date)
                 },
             'code': code,
-            'object-type': 'garbage-credit-log'
-        }
+            'object-type': 'garbage-credit-log'}

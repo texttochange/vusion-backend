@@ -123,5 +123,4 @@ class DataLayerUtils:
 
     def drop_collections(self):
         for name, collection in self.collections.items():
-            print ("drop %s" % (name))
             collection.drop()

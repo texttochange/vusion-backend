@@ -168,7 +168,6 @@ class DialogueWorker(ApplicationWorker):
         ## Vusion 
         vusion_db = connection[self.vusion_database_name]
         self.setup_collections(vusion_db, {'templates': None})
-        #self.setup_collections(vusion_db, {'shortcodes': 'shortcode'})
         self.collections['shortcodes'] = ShortcodeManager(
             vusion_db, 'shortcodes')
         self.collections['credit_logs'] = ProgramCreditLogManager(

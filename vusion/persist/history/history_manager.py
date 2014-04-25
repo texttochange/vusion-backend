@@ -134,5 +134,11 @@ class HistoryManager(ModelManager):
             {'timestamp': {'$lte': time_to_vusion_format(date)}}).sort('timestamp', -1).limit(1)
         if cursor.count() == 0:
             return None
-        history = history_generator(**cursor.next())
-        return date_from_vusion_format(history['timestamp'])
+        try:
+            history = history_generator(**cursor.next())
+            return date_from_vusion_format(history['timestamp'])
+        except Exception as e:
+            self.log_helper.log(e.message)
+            return None
+        #history = cursor.next()
+        #return date_from_vusion_format(history['timestamp'])        

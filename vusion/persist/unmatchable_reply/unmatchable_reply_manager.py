@@ -8,21 +8,23 @@ from vusion.persist import ModelManager, UnmatchableReply
 class UnmatchableReplyManager(ModelManager):
     
     def __init__(self, db, collection_name, **kwargs):
-        super(UnmatchableReplyManager, self).__init__(db, collection_name)
+        super(UnmatchableReplyManager, self).__init__(db, collection_name, **kwargs)
         self.collection.ensure_index('timestamp')
 
-    def get_older_date(self, date=None):
+    def get_older_date(self, date=None, code=None):
         if date is None:
             date = self.get_local_time() + timedelta(days=1)
         date = date.replace(hour=0, minute=0, second=0)
-        cursor = self.find(
-            {'timestamp': {'$lte': time_to_vusion_format(date)}}).sort('timestamp', -1).limit(1)
+        conditions = {'timestamp': {'$lte': time_to_vusion_format(date)}}
+        if code is not None:
+            conditions['$or'] = [{'to': code}, {'participant-phone': code}]
+        cursor = self.find(conditions).sort('timestamp', -1).limit(1)
         if cursor.count() == 0:
             return None
         um = UnmatchableReply(**cursor.next())
         return date_from_vusion_format(um['timestamp'])
 
-    def count_day_credits(self, date):
+    def count_day_credits(self, date, code):
         reducer = Code("function(obj, prev) {"
                        "    credits = 1;"
                        "    switch (obj['direction']) {"
@@ -38,7 +40,7 @@ class UnmatchableReplyManager(ModelManager):
             "timestamp": {
                 "$gte": time_to_vusion_format_date(date),
                 "$lt": time_to_vusion_format_date(date + timedelta(days=1))},
-            }
+            "$or": [{"to": code}, {"participant-phone": code}]}
         counters =  {"incoming": 0,
                      "outgoing": 0}
         result = self.group(None, conditions, counters, reducer)

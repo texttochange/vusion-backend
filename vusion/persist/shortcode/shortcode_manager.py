@@ -1,13 +1,14 @@
 import re
 
 from vusion.persist import ModelManager
+from vusion.persist.cursor_instanciator import CursorInstanciator
 from shortcode import Shortcode
 
 
 class ShortcodeManager(ModelManager):
     
     def __init__(self, db, collection_name, **kwargs):
-        super(ShortcodeManager, self).__init__(db, collection_name)
+        super(ShortcodeManager, self).__init__(db, collection_name, **kwargs)
         self.collection.ensure_index('shortcode')
 
     def get_shortcode(self, to_addr, from_addr):
@@ -26,3 +27,8 @@ class ShortcodeManager(ModelManager):
         self.log_helper.err("Could not find shortcode for %s with %s " %
                             (to_addr, code['international-prefix']))
         return None
+
+    def get_shortcodes(self):
+        def log(exception, item):
+            self.log("Exception %s while instanciating a Shortcode %r" % (exception, item))
+        return CursorInstanciator(self.collection.find(), Shortcode, [log])

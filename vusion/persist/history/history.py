@@ -264,6 +264,8 @@ def history_generator(**kwargs):
             kwargs['object-type'] = 'request-history'
         elif 'unattach-id' in kwargs:
             kwargs['object-type'] = 'unattach-history'
+        else:
+            kwargs['object-type'] = None
 
     if kwargs['object-type'] == 'dialogue-history':
         return DialogueHistory(**kwargs)

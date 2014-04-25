@@ -6,6 +6,8 @@ class ModelManager(object):
     def __init__(self, db, collection_name, **kwargs):
         self.property_helper = None
         self.log_helper = None
+        if 'logger' in kwargs:
+            self.log_helper = kwargs['logger']
         if collection_name in db.collection_names():
             self.collection = db[collection_name]
         else:

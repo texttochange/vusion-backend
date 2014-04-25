@@ -4,11 +4,11 @@ from vusion.persist.cursor_instanciator import CursorInstanciator
 class WorkerConfigManager(ModelManager):
     
     def __init__(self, db, collection_name, **kwargs):
-        super(WorkerConfigManager, self).__init__(db, collection_name)
+        super(WorkerConfigManager, self).__init__(db, collection_name, **kwargs)
 
     def get_worker_configs(self):
         def log(exception, item):
-            self.log("Exception %s while instanciating a participant %r" % (exception, item))    
+            self.log("Exception %s while instanciating a WorkerConfig %r" % (exception, item))
         return CursorInstanciator(self.collection.find(), WorkerConfig, [log])
 
     def save_worker_config(self, worker_config):

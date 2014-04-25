@@ -79,3 +79,14 @@ class BasicLogger(object):
             log.debug(msg)
         else:
             log.msg(msg)
+
+
+class PrintLogger(object):
+    
+    def log(self, msg, level='msg'):
+        if level == 'err':
+            print("ERROR: %s" % msg)
+        elif level == 'debug':
+            print("DEBUG: %s" % msg)
+        else:
+            print("%s" % msg)
