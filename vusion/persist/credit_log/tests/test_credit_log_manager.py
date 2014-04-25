@@ -1,5 +1,5 @@
 import pymongo
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from twisted.trial.unittest import TestCase
 
@@ -37,7 +37,7 @@ class TestProgramCreditLogManager(TestCase, ObjectMaker):
     def clearData(self):
         self.clm.drop()
 
-    def test_count(self):
+    def test_increment(self):
         now = self.property_helper.get_local_time()
         self.assertEqual(0, self.clm.get_count(now))
         
@@ -55,6 +55,13 @@ class TestProgramCreditLogManager(TestCase, ObjectMaker):
         self.clm.increment_outgoing(2)
         self.assertEqual(5, self.clm.get_count(now))
 
+    def test_set(self):
+        past = self.property_helper.get_local_time() - timedelta(days=1)
+        past_more = past - timedelta(days=1)
+        self.assertEqual(0, self.clm.get_count(past_more))
+        
+        self.clm.set_counters({'incoming': 2, 'outgoing': 3}, date=past)
+        self.assertEqual(5, self.clm.get_count(past_more))
 
 class TestGarbageCreditLogManager(TestCase, ObjectMaker):
     
@@ -93,3 +100,11 @@ class TestGarbageCreditLogManager(TestCase, ObjectMaker):
         ## increment on another shortcode
         self.clm.increment_outgoing(2, code='256-8282')
         self.assertEqual(3, self.clm.get_count(now, code='256-8181'))
+
+    def test_set(self):
+        past = datetime.now() - timedelta(days=1)
+        past_more = past - timedelta(days=1)
+        self.assertEqual(0, self.clm.get_count(past_more, code='256-8181'))
+        
+        self.clm.set_counters({'incoming': 2, 'outgoing': 3}, code='256-8181', date=past)
+        self.assertEqual(5, self.clm.get_count(past_more, code='256-8181'))

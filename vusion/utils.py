@@ -36,6 +36,10 @@ def time_from_vusion_format(date_time_str):
     return iso8601.parse_date(date_time_str).replace(tzinfo=None)
 
 
+def date_from_vusion_format(date_time_str):
+    return time_from_vusion_format(date_time_str).replace(hour=0, minute=0, second=0)
+
+
 def get_local_time(timezone):
     if timezone is None or timezone in pytz.all_timezones:
         return datetime.utcnow()

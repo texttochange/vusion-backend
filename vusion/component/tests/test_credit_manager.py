@@ -251,16 +251,16 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.property_helper['credit-from-date'] = time_to_vusion_format(past.date())
         self.property_helper['credit-to-date'] = time_to_vusion_format(future.date())
         self.cm.set_limit()
-        
+
         self.assertTrue(self.cm.is_allowed(message_credits=1))
-        self.property_helper.get_local_time = lambda v: time_to_vusion_format_date(more_future)
+        self.property_helper.get_local_time = lambda v: more_future
         self.assertFalse(self.cm.is_allowed(message_credits=1))
-        self.property_helper.get_local_time = lambda v: time_to_vusion_format_date(more_past)
+        self.property_helper.get_local_time = lambda v: more_past
         self.assertFalse(self.cm.is_allowed(message_credits=1))
         
         ## current day of the to-date limit is allowed
         same_date_future = future + timedelta(minutes=1)
-        self.property_helper.get_local_time = lambda v: time_to_vusion_format_date(same_date_future)
+        self.property_helper.get_local_time = lambda v: same_date_future
         self.assertTrue(self.cm.is_allowed(message_credits=1))
 
     def test_check_status_none(self):
@@ -332,20 +332,20 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.property_helper['credit-to-date'] = time_to_vusion_format(future.date())
         self.cm.set_limit()
         
-        self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)
+        self.property_helper.get_local_time = lambda v: now
         status = self.cm.check_status()
         self.assertEqual(status['status'], 'no-credit')
         self.assertEqual(status['since'], time_to_vusion_format(now))
 
-        self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)        
+        self.property_helper.get_local_time = lambda v: now
         status = self.cm.check_status()
         self.assertEqual(status['status'], 'no-credit')
         self.assertEqual(status['since'], time_to_vusion_format(now))
         
-        self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)
+        self.property_helper.get_local_time = lambda v: now
         self.property_helper['credit-to-date'] = time_to_vusion_format(past.date())
         self.cm.set_limit()
-        self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)
+        self.property_helper.get_local_time = lambda v: now
         
         status = self.cm.check_status()
         self.assertEqual(status['status'], 'no-credit-timeframe')

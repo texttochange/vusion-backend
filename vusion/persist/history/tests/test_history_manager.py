@@ -148,3 +148,83 @@ class TestHistoryManager(TestCase, ObjectMaker):
             not_updated_history['message-status'],
             'received')
         self.assertFalse('forwards' in not_updated_history)
+
+
+    def test_count_day_credits(self):
+        past = self.property_helper.get_local_time() - timedelta(hours=2)
+            
+        history = self.mkobj_history_unattach(
+            '4',
+            time_to_vusion_format(past), 
+            message_direction='outgoing',
+            message_status='ack',
+            message_id='1')
+        self.history_manager.save(history)
+        
+        result = self.history_manager.count_day_credits(past)
+        self.assertEqual({"incoming": 0,
+                          "outgoing": 1,
+                          "outgoing-ack": 1,
+                          "outgoing-nack": 0,
+                          "outgoing-failed": 0,
+                          "outgoing-delivered": 0}, 
+                         result)        
+        
+        history = self.mkobj_history_dialogue(
+            '1', '4',
+            time_to_vusion_format(past),
+            message_status='delivered')
+        self.history_manager.save(history)        
+        
+        result = self.history_manager.count_day_credits(past)
+        self.assertEqual({"incoming": 0,
+                          "outgoing": 2,
+                          "outgoing-ack": 1,
+                          "outgoing-nack": 0,
+                          "outgoing-failed": 0,
+                          "outgoing-delivered": 1}, 
+                         result)
+        
+        history = self.mkobj_history_request(
+            '4',
+            time_to_vusion_format(past), 
+            message_direction='incoming',
+            message_status='received')
+        self.history_manager.save(history)        
+
+        result = self.history_manager.count_day_credits(past)
+        self.assertEqual({"incoming": 1,
+                          "outgoing": 2,
+                          "outgoing-ack": 1,
+                          "outgoing-nack": 0,
+                          "outgoing-failed": 0,
+                          "outgoing-delivered": 1}, 
+                         result)
+        
+        history = self.mkobj_history_unattach(
+            '4',
+            time_to_vusion_format(past), 
+            message_direction='outgoing',
+            message_status='pending')
+        self.history_manager.save(history)
+        result = self.history_manager.count_day_credits(past)
+        self.assertEqual({"incoming": 1,
+                          "outgoing": 3,
+                          "outgoing-ack": 1,
+                          "outgoing-nack": 1,
+                          "outgoing-failed": 0,
+                          "outgoing-delivered": 1}, 
+                         result)
+
+        history = self.mkobj_history_unattach_failed(
+            '4',
+            time_to_vusion_format(past))
+        self.history_manager.save(history)
+        result = self.history_manager.count_day_credits(past)
+        self.assertEqual({"incoming": 1,
+                          "outgoing": 4,
+                          "outgoing-ack": 1,
+                          "outgoing-nack": 1,
+                          "outgoing-failed": 1,
+                          "outgoing-delivered": 1}, 
+                         result)

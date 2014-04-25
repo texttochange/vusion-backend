@@ -934,6 +934,26 @@ class ObjectMaker:
             'message-content': 'A message',
             'message-credits': message_credits,
             'unattach-id': unattach_id}).get_as_dict()
+    
+    def mkobj_history_unattach_failed(self, unattach_id, timestamp,
+                               participant_phone='06',
+                               participant_session_id="1", 
+                               message_direction='outgoing',
+                               message_status='failed',
+                               failure_reason='something happend',
+                               message_id='1',
+                               message_credits=1):
+        return history_generator(**{
+            'timestamp': timestamp,
+            'participant-phone': participant_phone,
+            'participant-session-id': participant_session_id,
+            'message-direction': message_direction,
+            'message-status': message_status,
+            'failure-reason': failure_reason,
+            'message-id': message_id,
+            'message-content': 'A message',
+            'message-credits': message_credits,
+            'unattach-id': unattach_id}).get_as_dict()
 
     def mkobj_history_request(self, 
                               request_id, 

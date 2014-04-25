@@ -1,6 +1,6 @@
 # -*- test-case-name: vusion.component.tests.test_sms_limit_manager -*-
 import re
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from bson.code import Code
 
@@ -8,7 +8,8 @@ from twisted.internet.task import LoopingCall
 
 from vumi import log
 
-from vusion.utils import time_to_vusion_format, time_from_vusion_format
+from vusion.utils import (time_to_vusion_format, time_from_vusion_format,
+                          date_from_vusion_format)
 from vusion.persist import Model
 from vusion.error import WrongModelInstanciation
 
@@ -47,23 +48,34 @@ class CreditManager(object):
     def set_limit(self):
         property_helper = self.property_helper
         need_resync = False
-        new_credit_type = property_helper['credit-type']
-        new_credit_number = int(property_helper['credit-number']) if property_helper['credit-number'] is not None else None
-        new_credit_from_date = property_helper['credit-from-date']
-        if property_helper['credit-to-date'] is not None:
-            ## the timeframe include the last day
-            new_credit_to_date = property_helper['credit-to-date']
-        else: 
-            new_credit_to_date = None
-        if (self.credit_type != new_credit_type 
-            or self.credit_number != new_credit_number
-            or self.credit_from_date != new_credit_from_date
-            or self.credit_to_date != new_credit_to_date):
+
+        if property_helper['credit-type'] == 'none' or property_helper['credit-type'] is None:
+            self.credit_type = 'none'
+            self.credit_number = None
+            self.credit_from_date = None
+            self.credit_to_date = None
             need_resync = True
-        self.credit_type = new_credit_type
-        self.credit_number = new_credit_number
-        self.credit_from_date = new_credit_from_date
-        self.credit_to_date = new_credit_to_date
+        else:
+            new_credit_type = property_helper['credit-type']
+            new_credit_number = int(property_helper['credit-number']) if property_helper['credit-number'] is not None else None
+            new_credit_from_date = date_from_vusion_format(property_helper['credit-from-date'])
+            if property_helper['credit-to-date'] is not None:
+                ## the timeframe include the last day
+                new_credit_to_date = date_from_vusion_format(property_helper['credit-to-date'])
+            else: 
+                new_credit_to_date = None
+    
+            if (self.credit_type != new_credit_type 
+                or self.credit_number != new_credit_number
+                or self.credit_from_date != new_credit_from_date
+                or self.credit_to_date != new_credit_to_date):
+                need_resync = True
+    
+            self.credit_type = new_credit_type
+            self.credit_number = new_credit_number
+            self.credit_from_date = new_credit_from_date
+            self.credit_to_date = new_credit_to_date
+
         if need_resync:
             self.reinitialize_counter()
             if self.property_helper.is_ready():
@@ -114,12 +126,12 @@ class CreditManager(object):
         self.redis.incr(self.used_credit_counter_key(), message_credits)        
 
     def is_timeframed(self):
-        local_time = self.property_helper.get_local_time('iso_date')
+        local_time = self.property_helper.get_local_time('datetime')
         return (self.credit_from_date <= local_time
-                and local_time <= self.credit_to_date)
+                and local_time <= self.credit_to_date + timedelta(days=1))
 
     def check_status(self):
-        local_time = self.property_helper.get_local_time('vusion')
+        local_time = self.property_helper.get_local_time('datetime')
         if not self.has_limit():
             status = CreditStatus(**{
                 'status': 'none',
@@ -219,27 +231,9 @@ class CreditManager(object):
 
     def get_used_credit_counter_mongo(self):
         return self.credit_log_collection.get_count(
-            from_date=time_from_vusion_format(self.credit_from_date), 
-            to_date=time_from_vusion_format(self.credit_to_date),
+            from_date=self.credit_from_date,
+            to_date=self.credit_to_date,
             count_type=self.credit_type)
-        #reducer = Code("function(obj, prev) {"
-                       #"    if ('message-credits' in obj) {"
-                       #"        prev.count = prev.count + obj['message-credits'];"
-                       #"    } else {"
-                       #"        prev.count = prev.count + 1;"
-                       #"    }"
-                       #" }")
-        #condition = {
-            #"timestamp": {
-                #"$gt": self.credit_from_date,
-                #"$lt": self.credit_to_date},
-            #"object-type": {"$in": ["dialogue-history", "unattach-history", "request-history"]}}
-        #if self.credit_type == 'outgoing-only':
-            #condition.update({'message-direction': 'outgoing'})
-        #result = self.history_collection.group(None, condition, {"count":0}, reducer)
-        #if len(result) != 0:
-            #return int(float(result[0]['count']))
-        #return 0
 
 
 ## CreditNotification aims highligth a decision from the creditManage on to the frontend
@@ -345,6 +339,10 @@ class CreditStatus(Model):
             if isinstance(other, CreditStatus):
                 return self['status'] == other['status']
             return False 
+
+    def before_validate(self):
+        if 'since' in self and isinstance(self['since'], datetime):
+            self['since'] = time_to_vusion_format(self['since'])
 
     def validate_fields(self):
         self._validate(self, self.fields)

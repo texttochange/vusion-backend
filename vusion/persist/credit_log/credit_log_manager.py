@@ -9,9 +9,9 @@ from vusion.utils import time_to_vusion_format, time_to_vusion_format_date
 
 
 class CreditLogManager(ModelManager):
-    
+
     __metaclass__ = ABCMeta
-    
+
     def __init__(self, db, collection_name, logger, **kwargs):
         super(CreditLogManager, self).__init__(db, collection_name, **kwargs)
         self.logger = logger
@@ -24,20 +24,41 @@ class CreditLogManager(ModelManager):
     @abstractmethod
     def _has_today_credit_log(self):
         pass
-    
+
     @abstractmethod
     def _create_today_credit_log(self):
         pass
+
+    @abstractmethod
+    def _increment_credit_log_counter(self):
+        pass
     
     @abstractmethod
-    def _update_credit_log_counter(self):
+    def _set_credit_log_counter(self):
         pass
 
-    def _increment_counter(self, credit_type, credit_number, **kwargs):
+    def _create_no_exist_day_credit_log(self, **kwargs):
         if self._has_today_credit_log(**kwargs):
-            credit_log = self._create_today_credit_log(**kwargs)
-            self.save_document(credit_log, safe=True)
-        self._update_credit_log_counter(credit_type, credit_number, **kwargs)
+            return
+        credit_log = self._create_today_credit_log(**kwargs)
+        self.save_document(credit_log, safe=True)        
+
+    def _set_counters(self, counters, **kwargs):
+        self._create_no_exist_day_credit_log(**kwargs)
+        self._set_credit_log_counter(counters, **kwargs)
+
+    def _validate_counters(self, counters):
+        return dict((k, v) for (k, v) in counters.iteritems() if k in [
+            "outgoing", "incoming", "outgoing-ack", "outgoing-nack", "outgoing-failed", "outgoing-delivered"])
+
+    def set_counters(self, counters, **kwargs):
+        #check that counters is valid
+        counters = self._validate_counters(counters)
+        self._set_counters(counters, **kwargs)
+
+    def _increment_counter(self, credit_type, credit_number, **kwargs):
+        self._create_no_exist_day_credit_log(**kwargs)
+        self._increment_credit_log_counter(credit_type, credit_number, **kwargs)
 
     def increment_incoming(self, credit_number, **kwargs):
         self._increment_counter('incoming', credit_number, **kwargs)
@@ -77,7 +98,7 @@ class CreditLogManager(ModelManager):
 
 
 class ProgramCreditLogManager(CreditLogManager):
-    
+
     def __init__(self, db, collection_name, program_database, **kwargs):
         super(ProgramCreditLogManager, self).__init__(db, collection_name, 'program', **kwargs)
         self.program_database = program_database
@@ -86,27 +107,40 @@ class ProgramCreditLogManager(CreditLogManager):
             background=True,
             spare=True)
 
-    def _has_today_credit_log(self):
-        return 0 == self.collection.find(
-            {'date': self.property_helper.get_local_time("iso_date"),
+    def _has_today_credit_log(self, date=None):
+        if date is None:
+            date = self.property_helper.get_local_time('datetime')
+        return 0 != self.collection.find(
+            {'date': time_to_vusion_format_date(date),
              'program-database': self.program_database,
              'code': self.property_helper['shortcode']
              }).count()
     
-    def _create_today_credit_log(self):
+    def _create_today_credit_log(self, date=None):
+        if date is None:
+            date = self.property_helper.get_local_time('datetime')
         return ProgramCreditLog(**{
-            'date': self.property_helper.get_local_time("iso_date"),
+            'date': time_to_vusion_format_date(date),
             'program-database': self.program_database,
             'code': self.property_helper['shortcode'],
             'incoming': 0,
             'outgoing': 0})
     
-    def _update_credit_log_counter(self, credit_type, credit_number):
+    def _increment_credit_log_counter(self, credit_type, credit_number):
         self.collection.update(
             {'date': self.property_helper.get_local_time("iso_date"),
              'program-database': self.program_database,
              'code': self.property_helper['shortcode']},
             {'$inc': {credit_type: credit_number}})
+
+    def _set_credit_log_counter(self, counters, date):
+        if date is None:
+            date = self.property_helper.get_local_time()
+        self.collection.update(
+            {'date': time_to_vusion_format_date(date),
+             'program-database': self.program_database,
+             'code': self.property_helper['shortcode']},
+            {'$set': counters})
 
     def _get_count_conditions(self, from_date, to_date):
         if to_date is None:
@@ -123,25 +157,36 @@ class GarbageCreditLogManager(CreditLogManager):
     def __init__(self, db, collection_name, **kwargs):
         super(GarbageCreditLogManager, self).__init__(db, collection_name, 'garbage', **kwargs)
 
-    def _has_today_credit_log(self, code):
-        return 0 == self.collection.find({
+    def _has_today_credit_log(self, code, date=None):
+        if date is None:
+            date = datetime.now()
+        return 0 != self.collection.find({
             'object-type': 'garbage-credit-log',
-            'date': time_to_vusion_format_date(datetime.now()),
+            'date': time_to_vusion_format_date(date),
             'code': code}).count()
     
-    def _create_today_credit_log(self, code):
+    def _create_today_credit_log(self, code, date=None):
+        if date is None:
+            date = datetime.now()        
         return GarbageCreditLog(**{
-            'date': time_to_vusion_format_date(datetime.now()),
+            'date': time_to_vusion_format_date(date),
             'code': code,
             'incoming': 0,
             'outgoing': 0})
     
-    def _update_credit_log_counter(self, credit_type, credit_number, code):
+    def _increment_credit_log_counter(self, credit_type, credit_number, code):
         self.collection.update(
             {'object-type': 'garbage-credit-log',
              'date': time_to_vusion_format_date(datetime.now()),
              'code': code},
             {'$inc': {credit_type: credit_number}})
+
+    def _set_credit_log_counter(self, counters, date, code):
+        self.collection.update(
+            {'object-type': 'garbage-credit-log',
+             'date': time_to_vusion_format_date(date),
+             'code': code},
+            {'$set': counters})
 
     def _get_count_conditions(self, from_date, to_date, code):
         if to_date is None:
