@@ -112,7 +112,7 @@ class HistoryManager(ModelManager):
         conditions = {
             "timestamp": {
                 "$gte": time_to_vusion_format_date(date),
-                "$lte": time_to_vusion_format_date(date + timedelta(days=1))},
+                "$lt": time_to_vusion_format_date(date + timedelta(days=1))},
             "object-type": {"$in": ["dialogue-history", "unattach-history", "request-history"]}}
         counters =  {"incoming": 0,
                      "outgoing": 0,

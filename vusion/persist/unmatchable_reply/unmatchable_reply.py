@@ -6,7 +6,7 @@ from vusion.utils import time_to_vusion_format
 
 from vusion.persist import Model
 
-#TODO convert time to vusion timestamp at before validate
+
 class UnmatchableReply(Model):
     
     MODEL_TYPE = 'unmatchable-reply'

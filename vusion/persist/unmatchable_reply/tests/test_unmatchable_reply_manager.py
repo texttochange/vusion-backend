@@ -58,3 +58,29 @@ class TestUnmatchableReplyManager(TestCase, ObjectMaker):
         
         date = self.manager.get_older_date(past_more_more)
         self.assertTrue(date is None)
+
+    def test_count_day_credits(self):
+        now = datetime.now()
+        past = now - timedelta(hours=1)
+        past_more = past - timedelta(days=1)
+        
+        um = self.mkobj_unmatchable_reply(
+            timestamp=now)
+        self.manager.save_document(um)
+        
+        um = self.mkobj_unmatchable_reply(
+            timestamp=past,
+            direction='outgoing')
+        self.manager.save_document(um)
+        
+        um = self.mkobj_unmatchable_reply(
+            timestamp=past_more)
+        self.manager.save_document(um)
+
+        self.assertEqual(
+            {'incoming':1, 'outgoing': 1},
+            self.manager.count_day_credits(now))
+        
+        self.assertEqual(
+            {'incoming':1, 'outgoing': 0},
+            self.manager.count_day_credits(past_more))
