@@ -4,9 +4,11 @@ from vumi.log import log
 from vumi.utils import get_operator_number
 from vumi.transports.smpp import SmppTransport
 from vumi.transports.smpp.clientserver.client import (
-    EsmeTransceiver, EsmeTransceiverFactory)
+    EsmeTransceiver, EsmeTransceiverFactory, EsmeTransmitterFactory)
 
+from middlewares.custom_middleware_stack import useCustomMiddleware
 
+@useCustomMiddleware
 class EnhancedSmppTransport(SmppTransport):
     
     DELIVERY_REPORT_STATUS_MAPPING = {
@@ -91,3 +93,16 @@ class EnhancedEsmeTransceiver(EsmeTransceiver):
             self.send_pdu(pdu)
             self.push_unacked(sequence_number)
             return sequence_number
+
+
+        from vumi.transports.smpp import SmppTransport
+        from middlewares.custom_middleware_stack import useCustomMiddleware
+        from vumi.transports.smpp.clientserver.client import EsmeTransmitterFactory
+
+
+@useCustomMiddleware
+class EnhancedSmppTxTransport(EnhancedSmppTransport):
+    def make_factory(self):
+        return EsmeTransmitterFactory(self.client_config,
+                                      self.r_server,
+                                      self.esme_callbacks)
