@@ -4,7 +4,8 @@ from abc import ABCMeta, abstractmethod
 from datetime import datetime
 
 from vusion.persist.model_manager import ModelManager
-from vusion.persist import CreditLog, GarbageCreditLog, ProgramCreditLog
+from vusion.persist import (CreditLog, GarbageCreditLog,
+                            ProgramCreditLog, DeletedProgramCreditLog)
 from vusion.utils import time_to_vusion_format, time_to_vusion_format_date
 
 
@@ -64,9 +65,15 @@ class CreditLogManager(ModelManager):
 
     def increment_outgoing(self, credit_number, **kwargs):
         self._increment_counter('outgoing', credit_number, **kwargs)
+        self._increment_counter('outgoing-pending', credit_number, **kwargs)
 
     def increment_acked(self, credit_number, **kwargs):
         self._increment_counter('outgoing-acked', credit_number, **kwargs)
+        self._increment_counter('outgoing-pending', -1 * credit_number, **kwargs)
+    
+    def increment_nacked(self, credit_number, **kwargs):
+        self._increment_counter('outgoing-nacked', credit_number, **kwargs)
+        self._increment_counter('outgoing-pending', -1 * credit_number, **kwargs)
     
     def increment_delivered(self, credit_number, **kwargs):
         self._increment_counter('outgoing-delivered', credit_number, **kwargs)
@@ -74,21 +81,28 @@ class CreditLogManager(ModelManager):
     def increment_failed(self, credit_number, **kwargs):
         self._increment_counter('outgoing-failed', credit_number, **kwargs)
 
+    def increment_event_counter(self, delivery_status, credit_number, **kwargs):
+        if delivery_status == 'ack':
+            self.increment_acked(credit_number, **kwargs)
+        elif delivery_status == 'nack':
+            self.increment_nacked(credit_number, **kwargs)
+        elif delivery_status == 'delivered':
+            self.increment_delivered(credit_number, **kwargs)
+        elif delivery_status == 'failed':
+            self.increment_failed(credit_number, **kwargs)
+        else:
+            self.log("Credit Log event counter is not supporing %s" % delivery_status)
+
     @abstractmethod
     def _get_count_conditions(self):
         pass
 
-    def get_count(self, from_date, to_date=None, count_type='outgoing-incoming', **kwargs):
-        if count_type == 'outgoing-incoming':
-            reducer = Code(
-                "function(obj, prev) {"
-                "    prev.count = prev.count + obj['incoming'] + obj['outgoing'];"
-                " }")
-        else:
-            reducer = Code(
-                "function(obj, prev) {"
-                "    prev.count = prev.count + obj['outgoing'];"
-                " }")
+    def get_count(self, from_date, to_date=None, counters=['outgoing','incoming'], **kwargs):
+        counter_line = 'prev.count'
+        for counter in counters:
+            counter_line = ("%s + ('%s' in obj? obj['%s']: 0)" % (counter_line, counter, counter))
+        reducer = Code(
+            "function(obj, prev) { prev.count = %s;}" % counter_line)
         conditions = self._get_count_conditions(from_date, to_date, **kwargs)
         result = self.collection.group(None, conditions, {"count":0}, reducer)
         if len(result) != 0:
@@ -149,6 +163,15 @@ class ProgramCreditLogManager(CreditLogManager):
                 "$gte": time_to_vusion_format_date(from_date),
                 "$lte": time_to_vusion_format_date(to_date)},
             "program-database": self.program_database}
+
+    def deleting_program(self, program_name):
+        self.collection.update(
+            {'program-database': self.program_database},
+            {'$set': {
+                'object-type': DeletedProgramCreditLog.MODEL_TYPE,
+                'program-name': program_name},
+             '$unset': {'program-database': ''}},
+            multi=True)
 
 
 class GarbageCreditLogManager(CreditLogManager):

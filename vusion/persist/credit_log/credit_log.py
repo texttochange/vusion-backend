@@ -12,15 +12,6 @@ class CreditLog(Model):
             '1_valid_string': lambda v: isinstance(v['date'], basestring),
             '2_valid_value': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)$'), v['date'])
             },
-        #'logger': {
-            #'required': True,
-            #'valid_value': lambda v: v['logger'] in ['program', 'garbage'],
-            #'required_subfields': lambda v: getattr(v, 'required_subfields') (
-                #v['logger'],
-                #{'program': ['program-database'],
-                 #'garbage': []})
-            #},
-
         'code': {
             'required': True,
             '1_not_none': lambda v: v['code'] is not None,
@@ -33,6 +24,10 @@ class CreditLog(Model):
         'outgoing': {
             'required': True,
             'valid_int': lambda v: isinstance(v['outgoing'], int),
+            },
+        'outgoing-pending': {
+            'required': False,
+            'valid_int': lambda v: isinstance(v['outgoing-acked'], int),
             },
         'outgoing-acked': {
             'required': False,
@@ -66,10 +61,28 @@ class CreditLog(Model):
             return ProgramCreditLog(**kwargs)
         raise VusionError("%s not supported" % kwargs['object-type'])
 
+
 class GarbageCreditLog(CreditLog):
     
     MODEL_TYPE = 'garbage-credit-log'
     MODEL_VERSION = '1'
+
+
+class DeletedProgramCreditLog(CreditLog):
+    
+    MODEL_TYPE = 'deleted-program-credit-log'
+    MODEL_VERSION = '1'
+
+    fields = {
+        'program-name': {
+            'required': True,
+            'not_none': lambda v: v['program-name'] is not None
+        }
+    }
+
+    def validate_fields(self):
+        super(ProgramCreditLog, self).validate_fields()
+        self._validate(self, ProgramCreditLog.fields)    
 
 
 class ProgramCreditLog(CreditLog):
@@ -86,4 +99,4 @@ class ProgramCreditLog(CreditLog):
     
     def validate_fields(self):
         super(ProgramCreditLog, self).validate_fields()
-        self._validate(self, ProgramCreditLog.fields)    
+        self._validate(self, ProgramCreditLog.fields)

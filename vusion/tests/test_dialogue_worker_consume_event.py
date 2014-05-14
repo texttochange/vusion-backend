@@ -32,6 +32,8 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
         status = self.collections['history'].find_one({
             'message-id': event['user_message_id']})
         self.assertEqual('ack', status['message-status'])
+        credit_log = self.collections['credit_logs'].find_one()
+        self.assertEqual(1, credit_log['outgoing-acked'])
 
     @inlineCallbacks
     def test_ack_forward(self):
@@ -62,7 +64,6 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
         history = self.collections['history'].find_one()
         self.assertEqual('ack', history['forwards'][0]['status'])
 
-
     @inlineCallbacks
     def test_delivery(self):
         self.initialize_properties()
@@ -82,11 +83,13 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
 
         status = self.collections['history'].find_one({
             'message-id': event['user_message_id']})
-
         self.assertEqual('delivered', status['message-status'])
+        credit_log = self.collections['credit_logs'].find_one()
+        self.assertEqual(1, credit_log['outgoing-delivered'])
 
     @inlineCallbacks
     def test_delivery_no_reference(self):
+        self.initialize_properties()
         event = self.mkmsg_delivery_for_send()
 
         yield self.send(event, 'event')
@@ -125,6 +128,8 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
         self.assertEqual('failed', status['message-status'])
         self.assertEqual('Level:http Code:404 Message:some reason',
                          status['failure-reason'])
+        credit_log = self.collections['credit_logs'].find_one()
+        self.assertEqual(1, credit_log['outgoing-failed'])        
 
     @inlineCallbacks
     def test_delivery_failure_no_details(self):

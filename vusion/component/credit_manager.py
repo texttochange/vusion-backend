@@ -230,10 +230,15 @@ class CreditManager(object):
             self.get_used_credit_counter()
 
     def get_used_credit_counter_mongo(self):
+        counters = ['outgoing']
+        if self.credit_type == 'outgoing-incoming':
+            counters = ['outgoing', 'incoming']
+        elif self.credit_type == 'outgoing-only':
+            counters = ['outgoing']
         return self.credit_log_collection.get_count(
             from_date=self.credit_from_date,
             to_date=self.credit_to_date,
-            count_type=self.credit_type)
+            counters=counters)
 
 
 ## CreditNotification aims highligth a decision from the creditManage on to the frontend

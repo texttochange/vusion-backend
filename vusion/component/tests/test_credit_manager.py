@@ -149,22 +149,26 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.cm.set_limit()
 
         ## Out of the timeframe histories
-        credit_log = self.mkobj_program_credit_log(more_past,
-                                                   program_database=self.database_name)
+        credit_log = self.mkobj_program_credit_log(
+            more_past,
+            program_database=self.database_name)
         self.collections['credit_logs'].save_document(credit_log)
-        credit_log = self.mkobj_program_credit_log(more_future,
-                                                   program_database=self.database_name)
+        credit_log = self.mkobj_program_credit_log(
+            more_future,
+            program_database=self.database_name)
         self.collections['credit_logs'].save_document(credit_log)
         self.assertEqual(self.cm.get_used_credit_counter_mongo(), 0)
 
         ## Count dialogue history
-        credit_log = self.mkobj_program_credit_log(now,
-                                                   program_database=self.database_name)        
+        credit_log = self.mkobj_program_credit_log(
+            now,
+            program_database=self.database_name)
         self.collections['credit_logs'].save_document(credit_log)
         self.assertEqual(self.cm.get_used_credit_counter_mongo(), 2)
 
-        credit_log = self.mkobj_program_credit_log(past,
-                                                   program_database=self.database_name)        
+        credit_log = self.mkobj_program_credit_log(
+            past,
+            program_database=self.database_name)
         self.collections['credit_logs'].save_document(credit_log)
         self.assertEqual(self.cm.get_used_credit_counter_mongo(), 4)
 

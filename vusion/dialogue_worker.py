@@ -225,8 +225,10 @@ class DialogueWorker(ApplicationWorker):
         self.log("Event message received %s" % (message,))
         if (message['event_type'] == 'ack'):
             status = 'ack'
+            credit_status = status
         elif (message['event_type'] == 'delivery_report'):
             status = message['delivery_status']
+            credit_status = status
             if (message['delivery_status'] == 'failed'):
                 status = {
                   'status': message['delivery_status'],
@@ -234,11 +236,13 @@ class DialogueWorker(ApplicationWorker):
                       message.get('failure_level', 'unknown'),
                       message.get('failure_code', 'unknown'),
                       message.get('failure_reason', 'unknown')))}
+                credit_status = message['delivery_status']
         if ('transport_type' in message['transport_metadata'] 
            and message['transport_metadata']['transport_type'] == 'http_forward'):
             self.collections['history'].update_forwarded_status(message['user_message_id'], status)
             return
         self.collections['history'].update_status(message['user_message_id'], status)
+        self.collections['credit_logs'].increment_event_counter(credit_status, 1)
 
     def update_participant_transport_metadata(self, message):
         if message['transport_metadata'] is not {}:

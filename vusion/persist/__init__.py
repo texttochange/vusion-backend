@@ -24,7 +24,8 @@ from schedule.schedule import (FeedbackSchedule, DeadlineSchedule, ReminderSched
                       schedule_generator)
 from schedule.schedule_manager import ScheduleManager
 
-from credit_log.credit_log import CreditLog, ProgramCreditLog, GarbageCreditLog
+from credit_log.credit_log import (CreditLog, ProgramCreditLog,
+                                   GarbageCreditLog, DeletedProgramCreditLog)
 from credit_log.credit_log_manager import (ProgramCreditLogManager,
                                            GarbageCreditLogManager)
 
@@ -54,6 +55,7 @@ __all__ = ["Model", "ModelManager",
            "DeadlineSchedule","ReminderSchedule", "DialogueSchedule",
            "UnattachSchedule", "ActionSchedule", "ScheduleManager",
            "CreditLog", "ProgramCreditLog", "GrabageCreditLog",
+           "DeletedProgramCreditLog",
            "ProgramCreditLogManager", "GarbageCreditLogManager",
            "Shortcode", "ShortcodeManager",
            "Request", 

@@ -37,19 +37,29 @@ class TestProgramCreditLogManager(TestCase, ObjectMaker):
     def clearData(self):
         self.clm.drop()
 
+    def test_get_count(self):
+        now = self.property_helper.get_local_time()        
+        self.clm.increment_outgoing(2)
+        self.assertEqual(2, self.clm.get_count(now, counters=['outgoing']))
+        self.assertEqual(4, self.clm.get_count(now, counters=['outgoing', 'outgoing-pending']))
+        self.assertEqual(2, self.clm.get_count(now, counters=['outgoing-pending']))        
+        self.assertEqual(0, self.clm.get_count(now, counters=['outgoing-ack']))
+
     def test_increment(self):
         now = self.property_helper.get_local_time()
         self.assertEqual(0, self.clm.get_count(now))
         
         self.clm.increment_outgoing(2)
         self.assertEqual(2, self.clm.get_count(now))
+        self.assertEqual(2, self.clm.get_count(now, counters=['outgoing-pending']))
         
         self.clm.increment_incoming(1)
-        self.assertEqual(2, self.clm.get_count(now, count_type='outgoing-only'))
+        self.assertEqual(2, self.clm.get_count(now, counters=['outgoing']))
         self.assertEqual(3, self.clm.get_count(now))
 
         self.clm.increment_failed(2)
         self.assertEqual(3, self.clm.get_count(now))
+        self.assertEqual(0, self.clm.get_count(now, counters=['outgoing-pending']))
         
         self.clm.property_helper['shortcode'] = '256-8282'
         self.clm.increment_outgoing(2)
@@ -62,6 +72,21 @@ class TestProgramCreditLogManager(TestCase, ObjectMaker):
         
         self.clm.set_counters({'incoming': 2, 'outgoing': 3}, date=past)
         self.assertEqual(5, self.clm.get_count(past_more))
+
+    def test_deleting_program(self):
+        now = self.property_helper.get_local_time()
+        past = now - timedelta(days=1)
+        self.clm.set_counters({'incoming': 1, 'outgoing': 2}, date=now)
+        self.clm.set_counters({'incoming': 2, 'outgoing': 2}, date=past)
+        
+        self.clm.deleting_program('My program name');
+        
+        c = self.clm.find({'object-type': 'deleted-program-credit-log'})
+        self.assertEqual(2, c.count())
+        for item in c:
+            self.assertEqual(item['program-name'], "My program name")
+            self.assertTrue('program-database' not in item)
+
 
 class TestGarbageCreditLogManager(TestCase, ObjectMaker):
     
@@ -90,7 +115,7 @@ class TestGarbageCreditLogManager(TestCase, ObjectMaker):
         
         self.clm.increment_incoming(1, code='256-8181')
         self.assertEqual(2, self.clm.get_count(now,
-                                               count_type='outgoing-only',
+                                               counters=['outgoing'],
                                                code='256-8181'))
         self.assertEqual(3, self.clm.get_count(now, code='256-8181'))
 
