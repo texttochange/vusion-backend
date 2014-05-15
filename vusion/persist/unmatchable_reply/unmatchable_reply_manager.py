@@ -1,7 +1,8 @@
 from datetime import timedelta
 from bson import Code
 from vusion.utils import (time_to_vusion_format, date_from_vusion_format,
-                          time_to_vusion_format_date)
+                          time_to_vusion_format_date, get_shortcode_value,
+                          get_shortcode_international_prefix)
 from vusion.persist import ModelManager, UnmatchableReply
 
 
@@ -17,7 +18,12 @@ class UnmatchableReplyManager(ModelManager):
         date = date.replace(hour=0, minute=0, second=0)
         conditions = {'timestamp': {'$lte': time_to_vusion_format(date)}}
         if code is not None:
-            conditions['$or'] = [{'to': code}, {'participant-phone': code}]
+            conditions['$or'] = [
+                {'to': code},
+                {'participant-phone': code},
+                {'to': get_shortcode_value(code), 
+                 'participant-phone': {'$regex': "^\+%s" % get_shortcode_international_prefix(code)}}
+            ]
         cursor = self.find(conditions).sort('timestamp', -1).limit(1)
         if cursor.count() == 0:
             return None
@@ -37,10 +43,14 @@ class UnmatchableReplyManager(ModelManager):
                        "     }"
                        " }")
         conditions = {
-            "timestamp": {
-                "$gte": time_to_vusion_format_date(date),
-                "$lt": time_to_vusion_format_date(date + timedelta(days=1))},
-            "$or": [{"to": code}, {"participant-phone": code}]}
+            'timestamp': {
+                '$gte': time_to_vusion_format_date(date),
+                '$lt': time_to_vusion_format_date(date + timedelta(days=1))},
+            '$or': [
+                {'to': code}, {"participant-phone": code}, 
+                {'to': get_shortcode_value(code), 
+                 'participant-phone': {'$regex': "^\+%s" % get_shortcode_international_prefix(code)}},
+            ]}
         counters =  {"incoming": 0,
                      "outgoing": 0}
         result = self.group(None, conditions, counters, reducer)

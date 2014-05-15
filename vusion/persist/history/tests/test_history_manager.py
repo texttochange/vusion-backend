@@ -164,6 +164,7 @@ class TestHistoryManager(TestCase, ObjectMaker):
         result = self.history_manager.count_day_credits(past)
         self.assertEqual({"incoming": 0,
                           "outgoing": 1,
+                          "outgoing-pending": 0,
                           "outgoing-ack": 1,
                           "outgoing-nack": 0,
                           "outgoing-failed": 0,
@@ -179,6 +180,7 @@ class TestHistoryManager(TestCase, ObjectMaker):
         result = self.history_manager.count_day_credits(past)
         self.assertEqual({"incoming": 0,
                           "outgoing": 2,
+                          "outgoing-pending": 0,
                           "outgoing-ack": 1,
                           "outgoing-nack": 0,
                           "outgoing-failed": 0,
@@ -195,6 +197,7 @@ class TestHistoryManager(TestCase, ObjectMaker):
         result = self.history_manager.count_day_credits(past)
         self.assertEqual({"incoming": 1,
                           "outgoing": 2,
+                          "outgoing-pending": 0,
                           "outgoing-ack": 1,
                           "outgoing-nack": 0,
                           "outgoing-failed": 0,
@@ -210,8 +213,9 @@ class TestHistoryManager(TestCase, ObjectMaker):
         result = self.history_manager.count_day_credits(past)
         self.assertEqual({"incoming": 1,
                           "outgoing": 3,
+                          "outgoing-pending": 1,
                           "outgoing-ack": 1,
-                          "outgoing-nack": 1,
+                          "outgoing-nack": 0,
                           "outgoing-failed": 0,
                           "outgoing-delivered": 1}, 
                          result)
@@ -223,8 +227,9 @@ class TestHistoryManager(TestCase, ObjectMaker):
         result = self.history_manager.count_day_credits(past)
         self.assertEqual({"incoming": 1,
                           "outgoing": 4,
+                          "outgoing-pending": 1,
                           "outgoing-ack": 1,
-                          "outgoing-nack": 1,
+                          "outgoing-nack": 0,
                           "outgoing-failed": 1,
                           "outgoing-delivered": 1}, 
                          result)

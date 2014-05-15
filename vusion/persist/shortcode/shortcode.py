@@ -49,6 +49,7 @@ class Shortcode(Model):
             return 1
         return int(ceil(float(len(message_content)) / float(self['max-character-per-sms'])))
 
+    ##TODO rename to get_prefixed_code
     def get_vusion_reference(self):
         if self['supported-internationally'] == 1:
             return self['shortcode']

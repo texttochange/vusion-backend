@@ -72,7 +72,7 @@ class TestUnmatchableReplyManager(TestCase, ObjectMaker):
         past_more = past - timedelta(days=1)
         
         um = self.mkobj_unmatchable_reply(
-            timestamp=now, to="256-8181")
+            timestamp=now, to="8181", participant_phone="+2567777")
         self.manager.save_document(um)
         
         um = self.mkobj_unmatchable_reply(

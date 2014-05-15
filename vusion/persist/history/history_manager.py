@@ -102,8 +102,11 @@ class HistoryManager(ModelManager):
                        "        case 'failed':"
                        "              prev['outgoing-failed'] = prev['outgoing-failed'] + credits;"
                        "              break;"
-                       "        case 'pending':"
+                       "        case 'nack':"
                        "              prev['outgoing-nack'] = prev['outgoing-nack'] + credits;"
+                       "              break;"
+                       "        case 'pending':"
+                       "              prev['outgoing-pending'] = prev['outgoing-pending'] + credits;"
                        "              break;"
                        "        }"
                        "        break;"
@@ -116,6 +119,7 @@ class HistoryManager(ModelManager):
             "object-type": {"$in": ["dialogue-history", "unattach-history", "request-history"]}}
         counters =  {"incoming": 0,
                      "outgoing": 0,
+                     "outgoing-pending": 0,
                      "outgoing-ack": 0,
                      "outgoing-nack": 0,
                      "outgoing-failed": 0,
@@ -140,5 +144,3 @@ class HistoryManager(ModelManager):
         except Exception as e:
             self.log_helper.log(e.message)
             return None
-        #history = cursor.next()
-        #return date_from_vusion_format(history['timestamp'])        

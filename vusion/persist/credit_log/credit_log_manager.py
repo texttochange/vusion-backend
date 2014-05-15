@@ -49,7 +49,13 @@ class CreditLogManager(ModelManager):
 
     def _validate_counters(self, counters):
         return dict((k, v) for (k, v) in counters.iteritems() if k in [
-            "outgoing", "incoming", "outgoing-ack", "outgoing-nack", "outgoing-failed", "outgoing-delivered"])
+            "outgoing", 
+            "incoming",
+            "outgoing-pending",
+            "outgoing-ack",
+            "outgoing-nack",
+            "outgoing-failed",
+            "outgoing-delivered"])
 
     def set_counters(self, counters, **kwargs):
         #check that counters is valid

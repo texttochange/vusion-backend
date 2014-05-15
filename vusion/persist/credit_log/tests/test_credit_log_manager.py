@@ -59,7 +59,7 @@ class TestProgramCreditLogManager(TestCase, ObjectMaker):
 
         self.clm.increment_failed(2)
         self.assertEqual(3, self.clm.get_count(now))
-        self.assertEqual(0, self.clm.get_count(now, counters=['outgoing-pending']))
+        self.assertEqual(2, self.clm.get_count(now, counters=['outgoing-pending']))
         
         self.clm.property_helper['shortcode'] = '256-8282'
         self.clm.increment_outgoing(2)
