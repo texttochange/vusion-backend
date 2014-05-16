@@ -271,3 +271,17 @@ class TestHistoryManager(TestCase, ObjectMaker):
         
         date = self.history_manager.get_older_date(past_more_more)
         self.assertTrue(date is None)
+
+    def test_get_status_and_credits(self):
+        past = self.property_helper.get_local_time() - timedelta(hours=3)
+        history = self.mkobj_history_unattach(
+            '4',
+            time_to_vusion_format(past), 
+            message_direction='outgoing',
+            message_status='pending',
+            message_id='1')
+        self.history_manager.save(history)
+        
+        history = self.history_manager.get_status_and_credits('1')
+        self.assertEqual(history['message-status'], 'pending')
+        self.assertEqual(history['message-credits'], 1)

@@ -73,6 +73,7 @@ class TestProgramCreditLogManager(TestCase, ObjectMaker):
         self.clm.set_counters({'incoming': 2, 'outgoing': 3}, date=past)
         self.assertEqual(5, self.clm.get_count(past_more))
 
+    # Is in reallity done by the front end
     def test_deleting_program(self):
         now = self.property_helper.get_local_time()
         past = now - timedelta(days=1)
@@ -86,6 +87,30 @@ class TestProgramCreditLogManager(TestCase, ObjectMaker):
         for item in c:
             self.assertEqual(item['program-name'], "My program name")
             self.assertTrue('program-database' not in item)
+
+    def test_increment_event_counter(self):
+        now = self.property_helper.get_local_time()
+        self.clm.set_counters(
+            {'incoming': 0,
+             'outgoing': 4,
+             'outgoing-pending': 3,
+             'outgoing-ack':2 },
+            date=now)
+        
+        self.clm.increment_event_counter('pending', 'failed', 2)        
+        credit_log = self.clm.find_one()
+        self.assertEqual(1, credit_log['outgoing-pending'])
+        self.assertEqual(2, credit_log['outgoing-failed'])
+        
+        self.clm.increment_event_counter('ack', 'failed', 1)
+        credit_log = self.clm.find_one()
+        self.assertEqual(1, credit_log['outgoing-pending'])
+        self.assertEqual(3, credit_log['outgoing-failed'])
+        
+        self.clm.increment_event_counter('pending', 'delivered', 1)
+        credit_log = self.clm.find_one()
+        self.assertEqual(0, credit_log['outgoing-pending'])
+        self.assertEqual(1, credit_log['outgoing-delivered'])
 
 
 class TestGarbageCreditLogManager(TestCase, ObjectMaker):

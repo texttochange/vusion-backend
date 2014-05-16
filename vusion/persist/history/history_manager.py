@@ -144,3 +144,10 @@ class HistoryManager(ModelManager):
         except Exception as e:
             self.log_helper.log(e.message)
             return None
+
+    def get_status_and_credits(self, user_message_id):
+        limit_timesearch = self.get_local_time() - timedelta(hours=self.TIMESTAMP_LIMIT_ACK)        
+        return self.collection.find_one(
+            {'message-id': user_message_id,
+             'timestamp': {'$gt' : time_to_vusion_format(limit_timesearch)}},
+            ['message-status', 'message-credits'])

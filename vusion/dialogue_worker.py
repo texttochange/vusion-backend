@@ -223,6 +223,8 @@ class DialogueWorker(ApplicationWorker):
 
     def dispatch_event(self, message):
         self.log("Event message received %s" % (message,))
+        history = self.collections['history'].get_status_and_credits(
+            message['user_message_id'])
         if (message['event_type'] == 'ack'):
             status = 'ack'
             credit_status = status
@@ -242,7 +244,11 @@ class DialogueWorker(ApplicationWorker):
             self.collections['history'].update_forwarded_status(message['user_message_id'], status)
             return
         self.collections['history'].update_status(message['user_message_id'], status)
-        self.collections['credit_logs'].increment_event_counter(credit_status, 1)
+        if history is None:
+            history = {'message-status': 'ack',
+                       'message-credits': 1}
+        self.collections['credit_logs'].increment_event_counter(
+            history['message-status'], credit_status, history['message-credits'])
 
     def update_participant_transport_metadata(self, message):
         if message['transport_metadata'] is not {}:

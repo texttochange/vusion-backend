@@ -87,17 +87,21 @@ class CreditLogManager(ModelManager):
     def increment_failed(self, credit_number, **kwargs):
         self._increment_counter('outgoing-failed', credit_number, **kwargs)
 
-    def increment_event_counter(self, delivery_status, credit_number, **kwargs):
-        if delivery_status == 'ack':
+    def increment_event_counter(self, prev_status, current_status, credit_number, **kwargs):
+        if current_status == 'ack':
             self.increment_acked(credit_number, **kwargs)
-        elif delivery_status == 'nack':
+        elif current_status == 'nack':
             self.increment_nacked(credit_number, **kwargs)
-        elif delivery_status == 'delivered':
+        elif current_status == 'delivered':
+            if prev_status == 'pending':
+                self._increment_counter('outgoing-pending', -1 * credit_number, **kwargs)
             self.increment_delivered(credit_number, **kwargs)
-        elif delivery_status == 'failed':
+        elif current_status == 'failed':
+            if prev_status == 'pending':
+                self._increment_counter('outgoing-pending', -1 * credit_number, **kwargs)
             self.increment_failed(credit_number, **kwargs)
         else:
-            self.log("Credit Log event counter is not supporing %s" % delivery_status)
+            self.log("Credit Log event counter is not supporing %s" % current_status)
 
     @abstractmethod
     def _get_count_conditions(self):
