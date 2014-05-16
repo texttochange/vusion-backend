@@ -104,6 +104,7 @@ class CreditManager(object):
     def is_allowed(self, message_credits, schedule=None):
         #log.msg('[credit manager] is allowed %r' % schedule)
         if not self.has_limit():
+            self.credit_log_collection.increment_outgoing(message_credits)
             return True
         if not self.is_timeframed():
             self.set_blackcard(schedule)

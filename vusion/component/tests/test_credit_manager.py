@@ -75,6 +75,8 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.property_helper['credit-type'] = 'none'
         self.cm.set_limit()
         self.assertTrue(self.cm.is_allowed('test'))
+        # Event without limit the credit logs should be increased
+        self.assertEqual(1, self.collections['credit_logs'].count())
 
     def test_outgoing_limit_history(self):
         now = datetime.now()
