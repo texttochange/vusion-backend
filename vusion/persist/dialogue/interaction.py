@@ -19,7 +19,7 @@ from vusion.utils import (time_from_vusion_format, time_to_vusion_format,
 class Interaction(Model):
     
     MODEL_TYPE = 'interaction'
-    MODEL_VERSION = '4'
+    MODEL_VERSION = '5'
     
     fields = {
         'interaction-id': {
@@ -37,7 +37,7 @@ class Interaction(Model):
                 {'fixed-time':['date-time'],
                  'offset-time': ['minutes'],
                  'offset-days': ['days', 'at-time'],
-                 'offset-condition': ['offset-condition-interaction-id']})                
+                 'offset-condition': ['offset-condition-interaction-id', 'offset-condition-delay']})
             },
         'type-interaction': {
             'required': True,
@@ -294,6 +294,11 @@ class Interaction(Model):
         elif kwargs['model-version'] == '3':
             kwargs['set-matching-answer-actions'] = get_default(kwargs, 'set-matching-answer-actions', None)
             kwargs['model-version'] = '4'
+            return self.upgrade(**kwargs)
+        elif kwargs['model-version'] == '4':
+            if kwargs['type-schedule'] == 'offset-condition':
+                kwargs['offset-condition-delay'] = get_default(kwargs, 'offset-condition-delay', 0)
+            kwargs['model-version'] = '5'
         return kwargs
 
     def has_reminder(self):
