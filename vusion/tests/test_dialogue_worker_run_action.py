@@ -423,7 +423,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         dNow = self.worker.get_local_time()
         
         dialogue = self.mkobj_dialogue_open_question_offset_conditional()
-        dialogue['interactions'][1]['offset-condition-delay'] = 10
+        dialogue['interactions'][1]['offset-condition-delay'] = "10"
         self.collections['dialogues'].save(dialogue)
 
         self.collections['participants'].save(self.mkobj_participant('06'))

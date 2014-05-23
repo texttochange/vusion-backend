@@ -37,7 +37,8 @@ class Interaction(Model):
                 {'fixed-time':['date-time'],
                  'offset-time': ['minutes'],
                  'offset-days': ['days', 'at-time'],
-                 'offset-condition': ['offset-condition-interaction-id', 'offset-condition-delay']})
+                 'offset-condition': ['offset-condition-interaction-id', 
+                                      'offset-condition-delay']})
             },
         'type-interaction': {
             'required': True,

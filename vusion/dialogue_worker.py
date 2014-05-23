@@ -744,7 +744,7 @@ class DialogueWorker(ApplicationWorker):
                     # if the answer 
                     if  previous is None:
                         continue
-                    sending_date_time = self.get_local_time() + timedelta(minutes=interaction['offset-condition-delay'])
+                    sending_date_time = self.get_local_time() + timedelta(minutes=int(interaction['offset-condition-delay']))
 
                 schedule = self.collections['schedules'].get_participant_interaction(
                     participant['phone'], dialogue["dialogue-id"], interaction["interaction-id"])

@@ -20,6 +20,7 @@ class TestInteraction(TestCase, ObjectMaker):
         interaction = Interaction(**dialogue['interactions'][0])
         self.assertTrue(interaction is not None)
 
+
     def test_validation_open_question(self):
         dialogue = self.mkobj_dialogue_open_question()
         interaction = Interaction(**dialogue['interactions'][0])
@@ -54,6 +55,7 @@ class TestInteraction(TestCase, ObjectMaker):
 
         self.assertTrue(interaction is not None)
         self.assertEqual(Interaction.MODEL_VERSION, interaction['model-version'])
+
 
     def test_get_actions_from_matching_answer_multi_keyword(self):
         dialogue = self.mkobj_dialogue_question_multi_keyword()
@@ -255,4 +257,3 @@ class TestInteraction(TestCase, ObjectMaker):
         self.assertEqual(
             interaction.get_keywords(),
             ['feel'])
-    
