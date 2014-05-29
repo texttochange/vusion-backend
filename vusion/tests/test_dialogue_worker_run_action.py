@@ -393,7 +393,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(
             self.collections['schedules'].count(),
             2)
-
+        
         # Do not reschedule
         self.worker.run_action("06", OffsetConditionAction(**{
             'dialogue-id': '01',
@@ -413,10 +413,45 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
 
         self.worker.run_action("06", OffsetConditionAction(**{
             'dialogue-id': '04',
-            'interaction-id': '01-01'}))        
+            'interaction-id': '01-01'}))
         self.assertEqual(
             self.collections['schedules'].count(),
             3)
+    
+    def test_run_action_offset_condition_delayed(self):
+        self.initialize_properties()    
+        dNow = self.worker.get_local_time()
+        
+        dialogue = self.mkobj_dialogue_open_question_offset_conditional()
+        dialogue['interactions'][1]['offset-condition-delay'] = "10"
+        self.collections['dialogues'].save(dialogue)
+
+        self.collections['participants'].save(self.mkobj_participant('06'))
+        
+        #save the first question send
+        self.save_history(
+            timestamp=dNow - timedelta(minutes=10),
+            participant_phone='06',
+            participant_session_id='1',
+            metadata={'dialogue-id': '04',
+                      'interaction-id': '01-01'})
+        #and the first question answered
+        self.save_history(
+            timestamp=dNow,
+            participant_phone='06',
+            participant_session_id='1',
+            message_direction='incoming',
+            metadata={'dialogue-id': '04',
+                      'interaction-id': '01-01'})
+        #then run the action that should schedule the next question in 5 minutes
+        self.worker.run_action('06', OffsetConditionAction(**{
+            'dialogue-id': '04',
+            'interaction-id': '01-02'}))
+        self.assertEqual(1, self.collections['schedules'].count())
+        schedule = self.collections['schedules'].find_one()
+        self.assertTrue(
+            (dNow + timedelta(minutes=10)) - time_from_vusion_format(schedule['date-time']) 
+            < timedelta(seconds=10))
         
     def test_run_action_remove_reminders(self):
         self.initialize_properties()
