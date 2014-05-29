@@ -1,7 +1,8 @@
 from datetime import datetime
 from twisted.trial.unittest import TestCase
 from tests.utils import ObjectMaker
-from vusion.persist.shortcode import Shortcode
+from vusion.persist import Shortcode
+
 
 class TestShortcode(TestCase, ObjectMaker):
     
@@ -24,3 +25,10 @@ class TestShortcode(TestCase, ObjectMaker):
             'shortcode': u'15012'}
         shortcode = Shortcode(**self.mkobj_shortcode())
         self.assertEqual(Shortcode.MODEL_VERSION, shortcode['model-version'])
+    
+    def test_get_message_credits(self):
+        shortcode = Shortcode(**self.mkobj_shortcode())
+        self.assertEqual(1, shortcode.get_message_credits(None))
+        self.assertEqual(1, shortcode.get_message_credits(''))
+        self.assertEqual(2, shortcode.get_message_credits(self.mk_content(170)))
+        

@@ -6,9 +6,10 @@ from math import ceil
 from copy import deepcopy
 
 from vusion.utils import (get_shortcode_value, is_shortcode_address,
-                          get_shortcode_international_prefix, time_to_vusion_format)
+                          get_shortcode_international_prefix, time_to_vusion_format,
+                          time_to_vusion_format_date)
 from vusion.error import MissingCode, MissingLocalTime
-from vusion.persist.shortcode import Shortcode
+from vusion.persist import Shortcode
 
 
 class DialogueWorkerPropertyHelper(object):
@@ -96,7 +97,9 @@ class DialogueWorkerPropertyHelper(object):
 	elif (date_format=='vusion' or date_format=='iso'):
 	    return time_to_vusion_format(local_time)
 	elif (date_format=="timestamp"):
-	    return long("%s%s" % (long(mktime(local_time.timetuple())),local_time.microsecond))	
+	    return long("%s%s" % (long(mktime(local_time.timetuple())),local_time.microsecond))
+	elif (date_format=="iso_date"):
+	    return time_to_vusion_format_date(local_time)
 	else:
 	    raise Exception('Datetime format %s is not supported' % date_format)
 

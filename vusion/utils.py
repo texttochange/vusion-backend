@@ -11,7 +11,7 @@ def get_default(kwargs, field, default_value):
 
 
 def get_local_code(from_addr):
-     return (from_addr or '').split('-')[1]
+    return (from_addr or '').split('-')[1]
 
 
 def clean_keyword(keyword):
@@ -24,12 +24,20 @@ def time_to_vusion_format(timestamp):
     return timestamp.strftime('%Y-%m-%dT%H:%M:%S')
 
 
+def time_to_vusion_format_date(timestamp):
+    return timestamp.strftime('%Y-%m-%d')
+
+
 def get_now_timestamp():
     return time_to_vusion_format(datetime.now())
 
 
 def time_from_vusion_format(date_time_str):
     return iso8601.parse_date(date_time_str).replace(tzinfo=None)
+
+
+def date_from_vusion_format(date_time_str):
+    return time_from_vusion_format(date_time_str).replace(hour=0, minute=0, second=0)
 
 
 def get_local_time(timezone):
@@ -43,7 +51,7 @@ def get_local_time_as_timestamp(local_time):
     return long("%s%s" % (long(mktime(local_time.timetuple())),
                           local_time.microsecond))
 
-
+##TODO rename is_prefixed_code_a_shortcode
 def is_shortcode_address(address):
     if address is None:
         return False
@@ -51,13 +59,15 @@ def is_shortcode_address(address):
     if re.match(regex_NATIONAL_SHORTCODE, address):
         return True
     return False
-    
+
+##TODO rename is_prefixed_code_a_longcode
 def is_longcode_address(address):
     regex_LONGCODE = re.compile('/^\+[0-9]+$/')
     if re.match(regex_LONGCODE, address):
         return True
     return False
 
+##TODO rename from_prefixed_code_to_code
 def get_shortcode_value(shortcode):
     if shortcode is None :
         return None
@@ -65,6 +75,7 @@ def get_shortcode_value(shortcode):
         return shortcode.split('-')[1]
     return shortcode
 
+##TODO rename from_prefixed_code_to_prefix
 def get_shortcode_international_prefix(shortcode):
     if shortcode is None :
         return None
@@ -72,6 +83,7 @@ def get_shortcode_international_prefix(shortcode):
         return shortcode.split('-')[0]
     return shortcode
 
+##TODO move function in Shortcode model
 def get_shortcode_address(shortcode):
     if shortcode['supported-internationally'] == 0:
         return ("%s-%s" % (shortcode['international-prefix'], shortcode['shortcode']))
@@ -115,5 +127,4 @@ class DataLayerUtils:
 
     def drop_collections(self):
         for name, collection in self.collections.items():
-            print ("drop %s" % (name))
             collection.drop()

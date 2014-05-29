@@ -30,7 +30,7 @@ from vusion.error import (MissingData, SendingDatePassed, VusionError,
 from vusion.message import DispatcherControl, WorkerControl
 from vusion.context import Context
 from vusion.component import (DialogueWorkerPropertyHelper, CreditManager,
-                              LogManager)
+                              RedisLogger)
 
 from vusion.persist.action import (Actions, action_generator,FeedbackAction,
                                    EnrollingAction, OptinAction, OptoutAction,
@@ -42,7 +42,8 @@ from vusion.persist import (Request, ContentVariable, Dialogue,
                             history_generator,
                             HistoryManager, ContentVariableManager,
                             DialogueManager, RequestManager, ParticipantManager,
-                            ScheduleManager)
+                            ScheduleManager, ProgramCreditLogManager,
+                            ShortcodeManager)
 
 
 class DialogueWorker(ApplicationWorker):
@@ -83,7 +84,7 @@ class DialogueWorker(ApplicationWorker):
         self._d.callback(None)
 
         # Component / Manager initialization
-        self.log_manager = LogManager(
+        self.logger = RedisLogger(
            self.config['database_name'], 
            self.r_key,
            self.r_server)
@@ -97,22 +98,23 @@ class DialogueWorker(ApplicationWorker):
            self.collections['program_settings'],
            self.collections['shortcodes'])
 
-        self.log_manager.startup(self.properties)
+        self.logger.startup(self.properties)
 
         #TODO replace by a loop
         for collection in ['history', 'dialogues', 'requests', 'participants', 
-                           'content_variables', 'schedules']:
+                           'content_variables', 'schedules', 'credit_logs', 'shortcodes']:
             self.collections[collection].set_property_helper(self.properties)
-            self.collections[collection].set_log_helper(self.log_manager)
+            self.collections[collection].set_log_helper(self.logger)
 
         self.credit_manager = CreditManager(
-           self.r_key, self.r_server, 
+           self.r_key, self.r_server,
+           self.collections['credit_logs'],
            self.collections['history'], 
            self.collections['schedules'],
            self.properties, 
-           self.log_manager)
+           self.logger)
 
-        self.log_manager.log("Dialogue Worker is starting")
+        self.logger.log("Dialogue Worker is starting")
         #Set up dispatcher publisher
         self.dispatcher_publisher = yield self.publish_to(
             '%(dispatcher_name)s.control' % self.config)
@@ -132,7 +134,7 @@ class DialogueWorker(ApplicationWorker):
     @inlineCallbacks
     def teardown_application(self):
         self.log("Worker is stopped.")
-        self.log_manager.stop()
+        self.logger.stop()
         if self.is_ready():
             yield self.unregister_from_dispatcher()
         if (self.sender.active()):
@@ -151,31 +153,35 @@ class DialogueWorker(ApplicationWorker):
         connection = pymongo.Connection(self.config['mongodb_host'],
                                         self.config['mongodb_port'],
                                         safe=self.config.get('mongodb_safe', False))
-        self.db = connection[self.database_name]
-        self.setup_collections({
-            'program_settings': None,
-            'unattached_messages': None})
 
-        self.collections['history'] = HistoryManager(self.db, 'history')
-        self.collections['content_variables'] = ContentVariableManager(self.db, 'content_variables')
-        self.collections['dialogues'] = DialogueManager(self.db, 'dialogues')
-        self.collections['requests'] = RequestManager(self.db, 'requests')
-        self.collections['participants'] = ParticipantManager(self.db, 'participants')
-        self.collections['schedules'] = ScheduleManager(self.db, 'schedules')
+        ## Program specific
+        program_db = connection[self.database_name]
+        self.setup_collections(program_db, {'program_settings': None,
+                                            'unattached_messages': None})
+        self.collections['history'] = HistoryManager(program_db, 'history')
+        self.collections['content_variables'] = ContentVariableManager(program_db, 'content_variables')
+        self.collections['dialogues'] = DialogueManager(program_db, 'dialogues')
+        self.collections['requests'] = RequestManager(program_db, 'requests')
+        self.collections['participants'] = ParticipantManager(program_db, 'participants')
+        self.collections['schedules'] = ScheduleManager(program_db, 'schedules')
 
-        self.db = connection[self.vusion_database_name]
-        self.setup_collections({'templates': None})
-        self.setup_collections({'shortcodes': 'shortcode'})
+        ## Vusion 
+        vusion_db = connection[self.vusion_database_name]
+        self.setup_collections(vusion_db, {'templates': None})
+        self.collections['shortcodes'] = ShortcodeManager(
+            vusion_db, 'shortcodes')
+        self.collections['credit_logs'] = ProgramCreditLogManager(
+            vusion_db, 'credit_logs', self.database_name)
 
-    def setup_collections(self, names):
+    def setup_collections(self, db, names):
         for name, index in names.items():
-            self.setup_collection(name, index)
+            self.setup_collection(db, name, index)
 
-    def setup_collection(self, name, index):
-        if name in self.db.collection_names():
-            self.collections[name] = self.db[name]
+    def setup_collection(self, db, name, index):
+        if name in db.collection_names():
+            self.collections[name] = db[name]
         else:
-            self.collections[name] = self.db.create_collection(name)
+            self.collections[name] = db.create_collection(name)
         if index is not None:
             self.collections[name].ensure_index(index, background=True)
         self.log("Collection initialised: %s" % name)
@@ -217,10 +223,14 @@ class DialogueWorker(ApplicationWorker):
 
     def dispatch_event(self, message):
         self.log("Event message received %s" % (message,))
+        history = self.collections['history'].get_status_and_credits(
+            message['user_message_id'])
         if (message['event_type'] == 'ack'):
             status = 'ack'
+            credit_status = status
         elif (message['event_type'] == 'delivery_report'):
             status = message['delivery_status']
+            credit_status = status
             if (message['delivery_status'] == 'failed'):
                 status = {
                   'status': message['delivery_status'],
@@ -228,11 +238,17 @@ class DialogueWorker(ApplicationWorker):
                       message.get('failure_level', 'unknown'),
                       message.get('failure_code', 'unknown'),
                       message.get('failure_reason', 'unknown')))}
+                credit_status = message['delivery_status']
         if ('transport_type' in message['transport_metadata'] 
            and message['transport_metadata']['transport_type'] == 'http_forward'):
             self.collections['history'].update_forwarded_status(message['user_message_id'], status)
             return
         self.collections['history'].update_status(message['user_message_id'], status)
+        if history is None:
+            history = {'message-status': 'ack',
+                       'message-credits': 1}
+        self.collections['credit_logs'].increment_event_counter(
+            history['message-status'], credit_status, history['message-credits'])
 
     def update_participant_transport_metadata(self, message):
         if message['transport_metadata'] is not {}:
@@ -590,7 +606,7 @@ class DialogueWorker(ApplicationWorker):
                 'credit-number': self.credit_manager.set_limit,
                 'credit-from-date': self.credit_manager.set_limit,
                 'credit-to-date': self.credit_manager.set_limit,
-               'timezone': self.log_manager.clear_logs}
+               'timezone': self.logger.clear_logs}
             if if_needed_register_keywords == True:
                 callbacks.update({'shortcode': self.register_keywords_in_dispatcher})
             self.properties.load(callbacks)
@@ -1031,7 +1047,7 @@ class DialogueWorker(ApplicationWorker):
                      % (message['to_addr'], message['content'],))
 
     def log(self, msg, level='msg'):
-        self.log_manager.log(msg, level)
+        self.logger.log(msg, level)
 
     def get_keywords(self):
         keywords = self.collections['dialogues'].get_all_keywords()

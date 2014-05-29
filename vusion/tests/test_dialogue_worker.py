@@ -63,8 +63,9 @@ class DialogueWorkerTestCase(TestCase, MessageMaker,
                                 'requests',
                                 'content_variables'])
         self.db = connection[self.config['vusion_database_name']]
-        self.setup_collections(['templates'])
-        self.setup_collections(['shortcodes'])
+        self.setup_collections(['templates', 
+                                'shortcodes',
+                                'credit_logs'])
 
         self.drop_collections()
         self.broker.dispatched = {}

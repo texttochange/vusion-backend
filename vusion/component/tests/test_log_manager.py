@@ -6,9 +6,9 @@ from redis import Redis
 from twisted.trial.unittest import TestCase
 
 from vusion.utils import get_local_time_as_timestamp
-from vusion.component import DialogueWorkerPropertyHelper, LogManager
+from vusion.component import DialogueWorkerPropertyHelper, RedisLogger
 
-class LogManagerTestCase(TestCase):
+class RedisLoggerTestCase(TestCase):
 
     def setUp(self):
         # setUp redis
@@ -17,15 +17,15 @@ class LogManagerTestCase(TestCase):
         self.program_key =  'testprogram'
         self.clearData()
 
-        self.lm = LogManager(self.program_key, self.prefix_redis_key, self.redis)
+        self.rl = RedisLogger(self.program_key, self.prefix_redis_key, self.redis)
 
         #parameters:
         self.property_helper = DialogueWorkerPropertyHelper(None, None)
 
-        self.lm.startup(self.property_helper)
+        self.rl.startup(self.property_helper)
 
     def tearDown(self):
-        self.lm.stop()
+        self.rl.stop()
         self.clearData()
 
     def clearData(self):
@@ -34,11 +34,11 @@ class LogManagerTestCase(TestCase):
             self.redis.delete(key)
 
     def test_log(self):
-        self.lm.log("this is my first log")
+        self.rl.log("this is my first log")
         logs = self.redis.zrange('unittest:testprogram:logs', -5, -1, True)
         self.assertEqual(1, len(logs))
         
-        self.lm.log("this is my second log")
+        self.rl.log("this is my second log")
         logs = self.redis.zrange('unittest:testprogram:logs', -5, -1, True)
         self.assertEqual(2, len(logs))
         self.assertRegexpMatches(
@@ -49,11 +49,11 @@ class LogManagerTestCase(TestCase):
             re.compile('^\[.*\] this is my first log$'))        
 
     def test_clear_logs(self):
-        self.lm.log("this is my first log")
+        self.rl.log("this is my first log")
         logs = self.redis.zrange('unittest:testprogram:logs', -5, -1, True)
         self.assertEqual(1, len(logs))
         
-        self.lm.clear_logs()
+        self.rl.clear_logs()
         
         logs = self.redis.zrange('unittest:testprogram:logs', -5, -1, True)
         self.assertEqual(0, len(logs))
@@ -71,7 +71,7 @@ class LogManagerTestCase(TestCase):
             'no more valid log message', 
             get_local_time_as_timestamp(not_valid_time))
          
-        self.lm.gc_logs()
+        self.rl.gc_logs()
          
         logs = self.redis.zrange('unittest:testprogram:logs', -5, -1, True)
         self.assertEqual(1, len(logs))
