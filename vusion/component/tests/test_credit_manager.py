@@ -6,10 +6,12 @@ from datetime import datetime, timedelta
 from twisted.trial.unittest import TestCase
 
 from tests.utils import ObjectMaker, DumbLogManager
-from vusion.utils import time_to_vusion_format, time_from_vusion_format
-from vusion.persist import UnattachSchedule
+from vusion.utils import (time_to_vusion_format, time_from_vusion_format,
+                          time_to_vusion_format_date)
+from vusion.persist import (HistoryManager, ScheduleManager, UnattachSchedule,
+                            ProgramCreditLogManager)
 from vusion.component import (CreditManager, CreditStatus, 
-                              DialogueWorkerPropertyHelper, LogManager)
+                              DialogueWorkerPropertyHelper)
 
 
 class CreditManagerTestCase(TestCase, ObjectMaker):
@@ -19,34 +21,48 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.redis = Redis()
         self.cm_redis_key = 'unittest'
         # setUp mongodb
+        self.vusion_database_name = 'test_vusion_db'
         self.database_name = 'test_program_db'
         c = pymongo.Connection()
-        db = c.test_program_db
-        self.history_collection = db.history
-        self.schedules_collection = db.schedules
+        db = c[self.database_name]
+        self.collections = {}
+        self.collections['history'] = HistoryManager(db, 'history')
+        self.collections['schedules'] = ScheduleManager(db, 'schedules')
+        db = c[self.vusion_database_name]
+        self.collections['credit_logs'] = ProgramCreditLogManager(
+            db, 'credit_logs', self.database_name)
         self.clearData()
 
-        #parameters:
+        #properties:
         self.property_helper = DialogueWorkerPropertyHelper(None, None)
         self.property_helper['timezone'] = 'Africa/Kampala'
         self.property_helper['credit-type'] = 'none'
         self.property_helper['credit-number'] = None
         self.property_helper['credit-from-date'] = None
         self.property_helper['credit-to-date'] = None
+        self.property_helper['shortcode'] = '256-8181'
 
+        for collection in self.collections:
+            self.collections[collection].set_property_helper(self.property_helper)
+            self.collections[collection].set_log_helper(DumbLogManager())
+            
+        #Initialie manager
         self.cm = CreditManager(self.cm_redis_key, self.redis,
-                                self.history_collection, self.schedules_collection,
+                                self.collections['credit_logs'],
+                                self.collections['history'], 
+                                self.collections['schedules'],
                                 self.property_helper, DumbLogManager())
 
     def tearDown(self):
         self.clearData()
 
     def clearData(self):
-        self.history_collection.drop()
-        self.schedules_collection.drop()
+        self.collections['history'].drop()
+        self.collections['schedules'].drop()
+        self.collections['credit_logs'].drop()
         keys = self.redis.keys("%s:*" % self.cm_redis_key)
         for key in keys:
-            self.redis.delete(key)        
+            self.redis.delete(key) 
 
     def assertCounter(self, expected):
         counter = self.redis.get("%s:creditmanager:count" % self.cm_redis_key)
@@ -54,19 +70,20 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
 
     def test_no_limit(self):
         now = datetime.now()
-        self.history_collection.save(self.mkobj_history_dialogue(
+        self.collections['history'].save(self.mkobj_history_dialogue(
             dialogue_id=1, interaction_id=1, timestamp=time_to_vusion_format(now)))
         self.property_helper['credit-type'] = 'none'
         self.cm.set_limit()
         self.assertTrue(self.cm.is_allowed('test'))
+        # Event without limit the credit logs should be increased
+        self.assertEqual(1, self.collections['credit_logs'].count())
 
     def test_outgoing_limit_history(self):
         now = datetime.now()
         past = now - timedelta(days=1)
         future = now + timedelta(days=1)
 
-        self.history_collection.save(self.mkobj_history_dialogue(
-            dialogue_id=1, interaction_id=1, timestamp=time_to_vusion_format(now)))
+        self.collections['credit_logs'].increment_outgoing(1)
 
         self.property_helper['credit-type'] = 'outgoing-only'
         self.property_helper['credit-number'] = '2'
@@ -81,7 +98,7 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.assertCounter('2')
 
         # let add this last message to collection
-        self.history_collection.save(self.mkobj_history_dialogue(
+        self.collections['history'].save(self.mkobj_history_dialogue(
             dialogue_id=1, interaction_id=1, timestamp=time_to_vusion_format(now)))
 
         # second message should not
@@ -108,79 +125,17 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.property_helper['credit-to-date'] = time_to_vusion_format(future)
         self.cm.set_limit()
 
-        ## Out of the timeframe histories
-        self.history_collection.save(self.mkobj_history_dialogue(
-            dialogue_id=1,
-            interaction_id=1,
-            direction='outgoing',
-            timestamp=time_to_vusion_format(more_past)))
-        self.history_collection.save(self.mkobj_history_dialogue(
-            dialogue_id=1,
-            interaction_id=1,
-            direction='outgoing',
-            timestamp=time_to_vusion_format(more_future)))        
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 0)        
-
         ## Count dialogue history
-        self.history_collection.save(self.mkobj_history_dialogue(
-            dialogue_id=1,
-            interaction_id=1,
-            direction='outgoing',
-            timestamp=time_to_vusion_format(now)))
+        credit_log = self.mkobj_program_credit_log(now,
+                                                   program_database=self.database_name)        
+        self.collections['credit_logs'].save_document(credit_log)
         self.assertEqual(self.cm.get_used_credit_counter_mongo(), 1)
 
-        self.history_collection.save(self.mkobj_history_dialogue(
-            dialogue_id=1,
-            interaction_id=1,
-            direction='outgoing',
-            timestamp=time_to_vusion_format(now),
-            message_credits=2))
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 3)
+        credit_log = self.mkobj_program_credit_log(past,
+                                                   program_database=self.database_name)        
+        self.collections['credit_logs'].save_document(credit_log)
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 2)
 
-        self.history_collection.save(self.mkobj_history_dialogue(
-            dialogue_id=1,
-            interaction_id=1,
-            direction="incoming",
-            timestamp=time_to_vusion_format(now),
-            message_credits=2))
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 3)
-
-        ## Count unattached
-        self.history_collection.save(self.mkobj_history_unattach(
-            unattach_id=1,
-            timestamp=time_to_vusion_format(now),
-            message_credits=2))
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 5)
-
-        ## Count request
-        self.history_collection.save(self.mkobj_history_request(
-            request_id=1,
-            message_direction='outgoing',
-            timestamp=time_to_vusion_format(now),
-            message_credits=2))
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 7)
-
-        self.history_collection.save(self.mkobj_history_request(
-            request_id=1,
-            message_direction='incoming',
-            timestamp=time_to_vusion_format(now),
-            message_credits=2))
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 7)
-
-        ## Do not count marker
-        self.history_collection.save(self.mkobj_history_one_way_marker(
-            dialogue_id=1,
-            interaction_id=1,
-            timestamp=time_to_vusion_format(now)))
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 7)
-
-        ## Count previous version of history model without field message-credits
-        self.history_collection.save({
-            'object-type': 'unattach-history',
-            'timestamp': time_to_vusion_format(now),
-            'message-direction': 'outgoing',
-            'message-status': 'delivered'})
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 8)
 
     def test_sync_history_outgoing_incoming(self):
         now = datetime.now()
@@ -189,7 +144,6 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         future = now + timedelta(days=1)
         more_future = future + timedelta(days=1)
         
-
         self.property_helper['credit-type'] = 'outgoing-incoming'
         self.property_helper['credit-number'] = '4'
         self.property_helper['credit-from-date'] = time_to_vusion_format(past)
@@ -197,55 +151,29 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.cm.set_limit()
 
         ## Out of the timeframe histories
-        self.history_collection.save(self.mkobj_history_dialogue(
-            dialogue_id=1,
-            interaction_id=1,
-            direction='outgoing',
-            timestamp=time_to_vusion_format(more_past)))
-        self.history_collection.save(self.mkobj_history_dialogue(
-            dialogue_id=1,
-            interaction_id=1,
-            direction='outgoing',
-            timestamp=time_to_vusion_format(more_future)))        
+        credit_log = self.mkobj_program_credit_log(
+            more_past,
+            program_database=self.database_name)
+        self.collections['credit_logs'].save_document(credit_log)
+        credit_log = self.mkobj_program_credit_log(
+            more_future,
+            program_database=self.database_name)
+        self.collections['credit_logs'].save_document(credit_log)
         self.assertEqual(self.cm.get_used_credit_counter_mongo(), 0)
 
         ## Count dialogue history
-        self.history_collection.save(self.mkobj_history_dialogue(
-            dialogue_id=1,
-            interaction_id=1,
-            direction='outgoing',
-            timestamp=time_to_vusion_format(now)))
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 1)
+        credit_log = self.mkobj_program_credit_log(
+            now,
+            program_database=self.database_name)
+        self.collections['credit_logs'].save_document(credit_log)
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 2)
 
-        self.history_collection.save(self.mkobj_history_dialogue(
-            dialogue_id=1,
-            interaction_id=1,
-            direction="incoming",
-            timestamp=time_to_vusion_format(now),
-            message_credits=2))
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 3)
+        credit_log = self.mkobj_program_credit_log(
+            past,
+            program_database=self.database_name)
+        self.collections['credit_logs'].save_document(credit_log)
+        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 4)
 
-        ## Count request
-        self.history_collection.save(self.mkobj_history_request(
-            request_id=1,
-            message_direction='outgoing',
-            timestamp=time_to_vusion_format(now),
-            message_credits=2))
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 5)
-
-        self.history_collection.save(self.mkobj_history_request(
-            request_id=1,
-            message_direction='incoming',
-            timestamp=time_to_vusion_format(now),
-            message_credits=2))
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 7)
-
-        ## Do not count marker
-        self.history_collection.save(self.mkobj_history_one_way_marker(
-            dialogue_id=1,
-            interaction_id=1,
-            timestamp=time_to_vusion_format(now)))
-        self.assertEqual(self.cm.get_used_credit_counter_mongo(), 7)
 
     def test_set_whitecard_unattach_schedule(self):
         now = datetime.now()
@@ -263,7 +191,7 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         schedule_second = UnattachSchedule(
             **self.mkobj_schedule_unattach(participant_phone='+2', unattach_id='1'))
         # the frist shedule has already beend removed from the collection
-        self.schedules_collection.save(schedule_second.get_as_dict())
+        self.collections['schedules'].save(schedule_second.get_as_dict())
 
         # first message should be granted
         self.assertTrue(
@@ -296,8 +224,8 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
             **self.mkobj_schedule_unattach(participant_phone='+1', unattach_id='1'))
         schedule_second = UnattachSchedule(
             **self.mkobj_schedule_unattach(participant_phone='+2', unattach_id='1'))
-        self.schedules_collection.save(schedule_first.get_as_dict())
-        self.schedules_collection.save(schedule_second.get_as_dict())
+        self.collections['schedules'].save(schedule_first.get_as_dict())
+        self.collections['schedules'].save(schedule_second.get_as_dict())
 
         # first message should not be granted as the total credit required is 4
         self.assertFalse(
@@ -325,20 +253,20 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         more_future = future + timedelta(days=1)
         
         self.property_helper['credit-type'] = 'outgoing-only'
-        self.property_helper['credit-number'] = '2'
+        self.property_helper['credit-number'] = '4'
         self.property_helper['credit-from-date'] = time_to_vusion_format(past.date())
         self.property_helper['credit-to-date'] = time_to_vusion_format(future.date())
         self.cm.set_limit()
-        
+
         self.assertTrue(self.cm.is_allowed(message_credits=1))
-        self.property_helper.get_local_time = lambda v: time_to_vusion_format(more_future)
+        self.property_helper.get_local_time = lambda v: more_future
         self.assertFalse(self.cm.is_allowed(message_credits=1))
-        self.property_helper.get_local_time = lambda v: time_to_vusion_format(more_past)
+        self.property_helper.get_local_time = lambda v: more_past
         self.assertFalse(self.cm.is_allowed(message_credits=1))
         
         ## current day of the to-date limit is allowed
         same_date_future = future + timedelta(minutes=1)
-        self.property_helper.get_local_time = lambda v: time_to_vusion_format(same_date_future)
+        self.property_helper.get_local_time = lambda v: same_date_future
         self.assertTrue(self.cm.is_allowed(message_credits=1))
 
     def test_check_status_none(self):
@@ -410,20 +338,20 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.property_helper['credit-to-date'] = time_to_vusion_format(future.date())
         self.cm.set_limit()
         
-        self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)
+        self.property_helper.get_local_time = lambda v: now
         status = self.cm.check_status()
         self.assertEqual(status['status'], 'no-credit')
         self.assertEqual(status['since'], time_to_vusion_format(now))
 
-        self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)        
+        self.property_helper.get_local_time = lambda v: now
         status = self.cm.check_status()
         self.assertEqual(status['status'], 'no-credit')
         self.assertEqual(status['since'], time_to_vusion_format(now))
         
-        self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)
+        self.property_helper.get_local_time = lambda v: now
         self.property_helper['credit-to-date'] = time_to_vusion_format(past.date())
         self.cm.set_limit()
-        self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)
+        self.property_helper.get_local_time = lambda v: now
         
         status = self.cm.check_status()
         self.assertEqual(status['status'], 'no-credit-timeframe')

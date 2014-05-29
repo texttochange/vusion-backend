@@ -104,7 +104,7 @@ class Model(object):
                 if rule_name is 'required':
                     continue
                 if not rule(data):
-                    raise InvalidField("%s=%s is not %s" % (field, data[field], rule_name))        
+                    raise InvalidField("%s=%s is not %s" % (field, data[field], rule_name))
 
     def required_subfields(self, field, subfields):
         if field is None:

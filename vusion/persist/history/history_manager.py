@@ -1,9 +1,10 @@
 from datetime import timedelta
 
-from bson import ObjectId
+from bson import ObjectId, Code
 
 from vusion.persist.model_manager import ModelManager
-from vusion.utils import time_to_vusion_format
+from vusion.utils import (time_to_vusion_format, time_to_vusion_format_date, 
+                          date_from_vusion_format)
 from history import history_generator
 
 
@@ -76,3 +77,77 @@ class HistoryManager(ModelManager):
                                    'message-id': message_id,
                                    'to-addr': to_addr}}}
         self.collection.update(selector_query, update_query)
+
+    def count_day_credits(self, date):
+        reducer = Code("function(obj, prev) {"
+                       "    credits = 0;"
+                       "    if ('message-credits' in obj) {"
+                       "        credits = obj['message-credits'];"
+                       "    } else {"
+                       "        credits = 1;"
+                       "    }"
+                       "    switch (obj['message-direction']) {"
+                       "    case 'incoming':"
+                       "        prev['incoming'] = prev['incoming'] + credits;"
+                       "        break;"
+                       "    case 'outgoing':"
+                       "        prev['outgoing'] = prev['outgoing'] + credits;"
+                       "        switch (obj['message-status']) {"
+                       "        case 'ack':"
+                       "              prev['outgoing-ack'] = prev['outgoing-ack'] + credits;"
+                       "              break;"
+                       "        case 'delivered':"
+                       "              prev['outgoing-delivered'] = prev['outgoing-delivered'] + credits;"
+                       "              break;"
+                       "        case 'failed':"
+                       "              prev['outgoing-failed'] = prev['outgoing-failed'] + credits;"
+                       "              break;"
+                       "        case 'nack':"
+                       "              prev['outgoing-nack'] = prev['outgoing-nack'] + credits;"
+                       "              break;"
+                       "        case 'pending':"
+                       "              prev['outgoing-pending'] = prev['outgoing-pending'] + credits;"
+                       "              break;"
+                       "        }"
+                       "        break;"
+                       "     }"
+                       " }")
+        conditions = {
+            "timestamp": {
+                "$gte": time_to_vusion_format_date(date),
+                "$lt": time_to_vusion_format_date(date + timedelta(days=1))},
+            "object-type": {"$in": ["dialogue-history", "unattach-history", "request-history"]}}
+        counters =  {"incoming": 0,
+                     "outgoing": 0,
+                     "outgoing-pending": 0,
+                     "outgoing-ack": 0,
+                     "outgoing-nack": 0,
+                     "outgoing-failed": 0,
+                     "outgoing-delivered": 0}
+        result = self.group(None, conditions, counters, reducer)
+        if len(result) == 0:
+            return counters
+        counters = result[0]
+        return {k : int(float(counters[k])) for k in counters.iterkeys()}
+
+    def get_older_date(self, date=None):
+        if date is None:
+            date = self.get_local_time() + timedelta(days=1)
+        date = date.replace(hour=0, minute=0, second=0)
+        cursor = self.find(
+            {'timestamp': {'$lte': time_to_vusion_format(date)}}).sort('timestamp', -1).limit(1)
+        if cursor.count() == 0:
+            return None
+        try:
+            history = history_generator(**cursor.next())
+            return date_from_vusion_format(history['timestamp'])
+        except Exception as e:
+            self.log_helper.log(e.message)
+            return None
+
+    def get_status_and_credits(self, user_message_id):
+        limit_timesearch = self.get_local_time() - timedelta(hours=self.TIMESTAMP_LIMIT_ACK)        
+        return self.collection.find_one(
+            {'message-id': user_message_id,
+             'timestamp': {'$gt' : time_to_vusion_format(limit_timesearch)}},
+            ['message-status', 'message-credits'])

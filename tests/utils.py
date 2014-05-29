@@ -15,7 +15,10 @@ from vusion.message import DispatcherControl, WorkerControl
 
 from vusion.persist import (Dialogue, DialogueHistory, UnattachHistory,
                             history_generator, schedule_generator, Participant,
-                            UnattachMessage, Request, Interaction)
+                            UnattachMessage, Request, Interaction, ProgramCreditLog,
+                            WorkerConfig, UnmatchableReply)
+
+from vusion.utils import time_to_vusion_format_date
 
 
 class DataLayerUtils:
@@ -931,6 +934,26 @@ class ObjectMaker:
             'message-content': 'A message',
             'message-credits': message_credits,
             'unattach-id': unattach_id}).get_as_dict()
+    
+    def mkobj_history_unattach_failed(self, unattach_id, timestamp,
+                               participant_phone='06',
+                               participant_session_id="1", 
+                               message_direction='outgoing',
+                               message_status='failed',
+                               failure_reason='something happend',
+                               message_id='1',
+                               message_credits=1):
+        return history_generator(**{
+            'timestamp': timestamp,
+            'participant-phone': participant_phone,
+            'participant-session-id': participant_session_id,
+            'message-direction': message_direction,
+            'message-status': message_status,
+            'failure-reason': failure_reason,
+            'message-id': message_id,
+            'message-content': 'A message',
+            'message-credits': message_credits,
+            'unattach-id': unattach_id}).get_as_dict()
 
     def mkobj_history_request(self, 
                               request_id, 
@@ -996,6 +1019,16 @@ class ObjectMaker:
             'message-status': 'delivered',
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id}).get_as_dict()
+
+    def mkobj_unmatchable_reply(self, participant_phone='+25611111',
+                                to='256-8181', direction='incoming', 
+                                timestamp='2014-01-01T10:10:00'):
+            return UnmatchableReply(**{
+                'participant-phone': participant_phone,
+                'to': to,
+                'direction': direction,
+                'message-content': 'Hello',
+                'timestamp': timestamp})
 
     def mkobj_participant(self, participant_phone='06',
                           last_optin_date='2012-02-01T18:30', session_id='1',
@@ -1089,3 +1122,24 @@ class ObjectMaker:
             content = content + template
         return content[0:length]
 
+    def mkobj_program_credit_log(self, date, code='256-8181', program_database='m4rh', incoming=1, outgoing=1):
+        credit_log = {
+            'date': time_to_vusion_format_date(date),
+            'code': code,
+            'program-database': program_database,
+            'incoming': incoming,
+            'outgoing': outgoing}
+        return ProgramCreditLog(**credit_log)
+
+    def mkobj_worker_config(self, name='worker1', 
+                            worker_class='vusion.DialogueWorker'):
+        worker_config = {
+            'name': name,
+            'class': worker_class,
+            'config': {
+                'control_name': 'test2',
+                'transport_name': 'test2',
+                'database_name': 'test2',
+            }
+        }
+        return WorkerConfig(**worker_config)

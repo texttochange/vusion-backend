@@ -10,26 +10,25 @@ from vumi.service import Worker, WorkerCreator
 from vumi.message import Message
 from vumi import log
 
-from vusion.utils import DataLayerUtils
-from vusion.persist import WorkerConfig
+from vusion.persist import WorkerConfig, WorkerConfigManager
 
 
-class VusionMultiWorker(Worker, DataLayerUtils):
+class VusionMultiWorker(Worker):
 
     WORKER_CREATOR = WorkerCreator
 
     def startService(self):
         log.debug('Starting Multiworker %s' % (self.config,))
         super(VusionMultiWorker, self).startService()
-        DataLayerUtils.__init__(self)
-
+        
         self.workers = {}
         self.worker_creator = self.WORKER_CREATOR(self.options)
 
         connection = pymongo.Connection(self.config['mongodb_host'],
                                         self.config['mongodb_port'])
-        self.db = connection[self.config['vusion_database_name']]
-        self.setup_collection('workers')
+        db = connection[self.config['vusion_database_name']]
+        self.collections = {}
+        self.collections['worker_config'] = WorkerConfigManager(db, 'workers')
 
     @inlineCallbacks
     def startWorker(self):
@@ -61,23 +60,21 @@ class VusionMultiWorker(Worker, DataLayerUtils):
             worker_config['name'] = wname
             worker_config['class'] = wclass
             worker_config['config'] = self.config.get(wname, {})
-            self.save_worker_config(worker_config)
+            self.collections['worker_config'].save_worker_config(worker_config)
             self.add_worker(worker_config)
 
     def reload_workers_from_mongodb(self):
-        worker_configs = self.collections['workers'].find()
-        for worker_config_raw in worker_configs:
-            worker_config = WorkerConfig(**worker_config_raw)
+        for worker_config in self.collections['worker_config'].get_worker_configs():
             self.add_worker(worker_config)
 
-    def save_worker_config(self, worker_config):
-        if worker_config.is_already_saved():
-            return self.collections['workers'].save(worker_config.get_as_dict())
-        # need a update in case it's a overwriting from the config file
-        return self.collections['workers'].update(
-            {'name': worker_config['name']},
-            {'$set': worker_config.get_as_dict()},
-            True)
+    #def save_worker_config(self, worker_config):
+        #if worker_config.is_already_saved():
+            #return self.collections['worker_config'].save_document(worker_config)
+        ## need a update in case it's a overwriting from the config file
+        #return self.collections['worker_config'].update(
+            #{'name': worker_config['name']},
+            #{'$set': worker_config.get_as_dict()},
+            #True)
 
     @inlineCallbacks
     def setup_control(self):
@@ -92,7 +89,7 @@ class VusionMultiWorker(Worker, DataLayerUtils):
                       % (worker_config['name'],))
             return
 
-        self.save_worker_config(worker_config)
+        self.collections['worker_config'].save_worker_config(worker_config)
         worker_config['config'] = self.construct_worker_config(worker_config['config'])
         self.workers[worker_config['name']] = self.create_worker(worker_config)
 
@@ -105,7 +102,7 @@ class VusionMultiWorker(Worker, DataLayerUtils):
         self.workers[worker_name].disownServiceParent()
         #TODO needed due to parent class, remove the storage into the config
         #self.config.pop(worker_name)
-        self.collections['workers'].remove({'name': worker_name})
+        self.collections['worker_config'].remove_worker_config(worker_name)
         self.workers.pop(worker_name)
 
     def receive_control_message(self, msg):

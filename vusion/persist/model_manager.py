@@ -1,3 +1,4 @@
+from datetime import datetime
 
 
 class ModelManager(object):
@@ -5,6 +6,8 @@ class ModelManager(object):
     def __init__(self, db, collection_name, **kwargs):
         self.property_helper = None
         self.log_helper = None
+        if 'logger' in kwargs:
+            self.log_helper = kwargs['logger']
         if collection_name in db.collection_names():
             self.collection = db[collection_name]
         else:
@@ -34,6 +37,8 @@ class ModelManager(object):
             return orig_attr
 
     def get_local_time(self, date_format='datetime'):
+        if self.property_helper is None:
+            return datetime.now()
         return self.property_helper.get_local_time(date_format)
 
     def log(self, msg, level='msg'):

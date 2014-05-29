@@ -24,7 +24,22 @@ from schedule.schedule import (FeedbackSchedule, DeadlineSchedule, ReminderSched
                       schedule_generator)
 from schedule.schedule_manager import ScheduleManager
 
-from worker_config import WorkerConfig
+from credit_log.credit_log import (CreditLog, ProgramCreditLog,
+                                   GarbageCreditLog, DeletedProgramCreditLog)
+from credit_log.credit_log_manager import (ProgramCreditLogManager,
+                                           GarbageCreditLogManager)
+
+from shortcode.shortcode import Shortcode
+from shortcode.shortcode_manager import ShortcodeManager
+
+from unmatchable_reply.unmatchable_reply import UnmatchableReply
+from unmatchable_reply.unmatchable_reply_manager import UnmatchableReplyManager
+
+from template.template import Template
+from template.template_manager import TemplateManager
+
+from worker_config.worker_config import WorkerConfig
+from worker_config.worker_config_manager import WorkerConfigManager
 
 from unattach_message import UnattachMessage
 
@@ -38,10 +53,16 @@ __all__ = ["Model", "ModelManager",
            "history_generator", "HistoryManager",
            "schedule_generator", "FeedbackSchedule",
            "DeadlineSchedule","ReminderSchedule", "DialogueSchedule",
-           "UnattachSchedule", "ActionSchedule", "ScheduleManager"
+           "UnattachSchedule", "ActionSchedule", "ScheduleManager",
+           "CreditLog", "ProgramCreditLog", "GrabageCreditLog",
+           "DeletedProgramCreditLog",
+           "ProgramCreditLogManager", "GarbageCreditLogManager",
+           "Shortcode", "ShortcodeManager",
            "Request", 
-           "WorkerConfig",
+           "WorkerConfig", "WorkerConfigManager"
            "Participant", "ParticipantManager",
            "UnattachMessage",
+           "UnmatchableReply", "UnmatchableReplyManager",
+           "Template", "TemplateManager",
            "ContentVariable", "ContentVariableManager",
            "CursorInstanciator"]
