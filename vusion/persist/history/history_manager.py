@@ -135,7 +135,7 @@ class HistoryManager(ModelManager):
             date = self.get_local_time() + timedelta(days=1)
         date = date.replace(hour=0, minute=0, second=0)
         cursor = self.find(
-            {'timestamp': {'$lte': time_to_vusion_format(date)}}).sort('timestamp', -1).limit(1)
+            {'timestamp': {'$lt': time_to_vusion_format(date)}}).sort('timestamp', -1).limit(1)
         if cursor.count() == 0:
             return None
         try:

@@ -297,7 +297,7 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         
         self.property_helper['credit-from-date'] = time_to_vusion_format(future)
         self.property_helper['credit-to-date'] = time_to_vusion_format(more_future)
-        self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)        
+        self.property_helper.get_local_time = lambda v: now        
         self.cm.set_limit()
         status = self.cm.check_status()
         self.assertEqual(status['status'], 'no-credit-timeframe')
@@ -305,32 +305,30 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
 
         self.property_helper['credit-from-date'] = time_to_vusion_format(past)
         self.property_helper['credit-to-date'] = time_to_vusion_format(future)
-        self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)        
+        self.property_helper.get_local_time = lambda v: now        
         self.cm.set_limit()
         status = self.cm.check_status()
         self.assertEqual(status['status'], 'ok')
         
         self.property_helper['credit-from-date'] = time_to_vusion_format(more_past)
         self.property_helper['credit-to-date'] = time_to_vusion_format(past)
-        self.property_helper.get_local_time = lambda v: time_to_vusion_format(now)        
+        self.property_helper.get_local_time = lambda v: now        
         self.cm.set_limit()
         status = self.cm.check_status()
         self.assertEqual(status['status'], 'no-credit-timeframe')
         self.assertEqual(status['since'], time_to_vusion_format(now))
         
         ## even more future keep the time since the status changed
-        self.property_helper.get_local_time = lambda v: time_to_vusion_format(future)        
+        self.property_helper.get_local_time = lambda v: future        
         status = self.cm.check_status()
         self.assertEqual(status['status'], 'no-credit-timeframe')
         self.assertEqual(status['since'], time_to_vusion_format(now))
         
-    def test_check_status_no_credit_timeframe(self):
-        now = datetime.now()
+    def test_check_status_no_credit_timeframe_2(self):
+        now = self.property_helper.get_local_time()
         past = now - timedelta(days=1)
         more_past = past - timedelta(days=1)
         future = now + timedelta(days=1)
-        more_future = future + timedelta(days=1)
-        even_more_future = more_future + timedelta(days=1)
 
         self.property_helper['credit-type'] = 'outgoing-only'
         self.property_helper['credit-number'] = '0'

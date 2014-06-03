@@ -8,7 +8,8 @@ from tests.utils import ObjectMaker
 
 from vusion.component import DialogueWorkerPropertyHelper
 from vusion.persist import HistoryManager, history_generator
-from vusion.utils import time_to_vusion_format
+from vusion.utils import time_to_vusion_format, date_from_vusion_format, time_to_vusion_format_date
+
 
 
 class TestHistoryManager(TestCase, ObjectMaker):
@@ -271,6 +272,24 @@ class TestHistoryManager(TestCase, ObjectMaker):
         
         date = self.history_manager.get_older_date(past_more_more)
         self.assertTrue(date is None)
+
+    def test_get_older_date_midnight(self):
+        
+        history = self.mkobj_history_unattach(
+            '4',
+            '2013-05-20T00:00:00')
+        self.history_manager.save(history)
+        
+        history = self.mkobj_history_unattach(
+            '4',
+            '2013-05-19T23:58:00')
+        self.history_manager.save(history)
+        
+        date = self.history_manager.get_older_date(
+            date_from_vusion_format('2013-05-20T00:00:00'))
+        self.assertEqual(
+            '2013-05-19', 
+            time_to_vusion_format_date(date))
 
     def test_get_status_and_credits(self):
         past = self.property_helper.get_local_time() - timedelta(hours=3)

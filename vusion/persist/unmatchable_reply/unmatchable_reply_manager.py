@@ -16,7 +16,7 @@ class UnmatchableReplyManager(ModelManager):
         if date is None:
             date = self.get_local_time() + timedelta(days=1)
         date = date.replace(hour=0, minute=0, second=0)
-        conditions = {'timestamp': {'$lte': time_to_vusion_format(date)}}
+        conditions = {'timestamp': {'$lt': time_to_vusion_format(date)}}
         if code is not None:
             conditions['$or'] = [
                 {'to': code},
