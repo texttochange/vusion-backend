@@ -27,8 +27,12 @@ class UnmatchableReplyManager(ModelManager):
         cursor = self.find(conditions).sort('timestamp', -1).limit(1)
         if cursor.count() == 0:
             return None
-        um = UnmatchableReply(**cursor.next())
-        return date_from_vusion_format(um['timestamp'])
+        try:
+            um = UnmatchableReply(**cursor.next())
+            return date_from_vusion_format(um['timestamp'])
+        except Exception as e:
+            self.log_helper.log(e.message)
+            return None
 
     def count_day_credits(self, date, code):
         reducer = Code("function(obj, prev) {"
