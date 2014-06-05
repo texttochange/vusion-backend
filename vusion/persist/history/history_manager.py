@@ -94,7 +94,7 @@ class HistoryManager(ModelManager):
                        "        prev['outgoing'] = prev['outgoing'] + credits;"
                        "        switch (obj['message-status']) {"
                        "        case 'ack':"
-                       "              prev['outgoing-ack'] = prev['outgoing-ack'] + credits;"
+                       "              prev['outgoing-acked'] = prev['outgoing-acked'] + credits;"
                        "              break;"
                        "        case 'delivered':"
                        "              prev['outgoing-delivered'] = prev['outgoing-delivered'] + credits;"
@@ -103,7 +103,7 @@ class HistoryManager(ModelManager):
                        "              prev['outgoing-failed'] = prev['outgoing-failed'] + credits;"
                        "              break;"
                        "        case 'nack':"
-                       "              prev['outgoing-nack'] = prev['outgoing-nack'] + credits;"
+                       "              prev['outgoing-nacked'] = prev['outgoing-nacked'] + credits;"
                        "              break;"
                        "        case 'pending':"
                        "              prev['outgoing-pending'] = prev['outgoing-pending'] + credits;"
@@ -120,8 +120,8 @@ class HistoryManager(ModelManager):
         counters =  {"incoming": 0,
                      "outgoing": 0,
                      "outgoing-pending": 0,
-                     "outgoing-ack": 0,
-                     "outgoing-nack": 0,
+                     "outgoing-acked": 0,
+                     "outgoing-nacked": 0,
                      "outgoing-failed": 0,
                      "outgoing-delivered": 0}
         result = self.group(None, conditions, counters, reducer)

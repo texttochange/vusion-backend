@@ -86,6 +86,9 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
         self.assertEqual('delivered', status['message-status'])
         credit_log = self.collections['credit_logs'].find_one()
         self.assertEqual(1, credit_log['outgoing-delivered'])
+        
+        credit_log = self.collections['credit_logs'].find_one()
+        self.assertEqual(1, credit_log['outgoing-delivered'])        
 
     @inlineCallbacks
     def test_delivery_no_reference(self):

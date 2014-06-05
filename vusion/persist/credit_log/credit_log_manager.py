@@ -52,8 +52,8 @@ class CreditLogManager(ModelManager):
             "outgoing", 
             "incoming",
             "outgoing-pending",
-            "outgoing-ack",
-            "outgoing-nack",
+            "outgoing-acked",
+            "outgoing-nacked",
             "outgoing-failed",
             "outgoing-delivered"])
 
