@@ -547,6 +547,15 @@ class ObjectMaker:
                                           'tag': 'answer name'}]}
         ]}
 
+    def mkobj_dialogue_auto_enrollment(self, auto_enrollment, 
+                                       condition_operator, subconditions):
+        dialogue = deepcopy(self.dialogue_open_question)
+        dialogue['auto-enrollment'] = auto_enrollment
+        dialogue['condition-operator'] = condition_operator
+        dialogue['subconditions'] = subconditions
+        return Dialogue(**dialogue)
+        
+
     def mkobj_dialogue_question_multi_keyword(self):
         return Dialogue(**{
             'activated': 1,

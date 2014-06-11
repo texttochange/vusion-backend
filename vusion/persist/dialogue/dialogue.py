@@ -10,24 +10,46 @@ from vusion.persist.action import (UnMatchingAnswerAction, FeedbackAction,
                                    OffsetConditionAction, RemoveRemindersAction,
                                    RemoveDeadlineAction, RemoveQuestionAction)
 from vusion.persist import Model, Interaction
+from vusion.persist.participant.participant import Participant
 from vusion.error import VusionError
 
 
-## TODO update the validation
 class Dialogue(Model):
 
     MODEL_TYPE = 'dialogue'
-    MODEL_VERSION = '2'
+    MODEL_VERSION = '3'
 
-    fields = ['name',
-              'dialogue-id',
-              'auto-enrollment',
-              'interactions',
-              'activated',
-              'set-prioritized']
+    fields = {
+        'name': {
+            'required': True,
+        },
+        'dialogue-id': {
+            'required': True,
+        },
+        'auto-enrollment': {
+            'required': True,
+        },
+        'condition-operator': {
+            'required': False,
+        },
+        'subconditions': {
+            'required': False,
+        },
+        'interactions': {
+            'required': True,
+        },
+        'activated': {
+            'required': True,
+        },
+        'set-prioritized': {
+            'required': True,
+        }        
+    }
+            
+   
 
     def validate_fields(self):
-        super(Dialogue, self).validate_fields()
+        self._validate(self, self.fields)
         self.interactions = []
         if self.payload['interactions'] is None:
             return
@@ -41,6 +63,9 @@ class Dialogue(Model):
         if kwargs['model-version'] == '1':
             kwargs['set-prioritized'] = kwargs['set-prioritized'] if 'set-prioritized' in kwargs else None
             kwargs['model-version'] = '2'
+            return self.upgrade(**kwargs)
+        elif kwargs['model-version'] == '2':
+            kwargs['model-version'] = '3'
         return kwargs
     
     def get_reply(self, content, delimiter=' '):
@@ -103,11 +128,17 @@ class Dialogue(Model):
         return None
 
     def get_auto_enrollment_as_query(self):
+        query = None
         if self['auto-enrollment'] == 'all':
             return {}
-        return None   # 'none' case
+        elif self['auto-enrollment'] == 'match':
+            query = Participant.from_conditions_to_query(
+                self['condition-operator'], self['subconditions'])
+        return query
 
     def is_enrollable(self, participant):
         if self['auto-enrollment'] == 'all':
             return True
+        elif self['auto-enrollment'] == 'match':
+            return participant.is_matching_conditions(self['condition-operator'], self['subconditions'])
         return False

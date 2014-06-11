@@ -1,7 +1,7 @@
 #encoding=utf-8
 from twisted.trial.unittest import TestCase
 
-from vusion.persist import Dialogue
+from vusion.persist import Dialogue, Participant
 from vusion.persist.action import (FeedbackAction, UnMatchingAnswerAction,
                                    ProfilingAction, OffsetConditionAction,
                                    RemoveRemindersAction, RemoveDeadlineAction,
@@ -375,11 +375,38 @@ class TestDialogue(TestCase, ObjectMaker):
         self.assertTrue(dialogue is not None)
         self.assertEqual(Dialogue.MODEL_VERSION, dialogue['model-version'])
 
-    def test_get_auto_enrollment_as_query(self):
+    def test_get_auto_enrollment_as_query_all_participant(self):
         dialogue = Dialogue(**self.mkobj_dialogue_open_question())
         self.assertEqual({}, dialogue.get_auto_enrollment_as_query())
+        
+    def test_get_auto_enrollment_as_query_match_all_tag_label(self):
+        dialogue = self.mkobj_dialogue_auto_enrollment(
+            auto_enrollment='match',
+            condition_operator='all-subconditions', 
+            subconditions=[{'subcondition-field': 'tagged',
+                            'subcondition-operator': 'with',
+                            'subcondition-parameter': 'geek'},
+                           ])
+        self.assertEqual(
+            {'tags': 'geek'},
+            dialogue.get_auto_enrollment_as_query())
 
     def test_is_enrollable(self):
         participant = self.mkobj_participant()
         dialogue = Dialogue(**self.mkobj_dialogue_open_question())        
         self.assertTrue(dialogue.is_enrollable(participant))
+
+    def test_is_enrollable_match_tag_label(self):
+        participant = Participant(**self.mkobj_participant())
+        dialogue = self.mkobj_dialogue_auto_enrollment(
+                    auto_enrollment='match',
+                    condition_operator='any-subconditions', 
+                    subconditions=[{'subcondition-field': 'tagged',
+                                    'subcondition-operator': 'not-with',
+                                    'subcondition-parameter': 'geek'},
+                                   {'subcondition-field': 'labelled',
+                                    'subcondition-operator': 'not-with',
+                                    'subcondition-parameter': 'city:kampala'},                           
+                                   ])
+        self.assertTrue(dialogue.is_enrollable(participant))
+        

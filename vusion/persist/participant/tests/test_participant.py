@@ -182,3 +182,90 @@ class TestParticipant(TestCase, ObjectMaker):
         self.assertEqual(
             participant.get_data('notanAttribute'),
             None)
+
+    def test_from_condition_to_query_all(self):
+        query = Participant.from_conditions_to_query(
+            'all-subconditions', 
+             [{'subcondition-field': 'tagged',
+               'subcondition-operator': 'with',
+               'subcondition-parameter': 'geek'},
+              {'subcondition-field': 'labelled',
+               'subcondition-operator': 'with',
+               'subcondition-parameter': 'city:kampala'},                           
+              ])
+         
+        self.assertEqual(
+            query,
+            {'$and': [
+                {'tags': 'geek'},
+                {'profile': {'$elemMatch' : {'label': 'city', 'value': 'kampala'}}}]})
+         
+    def test_from_condition_to_query_any(self):
+        query = Participant.from_conditions_to_query(
+            'any-subconditions', 
+            [{'subcondition-field': 'tagged',
+              'subcondition-operator': 'not-with',
+              'subcondition-parameter': 'geek'},
+             {'subcondition-field': 'labelled',
+              'subcondition-operator': 'not-with',
+              'subcondition-parameter': 'city:kampala'},                           
+             ])
+      
+        self.assertEqual(
+            query,
+            {'$or': [
+                {'tags': {'$ne': 'geek'}},
+                {'profile': {
+                    '$not': {
+                        '$elemMatch' : {'label': 'city', 'value': 'kampala'}}}}]})        
+
+    def test_is_matching_conditions(self):
+        participant = Participant(**self.mkobj_participant(
+            tags=['geek'],
+            profile=[{'label': 'name',
+                      'value': 'Olivier',
+                      'raw': ''}]))
+        
+        self.assertTrue(
+            participant.is_matching_conditions(
+                'all-subconditions',
+                [{'subcondition-field': 'tagged',
+                  'subcondition-operator': 'with',
+                  'subcondition-parameter': 'geek'},
+                 {'subcondition-field': 'labelled',
+                  'subcondition-operator': 'with',
+                  'subcondition-parameter': 'name:Olivier'},                           
+                 ]))
+        
+        self.assertTrue(
+            participant.is_matching_conditions(
+                'any-subconditions',
+                [{'subcondition-field': 'tagged',
+                  'subcondition-operator': 'with',
+                  'subcondition-parameter': 'nerd'},
+                 {'subcondition-field': 'labelled',
+                  'subcondition-operator': 'with',
+                  'subcondition-parameter': 'name:Olivier'},                           
+                 ]))
+
+        self.assertFalse(
+            participant.is_matching_conditions(
+                'all-subconditions',
+                [{'subcondition-field': 'tagged',
+                  'subcondition-operator': 'not-with',
+                  'subcondition-parameter': 'nerd'},
+                 {'subcondition-field': 'labelled',
+                  'subcondition-operator': 'not-with',
+                  'subcondition-parameter': 'name:Olivier'},                           
+                 ]))
+        
+        self.assertFalse(
+            participant.is_matching_conditions(
+                'any-subconditions',
+                [{'subcondition-field': 'tagged',
+                  'subcondition-operator': 'not-with',
+                  'subcondition-parameter': 'geek'},
+                 {'subcondition-field': 'labelled',
+                  'subcondition-operator': 'not-with',
+                  'subcondition-parameter': 'name:Olivier'},                           
+                 ]))

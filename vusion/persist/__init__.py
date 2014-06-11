@@ -59,7 +59,7 @@ __all__ = ["Model", "ModelManager",
            "ProgramCreditLogManager", "GarbageCreditLogManager",
            "Shortcode", "ShortcodeManager",
            "Request", 
-           "WorkerConfig", "WorkerConfigManager"
+           "WorkerConfig", "WorkerConfigManager",
            "Participant", "ParticipantManager",
            "UnattachMessage",
            "UnmatchableReply", "UnmatchableReplyManager",

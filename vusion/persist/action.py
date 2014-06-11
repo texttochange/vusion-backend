@@ -3,6 +3,7 @@ from math import ceil
 
 from vusion.error import MissingField, VusionError, InvalidField
 from vusion.persist import Model
+from vusion.persist.participant.participant import Participant
 from vumi.log import log
 
 class Action(Model):
@@ -154,38 +155,8 @@ class Action(Model):
     def get_condition_mongodb(self):
         if not self.has_condition():
             return {}
-        query = []
-        for subcondition in self['subconditions']:
-            if subcondition['subcondition-field'] == 'tagged':
-                if subcondition['subcondition-operator'] == 'with':
-                    query.append({
-                        'tags': subcondition['subcondition-parameter']
-                    })
-                elif subcondition['subcondition-operator'] == 'not-with':
-                    query.append({
-                        'tags': {'$ne': subcondition['subcondition-parameter']}
-                    })
-            elif subcondition['subcondition-field'] == 'labelled':
-                profile = subcondition['subcondition-parameter'].split(':')
-                if subcondition['subcondition-operator'] == 'with':
-                    query.append({
-                        'profile': {'$elemMatch': {'label': profile[0],
-                                                    'value': profile[1]}}})
-                elif subcondition['subcondition-operator'] == 'not-with':
-                    query.append({
-                        'profile': {
-                            '$elemMatch': {
-                                '$or': [{'label': {'$ne': profile[0]},
-                                         'value': {'$ne': profile[1]}}]}}})
-        if len(query) == 0:
-            return {}
-        elif len(query) == 1:
-            return query.pop()
-        elif len(query) > 1:
-            if self['condition-operator'] == 'all-subconditions':
-                return {'$and': query}
-            elif self['condition-operator'] == 'any-subconditions':
-                return {'$or': query}
+        return Participant.from_conditions_to_query(
+            self['condition-operator'], self['subconditions'])
         
     def get_condition_mongodb_for(self, phone, session_id):
         query = self.get_condition_mongodb()

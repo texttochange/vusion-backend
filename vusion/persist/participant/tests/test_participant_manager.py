@@ -108,6 +108,19 @@ class TestParticipantManager(TestCase, ObjectMaker):
         participant = self.manager.get_participant('3')
         self.assertFalse(participant.is_enrolled('dialogueID'))        
 
+    def test_enrolling_participant_not_reversible_with_auto_enroll(self):
+        participant = self.mkobj_participant(
+            '1',
+            tags=['geek'],
+            enrolled=[{'dialogue-id': '1', 'date-time': '2014-01-01T10:10:00'}])
+        self.manager.save(participant)
+
+        self.manager.enrolling_participants({'tags': {'$ne': 'geek'}}, '1')
+        
+        participant = self.manager.get_participant('1')
+        self.assertTrue(participant.is_enrolled('1'))
+        
+
     #TODO: check default behavior, shouldn't be like tagging?
     def test_labelling(self):
         participant = self.mkobj_participant(

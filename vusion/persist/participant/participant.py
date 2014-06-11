@@ -48,6 +48,10 @@ class Participant(Model):
         'enrolled',
         'profile'}
 
+    OPERATORS = {
+        'all-subconditions': '$and',
+        'any-subconditions': '$or'}
+
     def validate_fields(self):
         super(Participant, self).validate_fields()
         for field, check in self.PARTICIPANT_FIELDS.items():
@@ -119,6 +123,11 @@ class Participant(Model):
                 return True
         return False
 
+    def has_tag(self, tag):
+        if tag in self['tags']:
+            return True
+        return False
+
     def get_transport_metadata(self):
         return self['transport_metadata']
 
@@ -141,3 +150,59 @@ class Participant(Model):
         if enrolled is None:
             return None
         return enrolled['date-time']
+    
+    @staticmethod
+    def from_conditions_to_query(condition_operator, subconditions):
+        query = None
+        operator = Participant.OPERATORS[condition_operator]
+        for subcondition in subconditions:
+            if subcondition['subcondition-field'] == 'tagged':
+                if subcondition['subcondition-operator'] == 'with':
+                    tmp_query = {'tags': subcondition['subcondition-parameter']}
+                elif subcondition['subcondition-operator'] == 'not-with': 
+                    tmp_query = {'tags': {'$ne': subcondition['subcondition-parameter']}}
+            if subcondition['subcondition-field'] == 'labelled':
+                profile = subcondition['subcondition-parameter'].split(':')                    
+                if subcondition['subcondition-operator'] == 'with':
+                    tmp_query = {'profile': {'$elemMatch': {'label': profile[0], 'value': profile[1]}}}
+                elif subcondition['subcondition-operator'] == 'not-with': 
+                    tmp_query = {'profile': {'$not' : {'$elemMatch': {'label': profile[0], 'value': profile[1]}}}}
+            if query is None:
+                query = tmp_query
+            else:
+                if operator in query:
+                    query[operator].append(tmp_query)
+                else:
+                    query = {operator: [query, tmp_query]}       
+        return query
+
+    def is_matching_conditions(self, condition_operator, subconditions):
+        if condition_operator == 'all-subconditions':
+            for subcondition in subconditions:
+                if not self.is_matching_subcondtion(subcondition):
+                    return False
+            return True
+        elif condition_operator == 'any-subconditions':
+            for subcondition in subconditions:
+                if self.is_matching_subcondtion(subcondition):
+                    return True
+            return False
+        return False   ##default behavior
+
+    def is_matching_subcondtion(self, subcondition):
+        if subcondition['subcondition-field'] == 'tagged':
+            if subcondition['subcondition-operator'] == 'with':
+                if self.has_tag(subcondition['subcondition-parameter']):
+                    return True
+            elif subcondition['subcondition-operator'] == 'not-with':
+                if not self.has_tag(subcondition['subcondition-parameter']):
+                    return True
+        elif subcondition['subcondition-field'] == 'labelled':
+            profile = subcondition['subcondition-parameter'].split(':')            
+            if subcondition['subcondition-operator'] == 'with':
+                if self.has_profile(profile[0], profile[1]):
+                    return True
+            elif subcondition['subcondition-operator'] == 'not-with':
+                if not self.has_profile(profile[0], profile[1]):
+                    return True
+        return False

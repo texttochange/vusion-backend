@@ -54,6 +54,7 @@ class ParticipantManager(ModelManager):
             {'phone': participant_phone}, dialogue_id, safe)
 
     def enrolling_participants(self, query, dialogue_id, safe=True, multi=True):
+        ##unenroll participants that are no more auto
         query.update({'enrolled.dialogue-id': {'$ne': dialogue_id},
                       'session-id':{'$ne': None}})
         self.collection.update(

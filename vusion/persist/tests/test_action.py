@@ -67,13 +67,13 @@ class TestAction(TestCase, ObjectMaker):
         self.assertTrue(True)
 
     def test_get_condition_mongodb_nosubcondition(self):
-           action = {
-               'type-action': 'tagging',
-               'tag': 'mytag'}
-           a = action_generator(**action)
-           self.assertEqual(
-               a.get_condition_mongodb(),
-               {})
+        action = {
+            'type-action': 'tagging',
+            'tag': 'mytag'}
+        a = action_generator(**action)
+        self.assertEqual(
+            a.get_condition_mongodb(),
+            {})
 
     def test_get_condition_mongodb_onesubcondition_all(self):
         action = {
