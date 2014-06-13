@@ -1,9 +1,10 @@
 from twisted.trial.unittest import TestCase
+from twisted.internet.defer import inlineCallbacks
 
 from vusion.persist.action import (Action, action_generator,
                                    ProportionalTagging, TaggingAction, 
                                    Participant)
-from vusion.error import MissingField, InvalidField
+from vusion.error import MissingField, InvalidField, MissingData
 
 from tests.utils import ObjectMaker
 
@@ -299,4 +300,21 @@ class TestSmsForwardingAction(TestCase, ObjectMaker):
              'session-id': {'$ne': None},
              'phone': {'$ne': '06'}},             
             sms_forwarding_action.get_query_selector(participant))
-        
+
+    def test_get_query_selector_missing_data(self):
+        action = {
+            'type-action': 'sms-forwarding',
+            'forward-content': 'hello',
+            'forward-to': 'name:[participant.name]'
+            }
+        sms_forwarding_action = action_generator(**action)
+        participant = Participant(**self.mkobj_participant(
+            participant_phone='06',
+            profile=[]))
+        try:
+            sms_forwarding_action.get_query_selector(participant),
+            self.fail()
+        except MissingData:
+            return
+        self.fail()
+     

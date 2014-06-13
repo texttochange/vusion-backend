@@ -1,11 +1,12 @@
 import re
 from math import ceil
 
-from vusion.error import MissingField, VusionError, InvalidField
+from vusion.error import MissingField, VusionError, InvalidField, MissingData
 from vusion.persist import Model
 from vusion.persist.participant.participant import Participant
 from vusion.const import TAG_REGEX, LABEL_REGEX
 from vumi.log import log
+
 
 class Action(Model):
 
@@ -367,7 +368,7 @@ class SmsForwarding(Action):
             participant_label_value = participant.get_data(match['key1'])
             if not participant_label_value:
                 raise MissingData("Participant %s doesn't have a label %s" % 
-                                  (participant_phone, match['key1']))
+                                  (participant['phone'], match['key1']))
             replace_match = '[participant.%s]' % match['key1']
             customized_selector = self['forward-to'].replace(
                 replace_match, participant_label_value) 
@@ -389,7 +390,7 @@ class SmsForwarding(Action):
                     query['$and'].append(tmp_query)
         query.update({
             'session-id': {'$ne': None},
-            'phone': {'$ne': participant['phone']}})                
+            'phone': {'$ne': participant['phone']}})              
         return query
 
 def action_generator(**kwargs):
