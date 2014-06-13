@@ -2,7 +2,7 @@ import re
 
 from vusion.error import InvalidField, MissingField
 from vusion.persist import Model
-
+from vusion.const import TAG_REGEX, LABEL_REGEX
 
 ##TODO update the validation
 class UnattachMessage(Model):
@@ -18,10 +18,7 @@ class UnattachMessage(Model):
         'content': lambda v: v is not None,
         'type-schedule': lambda v: v in ['fixed-time', 'immediately'],
         'fixed-time': lambda v: re.match(re.compile('^(\d{4})-0?(\d+)-0?(\d+)T0?(\d+):0?(\d+)(:0?(\d+))$'), v)
-    }
-    
-    tag_regex = re.compile('^[a-zA-Z0-9\s]+$')
-    label_regex = re.compile('^[a-zA-Z0-9\s]+:[a-zA-Z0-9\s]+$')    
+    }  
 
     SEND_TO_FIELDS = {
         'all': {},
@@ -76,9 +73,9 @@ class UnattachMessage(Model):
         elif self['send-to-type'] == 'match':
             operator = self.OPERATORS[self['send-to-match-operator']]
             for selector in self['send-to-match-conditions']:
-                if re.match(self.tag_regex, selector):
+                if re.match(TAG_REGEX, selector):
                     tmp_query = {'tags': selector}
-                if re.match(self.label_regex, selector):
+                if re.match(LABEL_REGEX, selector):
                     profile = selector.split(':')
                     tmp_query = {'profile': {'$elemMatch': {'label': profile[0], 'value': profile[1]}}}
                 if query is None:
@@ -98,19 +95,19 @@ class UnattachMessage(Model):
         elif self['send-to-type'] == 'match':
             if self['send-to-match-operator'] == 'any': 
                 for selector in self['send-to-match-conditions']:
-                    if re.match(self.tag_regex, selector):
+                    if re.match(TAG_REGEX, selector):
                         if selector in participant['tags']:
                             return True
-                    elif re.match(self.label_regex, selector):
+                    elif re.match(LABEL_REGEX, selector):
                         profile = selector.split(':')
                         if participant.has_profile(profile[0], profile[1]):
                             return True
             elif self['send-to-match-operator'] == 'all':
                 for selector in self['send-to-match-conditions']:
-                    if re.match(self.tag_regex, selector):
+                    if re.match(TAG_REGEX, selector):
                         if not selector in participant['tags']:
                             return False
-                    elif re.match(self.label_regex, selector):
+                    elif re.match(LABEL_REGEX, selector):
                         profile = selector.split(':')
                         if not participant.has_profile(profile[0], profile[1]):
                             return False
