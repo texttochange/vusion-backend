@@ -400,17 +400,33 @@ class DialogueWorker(ApplicationWorker):
 
     @inlineCallbacks
     def run_action_sms_forwarding(self, participant_phone, action, context):
-        participant = self.collections['participants'].get_participant(participant_phone)
-        query = action.get_query_selector(participant)
+        sender = self.collections['participants'].get_participant(participant_phone)
+        query = action.get_query_selector(sender, context)
         participants = self.collections['participants'].get_participants(query)
+        if participants.count() == 0 and action.has_no_participant_feedback():
+            content = self.customize_message(
+                action.get_no_participant_feedback(),
+                sender['phone'], 
+                context)
+            schedule = FeedbackSchedule(**{
+                'participant-phone': sender['phone'],
+                'participant-session-id': sender['session-id'],
+                'date-time': self.get_local_time('vusion'),
+                'content': content,
+                'context': context.payload})
+            yield self.send_schedule(schedule)
+            return
         for participant in participants:
+            content = self.customize_message(
+                action['forward-content'],
+                participant_phone,
+                context)
             schedule = FeedbackSchedule(**{
                 'participant-phone': participant['phone'],
                 'participant-session-id': participant['session-id'],
                 'date-time': self.get_local_time('vusion'),
-                'content': self.customize_message(action['forward-content'], participant_phone, context),
-                'context': context.payload
-            })
+                'content': content,
+                'context': context.payload})
             yield self.send_schedule(schedule)
 
     def consume_user_message(self, message):
@@ -1165,7 +1181,7 @@ class DialogueWorker(ApplicationWorker):
                     message = message.replace(replace_match, content_variable['value'])
                 elif match['domain'] == 'context':
                     if context is None:
-                        raise MissingData("No context for message cutomization.")
+                        raise MissingData("No context for message customization.")
                     replace_match = '[%s.%s]' % (match['domain'], match['key1'])
                     if context[match['key1']] is None:
                         raise MissingData("No context key \"%s\"" % match['key1'])

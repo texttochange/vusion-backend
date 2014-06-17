@@ -1,6 +1,7 @@
 #encoding: utf-8
 from twisted.trial.unittest import TestCase
 from vusion import clean_keyword
+from vusion.utils import clean_phone
 
 
 class TestCleanKeyword(TestCase):
@@ -35,3 +36,10 @@ class TestCleanKeyword(TestCase):
         self.assertEqual(
             clean_keyword(u'ÁÉÍÓÚÜÑ'),
             'aeiouun')
+
+    def test_clean_phone(self):
+        self.assertEqual(clean_phone('+256111'), '+256111')
+        self.assertEqual(clean_phone('256111'), '+256111')
+        self.assertEqual(clean_phone('0256111'), '+256111')
+        self.assertEqual(clean_phone('00256111'), '+256111')
+        

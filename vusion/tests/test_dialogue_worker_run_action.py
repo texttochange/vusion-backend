@@ -717,3 +717,34 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(self.collections['history'].count(), 1)
         history = self.collections['history'].find_one()
         self.assertEqual(history['object-type'], 'request-history')
+
+    def test_run_action_sms_forwarding_no_participant(self):
+        self.initialize_properties()
+        
+        sender = self.mkobj_participant(
+            participant_phone='+1',
+            profile=[{'label': 'name',
+                      'value': 'mark'},
+                     {'label': 'address',
+                      'value': 'kampala'}],
+            tags=['my tag'])
+        self.collections['participants'].save(sender)
+                        
+        sms_forwarding = SmsForwarding(**{
+            'forward-to': 'geek',
+            'forward-content': 'Hello...',
+            'set-forward-message-condition': 'forward-message-condition',
+            'forward-message-condition-type': 'phone-number',
+            'forward-message-no-participant-feedback': 'No patient is matching the phone number.'})
+        context = Context(**{'message': 'ANSWER +1234',
+                             'request-id': '1'})
+        self.worker.run_action(sender['phone'], sms_forwarding, context)
+        
+        messages = self.broker.get_messages('vumi', 'test.outbound')
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0]['to_addr'], sender['phone'])
+        self.assertEqual(messages[0]['transport_type'], 'sms')
+        self.assertRegexpMatches(messages[0]['content'], 'No patient is matching the phone number.')
+        self.assertEqual(self.collections['history'].count(), 1)
+        #history = self.collections['history'].find_one()
+        #self.assertEqual(history['object-type'], 'request-history')

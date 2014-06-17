@@ -5,6 +5,7 @@ from vusion.error import MissingField, VusionError, InvalidField, MissingData
 from vusion.persist import Model
 from vusion.persist.participant.participant import Participant
 from vusion.const import TAG_REGEX, LABEL_REGEX
+from vusion.utils import clean_phone
 from vumi.log import log
 
 
@@ -350,11 +351,41 @@ class SmsForwarding(Action):
     
     ACTION_TYPE = 'sms-forwarding'
 
-    def validate_field(self):
+    def before_validate(self):
+        if not 'set-forward-message-condition' in self.payload:
+            self['set-forward-message-condition'] = None
+        super(SmsForwarding, self).before_validate()
+
+    def validate_fields(self):
         super(SmsForwarding, self).validate_fields()
-        self.assert_field_present('forward-to', 'forward-content')    
-             
-    def get_query_selector(self, participant):
+        self.assert_field_present(
+            'forward-to', 
+            'forward-content',
+            'set-forward-message-condition')
+
+    def get_forward_message_condition(self, context):
+        if self['set-forward-message-condition'] is None:
+            return None
+        if self['forward-message-condition-type'] == 'phone-number':
+            phone_number = clean_phone(context.get_message_second_word())
+            return {'phone': phone_number}
+        return None
+
+    def has_no_participant_feedback(self):
+        if self['set-forward-message-condition'] is None:
+            return False
+        if ('forward-message-no-participant-feedback' not in self.payload 
+            or self['forward-message-no-participant-feedback'] is None
+            or self['forward-message-no-participant-feedback'] == ''):
+            return False
+        return True
+
+    def get_no_participant_feedback(self):
+        if 'forward-message-no-participant-feedback' in self:
+            return self['forward-message-no-participant-feedback']
+        return None
+
+    def get_query_selector(self, participant, context):
         ##replace custom part of the selector
         customized_selector = self['forward-to']
         custom_regexp = re.compile(r'\[participant.(?P<key1>[^\.\]]+)\]')
@@ -374,7 +405,7 @@ class SmsForwarding(Action):
                 replace_match, participant_label_value) 
         selectors = [selector.strip() for selector in customized_selector.split(",")]
         ##build the query
-        query = None
+        query = self.get_forward_message_condition(context)
         for selector in selectors:
             if re.match(TAG_REGEX, selector):
                 tmp_query = {'tags': selector}
