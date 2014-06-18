@@ -1,10 +1,12 @@
 import re
 from math import ceil
 
-from vusion.error import MissingField, VusionError, InvalidField
+from vusion.error import MissingField, VusionError, InvalidField, MissingData
 from vusion.persist import Model
 from vusion.persist.participant.participant import Participant
+from vusion.const import TAG_REGEX, LABEL_REGEX
 from vumi.log import log
+
 
 class Action(Model):
 
@@ -352,6 +354,44 @@ class SmsForwarding(Action):
         super(SmsForwarding, self).validate_fields()
         self.assert_field_present('forward-to', 'forward-content')    
              
+    def get_query_selector(self, participant):
+        ##replace custom part of the selector
+        customized_selector = self['forward-to']
+        custom_regexp = re.compile(r'\[participant.(?P<key1>[^\.\]]+)\]')
+        matches = re.finditer(custom_regexp, self['forward-to'])
+        for match in matches:
+            match = match.groupdict() if match is not None else None
+            if match is None:
+                continue
+            if participant is None:
+                raise MissingData('No participant supplied for this message.')
+            participant_label_value = participant.get_data(match['key1'])
+            if not participant_label_value:
+                raise MissingData("Participant %s doesn't have a label %s" % 
+                                  (participant['phone'], match['key1']))
+            replace_match = '[participant.%s]' % match['key1']
+            customized_selector = self['forward-to'].replace(
+                replace_match, participant_label_value) 
+        selectors = [selector.strip() for selector in customized_selector.split(",")]
+        ##build the query
+        query = None
+        for selector in selectors:
+            if re.match(TAG_REGEX, selector):
+                tmp_query = {'tags': selector}
+            elif re.match(LABEL_REGEX, selector):
+                profile = selector.split(':')
+                tmp_query = {'profile': {'$elemMatch': {'label': profile[0], 'value': profile[1]}}}
+            if query is None:
+                query = tmp_query
+            else:
+                if not '$and' in query:
+                    query = {'$and': [query, tmp_query]}
+                else:
+                    query['$and'].append(tmp_query)
+        query.update({
+            'session-id': {'$ne': None},
+            'phone': {'$ne': participant['phone']}})              
+        return query
 
 def action_generator(**kwargs):
     # Condition to be removed when Dialogue structure freezed

@@ -400,10 +400,9 @@ class DialogueWorker(ApplicationWorker):
 
     @inlineCallbacks
     def run_action_sms_forwarding(self, participant_phone, action, context):
-        participants = self.collections['participants'].get_participants({
-            'tags': action['forward-to'],
-            'session-id': {'$ne': None},
-            'phone': {'$ne': participant_phone}})
+        participant = self.collections['participants'].get_participant(participant_phone)
+        query = action.get_query_selector(participant)
+        participants = self.collections['participants'].get_participants(query)
         for participant in participants:
             schedule = FeedbackSchedule(**{
                 'participant-phone': participant['phone'],

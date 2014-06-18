@@ -1,8 +1,10 @@
 from twisted.trial.unittest import TestCase
+from twisted.internet.defer import inlineCallbacks
 
 from vusion.persist.action import (Action, action_generator,
-                                   ProportionalTagging, TaggingAction)
-from vusion.error import MissingField, InvalidField
+                                   ProportionalTagging, TaggingAction, 
+                                   Participant)
+from vusion.error import MissingField, InvalidField, MissingData
 
 from tests.utils import ObjectMaker
 
@@ -269,7 +271,7 @@ class TestProportionalTaggingAction(TestCase):
                TaggingAction(**{'tag': 'group 1'}))
 
 
-class TestSmsForwardingAction(TestCase):
+class TestSmsForwardingAction(TestCase, ObjectMaker):
     
     def test_generate_action(self):
         action = {
@@ -278,4 +280,41 @@ class TestSmsForwardingAction(TestCase):
             'forward-to': 'my tag'
             }
         a = action_generator(**action)
-        self.assertTrue(True)        
+        self.assertTrue(True)
+
+    def test_get_query_selector(self):
+        action = {
+            'type-action': 'sms-forwarding',
+            'forward-content': 'hello',
+            'forward-to': 'my tag, name:[participant.name]'
+            }
+        sms_forwarding_action = action_generator(**action)
+        participant = Participant(**self.mkobj_participant(
+            participant_phone='06',
+            profile=[{
+                'label': 'name',
+                'value': 'olivier'}]))
+        self.assertEqual(
+            {'$and': [{'tags': 'my tag'},
+                      {'profile': {'$elemMatch': {'label': 'name', 'value': 'olivier'}}}],
+             'session-id': {'$ne': None},
+             'phone': {'$ne': '06'}},             
+            sms_forwarding_action.get_query_selector(participant))
+
+    def test_get_query_selector_missing_data(self):
+        action = {
+            'type-action': 'sms-forwarding',
+            'forward-content': 'hello',
+            'forward-to': 'name:[participant.name]'
+            }
+        sms_forwarding_action = action_generator(**action)
+        participant = Participant(**self.mkobj_participant(
+            participant_phone='06',
+            profile=[]))
+        try:
+            sms_forwarding_action.get_query_selector(participant),
+            self.fail()
+        except MissingData:
+            return
+        self.fail()
+     
