@@ -367,8 +367,10 @@ class SmsForwarding(Action):
         if self['set-forward-message-condition'] is None:
             return None
         if self['forward-message-condition-type'] == 'phone-number':
-            phone_number = clean_phone(context.get_message_second_word())
-            return {'phone': phone_number}
+            second_word = context.get_message_second_word()
+            if second_word is None:
+                return {'phone': ''}
+            return {'phone': clean_phone(second_word)}
         return None
 
     def has_no_participant_feedback(self):
