@@ -24,7 +24,8 @@ from vumi.errors import VumiError
 from vusion.utils import (time_to_vusion_format, get_local_time,
                           get_local_time_as_timestamp, time_from_vusion_format,
                           get_shortcode_value, get_offset_date_time,
-                          split_keywords, add_char_to_pattern)
+                          split_keywords, add_char_to_pattern,
+                          dynamic_content_notation_to_string)
 from vusion.error import (MissingData, SendingDatePassed, VusionError,
                           MissingTemplate, MissingProperty)
 from vusion.message import DispatcherControl, WorkerControl
@@ -1157,7 +1158,10 @@ class DialogueWorker(ApplicationWorker):
             if match is None:
                 continue
             try:
-                if match['domain'].lower() in ['participant', 'participants']:
+                domain = match['domain']
+                keys = {k: match[k] for k in ('key1', 'key2', 'key3') if match[k] is not None}
+                replace_match = dynamic_content_notation_to_string(domain, keys)
+                if domain.lower() in ['participant', 'participants']:
                     if participant_phone is None:
                         raise MissingData('No participant supplied for this message.')
                     if participant is None:
@@ -1166,29 +1170,20 @@ class DialogueWorker(ApplicationWorker):
                     if not participant_label_value:
                         raise MissingData("Participant %s doesn't have a label %s" % 
                                           (participant_phone, match['key1']))
-                    replace_match = '[%s.%s]' % (match['domain'], match['key1'])
                     message = message.replace(replace_match, participant_label_value) 
-                elif match['domain'] == 'contentVariable':
+                elif domain == 'contentVariable':
                     content_variable = self.collections['content_variables'].get_content_variable_from_match(match)
-                    keys = 'contentVariable'
-                    for index in ['key1', 'key2', 'key3']:
-                        if match[index] is None:
-                            break
-                        keys = '%s.%s' % (keys, match[index])
-                    replace_match = '[%s]' % keys
                     if content_variable is None:
                         raise MissingData("The program doesn't have a content variable %s" % replace_match)                    
                     message = message.replace(replace_match, content_variable['value'])
-                elif match['domain'] == 'context':
+                elif domain == 'context':
                     if context is None:
                         raise MissingData("No context for message customization.")
-                    replace_match = '[%s.%s]' % (match['domain'], match['key1'])
-                    if context[match['key1']] is None:
-                        raise MissingData("No context key \"%s\"" % match['key1'])
-                    message = message.replace(replace_match, context[match['key1']])
-                elif match['domain'] == 'time':
+                    message = message.replace(
+                        replace_match,
+                        context.get_data_from_notation(**keys))
+                elif domain == 'time':
                     local_time = self.get_local_time()
-                    replace_match = '[%s.%s]' % (match['domain'], match['key1'])
                     replace_time = local_time.strftime(add_char_to_pattern(match['key1'], '[a-zA-Z]'))
                     message = message.replace(replace_match, replace_time)
                 else:

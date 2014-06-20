@@ -1,4 +1,5 @@
-from vusion.utils import get_word
+from vusion.utils import get_word, is_int, get_words
+from vusion.error import MissingData
 
 
 class Context(object):
@@ -48,6 +49,22 @@ class Context(object):
     
     def get_message_second_word(self):
         return get_word(self.get_message(), position=1)
+
+    def get_data_from_notation(self, key1, key2=None, key3=None):
+        if key2 is not None:
+            if is_int(key2) and key1 == 'message':
+                return get_word(
+                    self.get_message(),
+                    position=int(key2) - 1)
+            else:
+                if is_int(key3):
+                    return get_words(
+                        self.get_message(),
+                        direction=key2,
+                        position= int(key3))
+        if self[key1] is None:
+            raise MissingData("No context key \"%s\"" % key1)
+        return self[key1]
 
     def get_dict_for_history(self, schedule=None):
         dict_for_history = {}
