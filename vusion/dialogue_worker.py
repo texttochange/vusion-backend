@@ -1181,7 +1181,7 @@ class DialogueWorker(ApplicationWorker):
                         raise MissingData("No context for message customization.")
                     message = message.replace(
                         replace_match,
-                        context.get_data_from_notation(**keys))
+                        (context.get_data_from_notation(**keys) or ''))
                 elif domain == 'time':
                     local_time = self.get_local_time()
                     replace_time = local_time.strftime(add_char_to_pattern(match['key1'], '[a-zA-Z]'))

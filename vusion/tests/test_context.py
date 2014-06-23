@@ -45,5 +45,5 @@ class TestContext(TestCase):
             context.get_data_from_notation('message', 'after', '1'))
 
         self.assertEqual(
-            "NAME", 
+            "NAME",
             context.get_data_from_notation('message', 'before', '2'))

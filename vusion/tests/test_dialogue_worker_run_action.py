@@ -747,7 +747,6 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertRegexpMatches(messages[0]['content'], 'No patient is matching the phone number.')
         self.assertEqual(self.collections['history'].count(), 1)
 
-
     def test_run_action_sms_forwarding_no_conditions(self):
         self.initialize_properties()
         
@@ -770,7 +769,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             'forward-content': 'Hello...',
             'set-forward-message-condition': 'forward-message-condition',
             'forward-message-condition-type': 'phone-number',
-            'forward-message-no-participant-feedback': 'No patient is matching the phone number.'})
+            'forward-message-no-participant-feedback': 'No patient is matching the phone number [context.message.2].'})
         
         context = Context(**{'message': 'ANSWER',
                              'request-id': '1'})
@@ -783,7 +782,9 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 2)
         self.assertEqual(messages[0]['to_addr'], sender['phone'])
-        self.assertRegexpMatches(messages[0]['content'], 'No patient is matching the phone number.')
+        self.assertEqual(messages[0]['content'], 'No patient is matching the phone number .')
         self.assertEqual(messages[1]['to_addr'], sender['phone'])
-        self.assertRegexpMatches(messages[1]['content'], 'No patient is matching the phone number.')
+        self.assertEqual(messages[1]['content'], 'No patient is matching the phone number this.')
+
+
         
