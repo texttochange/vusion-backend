@@ -6,6 +6,8 @@ from vusion.persist.action import (Action, action_generator,
                                    Participant)
 from vusion.error import MissingField, InvalidField, MissingData
 
+from vusion.context import Context
+
 from tests.utils import ObjectMaker
 
 
@@ -299,7 +301,7 @@ class TestSmsForwardingAction(TestCase, ObjectMaker):
                       {'profile': {'$elemMatch': {'label': 'name', 'value': 'olivier'}}}],
              'session-id': {'$ne': None},
              'phone': {'$ne': '06'}},             
-            sms_forwarding_action.get_query_selector(participant))
+            sms_forwarding_action.get_query_selector(participant, Context()))
 
     def test_get_query_selector_missing_data(self):
         action = {
@@ -312,9 +314,57 @@ class TestSmsForwardingAction(TestCase, ObjectMaker):
             participant_phone='06',
             profile=[]))
         try:
-            sms_forwarding_action.get_query_selector(participant),
+            sms_forwarding_action.get_query_selector(participant, Context()),
             self.fail()
         except MissingData:
             return
         self.fail()
      
+     
+    def test_get_query_selector_message_condition(self):
+        action = {
+            'type-action': 'sms-forwarding',
+            'forward-content': 'hello',
+            'forward-to': 'my tag, name:[participant.name]',
+            'set-forward-message-condition': 'forward-message-condition',
+            'forward-message-condition-type': 'phone-number',
+            'forward-message-no-participant-feedback': 'Some message'            
+            }
+        context = Context(**{'message': 'Answer 2561111'})
+        sms_forwarding_action = action_generator(**action)
+        participant = Participant(**self.mkobj_participant(
+            participant_phone='06',
+            profile=[{
+                'label': 'name',
+                'value': 'olivier'}]))
+        self.assertEqual(
+            {'$and': [{'phone': '+2561111'},
+                      {'tags': 'my tag'},
+                      {'profile': {'$elemMatch': {'label': 'name', 'value': 'olivier'}}}],
+             'session-id': {'$ne': None},
+             'phone': {'$ne': '06'}},             
+            sms_forwarding_action.get_query_selector(participant, context))
+
+
+    def test_get_query_selector_message_condition_abscent(self):
+        action = {
+            'type-action': 'sms-forwarding',
+            'forward-content': 'hello',
+            'forward-to': 'my tag',
+            'set-forward-message-condition': 'forward-message-condition',
+            'forward-message-condition-type': 'phone-number',
+            'forward-message-no-participant-feedback': 'Some message'            
+            }
+        context = Context(**{'message': 'Answer'})
+        sms_forwarding_action = action_generator(**action)
+        participant = Participant(**self.mkobj_participant(
+            participant_phone='06',
+            profile=[{
+                'label': 'name',
+                'value': 'olivier'}]))
+        self.assertEqual(
+            {'$and': [{'phone': ''},
+                      {'tags': 'my tag'}],
+             'session-id': {'$ne': None},
+             'phone': {'$ne': '06'}},             
+            sms_forwarding_action.get_query_selector(participant, context))

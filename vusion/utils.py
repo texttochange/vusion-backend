@@ -5,6 +5,8 @@ import iso8601
 import re
 from unidecode import unidecode
 
+from vusion.const import PLUS_REGEX, ZEROS_REGEX
+
 
 def get_default(kwargs, field, default_value):
     return kwargs[field] if field in kwargs else default_value
@@ -108,6 +110,18 @@ def add_char_to_pattern(string, pattern):
             l[index] = "%%%s" % char
     return ''.join(l)
 
+def get_word(content, delimiter=' ', position=0):
+    splits = (content or '').split(delimiter)
+    if position < len(splits):
+        return splits[position]
+    return None
+
+def clean_phone(phone):
+    if (re.match(ZEROS_REGEX, phone)):
+        return re.sub(ZEROS_REGEX, "+", phone)    
+    if (not re.match(PLUS_REGEX, phone)):
+        return '+%s' % phone
+    return phone
 
 #TODO remove DataLayerUtils in tests package
 class DataLayerUtils:

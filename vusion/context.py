@@ -1,3 +1,4 @@
+from vusion.utils import get_word
 
 
 class Context(object):
@@ -41,6 +42,12 @@ class Context(object):
 
     def get_message(self):
         return (self.payload['message'] if 'message' in self.payload else None)
+
+    def get_message_keyword(self):
+        return get_word(self.get_message(), position=0)
+    
+    def get_message_second_word(self):
+        return get_word(self.get_message(), position=1)
 
     def get_dict_for_history(self, schedule=None):
         dict_for_history = {}
