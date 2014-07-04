@@ -78,3 +78,37 @@ Dev Environment
 When using an IDE please ensure you point to these directories in the PYTHONPATH
    .../vusion-frontend/backend
    .../vusion-frontend/backend/ve/bin/python.exe
+
+Installation using Vagrant and VirtualBox
+=========================================
+
+Install Python and pip
+	**For windows7(or8)**
+	::
+		1. Dowload the MSI installer from http://www.python.org/download/. 
+		   Select 32/64 bit based on your system setting
+
+		2. Run the installer. Be sure to check the option to add Python to your PATH while installing.
+
+		3. Open PowerShell as admin by right clicking on the PowerShell icon and selecting ‘Run as Admin’.
+
+		4. To solve permission issues, run the following command:
+				Set-ExecutionPolicy Unrestricted
+
+		5. Enter the following commands in PowerShell:
+
+				mkdir c:\envs
+				cd c:\envs
+
+		6. Download the following files into your new folder
+				http://python-distribute.org/distribute_setup.py
+				https://raw.github.com/pypa/pip/master/contrib/get-pip.py
+
+				so now you have something like : 'c:\envs\distribute_setup.py' and 'c:\envs\get-pip.py'.
+
+		7. Run the following commands in you terminal
+				python c:\envs\distribute_setup.py
+				python c:\envs\get-pip.py
+
+					**Note: Once these commands run successfully, you can delete the scripts get-pip.py and 				    distribute_setup.py**
+		8.
