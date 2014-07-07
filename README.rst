@@ -103,12 +103,12 @@ Install Python and pip
 		cd c:\envs
 
 	6. Download the following files into your new folder.
-	   ::
-		     
-		http://python-distribute.org/distribute_setup.py
-		https://raw.github.com/pypa/pip/master/contrib/get-pip.py
-
-	    so now you have something like : 'c:\envs\distribute_setup.py' and 'c:\envs\get-pip.py'.
+	
+	   http://python-distribute.org/distribute_setup.py
+	     
+	   https://raw.github.com/pypa/pip/master/contrib/get-pip.py
+	    
+	   **so now you have something like : 'c:\envs\distribute_setup.py' and 'c:\envs\get-pip.py'.**
 
 	7. Run the following commands in you terminal.
 	
