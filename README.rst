@@ -104,11 +104,12 @@ Install Python and pip
 
 	6. Download the following files into your new folder.
 	
-	   http://python-distribute.org/distribute_setup.py
+	    http://python-distribute.org/distribute_setup.py
 	     
-	   https://raw.github.com/pypa/pip/master/contrib/get-pip.py
-	    
-	   **so now you have something like : 'c:\envs\distribute_setup.py' and 'c:\envs\get-pip.py'.**
+	    https://raw.github.com/pypa/pip/master/contrib/get-pip.py
+	   ::
+	   
+	    so now you have something like : 'c:\envs\distribute_setup.py' and 'c:\envs\get-pip.py'.
 
 	7. Run the following commands in you terminal.
 	
@@ -130,7 +131,8 @@ Install Python and pip
            Close and reopen PowerShell after running this command.
            
         9. To create a Virtual Environment, use the following commands.
-            ::
+        
+           ::
              
 		cd c:\python
 		pip install virtualenv
@@ -146,8 +148,9 @@ Install Python and pip
                    or with Visual Studio 2013 installed (Visual Studio Version 12)
 			SET VS90COMNTOOLS=%VS120COMNTOOLS%
 
-	10. To run the virtual Environment and backend tests
-	      ::
+	10. To run the virtual Environment and backend tests.
+	
+	    ::
 	      
 		 virtualenv ve
 		 .\ve\Scripts\activate
