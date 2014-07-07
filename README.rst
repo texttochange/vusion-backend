@@ -83,10 +83,7 @@ Installation using Vagrant and VirtualBox
 =========================================
 
 Install Python and pip
-
   **For windows7(or8)**
-  ::
-  
 	1. Dowload the MSI installer from http://www.python.org/download/. 
 	   Select 32/64 bit based on your system setting
 
@@ -94,10 +91,12 @@ Install Python and pip
 
 	3. Open PowerShell as admin by right clicking on the PowerShell icon and selecting ‘Run as Admin’.
 
-	4. To solve permission issues, run the following command:
+	4. To solve permission issues, run the following command
+	    ::
+	    
 	         Set-ExecutionPolicy Unrestricted
 
-	5. Enter the following commands in PowerShell:
+	5. Enter the following commands in PowerShell
             ::
 
 		mkdir c:\envs
@@ -120,8 +119,9 @@ Install Python and pip
             **Note: Once these commands run successfully, you can delete the scripts get-pip.py and distribute_setup.py**
 	
 	8. Now typing pip should work. If it doesn’t it means the Scripts folder is not in your path. 
-	   Run the next command in that case (Note that this command must be run only once or your PATH will get longer and longer).
-	   Make sure to replace c:\Python27\Scripts with the correct location of your Python installation:
+	   Run the next command in that case 
+	   (Note that this command must be run only once or your PATH will get longer and longer).
+	   Make sure to replace c:\Python27\Scripts with the correct location of your Python installation
              ::
              
                   setx PATH "%PATH%;C:\Python27\Scripts"
