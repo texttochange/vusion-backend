@@ -58,8 +58,7 @@ class CioecHttpTransportTestCase(MessageMaker, TransportTestCase):
         self.assertTrue('authorization' in headers, "authorization header is missing")
         value = headers['authorization']
         
-        auth = sha1('%s%s%s' % (self.config['api_key'], self.config['salt'], datetime.now().strftime('%Y-%m-%d')))
-        auth = b64encode("%s:api_token" % '3a08dec65c1d4a9fa452e23a21e7a42fddf392a1')
+        auth = b64encode("3a08dec65c1d4a9fa452e23a21e7a42fddf392a1:api_token")
         self.assertEqual(value, "Basic %s" % auth)
 
     @inlineCallbacks
