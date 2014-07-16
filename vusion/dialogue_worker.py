@@ -378,6 +378,7 @@ class DialogueWorker(ApplicationWorker):
             self.log('SMS Forwarding not allowed, dump action')
             return
         history = self.collections['history'].get_history(context['history_id'])
+        participant = self.collections['participants'].get_participant(participant_phone)
         message = TransportUserMessage(**{
            'to_addr': action['forward-url'],
            'from_addr': self.transport_name,
@@ -386,7 +387,8 @@ class DialogueWorker(ApplicationWorker):
            'content': history['message-content'],
            'transport_metadata': {
                'program_shortcode': self.properties['shortcode'],
-               'participant_phone': participant_phone}
+               'participant_phone': participant_phone,
+               'participant_profile': participant['profile']}
         })
         yield self.transport_publisher.publish_message(message)
         self.collections['history'].update_forwarding(context['history_id'], message['message_id'], action['forward-url'])
