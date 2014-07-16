@@ -13,7 +13,7 @@ from vumi.message import TransportMessage
 
 from tests.utils import MessageMaker
 
-from transports.http.cioec_http import CioecHttp
+from transports import CioecHttp
 
 
 class CioecHttpTransportTestCase(MessageMaker, TransportTestCase):

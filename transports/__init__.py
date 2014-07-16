@@ -8,10 +8,12 @@ from mobivate_http import MobivateHttpTransport
 from movilgate_http import MovilgateHttpTransport
 from mobtech_ml_http import MobtechMlHttpTransport
 from smsgh_smpp import SmsghSmppTransport
-from forward_http import ForwardHttp
 from ttc_bf_http import TtcBfHttpTransport
 from orange_mali_smpp import OrangeMaliSmppTransport
 from enhanced_smpp.enhanced_client import EnhancedSmppTransport
+
+from http_forward.forward_http import ForwardHttp
+from http_forward.cioec_http import CioecHttp
 
 __all__ = ["YoUgHttpTransport",
            "CmYoTransport",
@@ -24,6 +26,6 @@ __all__ = ["YoUgHttpTransport",
            "MobtechMlHttpTransport",
            "SmsghSmppTransport",
            "TtcBfHttpTransport",
-           "ForwardHttp",
+           "ForwardHttp", "CioecHttp"
            "OrangeMaliSmppTransport",
            "EnhancedSmppTransport"]
