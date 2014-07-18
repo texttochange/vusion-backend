@@ -10,6 +10,7 @@ from twisted.web import http
 from vumi.transports.tests.test_base import TransportTestCase
 from vumi.tests.utils import get_stubbed_worker, TestResourceWorker
 from vumi.message import TransportMessage
+from vumi.tests.utils import RegexMatcher
 
 from tests.utils import MessageMaker
 
@@ -362,7 +363,7 @@ class CioecHttpTransportTestCase(MessageMaker, TransportTestCase):
                 delivery_status='failed',
                 failure_level='transport',
                 failure_code=None,
-                failure_reason='ConnectionRefusedError(\'Connection refused\',)',
+                failure_reason=RegexMatcher('ConnectionRefusedError'),
                 transport_metadata={'transport_type':'http_forward'}),
             TransportMessage.from_json(fail.body))  
 
