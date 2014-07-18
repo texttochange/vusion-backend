@@ -99,3 +99,53 @@ class TestToAddrRouter(DispatcherTestCase):
         transport_default_msgs = self.get_dispatched_messages(
             'transport-default', direction='outbound')
         self.assertEqual(transport_default_msgs, [msg3])
+
+
+class TestToAddrRouterUrl(DispatcherTestCase):
+    
+    dispatcher_class = BaseDispatchWorker
+    transport_name = 'test_transport'
+    
+    @inlineCallbacks
+    def setUp(self):
+        yield super(TestToAddrRouterUrl, self).setUp()
+        self.config = {
+            'dispatcher_name': 'keyword_dispatcher',
+            'router_class': 'dispatchers.ToAddrRouter',
+            'exposed_names': ['app'],
+            'transport_names': [
+                'transport1',
+                'transport2',
+                'transport-default'],
+            'transport_mappings':{
+                'transport1': [
+                    'partner1.org', 
+                    'mobile.partner1.org'],
+                'transport2': [
+                    '.*mobile.partner2.com']},
+            'transport_fallback': 'transport-default'
+            }
+        self.dispatcher = yield self.get_dispatcher(self.config)
+        self.router = self.dispatcher._router
+
+    @inlineCallbacks
+    def test_outbound_message(self):
+        msg1 = self.mkmsg_out(to_addr='partner1.org/api')
+        yield self.dispatch(
+            msg1,
+            transport_name='app',
+            direction='outbound')
+        
+        transport1_msgs = self.get_dispatched_messages(
+            'transport1', direction='outbound')
+        self.assertEqual(transport1_msgs, [msg1])
+
+        msg2 = self.mkmsg_out(to_addr='http://mobile.partner2.com')
+        yield self.dispatch(
+            msg2,
+            transport_name='app',
+            direction='outbound')
+        
+        transport2_msgs = self.get_dispatched_messages(
+            'transport2', direction='outbound')
+        self.assertEqual(transport2_msgs, [msg2])

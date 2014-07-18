@@ -15,7 +15,10 @@ class ToAddrRouter(BaseDispatchRouter):
         transport_mappings = self.config.get('transport_mappings', {})
         for transport_name, to_addr_patterns in transport_mappings.iteritems():
             for to_addr_pattern in to_addr_patterns:
-                to_addr_regex = '^\+%s%s' % (self.config.get('country_code',''), to_addr_pattern)
+                if 'country_code' in self.config:
+                    to_addr_regex = '^\+%s%s' % (self.config.get('country_code',''), to_addr_pattern)
+                else:
+                    to_addr_regex = '%s' % to_addr_pattern
                 self.to_addr_mappings.append((transport_name, re.compile(to_addr_regex)))
 
     def dispatch_outbound_message(self, msg):
