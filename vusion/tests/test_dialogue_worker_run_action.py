@@ -620,6 +620,10 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
     def test_run_action_url_forwarding(self):
         self.initialize_properties()
         
+        self.collections['participants'].save(self.mkobj_participant(
+            participant_phone='+6',
+            profile=[{'label': 'name', 'value': 'olivier', 'raw': None}]))
+        
         history_id = self.collections['history'].save(self.mkobj_history_dialogue(
             dialogue_id='1',
             interaction_id='1',
@@ -645,7 +649,8 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(
             messages[0]['transport_metadata'], 
             {'program_shortcode': '256-8181',
-             'participant_phone': '+6'})
+             'participant_phone': '+6',
+             'participant_profile': [{'label': 'name', 'value': 'olivier', 'raw': None}]})
         history = DialogueHistory(**self.collections['history'].find_one())
         self.assertEqual(history['message-status'], 'forwarded')
 
