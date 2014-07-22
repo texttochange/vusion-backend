@@ -70,9 +70,9 @@ class CioecHttpTransportTestCase(MessageMaker, TransportTestCase):
                 'port': 9999}}
         response_body = {
             "status":"success",
+            "message":"X user registered",
             "data": {
                 "ids":[{"code":"aQx3","phone":"+59177777"}],
-                "message":"X user registered"
             }
         }
         responses = {
@@ -122,10 +122,8 @@ class CioecHttpTransportTestCase(MessageMaker, TransportTestCase):
                 'port': 9999}}
         response_body = {
             "status":"fail",
-            "data": {
-                "error": "E010",
-                "message": "Name is required"
-            }
+            "error": "E010",
+            "message": "Name is required"
         }
         responses = {
             'partner1': [
@@ -178,10 +176,8 @@ class CioecHttpTransportTestCase(MessageMaker, TransportTestCase):
                 'port': 9999}}
         response_body = {
             "status":"fail",
-            "data": {
-                "error": "E010",
-                "message": "Name is required"
-            }
+            "error": "E010",
+            "message": "Name is required"
         }
         responses = {
             'partner1': [
@@ -230,9 +226,9 @@ class CioecHttpTransportTestCase(MessageMaker, TransportTestCase):
                 'port': 9999}}
         response_body = {
             "status":"success",
+            "message":"user has unregistered",
             "data": {
                 "ids":[{"code":"aQx3","phone":"+59177777"}],
-                "message":"user has unregistered"
             }
         }
         responses = {
@@ -272,9 +268,9 @@ class CioecHttpTransportTestCase(MessageMaker, TransportTestCase):
                 'port': 9999}}
         response_body = {
             "status":"success",
+            "message":"X offers published",
             "data": {
                 "ids":[{"code":"aQx3","phone":"+59177777"}],
-                "message":"X offers published"
             }
         }
         responses = {

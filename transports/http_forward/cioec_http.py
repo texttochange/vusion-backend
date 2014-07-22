@@ -43,14 +43,14 @@ class CioecHttp(Transport):
             url = urlparse(url)
             forward_url = "%s://%s%s" % (url.scheme, url.netloc, url.path)
 
-            log.msg('Hitting %s' % forward_url)
-
             data = {} 
             if url.path in self.config['api']:
                 data = self.build_data(message, self.config['api'][url.path])
             
             auth = sha1('%s%s%s' % (self.config['api_key'], self.config['salt'], self.get_date()))
             auth = b64encode("%s:api_token" % auth.hexdigest())
+
+            log.msg('Hitting %s with %s' % (forward_url, json.dumps(data)))
             
             response = yield http_request_full(
                 forward_url.encode('ASCII'),
@@ -71,15 +71,17 @@ class CioecHttp(Transport):
                     failure_reason=response.delivered_body,
                     transport_metadata={'transport_type':'http_forward'})
                 return
+            log.msg("Response body: %s" % response.delivered_body)
+            
             response_body = json.loads(response.delivered_body)
             if response_body['status'] == 'fail':
-                log.msg("Service Error: %s" % response.delivered_body)
+                log.msg("Service Error: %s" % response_body['message'])
                 yield self.publish_delivery_report(
                     user_message_id=message['message_id'],
                     delivery_status='failed',
                     failure_level='service',
-                    failure_code=response_body['data']['error'],
-                    failure_reason=response_body['data']['message'],
+                    failure_code=response_body['error'],
+                    failure_reason=response_body['message'],
                     transport_metadata={'transport_type':'http_forward'})
                 return                
             yield self.publish_ack(
