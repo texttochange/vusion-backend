@@ -110,11 +110,31 @@ def add_char_to_pattern(string, pattern):
             l[index] = "%%%s" % char
     return ''.join(l)
 
+
+def is_int(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+
 def get_word(content, delimiter=' ', position=0):
     splits = (content or '').split(delimiter)
     if position < len(splits):
         return splits[position]
     return None
+
+
+def get_words(content, direction='after', delimiter=' ', position=0):
+    splits = (content or '').split(delimiter)
+    if position < len(splits):
+        if direction == 'after':
+            return ' '.join(splits[position:])
+        elif direction ==  'before':
+            return ' '.join(splits[:position-1])
+    return None
+
 
 def clean_phone(phone):
     if (re.match(ZEROS_REGEX, phone)):
@@ -122,6 +142,14 @@ def clean_phone(phone):
     if (not re.match(PLUS_REGEX, phone)):
         return '+%s' % phone
     return phone
+
+
+def dynamic_content_notation_to_string(domain, keys):
+    tmp = domain
+    for key, value in sorted(keys.iteritems()):
+        tmp = '%s.%s' % (tmp, value)
+    return '[%s]' % tmp
+
 
 #TODO remove DataLayerUtils in tests package
 class DataLayerUtils:
