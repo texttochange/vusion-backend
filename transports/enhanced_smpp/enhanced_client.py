@@ -64,6 +64,23 @@ class EnhancedSmppTransport(SmppTransport):
                 service_type=self.config.get("service_type", ""))
         return sequence_number
 
+    def delivery_report(self, *args, **kwargs):
+        transport_metadata = {
+                "message": kwargs['delivery_report'],
+                #"date": datetime.strptime(
+                #    kwargs['delivery_report']['done_date'], "%y%m%d%H%M%S")
+                }
+        delivery_status = self.delivery_status(
+            kwargs['delivery_report']['stat'])
+        message_id = self.r_get_id_for_third_party_id(
+                                        kwargs['delivery_report']['id'])
+        log.msg("PUBLISHING DELIV REPORT: %s %s" % (message_id,
+                                                    delivery_status))
+        return self.publish_delivery_report(
+            user_message_id=message_id,
+            delivery_status=delivery_status,
+            transport_metadata=transport_metadata)
+
 
 class EnhancedEsmeTransceiverFactory(EsmeTransceiverFactory):
     
