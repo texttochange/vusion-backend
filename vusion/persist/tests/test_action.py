@@ -350,7 +350,7 @@ class TestSmsForwardingAction(TestCase, ObjectMaker):
         action = {
             'type-action': 'sms-forwarding',
             'forward-content': 'hello',
-            'forward-to': '',
+            'forward-to': None,
             'set-forward-message-condition': 'forward-message-condition',
             'forward-message-condition-type': 'phone-number',
             'forward-message-no-participant-feedback': 'Some message'            

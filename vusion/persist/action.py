@@ -389,9 +389,9 @@ class SmsForwarding(Action):
 
     def get_query_selector(self, participant, context):
         ##replace custom part of the selector
-        customized_selector = self['forward-to']
+        customized_selector = (self['forward-to'] or '')
         custom_regexp = re.compile(r'\[participant.(?P<key1>[^\.\]]+)\]')
-        matches = re.finditer(custom_regexp, self['forward-to'])
+        matches = re.finditer(custom_regexp, customized_selector)
         for match in matches:
             match = match.groupdict() if match is not None else None
             if match is None:
@@ -413,23 +413,9 @@ class SmsForwarding(Action):
         for selector in selectors:
             if re.match(TAG_REGEX, selector):
                 self.add_condition_to_query(query, {'tags': selector})
-                #tmp_query = {'tags': selector}
             elif re.match(LABEL_REGEX, selector):
                 profile = selector.split(':')
-                #tmp_query = {'profile': {'$elemMatch': {'label': profile[0], 'value': profile[1]}}}
                 self.add_condition_to_query(query, {'profile': {'$elemMatch': {'label': profile[0], 'value': profile[1]}}})
-            #else:
-                #continue
-            #if query is None:
-                #query = tmp_query
-            #else:
-                #if not '$and' in query:
-                    #query = {'$and': [query, tmp_query]}
-                #else:
-                    #query['$and'].append(tmp_query)
-        #query.update({
-            #'session-id': {'$ne': None},
-            #'phone': {'$ne': participant['phone']}})              
         return query
 
     def add_condition_to_query(self, query, conditions):
