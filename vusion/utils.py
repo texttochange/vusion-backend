@@ -119,20 +119,22 @@ def is_int(s):
         return False
 
 
-def get_word(content, delimiter=' ', position=0):
+def get_word(content, position=0, delimiter=' '):
     splits = (content or '').split(delimiter)
     if position < len(splits):
         return splits[position]
     return None
 
 
-def get_words(content, direction='after', delimiter=' ', position=0):
+def get_words(content, start, end, delimiter=' '):
+    start = start - 1
     splits = (content or '').split(delimiter)
-    if position < len(splits):
-        if direction == 'after':
-            return ' '.join(splits[position:])
-        elif direction ==  'before':
-            return ' '.join(splits[:position-1])
+    if start < len(splits):
+        if end == 'end':
+            return ' '.join(splits[start:])
+        else:
+            end = int(end)
+            return ' '.join(splits[start:end])
     return None
 
 

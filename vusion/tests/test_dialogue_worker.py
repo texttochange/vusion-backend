@@ -275,7 +275,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         message_three_keys = self.worker.customize_message('Today the chicken cost [contentVariable.mombasa.chicken.price]')
         self.assertEqual(message_three_keys, 'Today the chicken cost 600')
     
-    def test11_customize_message_context(self):
+    def test11_customize_message_context_fail(self):
         self.initialize_properties()
         
         self.assertRaises(
@@ -289,12 +289,25 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             'Today  at "[context.time]" we finish',
             context=Context())
         
-        context = Context(**{'message': 'hello how are you',
-                             'time': '09:00'})
+        context = Context(**{
+            'message': 'hello how are you',
+            'time': '09:00'})
+        self.assertRaises(
+            MissingData,
+            self.worker.customize_message,
+            'Today  at "[context.message.7]" we finish',
+            context=Context())
+
+    def test11_customize_message_context_ok(self):
+        context = Context(**{
+            'message': 'hello how are you',
+            'time': '09:00'})
+
         message = self.worker.customize_message(
             'Today "[context.message]" was received at [context.time]',
             context=context)
         self.assertEqual(message, 'Today "hello how are you" was received at 09:00')
+
     
     def test11_customize_message_time(self):
         self.initialize_properties()
