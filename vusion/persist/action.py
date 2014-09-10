@@ -46,6 +46,7 @@ class Action(Model):
                 'profiling',
                 'delayed-enrolling',
                 'proportional-tagging',
+                'proportional-labelling',
                 'remove-question',
                 'remove-reminders',
                 'remove-deadline',
@@ -294,7 +295,11 @@ class OffsetConditionAction(Action):
         self.assert_field_present('interaction-id', 'dialogue-id')
 
 
-class ProportionalTagging(Action):
+class ProportionalAction(Action):
+    pass
+
+
+class ProportionalTagging(ProportionalAction):
     
     ACTION_TYPE = 'proportional-tagging'
     
@@ -337,6 +342,59 @@ class ProportionalTagging(Action):
                 return TaggingAction(**{'tag': proportional_tag['tag']})
         return TaggingAction(**{'tag': self['proportional-tags'][0]['tag']})
 
+
+class ProportionalLabelling(ProportionalAction):
+
+    ACTION_TYPE = 'proportional-labelling'
+
+    def validate_fields(self):
+        super(ProportionalLabelling, self).validate_fields()
+        self.assert_field_present('proportional-labels')
+        self.assert_list_field_present(self['proportional-labels'], *['label-value', 'weight'])
+        self.assert_field_present('label-name')
+
+    def get_proportional_labels(self):
+        return self['proportional-labels']
+
+    def get_label_name(self):
+        return self['label-name']
+
+    def set_count(self, label_value, count):
+        for i, proportional_label in enumerate(self['proportional-labels']):
+            if proportional_label['label-value'] == label_value:
+                proportional_label.update({'count': count})
+                self['proportional-labels'][i] = proportional_label
+                break
+
+    def get_labels(self):
+        labels = []
+        for proportional_label in self['proportional-labels']:
+            labels.append({
+                'label': self['label-name'],
+                'value': proportional_label['label-value']})
+        return labels
+
+    def get_totals(self):
+        weight_total = 0
+        count_total = 0
+        for proportional_label in self['proportional-labels']:
+            weight_total = weight_total + (int(proportional_label['weight']) or 0)
+            count_total = count_total + (proportional_label['count'] if 'count' in proportional_label else 0)
+        return weight_total, count_total
+
+    def get_labelling_action(self):
+        weight_total, count_total = self.get_totals()
+        for proportional_label in self['proportional-labels']:
+            weight_label = int(proportional_label['weight'])
+            count_expected = ceil(count_total * weight_label / weight_total)
+            count_label = (proportional_label['count'] if 'count' in proportional_label else 0)
+            if count_expected >= count_label:
+                return ProfilingAction(**{
+                    'label': self['label-name'],
+                    'value': proportional_label['label-value']})
+        return ProfilingAction(**{
+            'label': self['label-name'],
+            'value': self['proportional-labels'][0]['label-value']})
 
 class UrlForwarding(Action):
     
@@ -456,6 +514,8 @@ def action_generator(**kwargs):
         return OffsetConditionAction(**kwargs)
     elif kwargs['type-action'] == 'proportional-tagging':
         return ProportionalTagging(**kwargs)
+    elif kwargs['type-action'] == 'proportional-labelling':
+        return ProportionalLabelling(**kwargs)
     elif kwargs['type-action'] in ['message-forwarding', 'url-forwarding']:
         return UrlForwarding(**kwargs)
     elif kwargs['type-action'] == 'sms-forwarding':

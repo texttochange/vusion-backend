@@ -108,9 +108,13 @@ class ParticipantManager(ModelManager):
         return CursorInstanciator(self.collection.find(query), Participant, [log])
     
     def is_tagged(self, participant_phone, tags):
-        query = {'phone':participant_phone,
+        query = {'phone': participant_phone,
                  'tags': {'$in': tags}}
-        result = self.collection.find(query).limit(1).count()
+        return 0 < self.collection.find(query).limit(1).count()
+
+    def is_labelled(self, participant_phone, label_name):
+        query = {'phone': participant_phone,
+                 'profile': {'$elemMatch': {'label': label_name}}}
         return 0 < self.collection.find(query).limit(1).count()
 
     def is_optin(self, participant_phone):
@@ -123,4 +127,10 @@ class ParticipantManager(ModelManager):
 
     def count_tag(self, tag):
         return self.collection.find({'tags': tag}).count()
-    
+
+    def count_label(self, label):
+        return self.collection.find({
+            'profile': {
+                '$elemMatch': {
+                    'label': label['label'],
+                    'value': label['value']}}}).count()

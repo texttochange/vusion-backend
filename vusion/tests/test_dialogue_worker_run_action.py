@@ -19,7 +19,8 @@ from vusion.persist.action import (UnMatchingAnswerAction, EnrollingAction,
                                    TaggingAction, ProfilingAction,
                                    OffsetConditionAction, RemoveRemindersAction,
                                    ResetAction, RemoveDeadlineAction,
-                                   DelayedEnrollingAction, ProportionalTagging,
+                                   DelayedEnrollingAction,
+                                   ProportionalTagging, ProportionalLabelling,
                                    action_generator, Actions, UrlForwarding, SmsForwarding)
 from vusion.context import Context
 from vusion.persist import Dialogue, DialogueHistory
@@ -616,6 +617,36 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.worker.run_action("08", proportional_tagging)
         participant = self.collections['participants'].find_one()
         self.assertEqual(participant['tags'], ['geek', 'GroupB'])
+
+    def test_run_action_proportional_labelling(self):
+        self.initialize_properties()
+
+        participant = self.mkobj_participant(
+            '01',
+            profile=[{'label': 'group',
+                      'value': 'A'}])
+        self.collections['participants'].save(participant)
+
+        participant_oliv = self.mkobj_participant(
+            '08',
+            profile=[{'label': 'name',
+                      'value': 'Oliv'}])
+        self.collections['participants'].save(participant_oliv)
+
+        action = ProportionalLabelling(**{
+            'label-name': 'group',
+            'proportional-labels': [
+                {'label-value': 'A', 'weight': '1'},
+                {'label-value': 'B', 'weight': '1'}]})
+        ## Tagging
+        self.worker.run_action("08", action)
+        participant_oliv = self.collections['participants'].find_one({'phone':'08'})
+        self.assertEqual(
+            {'label': 'group',
+             'value': 'B',
+             'raw': None},
+            participant_oliv['profile'][1])
+
 
     def test_run_action_url_forwarding(self):
         self.initialize_properties()
