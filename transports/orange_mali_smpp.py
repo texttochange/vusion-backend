@@ -7,16 +7,16 @@ from smpp.pdu_inspector import (MultipartMessage, detect_multipart,
                                 multipart_key)
 
 from vumi.log import log
-from vumi.transports.smpp import SmppTransport
 from vumi.transports.smpp.clientserver.client import EsmeTransceiverFactory
 
-from transports.enhanced_smpp.enhanced_client import EnhancedEsmeTransceiver
+from transports.enhanced_smpp.enhanced_client import (EnhancedEsmeTransceiver,
+                                                      EnhancedSmppTransport)
 
 from middlewares.custom_middleware_stack import useCustomMiddleware
 
 
 @useCustomMiddleware
-class OrangeMaliSmppTransport(SmppTransport):
+class OrangeMaliSmppTransport(EnhancedSmppTransport):
     
     def make_factory(self):
         return OrangeMaliEsmeTransceiverFactory(
