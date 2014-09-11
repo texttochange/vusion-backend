@@ -1,5 +1,7 @@
 import sys, traceback
 from uuid import uuid4
+from twisted.internet.threads import deferToThread
+from twisted.internet.defer import returnValue, inlineCallbacks
 
 from vusion.utils import time_to_vusion_format
 from vusion.persist import Participant, ModelManager
@@ -128,6 +130,15 @@ class ParticipantManager(ModelManager):
     def count_tag(self, tag):
         return self.collection.find({'tags': tag}).count()
 
+    @inlineCallbacks
+    def count_label_async(self, label):
+        d = deferToThread(self._count_label_async, label)
+        yield d
+
+    def _count_label_async(self, label):
+        returnValue(self.count_label(label))
+
+    ## Should not be used in worker, rather use async version
     def count_label(self, label):
         return self.collection.find({
             'profile': {

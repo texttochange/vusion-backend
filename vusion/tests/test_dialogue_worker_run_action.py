@@ -8,6 +8,7 @@ from bson.objectid import ObjectId
 from bson.timestamp import Timestamp
 
 from twisted.trial.unittest import TestCase
+from twisted.internet.defer import inlineCallbacks
 
 from vumi.tests.utils import get_stubbed_worker, UTCNearNow, RegexMatcher
 
@@ -618,6 +619,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         participant = self.collections['participants'].find_one()
         self.assertEqual(participant['tags'], ['geek', 'GroupB'])
 
+    @inlineCallbacks
     def test_run_action_proportional_labelling(self):
         self.initialize_properties()
 
@@ -638,8 +640,8 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             'proportional-labels': [
                 {'label-value': 'A', 'weight': '1'},
                 {'label-value': 'B', 'weight': '1'}]})
-        ## Tagging
-        self.worker.run_action("08", action)
+
+        yield self.worker.run_action("08", action)
         participant_oliv = self.collections['participants'].find_one({'phone':'08'})
         self.assertEqual(
             {'label': 'group',

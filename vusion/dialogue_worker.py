@@ -256,6 +256,7 @@ class DialogueWorker(ApplicationWorker):
             self.collections['participants'].save_transport_metadata(
                 message['from_addr'], message['transport_metadata'])
 
+    @inlineCallbacks
     def run_action(self, participant_phone, action, context=Context(),
                    participant_session_id=None):
         if action.has_condition():
@@ -367,7 +368,7 @@ class DialogueWorker(ApplicationWorker):
         elif (action.get_type() == 'proportional-tagging'):
             self.run_action_proportional_tagging(participant_phone, action)
         elif (action.get_type() == 'proportional-labelling'):
-            self.run_action_proportional_labelling(participant_phone, action)
+            yield self.run_action_proportional_labelling(participant_phone, action)
         elif (action.get_type() == 'url-forwarding'):
             self.run_action_url_forwarding(participant_phone, action, context, participant_session_id)
         elif (action.get_type() == 'sms-forwarding'):
@@ -403,11 +404,13 @@ class DialogueWorker(ApplicationWorker):
             action.set_tag_count(tag, self.collections['participants'].count_tag(tag))
         self.run_action(participant_phone, action.get_tagging_action())
 
+    @inlineCallbacks
     def run_action_proportional_labelling(self, participant_phone, action, context=None):
         if self.collections['participants'].is_labelled(participant_phone, action.get_label_name()):
             return
         for label in action.get_labels():
-            action.set_count(label['value'], self.collections['participants'].count_label(label))
+            count = yield self.collections['participants'].count_label_async(label)
+            action.set_count(label['value'], count)
         self.run_action(participant_phone, action.get_labelling_action())
 
     @inlineCallbacks

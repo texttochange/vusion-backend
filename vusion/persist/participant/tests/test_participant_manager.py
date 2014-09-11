@@ -3,6 +3,7 @@ import pymongo
 from bson import ObjectId
 
 from twisted.trial.unittest import TestCase
+from twisted.internet.defer import inlineCallbacks, maybeDeferred
 
 from tests.utils import ObjectMaker
 
@@ -210,7 +211,8 @@ class TestParticipantManager(TestCase, ObjectMaker):
         self.assertEqual(1, self.manager.count_tag('male'))
         self.assertEqual(0, self.manager.count_tag('somethingelse'))        
 
-    def test_count_label(self):
+    @inlineCallbacks
+    def test_count_label_async(self):
         participant = self.mkobj_participant(
             '1',
             profile=[{'label': 'name', 'value': 'olivier'}])
@@ -221,6 +223,8 @@ class TestParticipantManager(TestCase, ObjectMaker):
                              {'label': 'age', 'value': '32'}])
         self.manager.save(participant)
 
-        self.assertEqual(1, self.manager.count_label({'label': 'name', 'value': 'olivier'}))
-        self.assertEqual(1, self.manager.count_label({'label': 'age', 'value': '32'}))
-        self.assertEqual(0, self.manager.count_label({'label': 'somethingelse', 'value': '4'}))
+        count = yield self.manager.count_label_async({'label': 'name', 'value': 'olivier'})
+        self.assertEqual(count, 1)
+        count = yield self.manager.count_label({'label': 'age', 'value': '31'})
+        self.assertEqual(count, 0)
+
