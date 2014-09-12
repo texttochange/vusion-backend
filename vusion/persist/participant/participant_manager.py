@@ -130,18 +130,15 @@ class ParticipantManager(ModelManager):
     def count_tag(self, tag):
         return self.collection.find({'tags': tag}).count()
 
+    ## The call is async because the count on program with many participant will take a long time
     @inlineCallbacks
     def count_label_async(self, label):
         d = deferToThread(self._count_label_async, label)
         yield d
 
     def _count_label_async(self, label):
-        returnValue(self.count_label(label))
-
-    ## Should not be used in worker, rather use async version
-    def count_label(self, label):
-        return self.collection.find({
+        returnValue(self.collection.find({
             'profile': {
                 '$elemMatch': {
                     'label': label['label'],
-                    'value': label['value']}}}).count()
+                    'value': label['value']}}}).count())

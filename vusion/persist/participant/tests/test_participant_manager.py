@@ -225,6 +225,6 @@ class TestParticipantManager(TestCase, ObjectMaker):
 
         count = yield self.manager.count_label_async({'label': 'name', 'value': 'olivier'})
         self.assertEqual(count, 1)
-        count = yield self.manager.count_label({'label': 'age', 'value': '31'})
+        count = yield self.manager.count_label_async({'label': 'age', 'value': '31'})
         self.assertEqual(count, 0)
 
