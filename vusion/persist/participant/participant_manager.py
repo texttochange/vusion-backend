@@ -127,10 +127,16 @@ class ParticipantManager(ModelManager):
     def is_matching(self, query):
         return 1 == self.collection.find(query).limit(1).count()
 
-    def count_tag(self, tag):
-        return self.collection.find({'tags': tag}).count()
+    ## The call is async because the count on program with many participants will take a long time
+    @inlineCallbacks
+    def count_tag_async(self, tag):
+        d = deferToThread(self._count_tag_async, tag)
+        yield d
 
-    ## The call is async because the count on program with many participant will take a long time
+    def _count_tag_async(self, tag):
+        returnValue(self.collection.find({'tags': tag}).count())
+
+    ## The call is async because the count on program with many participants will take a long time
     @inlineCallbacks
     def count_label_async(self, label):
         d = deferToThread(self._count_label_async, label)

@@ -197,7 +197,8 @@ class TestParticipantManager(TestCase, ObjectMaker):
         self.assertTrue(self.manager.is_matching({'phone': '1', 'tags': 'geek'}))
         self.assertFalse(self.manager.is_matching({'phone': '1', 'tags': 'male'}))
 
-    def test_count_tag(self):
+    @inlineCallbacks
+    def test_count_tag_async(self):
         participant = self.mkobj_participant(
             '1',
             tags=['geek', 'male'])
@@ -207,9 +208,12 @@ class TestParticipantManager(TestCase, ObjectMaker):
                     tags=['geek'])
         self.manager.save(participant)
 
-        self.assertEqual(2, self.manager.count_tag('geek'))
-        self.assertEqual(1, self.manager.count_tag('male'))
-        self.assertEqual(0, self.manager.count_tag('somethingelse'))        
+        count = yield self.manager.count_tag_async('geek')
+        self.assertEqual(2, count)
+        count = yield self.manager.count_tag_async('male')
+        self.assertEqual(1, count)
+        count = yield self.manager.count_tag_async('somethingelse')
+        self.assertEqual(0, count)
 
     @inlineCallbacks
     def test_count_label_async(self):

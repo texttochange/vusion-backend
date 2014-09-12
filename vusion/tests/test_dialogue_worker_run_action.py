@@ -566,41 +566,38 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             ['geek', 'my second tag'],
             participant['tags'])        
 
+    @inlineCallbacks
     def test_run_action_proportional_tagging(self):
         self.initialize_properties()
 
         ## First participant
-        participant_oliv = self.mkobj_participant(
+        participant_08 = self.mkobj_participant(
             '08',
-            tags=['geek'],
-            profile=[{'label': 'name',
-                      'value': 'Oliv'}])
-        self.collections['participants'].save(participant_oliv)
+            tags=['geek'])
+        self.collections['participants'].save(participant_08)
 
         proportional_tagging = ProportionalTagging(**{
                    'proportional-tags': [{'tag': 'GroupA', 'weight': '1'},
                                          {'tag': 'GroupB', 'weight': '1'}]})
         ## Tagging
-        self.worker.run_action("08", proportional_tagging)
-        participant_oliv = self.collections['participants'].find_one()
+        yield self.worker.run_action("08", proportional_tagging)
+        participant = self.collections['participants'].find_one()
         self.assertEqual(
             ['geek','GroupA'],
-            participant_oliv['tags'])
+            participant['tags'])
         
         ## Second participant
-        participant_gerald = self.mkobj_participant(
+        participant_09 = self.mkobj_participant(
             '09',
-            tags=['father'],
-            profile=[{'label': 'name',
-                      'value': 'gerald'}])
-        self.collections['participants'].save(participant_gerald)
+            tags=['father'])
+        self.collections['participants'].save(participant_09)
         
         ## Tagging
-        self.worker.run_action("09", proportional_tagging)
-        participant_gerald = self.collections['participants'].find_one({'phone': '09'})
+        yield self.worker.run_action("09", proportional_tagging)
+        participant = self.collections['participants'].find_one({'phone': '09'})
         self.assertEqual(
             ['father','GroupB'],
-            participant_gerald['tags'])        
+            participant['tags'])
 
     def test_run_action_proportional_tagging_already_tagged(self):
         self.initialize_properties()
