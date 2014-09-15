@@ -804,22 +804,21 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             'forward-content': 'Hello...',
             'set-forward-message-condition': 'forward-message-condition',
             'forward-message-condition-type': 'phone-number',
-            'forward-message-no-participant-feedback': 'No patient is matching the phone number [context.message.2].'})
+            'forward-message-no-participant-feedback': 'No patient is matching the phone number \'[context.message.2]\'.'})
         
-        context = Context(**{'message': 'ANSWER',
-                             'request-id': '1'})
+        context = Context(**{
+            'message': 'ANSWER this is a message',
+            'request-id': '1'})
         self.worker.run_action(sender['phone'], sms_forwarding, context)
         
-        context = Context(**{'message': 'ANSWER this is my message',
-                             'request-id': '1'})
+        context = Context(**{
+            'message': 'ANSWER this is my message',
+            'request-id': '1'})
         self.worker.run_action(sender['phone'], sms_forwarding, context)        
         
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 2)
         self.assertEqual(messages[0]['to_addr'], sender['phone'])
-        self.assertEqual(messages[0]['content'], 'No patient is matching the phone number .')
+        self.assertEqual(messages[0]['content'], 'No patient is matching the phone number \'this\'.')
         self.assertEqual(messages[1]['to_addr'], sender['phone'])
-        self.assertEqual(messages[1]['content'], 'No patient is matching the phone number this.')
-
-
-        
+        self.assertEqual(messages[1]['content'], 'No patient is matching the phone number \'this\'.')

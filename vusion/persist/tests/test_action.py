@@ -345,8 +345,8 @@ class TestSmsForwardingAction(TestCase, ObjectMaker):
                 'label': 'name',
                 'value': 'olivier'}]))
         self.assertEqual(
-            {'$and': [{'tags': 'my tag'},
-                      {'profile': {'$elemMatch': {'label': 'name', 'value': 'olivier'}}}],
+            {'tags': 'my tag',
+             'profile': {'$elemMatch': {'label': 'name', 'value': 'olivier'}},
              'session-id': {'$ne': None},
              'phone': {'$ne': '06'}},             
             sms_forwarding_action.get_query_selector(participant, Context()))
@@ -386,11 +386,35 @@ class TestSmsForwardingAction(TestCase, ObjectMaker):
                 'label': 'name',
                 'value': 'olivier'}]))
         self.assertEqual(
-            {'$and': [{'phone': '+2561111'},
-                      {'tags': 'my tag'},
-                      {'profile': {'$elemMatch': {'label': 'name', 'value': 'olivier'}}}],
-             'session-id': {'$ne': None},
-             'phone': {'$ne': '06'}},             
+            {'$and': [
+                {'phone': '+2561111'},
+                {'phone': {'$ne': '06'}}],      
+             'tags': 'my tag',
+             'profile': {'$elemMatch': {'label': 'name', 'value': 'olivier'}},
+             'session-id': {'$ne': None}},             
+            sms_forwarding_action.get_query_selector(participant, context))
+
+    def test_get_query_selector_message_condition_no_tag_label(self):
+        action = {
+            'type-action': 'sms-forwarding',
+            'forward-content': 'hello',
+            'forward-to': None,
+            'set-forward-message-condition': 'forward-message-condition',
+            'forward-message-condition-type': 'phone-number',
+            'forward-message-no-participant-feedback': 'Some message'            
+            }
+        context = Context(**{'message': 'Answer 2561111'})
+        sms_forwarding_action = action_generator(**action)
+        participant = Participant(**self.mkobj_participant(
+            participant_phone='06',
+            profile=[{
+                'label': 'name',
+                'value': 'olivier'}]))
+        self.assertEqual(
+            {'$and': [
+                {'phone': '+2561111'},
+                {'phone': {'$ne': '06'}}],
+             'session-id': {'$ne': None}},             
             sms_forwarding_action.get_query_selector(participant, context))
 
 
@@ -411,8 +435,9 @@ class TestSmsForwardingAction(TestCase, ObjectMaker):
                 'label': 'name',
                 'value': 'olivier'}]))
         self.assertEqual(
-            {'$and': [{'phone': ''},
-                      {'tags': 'my tag'}],
-             'session-id': {'$ne': None},
-             'phone': {'$ne': '06'}},             
+            {'$and': [
+                {'phone': ''},
+                {'phone': {'$ne': '06'}}],
+             'tags': 'my tag',
+             'session-id': {'$ne': None}},             
             sms_forwarding_action.get_query_selector(participant, context))

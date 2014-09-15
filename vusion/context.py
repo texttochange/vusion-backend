@@ -52,16 +52,15 @@ class Context(object):
 
     def get_data_from_notation(self, key1, key2=None, key3=None):
         if key2 is not None:
-            if is_int(key2) and key1 == 'message':
-                return get_word(
+            if key1 == 'message':
+                if key2 is None:
+                    return self.get_message()
+                if key3 is None:
+                    key3 = key2
+                return get_words(
                     self.get_message(),
-                    position=int(key2) - 1)
-            else:
-                if is_int(key3):
-                    return get_words(
-                        self.get_message(),
-                        direction=key2,
-                        position= int(key3))
+                    start=int(key2),
+                    end= key3)
         if self[key1] is None:
             raise MissingData("No context key \"%s\"" % key1)
         return self[key1]

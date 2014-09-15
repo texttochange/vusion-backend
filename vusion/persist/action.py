@@ -423,13 +423,13 @@ class SmsForwarding(Action):
 
     def get_forward_message_condition(self, context):
         if self['set-forward-message-condition'] is None:
-            return None
+            return {}
         if self['forward-message-condition-type'] == 'phone-number':
             second_word = context.get_message_second_word()
             if second_word is None:
                 return {'phone': ''}
             return {'phone': clean_phone(second_word)}
-        return None
+        return {}
 
     def has_no_participant_feedback(self):
         if self['set-forward-message-condition'] is None:
@@ -447,9 +447,9 @@ class SmsForwarding(Action):
 
     def get_query_selector(self, participant, context):
         ##replace custom part of the selector
-        customized_selector = self['forward-to']
+        customized_selector = (self['forward-to'] or '')
         custom_regexp = re.compile(r'\[participant.(?P<key1>[^\.\]]+)\]')
-        matches = re.finditer(custom_regexp, self['forward-to'])
+        matches = re.finditer(custom_regexp, customized_selector)
         for match in matches:
             match = match.groupdict() if match is not None else None
             if match is None:
@@ -466,23 +466,26 @@ class SmsForwarding(Action):
         selectors = [selector.strip() for selector in customized_selector.split(",")]
         ##build the query
         query = self.get_forward_message_condition(context)
+        self.add_condition_to_query(query, {'session-id': {'$ne': None}})
+        self.add_condition_to_query(query, {'phone': {'$ne': participant['phone']}})
         for selector in selectors:
             if re.match(TAG_REGEX, selector):
-                tmp_query = {'tags': selector}
+                self.add_condition_to_query(query, {'tags': selector})
             elif re.match(LABEL_REGEX, selector):
                 profile = selector.split(':')
-                tmp_query = {'profile': {'$elemMatch': {'label': profile[0], 'value': profile[1]}}}
-            if query is None:
-                query = tmp_query
-            else:
-                if not '$and' in query:
-                    query = {'$and': [query, tmp_query]}
-                else:
-                    query['$and'].append(tmp_query)
-        query.update({
-            'session-id': {'$ne': None},
-            'phone': {'$ne': participant['phone']}})              
+                self.add_condition_to_query(query, {'profile': {'$elemMatch': {'label': profile[0], 'value': profile[1]}}})
         return query
+
+    def add_condition_to_query(self, query, conditions):
+        for key, value in conditions.iteritems():
+            if key in query:
+                if '$and' in query:
+                    query['$and'].append({key: value})
+                else:
+                    query['$and'] = [{key: query[key]}, {key: value}]
+                    query.pop(key, None)
+            else:
+                query[key] = value
 
 def action_generator(**kwargs):
     # Condition to be removed when Dialogue structure freezed

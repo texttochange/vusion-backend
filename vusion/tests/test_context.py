@@ -42,8 +42,16 @@ class TestContext(TestCase):
 
         self.assertEqual(
             "Olivier Mark Gerald",
-            context.get_data_from_notation('message', 'after', '1'))
+            context.get_data_from_notation('message', '2', 'end'))
+
+        self.assertEqual(
+            "Olivier Mark Gerald",
+            context.get_data_from_notation('message', '2', '6'))
+
+        self.assertEqual(
+            None,
+            context.get_data_from_notation('message', '6', '8'))
 
         self.assertEqual(
             "NAME",
-            context.get_data_from_notation('message', 'before', '2'))
+            context.get_data_from_notation('message', '1', '1'))
