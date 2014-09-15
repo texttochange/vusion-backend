@@ -971,7 +971,8 @@ class DialogueWorker(ApplicationWorker):
             message_content = self.generate_message(interaction)
             message_content = self.customize_message(
                 message_content,
-                schedule['participant-phone'])
+                schedule['participant-phone'],
+                context)
 
             ## Do not run expired schedule
             if schedule.is_expired(local_time):
@@ -1180,10 +1181,11 @@ class DialogueWorker(ApplicationWorker):
                     message = message.replace(replace_match, content_variable['value'])
                 elif domain == 'context':
                     if context is None:
-                        raise MissingData("No context for message customization.")
-                    message = message.replace(
-                        replace_match,
-                        (context.get_data_from_notation(**keys) or ''))
+                        raise MissingData("No context for customization")
+                    context_data = context.get_data_from_notation(**keys)
+                    if context_data is None:
+                        raise MissingData("No context data for %s" % replace_match)
+                    message = message.replace(replace_match, context_data)
                 elif domain == 'time':
                     local_time = self.get_local_time()
                     replace_time = local_time.strftime(add_char_to_pattern(match['key1'], '[a-zA-Z]'))
