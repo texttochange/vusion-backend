@@ -3,7 +3,8 @@ from twisted.internet.defer import inlineCallbacks
 
 from vusion.persist.action import (Action, action_generator,
                                    ProportionalTagging, TaggingAction, 
-                                   Participant)
+                                   Participant, ProportionalLabelling,
+                                   ProfilingAction)
 from vusion.error import MissingField, InvalidField, MissingData
 
 from vusion.context import Context
@@ -271,6 +272,53 @@ class TestProportionalTaggingAction(TestCase):
         self.assertEqual(
             a.get_tagging_action(),
                TaggingAction(**{'tag': 'group 1'}))
+
+
+class TestProportionalLabellingAction(TestCase):
+
+    def test_set_count(self):
+        action = {
+            'type-action': 'proportional-labelling',
+            'label-name': 'group',
+            'proportional-labels': [
+                {'label-value': 'control',
+                 'weight': '2'},
+                {'label-value': 'scenario1',
+                 'weight': '1'}]
+            }
+        a = ProportionalLabelling(**action)
+        a.set_count('scenario1', 300)
+        self.assertEqual(
+            a['proportional-labels'][1],
+            {'label-value': 'scenario1',
+             'weight': '1',
+             'count': 300})
+
+    def test_get_labelling_action(self):
+        action = {
+             'type-action': 'proportional-labelling',
+             'label-name': 'group',
+             'proportional-labels': [
+                 {'label-value': 'control',
+                  'weight': '2'},
+                 {'label-value': 'scenario1',
+                  'weight': '1'}]}
+        a = ProportionalLabelling(**action)
+        a.set_count('control', 5)
+        a.set_count('scenario1', 2)
+        self.assertEqual(
+            a.get_labelling_action(),
+            ProfilingAction(**{
+                'label': 'group',
+                'value': 'scenario1'}))
+
+        a.set_count('control', 5)
+        a.set_count('scenario1', 3)
+        self.assertEqual(
+            a.get_labelling_action(),
+            ProfilingAction(**{
+                'label': 'group',
+                'value': 'control'}))
 
 
 class TestSmsForwardingAction(TestCase, ObjectMaker):

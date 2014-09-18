@@ -1,5 +1,7 @@
 import sys, traceback
 from uuid import uuid4
+from twisted.internet.threads import deferToThread
+from twisted.internet.defer import returnValue, inlineCallbacks
 
 from vusion.utils import time_to_vusion_format
 from vusion.persist import Participant, ModelManager
@@ -108,9 +110,13 @@ class ParticipantManager(ModelManager):
         return CursorInstanciator(self.collection.find(query), Participant, [log])
     
     def is_tagged(self, participant_phone, tags):
-        query = {'phone':participant_phone,
+        query = {'phone': participant_phone,
                  'tags': {'$in': tags}}
-        result = self.collection.find(query).limit(1).count()
+        return 0 < self.collection.find(query).limit(1).count()
+
+    def is_labelled(self, participant_phone, label_name):
+        query = {'phone': participant_phone,
+                 'profile': {'$elemMatch': {'label': label_name}}}
         return 0 < self.collection.find(query).limit(1).count()
 
     def is_optin(self, participant_phone):
@@ -121,6 +127,24 @@ class ParticipantManager(ModelManager):
     def is_matching(self, query):
         return 1 == self.collection.find(query).limit(1).count()
 
-    def count_tag(self, tag):
-        return self.collection.find({'tags': tag}).count()
-    
+    ## The call is async because the count on program with many participants will take a long time
+    @inlineCallbacks
+    def count_tag_async(self, tag):
+        d = deferToThread(self._count_tag_async, tag)
+        yield d
+
+    def _count_tag_async(self, tag):
+        returnValue(self.collection.find({'tags': tag}).count())
+
+    ## The call is async because the count on program with many participants will take a long time
+    @inlineCallbacks
+    def count_label_async(self, label):
+        d = deferToThread(self._count_label_async, label)
+        yield d
+
+    def _count_label_async(self, label):
+        returnValue(self.collection.find({
+            'profile': {
+                '$elemMatch': {
+                    'label': label['label'],
+                    'value': label['value']}}}).count())

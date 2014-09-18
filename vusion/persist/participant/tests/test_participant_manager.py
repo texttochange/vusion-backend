@@ -3,6 +3,7 @@ import pymongo
 from bson import ObjectId
 
 from twisted.trial.unittest import TestCase
+from twisted.internet.defer import inlineCallbacks, maybeDeferred
 
 from tests.utils import ObjectMaker
 
@@ -170,6 +171,16 @@ class TestParticipantManager(TestCase, ObjectMaker):
         self.assertTrue(self.manager.is_tagged('06', ['geek', 'sometag']))
         self.assertFalse(self.manager.is_tagged('06', ['sometag']))
 
+    def test_is_participant_labelled(self):
+        participant = self.mkobj_participant(
+            '06',
+            profile=[{'label': 'name',
+                     'value': 'Olivier'}])
+        self.manager.save(participant)
+
+        self.assertTrue(self.manager.is_labelled('06', 'name'))
+        self.assertFalse(self.manager.is_labelled('06', 'age'))
+
     def test_is_participant_optin(self):
         self.manager.save(self.mkobj_participant('1'))
         self.manager.save(self.mkobj_participant('2', session_id=None))
@@ -186,7 +197,8 @@ class TestParticipantManager(TestCase, ObjectMaker):
         self.assertTrue(self.manager.is_matching({'phone': '1', 'tags': 'geek'}))
         self.assertFalse(self.manager.is_matching({'phone': '1', 'tags': 'male'}))
 
-    def test_count_tag(self):
+    @inlineCallbacks
+    def test_count_tag_async(self):
         participant = self.mkobj_participant(
             '1',
             tags=['geek', 'male'])
@@ -196,6 +208,27 @@ class TestParticipantManager(TestCase, ObjectMaker):
                     tags=['geek'])
         self.manager.save(participant)
 
-        self.assertEqual(2, self.manager.count_tag('geek'))
-        self.assertEqual(1, self.manager.count_tag('male'))
-        self.assertEqual(0, self.manager.count_tag('somethingelse'))        
+        count = yield self.manager.count_tag_async('geek')
+        self.assertEqual(2, count)
+        count = yield self.manager.count_tag_async('male')
+        self.assertEqual(1, count)
+        count = yield self.manager.count_tag_async('somethingelse')
+        self.assertEqual(0, count)
+
+    @inlineCallbacks
+    def test_count_label_async(self):
+        participant = self.mkobj_participant(
+            '1',
+            profile=[{'label': 'name', 'value': 'olivier'}])
+        self.manager.save(participant)
+        participant = self.mkobj_participant(
+                    '2',
+                    profile=[{'label': 'name', 'value': 'mark'},
+                             {'label': 'age', 'value': '32'}])
+        self.manager.save(participant)
+
+        count = yield self.manager.count_label_async({'label': 'name', 'value': 'olivier'})
+        self.assertEqual(count, 1)
+        count = yield self.manager.count_label_async({'label': 'age', 'value': '31'})
+        self.assertEqual(count, 0)
+

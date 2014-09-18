@@ -8,6 +8,7 @@ from bson.objectid import ObjectId
 from bson.timestamp import Timestamp
 
 from twisted.trial.unittest import TestCase
+from twisted.internet.defer import inlineCallbacks
 
 from vumi.tests.utils import get_stubbed_worker, UTCNearNow, RegexMatcher
 
@@ -19,7 +20,8 @@ from vusion.persist.action import (UnMatchingAnswerAction, EnrollingAction,
                                    TaggingAction, ProfilingAction,
                                    OffsetConditionAction, RemoveRemindersAction,
                                    ResetAction, RemoveDeadlineAction,
-                                   DelayedEnrollingAction, ProportionalTagging,
+                                   DelayedEnrollingAction,
+                                   ProportionalTagging, ProportionalLabelling,
                                    action_generator, Actions, UrlForwarding, SmsForwarding)
 from vusion.context import Context
 from vusion.persist import Dialogue, DialogueHistory
@@ -564,41 +566,38 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             ['geek', 'my second tag'],
             participant['tags'])        
 
+    @inlineCallbacks
     def test_run_action_proportional_tagging(self):
         self.initialize_properties()
 
         ## First participant
-        participant_oliv = self.mkobj_participant(
+        participant_08 = self.mkobj_participant(
             '08',
-            tags=['geek'],
-            profile=[{'label': 'name',
-                      'value': 'Oliv'}])
-        self.collections['participants'].save(participant_oliv)
+            tags=['geek'])
+        self.collections['participants'].save(participant_08)
 
         proportional_tagging = ProportionalTagging(**{
                    'proportional-tags': [{'tag': 'GroupA', 'weight': '1'},
                                          {'tag': 'GroupB', 'weight': '1'}]})
         ## Tagging
-        self.worker.run_action("08", proportional_tagging)
-        participant_oliv = self.collections['participants'].find_one()
+        yield self.worker.run_action("08", proportional_tagging)
+        participant = self.collections['participants'].find_one()
         self.assertEqual(
             ['geek','GroupA'],
-            participant_oliv['tags'])
+            participant['tags'])
         
         ## Second participant
-        participant_gerald = self.mkobj_participant(
+        participant_09 = self.mkobj_participant(
             '09',
-            tags=['father'],
-            profile=[{'label': 'name',
-                      'value': 'gerald'}])
-        self.collections['participants'].save(participant_gerald)
+            tags=['father'])
+        self.collections['participants'].save(participant_09)
         
         ## Tagging
-        self.worker.run_action("09", proportional_tagging)
-        participant_gerald = self.collections['participants'].find_one({'phone': '09'})
+        yield self.worker.run_action("09", proportional_tagging)
+        participant = self.collections['participants'].find_one({'phone': '09'})
         self.assertEqual(
             ['father','GroupB'],
-            participant_gerald['tags'])        
+            participant['tags'])
 
     def test_run_action_proportional_tagging_already_tagged(self):
         self.initialize_properties()
@@ -616,6 +615,37 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.worker.run_action("08", proportional_tagging)
         participant = self.collections['participants'].find_one()
         self.assertEqual(participant['tags'], ['geek', 'GroupB'])
+
+    @inlineCallbacks
+    def test_run_action_proportional_labelling(self):
+        self.initialize_properties()
+
+        participant = self.mkobj_participant(
+            '01',
+            profile=[{'label': 'group',
+                      'value': 'A'}])
+        self.collections['participants'].save(participant)
+
+        participant_oliv = self.mkobj_participant(
+            '08',
+            profile=[{'label': 'name',
+                      'value': 'Oliv'}])
+        self.collections['participants'].save(participant_oliv)
+
+        action = ProportionalLabelling(**{
+            'label-name': 'group',
+            'proportional-labels': [
+                {'label-value': 'A', 'weight': '1'},
+                {'label-value': 'B', 'weight': '1'}]})
+
+        yield self.worker.run_action("08", action)
+        participant_oliv = self.collections['participants'].find_one({'phone':'08'})
+        self.assertEqual(
+            {'label': 'group',
+             'value': 'B',
+             'raw': None},
+            participant_oliv['profile'][1])
+
 
     def test_run_action_url_forwarding(self):
         self.initialize_properties()
