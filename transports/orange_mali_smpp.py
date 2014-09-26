@@ -33,9 +33,22 @@ class OrangeMaliEsmeTransceiverFactory(EsmeTransceiverFactory):
         self.resetDelay()
         return self.esme
 
+## Multipart SMPP message that are flaged as 7GSM have unicode encoding such '\xe9'
+class OrangeMaliMultipartMessage(MultipartMessage):
+    
+    def add_pdu(self,pdu):
+        part = detect_multipart(pdu)
+        if part:
+            if isinstance(part['part_message'], str):
+                part['part_message'] = part['part_message'].decode('unicode-escape')
+            self.array[part['part_number']] = part
+            return True
+        else:
+            return False
+
 
 class OrangeMaliEsmeTransceiver(EnhancedEsmeTransceiver):
-    
+
     def detect_error_delivery(self, pdu):
         if ('optional_parameters' in pdu['body']):
             for optional_parameter in pdu['body']['optional_parameters']:
@@ -46,6 +59,7 @@ class OrangeMaliEsmeTransceiver(EnhancedEsmeTransceiver):
 
     def get_optional_parameter(self, pdu, tag):
         return (option for option in pdu['body']['optional_parameters'] if option['tag'] == tag).next()
+
 
     def handle_deliver_sm(self, pdu):
         if self.state not in ['BOUND_RX', 'BOUND_TRX']:
@@ -60,7 +74,6 @@ class OrangeMaliEsmeTransceiver(EnhancedEsmeTransceiver):
                 **self.defaults)
             #pdu_resp.obj['body']['mandatory_parameters']['message_id'] = (user_message_reference['value'] or '')
             message_id = str(uuid.uuid4())
-            #pdu_resp.obj['body']['mandatory_parameters']['message_id'] = message_id
             self.send_pdu(pdu_resp)
             pdu_params = pdu['body']['mandatory_parameters']
             delivery_report = self.config.delivery_report_re.search(
@@ -76,9 +89,10 @@ class OrangeMaliEsmeTransceiver(EnhancedEsmeTransceiver):
                 redis_key = "%s#multi_%s" % (
                         self.r_prefix, multipart_key(detect_multipart(pdu)))
                 log.msg("Redis multipart key: %s" % (redis_key))
-                value = json.loads(self.r_server.get(redis_key) or 'null')
+                value = json.loads(self.r_server.get(redis_key) or 'null', encoding='unicode-escape')
                 log.msg("Retrieved value: %s" % (repr(value)))
-                multi = MultipartMessage(value)
+                multi = OrangeMaliMultipartMessage(value)
+                #pdu['body']['mandatory_parameters']['short_message'] = pdu['body']['mandatory_parameters']['short_message'].decode('unicode-escape')
                 multi.add_pdu(pdu)
                 completed = multi.get_completed()
                 if completed:
@@ -92,12 +106,14 @@ class OrangeMaliEsmeTransceiver(EnhancedEsmeTransceiver):
                             message_id=message_id,
                             )
                 else:
-                    self.r_server.set(redis_key, json.dumps(multi.get_array()))
+                    self.r_server.set(redis_key, json.dumps(multi.get_array(), encoding='unicode-escape'))
             elif self.detect_error_delivery(pdu):
                 return
             else:
                 decoded_msg = self._decode_message(pdu_params['short_message'],
                                                    pdu_params['data_coding'])
+                if isinstance(decoded_msg, str):
+                    decoded_msg = decoded_msg.decode('unicode-escape')
                 self.esme_callbacks.deliver_sm(
                         destination_addr=pdu_params['destination_addr'],
                         source_addr=pdu_params['source_addr'],
