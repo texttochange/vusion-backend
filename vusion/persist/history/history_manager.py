@@ -2,6 +2,9 @@ from datetime import timedelta
 
 from bson import ObjectId, Code
 
+from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.threads import deferToThread
+
 from vusion.persist.model_manager import ModelManager
 from vusion.utils import (time_to_vusion_format, time_to_vusion_format_date, 
                           date_from_vusion_format)
@@ -151,3 +154,17 @@ class HistoryManager(ModelManager):
             {'message-id': user_message_id,
              'timestamp': {'$gt' : time_to_vusion_format(limit_timesearch)}},
             ['message-status', 'message-credits'])
+
+    @inlineCallbacks
+    def was_unattach_sent(self, participant_phone, unattach_id):
+        d = deferToThread(
+            self._was_unattach_sent, participant_phone, unattach_id)
+        yield d
+
+    def _was_unattach_sent(self, participant_phone, unattach_id):
+        unattach_history = self.collection.find_one({
+            'participant-phone': participant_phone,
+            'unattach-id': str(unattach_id)})
+        if unattach_history is None:
+            returnValue(False)
+        returnValue(True)
