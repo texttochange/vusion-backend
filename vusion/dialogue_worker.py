@@ -720,7 +720,7 @@ class DialogueWorker(ApplicationWorker):
             participant['phone'], unattach['_id'])
         if (was_sent):
             return
-        self.collections['schedules'].save_unattach_schedule(
+        yield self.collections['schedules'].save_unattach_schedule(
             participant, unattach)
         self.update_time_next_daemon_iteration()
 

@@ -3,6 +3,7 @@ import pymongo
 from datetime import timedelta
 
 from twisted.trial.unittest import TestCase
+from twisted.internet.defer import inlineCallbacks
 
 from tests.utils import ObjectMaker
 
@@ -214,6 +215,7 @@ class TestScheduleManager(TestCase, ObjectMaker):
         self.manager.remove_dialogue('1')
         self.assertEqual(0, self.manager.count())
 
+    @inlineCallbacks
     def test_save_unattached_schedule_update(self):
         schedule = schedule_generator(**self.mkobj_schedule_unattach(
             participant_phone='06', unattach_id='1',
@@ -226,7 +228,7 @@ class TestScheduleManager(TestCase, ObjectMaker):
         participant = Participant(**self.mkobj_participant(
             participant_phone='06'))
 
-        self.manager.save_unattach_schedule(participant, unattach)
+        yield self.manager.save_unattach_schedule(participant, unattach)
 
         self.assertEqual(1, self.manager.count())
         save_schedule = self.manager.find_one()
@@ -234,6 +236,7 @@ class TestScheduleManager(TestCase, ObjectMaker):
             save_schedule['date-time'],
             '2200-03-12T12:30:00')
 
+    @inlineCallbacks
     def test_save_unattached_schedule_new(self):
         schedule = schedule_generator(**self.mkobj_schedule_unattach(
             participant_phone='06', unattach_id='2'))
@@ -244,6 +247,6 @@ class TestScheduleManager(TestCase, ObjectMaker):
         participant = Participant(**self.mkobj_participant(
             participant_phone='06'))
 
-        self.manager.save_unattach_schedule(participant, unattach)
+        yield self.manager.save_unattach_schedule(participant, unattach)
 
         self.assertEqual(2, self.manager.count())

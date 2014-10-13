@@ -1,5 +1,8 @@
 import sys, traceback
 
+from twisted.internet.threads import deferToThread
+from twisted.internet.defer import returnValue, inlineCallbacks
+
 from vusion.persist.cursor_instanciator import CursorInstanciator
 from vusion.persist import ModelManager, schedule_generator
 from vusion.persist.schedule.schedule import Schedule, UnattachSchedule
@@ -115,7 +118,12 @@ class ScheduleManager(ModelManager):
     def remove_unattach(self, unattach_id):
         self.collection.remove({'unattach-id': unattach_id})
     
+    @inlineCallbacks
     def save_unattach_schedule(self, participant, unattach):
+        d = deferToThread(self._save_unattach_schedule, participant, unattach)
+        yield d
+
+    def _save_unattach_schedule(self, participant, unattach):
         schedule = self.get_participant_unattach(
             participant['phone'], unattach['_id'])
         if schedule is None:
