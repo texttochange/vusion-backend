@@ -151,3 +151,11 @@ class HistoryManager(ModelManager):
             {'message-id': user_message_id,
              'timestamp': {'$gt' : time_to_vusion_format(limit_timesearch)}},
             ['message-status', 'message-credits'])
+
+    def was_unattach_sent(self, participant_phone, unattach_id):
+        unattach_history = self.collection.find_one({
+            'participant-phone': participant_phone,
+            'unattach-id': str(unattach_id)})
+        if unattach_history is None:
+            return False
+        return True

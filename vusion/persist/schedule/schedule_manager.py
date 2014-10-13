@@ -2,7 +2,7 @@ import sys, traceback
 
 from vusion.persist.cursor_instanciator import CursorInstanciator
 from vusion.persist import ModelManager, schedule_generator
-from vusion.persist.schedule.schedule import Schedule
+from vusion.persist.schedule.schedule import Schedule, UnattachSchedule
 
 
 class ScheduleManager(ModelManager):
@@ -115,4 +115,15 @@ class ScheduleManager(ModelManager):
     def remove_unattach(self, unattach_id):
         self.collection.remove({'unattach-id': unattach_id})
     
-    
+    def save_unattach_schedule(self, participant, unattach):
+        schedule = self.get_participant_unattach(
+            participant['phone'], unattach['_id'])
+        if schedule is None:
+            schedule = UnattachSchedule(**{
+                    'participant-phone': participant['phone'],
+                    'participant-session-id': participant['session-id'],
+                    'unattach-id': str(unattach['_id']),
+                    'date-time': unattach['fixed-time']})
+        else:
+            schedule.set_time(unattach['fixed-time'])
+        self.save_schedule(schedule)

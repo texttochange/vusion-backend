@@ -300,7 +300,17 @@ class TestHistoryManager(TestCase, ObjectMaker):
             message_status='pending',
             message_id='1')
         self.history_manager.save(history)
-        
+
         history = self.history_manager.get_status_and_credits('1')
         self.assertEqual(history['message-status'], 'pending')
         self.assertEqual(history['message-credits'], 1)
+
+    def test_was_unattach_sent(self):
+        history = self.mkobj_history_unattach(
+            '4',
+            '2013-01-01T10:10:10',
+            participant_phone='06')
+        self.history_manager.save(history)
+
+        self.assertTrue(self.history_manager.was_unattach_sent('06', '4'))
+        self.assertFalse(self.history_manager.was_unattach_sent('07', '4'))

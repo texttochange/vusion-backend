@@ -711,22 +711,12 @@ class DialogueWorker(ApplicationWorker):
             self.schedule_participant_unattach(participant, unattach)
 
     def schedule_participant_unattach(self, participant, unattach):
-        history = self.collections['history'].find_one({
-            'participant-phone': participant['phone'],
-            'unattach-id': str(unattach['_id'])})
-        if history is not None:
+        was_sent = self.collections['history'].was_unattach_sent(
+            participant['phone'], unattach['_id'])
+        if (was_sent):
             return
-        schedule = self.collections['schedules'].get_participant_unattach(
-            participant['phone'], unattach['_id'])        
-        if schedule is None:
-            schedule = UnattachSchedule(**{
-                    'participant-phone': participant['phone'],
-                    'participant-session-id': participant['session-id'],
-                    'unattach-id': str(unattach['_id']),
-                    'date-time': unattach['fixed-time']})
-        else:
-            schedule.set_time(unattach['fixed-time'])
-        self.collections['schedules'].save_schedule(schedule)
+        self.collections['schedules'].save_unattach_schedule(
+            participant, unattach)
         self.update_time_next_daemon_iteration()
 
     ## Scheduling of Dialogue
