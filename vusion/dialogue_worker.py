@@ -187,6 +187,7 @@ class DialogueWorker(ApplicationWorker):
             self.collections[name].ensure_index(index, background=True)
         self.log("Collection initialised: %s" % name)
 
+    @inlineCallbacks
     def consume_control(self, message):
         try:
             self.log("Control message received to %r" % (message,))
@@ -203,9 +204,9 @@ class DialogueWorker(ApplicationWorker):
                     self.schedule_dialogue(message['object_id'])
                     self.register_keywords_in_dispatcher()
                 elif message['schedule_type'] == 'unattach':
-                    self.schedule_unattach(message['object_id'])
+                    yield self.schedule_unattach(message['object_id'])
                 elif message['schedule_type'] == 'participant':
-                    self.schedule_participant(message['object_id'])
+                    yield self.schedule_participant(message['object_id'])
             elif message['action'] == 'reload_request':
                 self.collections['requests'].load_request(message['object_id'])
                 self.register_keywords_in_dispatcher()
@@ -651,6 +652,7 @@ class DialogueWorker(ApplicationWorker):
     def is_ready(self):
         return self.properties.is_ready()
 
+    @inlineCallbacks
     def schedule_participant(self, participant_phone):
         participant = self.collections['participants'].get_participant(participant_phone, True)
         if participant is None:
@@ -669,7 +671,7 @@ class DialogueWorker(ApplicationWorker):
         future_unattachs = self.get_future_unattachs()
         for unattach in future_unattachs:
             if unattach.is_selectable(participant):
-                self.schedule_participant_unattach(participant, unattach)
+                yield self.schedule_participant_unattach(participant, unattach)
 
     def get_future_unattachs(self):
         query = {'fixed-time': {
@@ -694,6 +696,7 @@ class DialogueWorker(ApplicationWorker):
             return None
 
     ## Scheduling of unattach messages
+    @inlineCallbacks
     def schedule_unattach(self, unattach_id):
         #clear all schedule
         self.collections['schedules'].remove_unattach(unattach_id)
@@ -704,14 +707,16 @@ class DialogueWorker(ApplicationWorker):
         query = {'session-id': {'$ne': None}}
         query.update(selectors)
         participants = self.collections['participants'].get_participants(query)
-        self.schedule_participants_unattach(participants, unattach)
+        yield self.schedule_participants_unattach(participants, unattach)
 
+    @inlineCallbacks
     def schedule_participants_unattach(self, participants, unattach):
         for participant in participants:
-            self.schedule_participant_unattach(participant, unattach)
+            yield self.schedule_participant_unattach(participant, unattach)
 
+    @inlineCallbacks
     def schedule_participant_unattach(self, participant, unattach):
-        was_sent = self.collections['history'].was_unattach_sent(
+        was_sent = yield self.collections['history'].was_unattach_sent(
             participant['phone'], unattach['_id'])
         if (was_sent):
             return

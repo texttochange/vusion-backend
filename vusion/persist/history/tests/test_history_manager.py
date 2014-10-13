@@ -3,6 +3,7 @@ import pymongo
 from datetime import timedelta
 
 from twisted.trial.unittest import TestCase
+from twisted.internet.defer import inlineCallbacks
 
 from tests.utils import ObjectMaker
 
@@ -305,6 +306,7 @@ class TestHistoryManager(TestCase, ObjectMaker):
         self.assertEqual(history['message-status'], 'pending')
         self.assertEqual(history['message-credits'], 1)
 
+    @inlineCallbacks
     def test_was_unattach_sent(self):
         history = self.mkobj_history_unattach(
             '4',
@@ -312,5 +314,7 @@ class TestHistoryManager(TestCase, ObjectMaker):
             participant_phone='06')
         self.history_manager.save(history)
 
-        self.assertTrue(self.history_manager.was_unattach_sent('06', '4'))
-        self.assertFalse(self.history_manager.was_unattach_sent('07', '4'))
+        result = yield self.history_manager.was_unattach_sent('06', '4')
+        self.assertTrue(result)
+        result = yield self.history_manager.was_unattach_sent('07', '4')
+        self.assertFalse(result)

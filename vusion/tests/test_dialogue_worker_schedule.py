@@ -693,6 +693,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         self.assertEqual(0, self.collections['schedules'].count())
         self.assertEqual(1, self.collections['history'].count())
 
+    @inlineCallbacks
     def test_schedule_unattach_message(self):
         self.initialize_properties()
         
@@ -719,13 +720,14 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         self.collections['history'].save(self.mkobj_history_unattach(
             unattach_id, time_to_vusion_format(dPast)))
 
-        self.worker.schedule_unattach(unattach_id)
+        yield self.worker.schedule_unattach(unattach_id)
 
         schedules_count = self.collections['schedules'].count()
         self.assertEqual(schedules_count, 1)
         schedules = self.collections['schedules'].find()
         self.assertEqual(schedules[0]['participant-phone'], '07')
 
+    @inlineCallbacks
     def test_schedule_unattach_message_match(self):
         self.initialize_properties()       
      
@@ -761,15 +763,15 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         unattach_msg_id_1 = self.collections['unattached_messages'].save(unattach_msg_1)
         unattach_msg_id_2 = self.collections['unattached_messages'].save(unattach_msg_2)
 
-        self.worker.schedule_unattach(str(unattach_msg_id_1))
+        yield self.worker.schedule_unattach(str(unattach_msg_id_1))
 
         schedules_count = self.collections['schedules'].count()
         self.assertEqual(schedules_count, 1)
         schedules = self.collections['schedules'].find()
         self.assertEqual(schedules[0]['participant-phone'], '06')
         
-        self.worker.schedule_unattach(str(unattach_msg_id_2))
-        
+        yield self.worker.schedule_unattach(str(unattach_msg_id_2))
+
         schedules_count = self.collections['schedules'].count()
         self.assertEqual(schedules_count, 2)
         schedule = self.collections['schedules'].find_one({'unattach-id': str(unattach_msg_id_2)})
@@ -781,12 +783,14 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         unattach_msg_2['send-to-match-conditions'] = ['geek']
         self.collections['unattached_messages'].save(unattach_msg_2)
         
-        self.worker.schedule_unattach(str(unattach_msg_id_2))
+        yield self.worker.schedule_unattach(str(unattach_msg_id_2))
+
         schedules_count = self.collections['schedules'].count()
         self.assertEqual(schedules_count, 2)
         schedule = self.collections['schedules'].find_one({'unattach-id': str(unattach_msg_id_2)})
         self.assertEqual(schedule['participant-phone'], '06')
 
+    @inlineCallbacks
     def test_schedule_participant(self):
         self.initialize_properties()     
 
@@ -806,7 +810,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
             enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dNow)}])
         self.collections['participants'].save(participant)
         
-        self.worker.schedule_participant('06')
+        yield self.worker.schedule_participant('06')
         
         self.assertEqual(self.collections['schedules'].count(), 2)
         
