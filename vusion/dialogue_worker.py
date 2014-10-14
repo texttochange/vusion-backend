@@ -207,6 +207,7 @@ class DialogueWorker(ApplicationWorker):
                     yield self.schedule_unattach(message['object_id'])
                 elif message['schedule_type'] == 'participant':
                     yield self.schedule_participant(message['object_id'])
+                self.update_time_next_daemon_iteration()
             elif message['action'] == 'reload_request':
                 self.collections['requests'].load_request(message['object_id'])
                 self.register_keywords_in_dispatcher()
@@ -716,13 +717,8 @@ class DialogueWorker(ApplicationWorker):
 
     @inlineCallbacks
     def schedule_participant_unattach(self, participant, unattach):
-        was_sent = yield self.collections['history'].was_unattach_sent(
-            participant['phone'], unattach['_id'])
-        if (was_sent):
-            return
         yield self.collections['schedules'].save_unattach_schedule(
             participant, unattach)
-        self.update_time_next_daemon_iteration()
 
     ## Scheduling of Dialogue
     def schedule_dialogue(self, dialogue_id):

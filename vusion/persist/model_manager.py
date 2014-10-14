@@ -43,4 +43,4 @@ class ModelManager(object):
 
     def log(self, msg, level='msg'):
         if self.log_helper is not None:
-            self.log_helper.log(level, msg)
+            self.log_helper.log(msg, level)

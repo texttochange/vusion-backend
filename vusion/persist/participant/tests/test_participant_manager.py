@@ -7,7 +7,7 @@ from twisted.internet.defer import inlineCallbacks, maybeDeferred
 
 from tests.utils import ObjectMaker
 
-from vusion.component import DialogueWorkerPropertyHelper
+from vusion.component import DialogueWorkerPropertyHelper, PrintLogger
 from vusion.persist import ParticipantManager, Participant
 
 
@@ -26,6 +26,7 @@ class TestParticipantManager(TestCase, ObjectMaker):
         self.property_helper['timezone'] = 'Africa/Kampala'
         
         self.manager.set_property_helper(self.property_helper)
+        self.manager.set_log_helper(PrintLogger())
 
     def tearDown(self):
         self.clearData()
@@ -160,6 +161,13 @@ class TestParticipantManager(TestCase, ObjectMaker):
         participant = participants.next()
         self.assertEqual(participant['phone'], '1')
         self.assertTrue(isinstance(participant, Participant))
+
+    def test_get_participants_fail(self):
+        self.manager.save({'object-type': 'participant', 'phone': '06'})
+        participants = self.manager.get_participants()
+        self.assertEqual(participants.count(), 1)
+        participant = participants.next()
+        self.assertEqual(participant, None)
 
     def test_is_participant_tagged(self):
         participant = self.mkobj_participant(

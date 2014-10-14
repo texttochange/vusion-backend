@@ -94,7 +94,7 @@ class ParticipantManager(ModelManager):
                 query.update({'session-id':{'$ne': None}})
             return Participant(**self.collection.find_one(query))
         except TypeError:
-            self.log("Participant %s is either not optin or not in collection." % participant_phone)
+            self.log("Participant phone %s is either not optin or not in collection." % participant_phone)
             return None
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -104,9 +104,9 @@ class ParticipantManager(ModelManager):
                  traceback.format_exception(exc_type, exc_value, exc_traceback)))
             return None
 
-    def get_participants(self, query):
-        def log(exception, item):
-            self.log("Exception %s while instanciating a participant %r" % (exception, item))    
+    def get_participants(self, query=None):
+        def log(exception, item=None):
+            self.log("Exception %r while instanciating a participant %r" % (exception, item))
         return CursorInstanciator(self.collection.find(query), Participant, [log])
     
     def is_tagged(self, participant_phone, tags):
