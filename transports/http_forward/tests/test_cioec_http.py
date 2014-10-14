@@ -30,9 +30,15 @@ class CioecHttpTransportTestCase(MessageMaker, TransportTestCase):
             'transport_name': self.transport_name,
             'api_key': 'a2edrfaQ',
             'salt': 'CIOEC', 
-            'api': {'/api/registration': ['phone', 'name', 'email', 'sector'],
-                    '/api/unregistration': ['phone'],
-                    '/api/publishOffer': ['phone', 'message']}
+            'api': {
+                '/api/registration': [
+                    'phone',
+                    'name',
+                    {'label': 'email',
+                     'default': 'not_defined'},
+                     'sector'],
+                '/api/unregistration': ['phone'],
+                '/api/publishOffer': ['phone', 'message']}
         }
         self.worker = yield self.get_transport(self.config)
         self.worker.get_date = lambda: "2014-06-09"
@@ -113,6 +119,56 @@ class CioecHttpTransportTestCase(MessageMaker, TransportTestCase):
                 sent_message_id='1',
                 transport_metadata={'transport_type':'http_forward'}),
             TransportMessage.from_json(ack.body))
+
+    @inlineCallbacks
+    def test_sms_registration_default_value(self):
+            send_paths = {
+                'partner1': {
+                    'path': '/api/registration',
+                    'port': 9999}}
+            response_body = {
+                "status":"success",
+                "message":"X user registered",
+                "data": {
+                    "ids":[{"code":"aQx3","phone":"+59177777"}],
+                }
+            }
+            responses = {
+                'partner1': [
+                     json.dumps(response_body),
+                     http.OK,
+                     self.assert_request,
+                     '/api/registration',
+                     {"data":[{
+                         "phone": "+6",
+                         "name": "Sandra",
+                         "sector": "Productor",
+                         "email": "not_defined",
+                     }]},
+                     self.assert_authentication
+                ]}
+            yield self.make_resource_worker(send_paths, responses)
+
+            msg = self.mkmsg_out(
+                to_addr="http://localhost:9999/api/registration",
+                from_addr="myprogram",
+                content="Hello",
+                message_id='1',
+                transport_metadata={
+                    'program_shortcode': '256-8181',
+                    'participant_phone': '+6',
+                    'participant_profile': [{'label': 'name',
+                                             'value': 'Sandra'},
+                                            {'label': 'sector',
+                                             'value': 'Productor'}]})
+            yield self.dispatch(msg)
+            [ack] = self.get_dispatched('embolivia.event')
+            self.assertEqual(
+                self.mkmsg_ack(
+                    user_message_id='1',
+                    sent_message_id='1',
+                    transport_metadata={'transport_type':'http_forward'}),
+                TransportMessage.from_json(ack.body))
 
     @inlineCallbacks
     def test_sms_registration_validation_failed(self):
