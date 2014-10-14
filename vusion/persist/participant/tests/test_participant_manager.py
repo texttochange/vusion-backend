@@ -26,8 +26,7 @@ class TestParticipantManager(TestCase, ObjectMaker):
         self.property_helper['timezone'] = 'Africa/Kampala'
         
         self.manager.set_property_helper(self.property_helper)
-        self.manager.set_log_helper(PrintLogger())
-
+        
     def tearDown(self):
         self.clearData()
 

@@ -24,8 +24,7 @@ class TestRequestManager(TestCase, ObjectMaker):
         self.property_helper = DialogueWorkerPropertyHelper(None, None)
         self.property_helper['timezone'] = 'Africa/Kampala'
         self.request_manager.set_property_helper(self.property_helper)
-        self.request_manager.set_log_helper(PrintLogger())
-
+        
     def tearDown(self):
         self.clearData()
 
