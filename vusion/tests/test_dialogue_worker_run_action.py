@@ -65,26 +65,44 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(history['message-content'],
                          "best does not match any answer")
 
+    @inlineCallbacks
     def test_run_action_tagging(self):
         self.initialize_properties()
 
+        dNow = self.worker.get_local_time()
+        dFuture = dNow + timedelta(minutes=30)
+
         self.collections['participants'].save(self.mkobj_participant(
             '08',
             tags=['geek'],
             profile=[{'label': 'name',
                      'value': 'Oliv'}]))
 
+        ## tagging might make the participant eligible
+        unattach_msg = self.mkobj_unattach_message(
+            content='Hello',
+            send_to_type='match',
+            send_to_match_operator='all',
+            send_to_match_conditions=['my tag'],
+            fixed_time=time_to_vusion_format(dFuture))
+        self.collections['unattached_messages'].save(unattach_msg)
+
         ## Tagging
-        self.worker.run_action("08", TaggingAction(**{'tag': 'my tag'}))
-        self.worker.run_action("08", TaggingAction(**{'tag': 'my second tag'}))
+        yield self.worker.run_action("08", TaggingAction(**{'tag': 'my tag'}))
+        yield self.worker.run_action("08", TaggingAction(**{'tag': 'my second tag'}))
         self.assertTrue(self.collections['participants'].find_one({'tags': 'my tag'}))
-        self.worker.run_action("08", TaggingAction(**{'tag': 'my tag'}))
+        yield self.worker.run_action("08", TaggingAction(**{'tag': 'my tag'}))
         self.assertEqual(
             ['geek', 'my tag', 'my second tag'],
             self.collections['participants'].find_one({'tags': 'my tag'})['tags'])
+        self.assertEqual(1, self.collections['schedules'].find({'participant-phone': '08'}).count())
 
+    @inlineCallbacks
     def test_run_action_profiling(self):
         self.initialize_properties()
+
+        dNow = self.worker.get_local_time()
+        dFuture = dNow + timedelta(minutes=30)
 
         self.collections['participants'].save(self.mkobj_participant(
             '08',
@@ -92,10 +110,22 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             profile=[{'label': 'name',
                      'value': 'Oliv'}]))
 
-        self.worker.run_action("08", ProfilingAction(**{'label': 'gender',
-                                                        'value': 'Female'}))
+        ## tagging might make the participant eligible
+        unattach_msg = self.mkobj_unattach_message(
+            content='Hello',
+            send_to_type='match',
+            send_to_match_operator='all',
+            send_to_match_conditions=['gender:Female'],
+            fixed_time=time_to_vusion_format(dFuture))
+        self.collections['unattached_messages'].save(unattach_msg)
+
+        yield self.worker.run_action("08",
+                                     ProfilingAction(**{
+                                         'label': 'gender',
+                                         'value': 'Female'}))
         self.assertTrue(self.collections['participants'].find_one({'profile.label': 'gender'}))
         self.assertTrue(self.collections['participants'].find_one({'profile.value': 'Female'}))
+        self.assertEqual(1, self.collections['schedules'].find({'participant-phone':'08'}).count())
 
     def test_run_action_feedback(self):
         self.initialize_properties()

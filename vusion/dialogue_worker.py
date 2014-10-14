@@ -318,6 +318,7 @@ class DialogueWorker(ApplicationWorker):
             self.send_schedule(schedule)
         elif (action.get_type() == 'tagging'):
             self.collections['participants'].tagging(participant_phone, action['tag'])
+            yield self.schedule_participant(participant_phone)
         elif (action.get_type() == 'enrolling'):
             if not self.collections['participants'].is_optin(participant_phone):
                 self.run_action(
@@ -348,6 +349,7 @@ class DialogueWorker(ApplicationWorker):
         elif (action.get_type() == 'profiling'):
             self.collections['participants'].labelling(
                 participant_phone, action['label'], action['value'], context['message'])
+            yield self.schedule_participant(participant_phone)
         elif (action.get_type() == 'offset-conditioning'):
             participant = self.collections['participants'].get_participant(participant_phone, True)
             if participant is None:
@@ -720,7 +722,6 @@ class DialogueWorker(ApplicationWorker):
         yield self.collections['schedules'].save_unattach_schedule(
             participant, unattach)
 
-    ## Scheduling of Dialogue
     def schedule_dialogue(self, dialogue_id):
         dialogue = self.collections['dialogues'].get_current_dialogue(dialogue_id)
         #enroll if they are not already enrolled in auto-enrollment
@@ -736,7 +737,6 @@ class DialogueWorker(ApplicationWorker):
         for participant in participants:
             self.schedule_participant_dialogue(participant, dialogue)
 
-    #TODO: decide which id should be in an schedule object
     def schedule_participant_dialogue(self, participant, dialogue):
         try:
             for interaction in dialogue.interactions:

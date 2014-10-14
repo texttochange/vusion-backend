@@ -860,7 +860,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
                 session_id='x',
                 enrolled=[{
                     'dialogue-id': '0',
-                    'date-time': time_to_vusion_format(more_past)}]))
+                    'date-time': time_to_vusion_format(past)}]))
         self.collections['history'].save(
             self.mkobj_history_dialogue(
                 dialogue_id='0', 
