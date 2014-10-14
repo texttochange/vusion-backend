@@ -809,12 +809,11 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
             tags=['geek'],
             enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dNow)}])
         self.collections['participants'].save(participant)
-        
+
         yield self.worker.schedule_participant('06')
-        
+
         self.assertEqual(self.collections['schedules'].count(), 2)
-        
-        
+
     def test_reschedule_participant_after_edit_enrolled(self):
         self.initialize_properties()        
 
@@ -890,4 +889,3 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
             2, self.collections['schedules'].find({'participant-phone': '01'}).count())
         self.assertEqual(
             1, self.collections['schedules'].find({'participant-phone': '02'}).count())
-        
