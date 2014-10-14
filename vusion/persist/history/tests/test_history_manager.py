@@ -7,7 +7,7 @@ from twisted.internet.defer import inlineCallbacks
 
 from tests.utils import ObjectMaker
 
-from vusion.component import DialogueWorkerPropertyHelper
+from vusion.component import DialogueWorkerPropertyHelper, PrintLogger
 from vusion.persist import HistoryManager, history_generator
 from vusion.utils import time_to_vusion_format, date_from_vusion_format, time_to_vusion_format_date
 
@@ -26,8 +26,8 @@ class TestHistoryManager(TestCase, ObjectMaker):
         #parameters:
         self.property_helper = DialogueWorkerPropertyHelper(None, None)
         self.property_helper['timezone'] = 'Africa/Kampala'
-        
         self.history_manager.set_property_helper(self.property_helper)
+        self.history_manager.set_log_helper(PrintLogger())
 
     def tearDown(self):
         self.clearData()

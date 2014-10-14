@@ -5,7 +5,7 @@ from twisted.trial.unittest import TestCase
 
 from tests.utils import ObjectMaker
 
-from vusion.component import DialogueWorkerPropertyHelper
+from vusion.component import DialogueWorkerPropertyHelper, PrintLogger
 from vusion.persist import RequestManager, Request
 from vusion.persist.action import OptinAction, FeedbackAction, Actions
 from vusion.context import Context
@@ -23,8 +23,8 @@ class TestRequestManager(TestCase, ObjectMaker):
         #parameters:
         self.property_helper = DialogueWorkerPropertyHelper(None, None)
         self.property_helper['timezone'] = 'Africa/Kampala'
-        
         self.request_manager.set_property_helper(self.property_helper)
+        self.request_manager.set_log_helper(PrintLogger())
 
     def tearDown(self):
         self.clearData()

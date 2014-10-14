@@ -7,7 +7,7 @@ from tests.utils import ObjectMaker
 
 from vusion.persist import (CreditLog, ProgramCreditLogManager,
                             GarbageCreditLogManager)
-from vusion.component import DialogueWorkerPropertyHelper
+from vusion.component import DialogueWorkerPropertyHelper, PrintLogger
 
 
 class TestProgramCreditLogManager(TestCase, ObjectMaker):
@@ -28,8 +28,8 @@ class TestProgramCreditLogManager(TestCase, ObjectMaker):
         self.property_helper = DialogueWorkerPropertyHelper(None, None)
         self.property_helper['timezone'] = 'Africa/Kampala'
         self.property_helper['shortcode'] = '256-8181'
-        
         self.clm.set_property_helper(self.property_helper)
+        self.clm.set_log_helper(PrintLogger())
 
     def tearDown(self):
         self.clearData()
