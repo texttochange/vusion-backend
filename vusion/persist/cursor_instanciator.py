@@ -14,10 +14,19 @@ class CursorInstanciator(object):
 
     def next(self):
         try:
-            item = self.cursor.next()
-            return self.instanciator_callback(**item)
+            item = None
+            while True:
+                item = self.cursor.next()
+                return self._run_instanciator(item)
         except StopIteration as e:
             raise e
+        except Exception as e:
+            for failure_callback in self.failure_callbacks:
+                failure_callback(e, item)
+
+    def _run_instanciator(self, item=None):
+        try:
+            return self.instanciator_callback(**item)
         except Exception as e:
             for failure_callback in self.failure_callbacks:
                 failure_callback(e, item)
