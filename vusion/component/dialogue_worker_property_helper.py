@@ -37,8 +37,8 @@ class DialogueWorkerPropertyHelper(object):
             'credit-number': None,
             'credit-from-date': None,
             'credit-to-date': None,
-	    'sms-forwarding-allowed': 'full',
-	}
+            'sms-forwarding-allowed': 'full',
+        }
     
     def __getitem__(self, key):
         return self.properties[key]
@@ -85,27 +85,26 @@ class DialogueWorkerPropertyHelper(object):
         return int(ceil(float(len(message_content)) / float(self['shortcode-max-character-per-sms'])))
     
     def get_local_time(self, date_format='datetime', time_delta=None):
-	try:
-	    local_time = datetime.utcnow().replace(tzinfo=utc).astimezone(
-	        timezone(self['timezone'])).replace(tzinfo=None)
-	except:
-	    local_time = datetime.utcnow().replace(tzinfo=None)
-	if time_delta is not None:
-	    local_time = local_time + time_delta
-	if (date_format=='datetime'):
-	    return local_time
-	elif (date_format=='vusion' or date_format=='iso'):
-	    return time_to_vusion_format(local_time)
-	elif (date_format=="timestamp"):
-	    return long("%s%s" % (long(mktime(local_time.timetuple())),local_time.microsecond))
-	elif (date_format=="iso_date"):
-	    return time_to_vusion_format_date(local_time)
-	else:
-	    raise Exception('Datetime format %s is not supported' % date_format)
+        try:
+            local_time = datetime.utcnow().replace(tzinfo=utc).astimezone(
+                timezone(self['timezone'])).replace(tzinfo=None)
+        except:
+            local_time = datetime.utcnow().replace(tzinfo=None)
+        if time_delta is not None:
+            local_time = local_time + time_delta
+        if (date_format=='datetime'):
+            return local_time
+        elif (date_format=='vusion' or date_format=='iso'):
+            return time_to_vusion_format(local_time)
+        elif (date_format=="timestamp"):
+            return long("%s%s" % (long(mktime(local_time.timetuple())),local_time.microsecond))
+        elif (date_format=="iso_date"):
+            return time_to_vusion_format_date(local_time)
+        else:
+            raise Exception('Datetime format %s is not supported' % date_format)
 
     def is_sms_forwarding_allowed(self):
-	if self['sms-forwarding-allowed'] == "full":
-	    return True
-	else:
-	    return False
-	
+        if self['sms-forwarding-allowed'] == "full":
+            return True
+        else:
+            return False
