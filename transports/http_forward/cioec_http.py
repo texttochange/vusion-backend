@@ -26,11 +26,28 @@ class CioecHttp(Transport):
             elif label_to_add == 'message':
                 data['message'] = message['content']                
             else:
-                item = [x for x in  message['transport_metadata']['participant_profile'] if label_to_add == x['label']]
-                if item == []:
-                    raise MissingData("%s is missing" % label_to_add)
-                data[item[0]['label']] = item[0]['value']
+                self.extract_data_from_profile(
+                    data,
+                    message['transport_metadata']['participant_profile'],
+                    label_to_add)
         return {'data': [data]}
+
+    def extract_data_from_profile(self, data, participant_profile, label_rule):
+        label = None
+        default = None
+        if isinstance(label_rule, dict):
+            label = label_rule['label']
+            default = label_rule['default']
+        else:
+            label = label_rule
+        item = [x for x in  participant_profile if label == x['label']]
+        if item == []:
+            if default is None:
+                raise MissingData("%s is missing" % label)
+            else:
+                data[label] = default
+        else:
+            data[label] = item[0]['value']
 
     def get_date(self):
         return datetime.now().strftime('%Y-%m-%d')
