@@ -25,10 +25,13 @@ class HistoryManager(ModelManager):
         self.collection.ensure_index([('interaction-id', 1),('participant-session-id',1)],
                                      sparce = True,
                                      background=True)
-    
+        self.collection.ensure_index('unattach-id',
+                                     sparce = True,
+                                     background=True)
+
     def get_history(self, history_id):
         return self.collection.find_one({'_id': ObjectId(history_id)})
-    
+
     def save_history(self, **kwargs):
         if 'timestamp' in kwargs:
             kwargs['timestamp'] = time_to_vusion_format(kwargs['timestamp'])
@@ -75,7 +78,7 @@ class HistoryManager(ModelManager):
         selector_query = {'_id': ObjectId(str(history_id))}
         update_query = {
             '$set': {'message-status': 'forwarded'},
-            '$push': {'forwards': {'status': 'pending', 
+            '$push': {'forwards': {'status': 'pending',
                                    'timestamp': self.get_local_time('vusion'),
                                    'message-id': message_id,
                                    'to-addr': to_addr}}}
@@ -149,7 +152,7 @@ class HistoryManager(ModelManager):
             return None
 
     def get_status_and_credits(self, user_message_id):
-        limit_timesearch = self.get_local_time() - timedelta(hours=self.TIMESTAMP_LIMIT_ACK)        
+        limit_timesearch = self.get_local_time() - timedelta(hours=self.TIMESTAMP_LIMIT_ACK)
         return self.collection.find_one(
             {'message-id': user_message_id,
              'timestamp': {'$gt' : time_to_vusion_format(limit_timesearch)}},
