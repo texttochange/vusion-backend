@@ -210,9 +210,11 @@ class DialogueWorker(ApplicationWorker):
                 elif message['schedule_type'] == 'participant':
                     yield self.schedule_participant(message['object_id'])
                 self.update_time_next_daemon_iteration()
-            elif message['action'] == 'update_participants_schedules':
-                yield self.schedule_participants(message['selector'])
+            elif message['action'] == 'mass_tag':
+                yield self.schedule_mass_tag(message['tag'], message['selector'])
                 self.update_time_next_daemon_iteration()
+            elif message['action'] == 'mass_untag':
+                yield self.schedule_mass_untag(message['tag'])
             elif message['action'] == 'reload_request':
                 self.collections['requests'].load_request(message['object_id'])
                 self.register_keywords_in_dispatcher()
@@ -661,7 +663,13 @@ class DialogueWorker(ApplicationWorker):
         return self.properties.is_ready()
 
     @inlineCallbacks
-    def schedule_participants(self, query):
+    def schedule_mass_untag(self, tag):
+        unattacheds = self.collections['unattached_messages'].get_unattached_messages_selector_tag(tag)
+        for unattached in unattacheds:
+            yield self.schedule_unattach(unattached['_id'])
+
+    @inlineCallbacks
+    def schedule_mass_tag(self, tag, query):
         participants = self.collections['participants'].get_participants(query)
         for participant in participants:
             yield self._schedule_participant(participant)

@@ -1,4 +1,5 @@
 import sys, traceback
+from bson import ObjectId
 
 from twisted.internet.threads import deferToThread
 from twisted.internet.defer import returnValue, inlineCallbacks
@@ -116,7 +117,7 @@ class ScheduleManager(ModelManager):
         self.collection.remove({'dialogue-id': dialogue_id})
 
     def remove_unattach(self, unattach_id):
-        self.collection.remove({'unattach-id': unattach_id})
+        self.collection.remove({'unattach-id': str(unattach_id)})
 
     @inlineCallbacks
     def remove_unattach_schedule(self, participant, unattach):
