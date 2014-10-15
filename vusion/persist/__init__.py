@@ -41,7 +41,8 @@ from template.template_manager import TemplateManager
 from worker_config.worker_config import WorkerConfig
 from worker_config.worker_config_manager import WorkerConfigManager
 
-from unattach_message import UnattachMessage
+from unattached_message.unattached_message import UnattachedMessage
+from unattached_message.unattached_message_manager import UnattachedMessageManager
 
 from cursor_instanciator import CursorInstanciator
 
@@ -61,7 +62,7 @@ __all__ = ["Model", "ModelManager",
            "Request", 
            "WorkerConfig", "WorkerConfigManager",
            "Participant", "ParticipantManager",
-           "UnattachMessage",
+           "UnattachedMessage", "UnattachedMessageManager",
            "UnmatchableReply", "UnmatchableReplyManager",
            "Template", "TemplateManager",
            "ContentVariable", "ContentVariableManager",

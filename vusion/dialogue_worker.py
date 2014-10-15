@@ -39,12 +39,12 @@ from vusion.persist.action import (Actions, action_generator,FeedbackAction,
 from vusion.persist import (Request, ContentVariable, Dialogue,
                             FeedbackSchedule, UnattachSchedule, ActionSchedule,
                             DialogueSchedule, ReminderSchedule, DeadlineSchedule,
-                            Participant, UnattachMessage,
+                            Participant, UnattachedMessage,
                             history_generator,
                             HistoryManager, ContentVariableManager,
                             DialogueManager, RequestManager, ParticipantManager,
                             ScheduleManager, ProgramCreditLogManager,
-                            ShortcodeManager)
+                            ShortcodeManager, UnattachedMessageManager)
 
 
 class DialogueWorker(ApplicationWorker):
@@ -165,6 +165,7 @@ class DialogueWorker(ApplicationWorker):
         self.collections['requests'] = RequestManager(program_db, 'requests')
         self.collections['participants'] = ParticipantManager(program_db, 'participants')
         self.collections['schedules'] = ScheduleManager(program_db, 'schedules')
+        self.collections['unattached_messages'] = UnattachedMessageManager(program_db, 'unattached_messages')
 
         ## Vusion 
         vusion_db = connection[self.vusion_database_name]
@@ -694,7 +695,7 @@ class DialogueWorker(ApplicationWorker):
         unattachs = []
         for unattach in self.collections['unattached_messages'].find(query):
             try:
-                unattachs.append(UnattachMessage(**unattach))
+                unattachs.append(UnattachedMessage(**unattach))
             except:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 self.log("Error while retriving participant %r" %
@@ -704,7 +705,7 @@ class DialogueWorker(ApplicationWorker):
     #TODO: move into unattach message manager
     def get_unattach_message(self, unattach_id):
         try:
-            return UnattachMessage(**self.collections['unattached_messages'].find_one({
+            return UnattachedMessage(**self.collections['unattached_messages'].find_one({
                 '_id': ObjectId(unattach_id)}))
         except TypeError:
             self.log("Error unattach message %s cannot be found" % unattach_id)
