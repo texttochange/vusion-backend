@@ -208,6 +208,9 @@ class DialogueWorker(ApplicationWorker):
                 elif message['schedule_type'] == 'participant':
                     yield self.schedule_participant(message['object_id'])
                 self.update_time_next_daemon_iteration()
+            elif message['action'] == 'update_participants_schedules':
+                yield self.schedule_participants(message['selector'])
+                self.update_time_next_daemon_iteration()
             elif message['action'] == 'reload_request':
                 self.collections['requests'].load_request(message['object_id'])
                 self.register_keywords_in_dispatcher()
@@ -656,17 +659,27 @@ class DialogueWorker(ApplicationWorker):
         return self.properties.is_ready()
 
     @inlineCallbacks
+    def schedule_participants(self, query):
+        participants = self.collections['participants'].get_participants(query)
+        for participant in participants:
+            yield self._schedule_participant(participant)
+
+    @inlineCallbacks
     def schedule_participant(self, participant_phone):
         participant = self.collections['participants'].get_participant(participant_phone, True)
         if participant is None:
             return
+        yield self._schedule_participant(participant)
+
+    @inlineCallbacks
+    def _schedule_participant(self, participant):
         ## schedule dialogues
         for dialogue in self.collections['dialogues'].get_active_dialogues():
             if dialogue.is_enrollable(participant):
                 self.collections['participants'].enrolling(
                     participant['phone'], dialogue['dialogue-id'])
                 #Require to load again the participant in order to get the enrollment time
-                participant = self.collections['participants'].get_participant(participant_phone)
+                participant = self.collections['participants'].get_participant(participant['phone'])
             # participant could be manually enrolled
             if participant.is_enrolled(dialogue['dialogue-id']):
                 self.schedule_participant_dialogue(participant, dialogue)

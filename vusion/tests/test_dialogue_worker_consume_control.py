@@ -63,7 +63,29 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
             'object_id': str(unattach_id)})
         yield self.send(event, 'control')
         self.assertEqual(1, self.collections['schedules'].count())
-    
+
+    @inlineCallbacks
+    def test_consume_control_update_participants_schedules(self):
+        self.initialize_properties()
+        self.broker.dispatched = {}
+        dNow = self.worker.get_local_time()
+
+        self.collections['participants'].save(
+            self.mkobj_participant(participant_phone='10', tags=['geek']))
+        self.collections['participants'].save(
+            self.mkobj_participant(participant_phone='11', tags=[]))
+        unattach = self.mkobj_unattach_message(
+            send_to_type='match',
+            send_to_match_operator='all',
+            send_to_match_conditions=['geek'])
+        unattach_id = self.collections['unattached_messages'].save(unattach)
+
+        event = self.mkmsg_dialogueworker_control(**{
+            'action':'update_participants_schedules',
+            'selector': {'tags': 'geek'}})
+        yield self.send(event, 'control')
+        self.assertEqual(1, self.collections['schedules'].count())
+
     @inlineCallbacks
     def test_consume_control_test_send_all_messages(self):
         self.initialize_properties()
