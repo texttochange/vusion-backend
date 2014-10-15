@@ -796,6 +796,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
 
         dNow = self.worker.get_local_time()
         dPast = dNow - timedelta(minutes=30)
+
         dialogue_1 = self.mkobj_dialogue_annoucement()
         dialogue_2 = self.mkobj_dialogue_announcement_2()
         self.collections['dialogues'].save(dialogue_1)
@@ -803,7 +804,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         unattach = self.mkobj_unattach_message_2(recipient=['geek'])
         self.collections['unattached_messages'].save(unattach)
         unattach = self.mkobj_unattach_message_2(recipient=['cool'])
-        self.collections['unattached_messages'].save(unattach)        
+        self.collections['unattached_messages'].save(unattach)  
         participant = self.mkobj_participant(
             '06', 
             tags=['geek'],
@@ -813,6 +814,45 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         yield self.worker.schedule_participant('06')
 
         self.assertEqual(self.collections['schedules'].count(), 2)
+
+    @inlineCallbacks
+    def test_schedule_participant_untagged_no_more_eligible(self):
+        self.initialize_properties()
+
+        dNow = self.worker.get_local_time()
+        dPast = dNow - timedelta(minutes=30)
+
+        dialogue = self.mkobj_dialogue_auto_enrollment(
+            auto_enrollment='match',
+            condition_operator='all-subconditions',
+            subconditions=[{'subcondition-field': 'tagged',
+                            'subcondition-operator': 'with',
+                            'subcondition-parameter': 'geek'},
+                           ])
+        self.collections['dialogues'].save(dialogue.get_as_dict())
+
+        unattach = self.mkobj_unattach_message_2(recipient=['geek'])
+        unattach_id = self.collections['unattached_messages'].save(unattach)
+
+        ##the participant was already scheduled of this unattached
+        schedule = self.mkobj_schedule_unattach(
+            participant_phone='06',
+            participant_session_id='1',
+            date_time=unattach['fixed-time'],
+            unattach_id=str(unattach_id))
+        self.collections['schedules'].save(schedule)
+
+        participant = self.mkobj_participant(
+            '06',
+            tags=[],
+            enrolled=[{'dialogue-id': '04', 'date-time': time_to_vusion_format(dNow)}])
+        self.collections['participants'].save(participant)
+
+        yield self.worker.schedule_participant('06')
+
+        ## only the dialogue should be schedule, the unattached should have been removed
+        self.assertEqual(self.collections['schedules'].count(), 1)
+        self.assertEqual(self.collections['schedules'].find({'dialogue-id': '04'}).count(), 1)
 
     def test_reschedule_participant_after_edit_enrolled(self):
         self.initialize_properties()        

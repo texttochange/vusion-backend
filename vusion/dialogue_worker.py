@@ -673,8 +673,7 @@ class DialogueWorker(ApplicationWorker):
         ## schedule unattach message s       
         future_unattachs = self.get_future_unattachs()
         for unattach in future_unattachs:
-            if unattach.is_selectable(participant):
-                yield self.schedule_participant_unattach(participant, unattach)
+            yield self.collections['schedules'].unattach_schedule(participant, unattach)
 
     def get_future_unattachs(self):
         query = {'fixed-time': {

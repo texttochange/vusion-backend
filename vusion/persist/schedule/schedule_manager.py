@@ -111,13 +111,23 @@ class ScheduleManager(ModelManager):
         self.collection.remove({
             'participant-phone': participant_phone,
             'object-type': {'$ne': 'feedback-schedule'}})    
-    
+
     def remove_dialogue(self, dialogue_id):
         self.collection.remove({'dialogue-id': dialogue_id})
 
     def remove_unattach(self, unattach_id):
         self.collection.remove({'unattach-id': unattach_id})
-    
+
+    @inlineCallbacks
+    def remove_unattach_schedule(self, participant, unattach):
+        d = deferToThread(self._remove_unattach_schedule, participant, unattach)
+        yield d
+
+    def _remove_unattach_schedule(self, participant, unattah):
+        self.collection.remove({
+            'participant-phone': participant['phone'],
+            'unattach-id': str(unattah['_id'])})
+
     @inlineCallbacks
     def save_unattach_schedule(self, participant, unattach):
         d = deferToThread(self._save_unattach_schedule, participant, unattach)
@@ -135,3 +145,10 @@ class ScheduleManager(ModelManager):
         else:
             schedule.set_time(unattach['fixed-time'])
         self.save_schedule(schedule)
+
+    @inlineCallbacks
+    def unattach_schedule(self, participant, unattach):
+        if unattach.is_selectable(participant):
+            yield self.save_unattach_schedule(participant, unattach)
+        else:
+            yield self.remove_unattach_schedule(participant, unattach)
