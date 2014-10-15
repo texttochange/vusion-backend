@@ -5,7 +5,7 @@ from vusion.persist import UnattachedMessage, Participant
 from tests.utils import ObjectMaker
 
 class TestUnattachedMessage(TestCase, ObjectMaker):
-    
+
     def test_upgrade(self):
         unattach_raw = {
             'name' : 'test',

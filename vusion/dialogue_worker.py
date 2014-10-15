@@ -103,7 +103,8 @@ class DialogueWorker(ApplicationWorker):
 
         #TODO replace by a loop
         for collection in ['history', 'dialogues', 'requests', 'participants', 
-                           'content_variables', 'schedules', 'credit_logs', 'shortcodes']:
+                           'content_variables', 'schedules', 'credit_logs',
+                           'shortcodes', 'unattached_messages']:
             self.collections[collection].set_property_helper(self.properties)
             self.collections[collection].set_log_helper(self.logger)
 
@@ -685,38 +686,17 @@ class DialogueWorker(ApplicationWorker):
             if participant.is_enrolled(dialogue['dialogue-id']):
                 self.schedule_participant_dialogue(participant, dialogue)
         ## schedule unattach message s       
-        future_unattachs = self.get_future_unattachs()
-        for unattach in future_unattachs:
-            yield self.collections['schedules'].unattach_schedule(participant, unattach)
-
-    def get_future_unattachs(self):
-        query = {'fixed-time': {
-            '$gt': time_to_vusion_format(self.get_local_time())}}
-        unattachs = []
-        for unattach in self.collections['unattached_messages'].find(query):
-            try:
-                unattachs.append(UnattachedMessage(**unattach))
-            except:
-                exc_type, exc_value, exc_traceback = sys.exc_info()
-                self.log("Error while retriving participant %r" %
-                         traceback.format_exception(exc_type, exc_value, exc_traceback))
-        return unattachs
-
-    #TODO: move into unattach message manager
-    def get_unattach_message(self, unattach_id):
-        try:
-            return UnattachedMessage(**self.collections['unattached_messages'].find_one({
-                '_id': ObjectId(unattach_id)}))
-        except TypeError:
-            self.log("Error unattach message %s cannot be found" % unattach_id)
-            return None
+        unattacheds = self.collections['unattached_messages'].get_unattached_messages()
+        for unattached in unattacheds:
+            yield self.collections['schedules'].unattach_schedule(
+                participant, unattached)
 
     ## Scheduling of unattach messages
     @inlineCallbacks
     def schedule_unattach(self, unattach_id):
         #clear all schedule
         self.collections['schedules'].remove_unattach(unattach_id)
-        unattach = self.get_unattach_message(unattach_id)
+        unattach = self.collections['unattached_messages'].get_unattached_message(unattach_id)
         if unattach is None:
             return
         selectors = unattach.get_selector_as_query()
