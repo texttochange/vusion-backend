@@ -25,7 +25,7 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
             message_status='pending',
             message_id='1')
 
-        self.collections['history'].save(history)
+        self.worker.collections['history'].save_history(**history)
 
         yield self.send(event, 'event')
 
@@ -50,14 +50,10 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
             interaction_id='1',
             timestamp=time_to_vusion_format(past), 
             direction='incoming',
-            message_status='forwarded',
-            message_id='1',
-            forwards=[{'status': 'pending', 
-                      'timestamp': time_to_vusion_format(past),
-                      'message-id': '2',
-                      'to-addr': 'http://partner.com'}])
+            message_id='1')
 
-        self.collections['history'].save(history)
+        history_id = self.collections['history'].save(history)
+        self.worker.collections['history'].update_forwarding(history_id, '2', 'http://partner.com')
 
         yield self.send(event, 'event')
 
@@ -77,7 +73,7 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
             message_status='pending',
             message_id='1',)
         
-        self.collections['history'].save(history)
+        self.worker.collections['history'].save_history(**history)
 
         yield self.send(event, 'event')
 
@@ -121,7 +117,7 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
             message_status='pending',
             message_id='1')
        
-        self.collections['history'].save(history)
+        self.worker.collections['history'].save_history(**history)
 
         yield self.send(event, 'event')
 
@@ -150,7 +146,7 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
             message_status='pending',
             message_id='1')
        
-        self.collections['history'].save(history)
+        self.worker.collections['history'].save_history(**history)
 
         yield self.send(event, 'event')
 

@@ -26,7 +26,7 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         c = pymongo.Connection()
         db = c[self.database_name]
         self.collections = {}
-        self.collections['history'] = HistoryManager(db, 'history')
+        self.collections['history'] = HistoryManager(db, 'history', self.cm_redis_key, self.redis)
         self.collections['schedules'] = ScheduleManager(db, 'schedules')
         db = c[self.vusion_database_name]
         self.collections['credit_logs'] = ProgramCreditLogManager(

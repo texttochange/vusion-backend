@@ -8,15 +8,17 @@ from twisted.internet.threads import deferToThread
 from vusion.persist.model_manager import ModelManager
 from vusion.utils import (time_to_vusion_format, time_to_vusion_format_date, 
                           date_from_vusion_format)
+from vusion.component.flying_messsage_manager import FlyingMessageManager
 from history import history_generator
 
 
 class HistoryManager(ModelManager):
 
+    #Deprecated
     TIMESTAMP_LIMIT_ACK = 6          #in hours
     TIMESTAMP_LIMIT_ACK_FORWARD = 3  #in hours
 
-    def __init__(self, db, collection_name, **kwargs):
+    def __init__(self, db, collection_name, prefix_key, redis, **kwargs):
         super(HistoryManager, self).__init__(db, collection_name, **kwargs)
         self.collection.ensure_index('timestamp',
                                      background=True)
@@ -28,21 +30,62 @@ class HistoryManager(ModelManager):
         self.collection.ensure_index('unattach-id',
                                      sparce = True,
                                      background=True)
+        self.prefix_key = prefix_key
+        self.flying_manager = FlyingMessageManager(prefix_key, redis)
 
     def get_history(self, history_id):
         return self.collection.find_one({'_id': ObjectId(history_id)})
 
     def save_history(self, **kwargs):
-        if 'timestamp' in kwargs:
+        if 'timestamp' in kwargs and not isinstance(kwargs['timestamp'], str):
             kwargs['timestamp'] = time_to_vusion_format(kwargs['timestamp'])
         else:
             kwargs['timestamp'] = self.get_local_time('vusion')
         if 'interaction' in kwargs:
             kwargs.pop('interaction')
         history = history_generator(**kwargs)
-        return self.save_document(history)
+        history_id = self.save_document(history)
+        if history.is_message() and history.is_outgoing():
+            self.flying_manager.append_message_data(
+                history['message-id'],
+                history_id,
+                history['message-credits'],
+                history['message-status'])
+        return True
 
-    def update_status(self, message_id, status):
+    def update_status_from_event(self, event):
+        history_id, credits, old_status = self.flying_manager.get_message_data(event['user_message_id'])
+        if history_id is None:
+            self.log("Cannot find flying message %s, cannot proceed updating the history" % event['user_message_id'])
+            return None
+        if (event['event_type'] == 'ack'):
+            status = 'ack'
+            new_status = status
+        elif (event['event_type'] == 'delivery_report'):
+            status = event['delivery_status']
+            new_status = status
+            if (event['delivery_status'] == 'failed'):
+                status = {
+                  'status': event['delivery_status'],
+                  'reason': ("Level:%s Code:%s Message:%s" % (
+                      event.get('failure_level', 'unknown'),
+                      event.get('failure_code', 'unknown'),
+                      event.get('failure_reason', 'unknown')))}
+                credit_status = event['delivery_status']
+        if ('transport_type' in event['transport_metadata']
+           and event['transport_metadata']['transport_type'] == 'http_forward'):
+            self.update_forwarded_status(history_id, event['user_message_id'], status)
+        else:
+            self.update_status(history_id, status)
+        self.flying_manager.append_message_data(
+            event['user_message_id'],
+            history_id,
+            credits,
+            new_status)
+        return new_status, old_status, credits
+
+
+    def update_status(self, history_id, status):
         message_status = None
         failure_reason = None        
         if isinstance(status, dict):
@@ -50,15 +93,13 @@ class HistoryManager(ModelManager):
             failure_reason = status['reason']
         else:
             message_status = status
-        limit_timesearch = self.get_local_time() - timedelta(hours=self.TIMESTAMP_LIMIT_ACK)
-        selector_query = {'message-id': message_id,
-                          'timestamp': {'$gt' : time_to_vusion_format(limit_timesearch)}}
+        selector_query = {'_id': history_id}
         update_query = {'$set': {'message-status': message_status}}
         if failure_reason is not None:
             update_query['$set'].update({'failure-reason': failure_reason})
         self.collection.update(selector_query, update_query)              
 
-    def update_forwarded_status(self, message_id, status):
+    def update_forwarded_status(self, history_id, message_id, status):
         message_status = None
         failure_reason = None
         if isinstance(status, dict):
@@ -67,8 +108,9 @@ class HistoryManager(ModelManager):
         else:
             message_status = status
         limit_timesearch = self.get_local_time() - timedelta(hours=self.TIMESTAMP_LIMIT_ACK_FORWARD)
-        selector_query = {'forwards.message-id': message_id,
-                          'timestamp': {'$gt' : time_to_vusion_format(limit_timesearch)}}
+        selector_query = {
+            '_id': history_id,
+            'forwards.message-id': message_id}
         update_query = {'$set': {'forwards.$.status': message_status}}
         if failure_reason is not None:
             update_query['$set'].update({'forwards.$.failure-reason': failure_reason})
@@ -83,6 +125,7 @@ class HistoryManager(ModelManager):
                                    'message-id': message_id,
                                    'to-addr': to_addr}}}
         self.collection.update(selector_query, update_query)
+        self.flying_manager.append_message_data(message_id, history_id, 0, 'pending')
 
     def count_day_credits(self, date):
         reducer = Code("function(obj, prev) {"

@@ -54,7 +54,7 @@ class DumbLogManager(object):
 class MessageMaker:
 
     def mkmsg_ack(self, user_message_id='1', sent_message_id='abc',
-                  transport_metadata=None):
+                  transport_metadata=None, transport_name=None):
         if transport_metadata is None:
             transport_metadata = {}
         return TransportEvent(
@@ -63,7 +63,7 @@ class MessageMaker:
             user_message_id=user_message_id,
             sent_message_id=sent_message_id,
             timestamp=UTCNearNow(),
-            transport_name=self.transport_name,
+            transport_name=transport_name,
             transport_metadata=transport_metadata
         )
 
