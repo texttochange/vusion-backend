@@ -20,7 +20,12 @@ class WorkerControl(Message):
         'reload_request': {
             'object_id': lambda v: v is not None},
         'update_registered_keywords': {},
-        'reload_program_settings': {}
+        'reload_program_settings': {},
+        'mass_tag':{
+            'tag': lambda v: v is not None,
+            'selector': lambda v: v is not None},
+        'mass_untag': {
+            'tag': lambda v: v is not None}
     }
 
     def validate_fields(self):

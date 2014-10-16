@@ -5,7 +5,7 @@ from vusion.persist import Model
 from vusion.const import TAG_REGEX, LABEL_REGEX
 
 ##TODO update the validation
-class UnattachMessage(Model):
+class UnattachedMessage(Model):
     
     MODEL_TYPE = 'unattach_message'
     MODEL_VERSION = '4'

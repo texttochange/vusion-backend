@@ -12,7 +12,12 @@ class ModelManager(object):
             self.collection = db[collection_name]
         else:
             self.collection = db.create_collection(collection_name)        
-    
+
+    def save_object(self, instance, safe=False):
+        document.validate_fields()
+        return self.collection.save(document.get_as_dict(), safe=safe)
+
+    #deprecated: name is confusing
     def save_document(self, document, safe=False):
         document.validate_fields()
         return self.collection.save(document.get_as_dict(), safe=safe)

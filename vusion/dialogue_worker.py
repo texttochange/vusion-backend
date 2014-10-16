@@ -39,12 +39,12 @@ from vusion.persist.action import (Actions, action_generator,FeedbackAction,
 from vusion.persist import (Request, ContentVariable, Dialogue,
                             FeedbackSchedule, UnattachSchedule, ActionSchedule,
                             DialogueSchedule, ReminderSchedule, DeadlineSchedule,
-                            Participant, UnattachMessage,
+                            Participant, UnattachedMessage,
                             history_generator,
                             HistoryManager, ContentVariableManager,
                             DialogueManager, RequestManager, ParticipantManager,
                             ScheduleManager, ProgramCreditLogManager,
-                            ShortcodeManager)
+                            ShortcodeManager, UnattachedMessageManager)
 
 
 class DialogueWorker(ApplicationWorker):
@@ -103,7 +103,8 @@ class DialogueWorker(ApplicationWorker):
 
         #TODO replace by a loop
         for collection in ['history', 'dialogues', 'requests', 'participants', 
-                           'content_variables', 'schedules', 'credit_logs', 'shortcodes']:
+                           'content_variables', 'schedules', 'credit_logs',
+                           'shortcodes', 'unattached_messages']:
             self.collections[collection].set_property_helper(self.properties)
             self.collections[collection].set_log_helper(self.logger)
 
@@ -165,6 +166,7 @@ class DialogueWorker(ApplicationWorker):
         self.collections['requests'] = RequestManager(program_db, 'requests')
         self.collections['participants'] = ParticipantManager(program_db, 'participants')
         self.collections['schedules'] = ScheduleManager(program_db, 'schedules')
+        self.collections['unattached_messages'] = UnattachedMessageManager(program_db, 'unattached_messages')
 
         ## Vusion 
         vusion_db = connection[self.vusion_database_name]
@@ -208,6 +210,11 @@ class DialogueWorker(ApplicationWorker):
                 elif message['schedule_type'] == 'participant':
                     yield self.schedule_participant(message['object_id'])
                 self.update_time_next_daemon_iteration()
+            elif message['action'] == 'mass_tag':
+                yield self.schedule_mass_tag(message['tag'], message['selector'])
+                self.update_time_next_daemon_iteration()
+            elif message['action'] == 'mass_untag':
+                yield self.schedule_mass_untag(message['tag'])
             elif message['action'] == 'reload_request':
                 self.collections['requests'].load_request(message['object_id'])
                 self.register_keywords_in_dispatcher()
@@ -656,54 +663,48 @@ class DialogueWorker(ApplicationWorker):
         return self.properties.is_ready()
 
     @inlineCallbacks
+    def schedule_mass_untag(self, tag):
+        unattacheds = self.collections['unattached_messages'].get_unattached_messages_selector_tag(tag)
+        for unattached in unattacheds:
+            yield self.schedule_unattach(unattached['_id'])
+
+    @inlineCallbacks
+    def schedule_mass_tag(self, tag, query):
+        participants = self.collections['participants'].get_participants(query)
+        for participant in participants:
+            yield self._schedule_participant(participant)
+
+    @inlineCallbacks
     def schedule_participant(self, participant_phone):
         participant = self.collections['participants'].get_participant(participant_phone, True)
         if participant is None:
             return
+        yield self._schedule_participant(participant)
+
+    @inlineCallbacks
+    def _schedule_participant(self, participant):
         ## schedule dialogues
         for dialogue in self.collections['dialogues'].get_active_dialogues():
             if dialogue.is_enrollable(participant):
                 self.collections['participants'].enrolling(
                     participant['phone'], dialogue['dialogue-id'])
                 #Require to load again the participant in order to get the enrollment time
-                participant = self.collections['participants'].get_participant(participant_phone)
+                participant = self.collections['participants'].get_participant(participant['phone'])
             # participant could be manually enrolled
             if participant.is_enrolled(dialogue['dialogue-id']):
                 self.schedule_participant_dialogue(participant, dialogue)
         ## schedule unattach message s       
-        future_unattachs = self.get_future_unattachs()
-        for unattach in future_unattachs:
-            if unattach.is_selectable(participant):
-                yield self.schedule_participant_unattach(participant, unattach)
-
-    def get_future_unattachs(self):
-        query = {'fixed-time': {
-            '$gt': time_to_vusion_format(self.get_local_time())}}
-        unattachs = []
-        for unattach in self.collections['unattached_messages'].find(query):
-            try:
-                unattachs.append(UnattachMessage(**unattach))
-            except:
-                exc_type, exc_value, exc_traceback = sys.exc_info()
-                self.log("Error while retriving participant %r" %
-                         traceback.format_exception(exc_type, exc_value, exc_traceback))
-        return unattachs
-
-    #TODO: move into unattach message manager
-    def get_unattach_message(self, unattach_id):
-        try:
-            return UnattachMessage(**self.collections['unattached_messages'].find_one({
-                '_id': ObjectId(unattach_id)}))
-        except TypeError:
-            self.log("Error unattach message %s cannot be found" % unattach_id)
-            return None
+        unattacheds = self.collections['unattached_messages'].get_unattached_messages()
+        for unattached in unattacheds:
+            yield self.collections['schedules'].unattach_schedule(
+                participant, unattached)
 
     ## Scheduling of unattach messages
     @inlineCallbacks
     def schedule_unattach(self, unattach_id):
         #clear all schedule
         self.collections['schedules'].remove_unattach(unattach_id)
-        unattach = self.get_unattach_message(unattach_id)
+        unattach = self.collections['unattached_messages'].get_unattached_message(unattach_id)
         if unattach is None:
             return
         selectors = unattach.get_selector_as_query()

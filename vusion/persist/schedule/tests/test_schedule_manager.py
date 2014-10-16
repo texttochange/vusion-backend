@@ -10,7 +10,7 @@ from tests.utils import ObjectMaker
 from vusion.component import DialogueWorkerPropertyHelper, PrintLogger
 from vusion.persist import (ScheduleManager, schedule_generator, 
                             ReminderSchedule, DialogueSchedule,
-                            UnattachSchedule, UnattachMessage,
+                            UnattachSchedule, UnattachedMessage,
                             Participant)
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from vusion.error import InvalidField
@@ -221,7 +221,7 @@ class TestScheduleManager(TestCase, ObjectMaker):
             date_time='2010-03-12T12:30:00'))
         self.manager.save_schedule(schedule)
 
-        unattach = UnattachMessage(**self.mkobj_unattach_message(
+        unattach = UnattachedMessage(**self.mkobj_unattach_message(
             fixed_time='2200-03-12T12:30:00'))
         unattach['_id'] = '1'
         participant = Participant(**self.mkobj_participant(
@@ -241,7 +241,7 @@ class TestScheduleManager(TestCase, ObjectMaker):
             participant_phone='06', unattach_id='2'))
         self.manager.save_schedule(schedule)
 
-        unattach = UnattachMessage(**self.mkobj_unattach_message())
+        unattach = UnattachedMessage(**self.mkobj_unattach_message())
         unattach['_id'] = '1'
         participant = Participant(**self.mkobj_participant(
             participant_phone='06'))
@@ -249,3 +249,56 @@ class TestScheduleManager(TestCase, ObjectMaker):
         yield self.manager.save_unattach_schedule(participant, unattach)
 
         self.assertEqual(2, self.manager.count())
+
+    @inlineCallbacks
+    def test_remove_unattach_schedule(self):
+        schedule = schedule_generator(**self.mkobj_schedule_unattach(
+            participant_phone='06', unattach_id='1'))
+        self.manager.save_schedule(schedule)
+
+        unattach = UnattachedMessage(**self.mkobj_unattach_message())
+        unattach['_id'] = '1'
+        participant = Participant(**self.mkobj_participant(
+            participant_phone='06'))
+
+        yield self.manager.remove_unattach_schedule(participant, unattach)
+
+        self.assertEqual(0, self.manager.count())
+
+    @inlineCallbacks
+    def test_unattach_schedule_remove(self):
+        schedule = schedule_generator(**self.mkobj_schedule_unattach(
+            participant_phone='06', unattach_id='1'))
+        self.manager.save_schedule(schedule)
+
+        unattach = UnattachedMessage(**self.mkobj_unattach_message(
+            send_to_type='match',
+            send_to_match_operator='all',
+            send_to_match_conditions=['geek']))
+        unattach['_id'] = '1'
+        participant = Participant(**self.mkobj_participant(
+            participant_phone='06',
+            tags=[]))
+
+        yield self.manager.unattach_schedule(participant, unattach)
+
+        self.assertEqual(0, self.manager.count())
+
+    @inlineCallbacks
+    def test_unattach_schedule_stay(self):
+        schedule = schedule_generator(**self.mkobj_schedule_unattach(
+            participant_phone='06', unattach_id='1'))
+        self.manager.save_schedule(schedule)
+
+        unattach = UnattachedMessage(**self.mkobj_unattach_message(
+            send_to_type='match',
+            send_to_match_operator='all',
+            send_to_match_conditions=['geek']))
+        unattach['_id'] = '1'
+        participant = Participant(**self.mkobj_participant(
+            participant_phone='06',
+            tags=['geek']))
+
+        yield self.manager.unattach_schedule(participant, unattach)
+
+        self.assertEqual(1, self.manager.count())

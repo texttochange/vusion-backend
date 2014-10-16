@@ -1,11 +1,11 @@
 from twisted.trial.unittest import TestCase
 
-from vusion.persist import UnattachMessage, Participant
+from vusion.persist import UnattachedMessage, Participant
 
 from tests.utils import ObjectMaker
 
-class TestUnattachMessage(TestCase, ObjectMaker):
-    
+class TestUnattachedMessage(TestCase, ObjectMaker):
+
     def test_upgrade(self):
         unattach_raw = {
             'name' : 'test',
@@ -14,11 +14,11 @@ class TestUnattachMessage(TestCase, ObjectMaker):
             'type-schedule': 'fixed-time',
             'fixed-time': '2012-01-01T12:12:00'}
         
-        unattach = UnattachMessage(**unattach_raw)
+        unattach = UnattachedMessage(**unattach_raw)
 
         self.assertTrue(unattach is not None)
         self.assertEqual(
-            UnattachMessage.MODEL_VERSION,
+            UnattachedMessage.MODEL_VERSION,
             unattach['model-version'])
         self.assertEqual(
             'all',
@@ -33,11 +33,11 @@ class TestUnattachMessage(TestCase, ObjectMaker):
             'type-schedule': 'fixed-time',
             'fixed-time': '2012-01-01T12:12:00'}
         
-        unattach = UnattachMessage(**unattach_raw)
+        unattach = UnattachedMessage(**unattach_raw)
 
         self.assertTrue(unattach is not None)
         self.assertEqual(
-            UnattachMessage.MODEL_VERSION,
+            UnattachedMessage.MODEL_VERSION,
             unattach['model-version'])
         
         unattach_raw = {
@@ -49,11 +49,11 @@ class TestUnattachMessage(TestCase, ObjectMaker):
             'type-schedule': 'fixed-time',
             'fixed-time': '2012-01-01T12:12:00'}
         
-        unattach = UnattachMessage(**unattach_raw)
+        unattach = UnattachedMessage(**unattach_raw)
 
         self.assertTrue(unattach is not None)
         self.assertEqual(
-            UnattachMessage.MODEL_VERSION,
+            UnattachedMessage.MODEL_VERSION,
             unattach['model-version'])
         self.assertFalse('to' is unattach)
         self.assertTrue('send-to-type' in unattach)
@@ -66,7 +66,7 @@ class TestUnattachMessage(TestCase, ObjectMaker):
         
 
     def test_upgrade_none(self):        
-        unattach = UnattachMessage(**{
+        unattach = UnattachedMessage(**{
             'object-type': None, 
             'name': 'Test 3', 
             'fixed-time': u'2012-12-14T00:00:00', 
@@ -77,14 +77,14 @@ class TestUnattachMessage(TestCase, ObjectMaker):
         self.assertTrue(unattach is not None)        
 
     def test_get_query_all(self):
-        unattach = UnattachMessage(
+        unattach = UnattachedMessage(
             **self.mkobj_unattach_message(send_to_type='all'))
         self.assertEqual(
             {},
             unattach.get_selector_as_query())
     
     def test_get_query_match_any(self):
-        unattach = UnattachMessage(
+        unattach = UnattachedMessage(
             **self.mkobj_unattach_message(send_to_type='match',
                                           send_to_match_operator='any',
                                           send_to_match_conditions=['a tag']))
@@ -92,7 +92,7 @@ class TestUnattachMessage(TestCase, ObjectMaker):
             {'tags': 'a tag'},
             unattach.get_selector_as_query())
         
-        unattach = UnattachMessage(
+        unattach = UnattachedMessage(
             **self.mkobj_unattach_message(send_to_type='match',
                                           send_to_match_operator='any',
                                           send_to_match_conditions=['a tag', 'another tag', 'last tag']))
@@ -100,7 +100,7 @@ class TestUnattachMessage(TestCase, ObjectMaker):
             {'$or': [{'tags': 'a tag'}, {'tags': 'another tag'}, {'tags': 'last tag'}]},
             unattach.get_selector_as_query())
         
-        unattach = UnattachMessage(
+        unattach = UnattachedMessage(
             **self.mkobj_unattach_message(send_to_type='match',
                                           send_to_match_operator='any',
                                           send_to_match_conditions=['city:kampala']))
@@ -108,7 +108,7 @@ class TestUnattachMessage(TestCase, ObjectMaker):
             {'profile': {'$elemMatch' : {'label': 'city', 'value': 'kampala'}}},
             unattach.get_selector_as_query())
         
-        unattach = UnattachMessage(
+        unattach = UnattachedMessage(
             **self.mkobj_unattach_message(send_to_type='match',
                                             send_to_match_operator='any',
                                             send_to_match_conditions=['city:kampala', 'born:jinja']))
@@ -118,7 +118,7 @@ class TestUnattachMessage(TestCase, ObjectMaker):
                 {'profile': {'$elemMatch' : {'label': 'born', 'value': 'jinja'}}}]},
             unattach.get_selector_as_query())
 
-        unattach = UnattachMessage(
+        unattach = UnattachedMessage(
             **self.mkobj_unattach_message(
                 send_to_type='match',
                 send_to_match_operator="any", 
@@ -131,7 +131,7 @@ class TestUnattachMessage(TestCase, ObjectMaker):
         
 
     def test_get_query_match_all(self):
-        unattach = UnattachMessage(
+        unattach = UnattachedMessage(
             **self.mkobj_unattach_message(send_to_type='match',
                                           send_to_match_operator='all',
                                           send_to_match_conditions=['city:kampala', 'born:jinja']))
@@ -142,7 +142,7 @@ class TestUnattachMessage(TestCase, ObjectMaker):
             unattach.get_selector_as_query())       
 
     def test_get_query_phone(self):
-            unattach = UnattachMessage(
+            unattach = UnattachedMessage(
                 **self.mkobj_unattach_message(send_to_type='phone',
                                               send_to_phone=['+256788601462']))
             self.assertEqual(
@@ -155,7 +155,7 @@ class TestUnattachMessage(TestCase, ObjectMaker):
         not_selectable_participant = Participant(**self.mkobj_participant_v2(
             participant_phone='+07'))
         
-        unattach = UnattachMessage(
+        unattach = UnattachedMessage(
             **self.mkobj_unattach_message(send_to_type='phone',
                                           send_to_phone=['+06']))
 
@@ -168,7 +168,7 @@ class TestUnattachMessage(TestCase, ObjectMaker):
                 tags=['geek', 'cool'],
                 profile=[{'label': 'city', 'value': 'kampala', 'raw': None}]))
 
-        um_all = UnattachMessage(
+        um_all = UnattachedMessage(
             **self.mkobj_unattach_message())
         self.assertTrue(um_all.is_selectable(participant))        
 
@@ -178,21 +178,21 @@ class TestUnattachMessage(TestCase, ObjectMaker):
                 tags=['geek', 'cool'],
                 profile=[{'label': 'city', 'value': 'kampala', 'raw': None}]))
 
-        um_tag = UnattachMessage(
+        um_tag = UnattachedMessage(
             **self.mkobj_unattach_message(
                 send_to_type='match',
                 send_to_match_operator='all',
                 send_to_match_conditions=['male']))
         self.assertFalse(um_tag.is_selectable(participant))
 
-        um_tag = UnattachMessage(
+        um_tag = UnattachedMessage(
             **self.mkobj_unattach_message(
                 send_to_type='match',
                 send_to_match_operator='all',
                 send_to_match_conditions=['geek', 'cool']))
         self.assertTrue(um_tag.is_selectable(participant))
 
-        um_profile = UnattachMessage(
+        um_profile = UnattachedMessage(
             **self.mkobj_unattach_message(
                 send_to_type='match',
                 send_to_match_operator='all',
@@ -205,21 +205,21 @@ class TestUnattachMessage(TestCase, ObjectMaker):
                 tags=['geek', 'cool'],
                 profile=[{'label': 'city', 'value': 'kampala', 'raw': None}]))
 
-        um_tag = UnattachMessage(
+        um_tag = UnattachedMessage(
             **self.mkobj_unattach_message(
                 send_to_type='match',
                 send_to_match_operator='any',
                 send_to_match_conditions=['male']))
         self.assertFalse(um_tag.is_selectable(participant))
 
-        um_tag = UnattachMessage(
+        um_tag = UnattachedMessage(
             **self.mkobj_unattach_message(
                 send_to_type='match',
                 send_to_match_operator='any',
                 send_to_match_conditions=['male', 'geek']))
         self.assertTrue(um_tag.is_selectable(participant))
 
-        um_profile = UnattachMessage(
+        um_profile = UnattachedMessage(
             **self.mkobj_unattach_message(
                 send_to_type='match',
                 send_to_match_operator='any',

@@ -15,7 +15,7 @@ from vusion.message import DispatcherControl, WorkerControl
 
 from vusion.persist import (Dialogue, DialogueHistory, UnattachHistory,
                             history_generator, schedule_generator, Participant,
-                            UnattachMessage, Request, Interaction, ProgramCreditLog,
+                            UnattachedMessage, Request, Interaction, ProgramCreditLog,
                             WorkerConfig, UnmatchableReply)
 
 from vusion.utils import time_to_vusion_format_date
@@ -864,7 +864,7 @@ class ObjectMaker:
                                content='Hello everyone',
                                type_schedule='fixed-time',
                                fixed_time='2100-03-12T12:30:00'):
-        return UnattachMessage(**{
+        return UnattachedMessage(**{
             'name': 'test',
             'to': recipient,
             'content': content,
@@ -875,7 +875,7 @@ class ObjectMaker:
                                  content='Hello everyone',
                                  type_schedule='fixed-time',
                                  fixed_time='2100-03-12T12:30:00'):
-        return UnattachMessage(**{
+        return UnattachedMessage(**{
             'object-type': 'unattached-message',
             'model-version': '2',
             'name': 'test',
@@ -909,7 +909,7 @@ class ObjectMaker:
             unattach_message.update({
                 'send-to-phone': send_to_phone
             })
-        return UnattachMessage(**unattach_message).get_as_dict()    
+        return UnattachedMessage(**unattach_message).get_as_dict()    
 
     template_closed_question = {
         'name': 'my template',
