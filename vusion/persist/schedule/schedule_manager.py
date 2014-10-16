@@ -124,10 +124,10 @@ class ScheduleManager(ModelManager):
         d = deferToThread(self._remove_unattach_schedule, participant, unattach)
         yield d
 
-    def _remove_unattach_schedule(self, participant, unattah):
+    def _remove_unattach_schedule(self, participant, unattach):
         self.collection.remove({
             'participant-phone': participant['phone'],
-            'unattach-id': str(unattah['_id'])})
+            'unattach-id': str(unattach['_id'])})
 
     @inlineCallbacks
     def save_unattach_schedule(self, participant, unattach):
