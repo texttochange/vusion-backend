@@ -676,7 +676,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
              'raw': None},
             participant_oliv['profile'][1])
 
-
+    @inlineCallbacks
     def test_run_action_url_forwarding(self):
         self.initialize_properties()
         
@@ -695,7 +695,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         
         context = Context(**{'history_id': str(history_id)})
         
-        self.worker.run_action(
+        yield self.worker.run_action(
             participant['phone'],
             message_forwarding,
             context,
@@ -714,6 +714,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         history = DialogueHistory(**self.collections['history'].find_one())
         self.assertEqual(history['message-status'], 'forwarded')
 
+    @inlineCallbacks
     def test_run_action_url_forwarding_not_allowed(self):
         program_settings = self.mk_program_settings('256-8181', sms_forwarding_allowed='none')
         self.initialize_properties(program_settings)
@@ -730,7 +731,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         
         context = Context(**{'history_id': str(history_id)})
         
-        self.worker.run_action(
+        yield self.worker.run_action(
             participant['phone'],
             message_forwarding,
             context,
@@ -741,6 +742,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         history = DialogueHistory(**self.collections['history'].find_one())
         self.assertEqual(history['message-status'], 'received')
 
+    @inlineCallbacks
     def test_run_action_sms_forwarding(self):
         self.initialize_properties()
         
@@ -772,7 +774,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
                                 )})
         context = Context(**{'message': 'Alert',
                              'request-id': '1'})
-        self.worker.run_action(sender['phone'], sms_forwarding, context)
+        yield self.worker.run_action(sender['phone'], sms_forwarding, context)
         
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 1)
@@ -783,6 +785,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         history = self.collections['history'].find_one()
         self.assertEqual(history['object-type'], 'request-history')
 
+    @inlineCallbacks
     def test_run_action_sms_forwarding_no_participant(self):
         self.initialize_properties()
         
@@ -803,7 +806,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             'forward-message-no-participant-feedback': 'No patient is matching the phone number.'})
         context = Context(**{'message': 'ANSWER +1234',
                              'request-id': '1'})
-        self.worker.run_action(sender['phone'], sms_forwarding, context)
+        yield self.worker.run_action(sender['phone'], sms_forwarding, context)
         
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 1)
@@ -812,6 +815,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertRegexpMatches(messages[0]['content'], 'No patient is matching the phone number.')
         self.assertEqual(self.collections['history'].count(), 1)
 
+    @inlineCallbacks
     def test_run_action_sms_forwarding_no_conditions(self):
         self.initialize_properties()
         
@@ -839,12 +843,12 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         context = Context(**{
             'message': 'ANSWER this is a message',
             'request-id': '1'})
-        self.worker.run_action(sender['phone'], sms_forwarding, context)
+        yield self.worker.run_action(sender['phone'], sms_forwarding, context)
         
         context = Context(**{
             'message': 'ANSWER this is my message',
             'request-id': '1'})
-        self.worker.run_action(sender['phone'], sms_forwarding, context)        
+        yield self.worker.run_action(sender['phone'], sms_forwarding, context) 
         
         messages = self.broker.get_messages('vumi', 'test.outbound')
         self.assertEqual(len(messages), 2)

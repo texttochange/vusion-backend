@@ -51,7 +51,7 @@ class HistoryManager(ModelManager):
                 history_id,
                 history['message-credits'],
                 history['message-status'])
-        return True
+        return history_id
 
     def update_status_from_event(self, event):
         history_id, credits, old_status = self.flying_manager.get_message_data(event['user_message_id'])

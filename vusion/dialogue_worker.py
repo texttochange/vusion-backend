@@ -359,9 +359,9 @@ class DialogueWorker(ApplicationWorker):
         elif (action.get_type() == 'proportional-labelling'):
             yield self.run_action_proportional_labelling(participant_phone, action)
         elif (action.get_type() == 'url-forwarding'):
-            self.run_action_url_forwarding(participant_phone, action, context, participant_session_id)
+            yield self.run_action_url_forwarding(participant_phone, action, context, participant_session_id)
         elif (action.get_type() == 'sms-forwarding'):
-            self.run_action_sms_forwarding(participant_phone, action, context)
+            yield self.run_action_sms_forwarding(participant_phone, action, context)
         else:
             self.log("The action is not supported %s" % action.get_type())
 
