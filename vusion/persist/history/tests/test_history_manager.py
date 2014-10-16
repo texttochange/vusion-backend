@@ -1,11 +1,12 @@
 """Tests for vusion.persist.HistoryManager"""
-import pymongo
-from datetime import timedelta
+from datetime import timedelta, datetime
+from pymongo import Connection
+from redis import Redis
 
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import inlineCallbacks
 
-from tests.utils import ObjectMaker
+from tests.utils import ObjectMaker, MessageMaker
 
 from vusion.component import DialogueWorkerPropertyHelper, PrintLogger
 from vusion.persist import HistoryManager, history_generator
@@ -13,14 +14,16 @@ from vusion.utils import time_to_vusion_format, date_from_vusion_format, time_to
 
 
 
-class TestHistoryManager(TestCase, ObjectMaker):
+class TestHistoryManager(TestCase, ObjectMaker, MessageMaker):
     
     def setUp(self):
         self.database_name = 'test_program_db'
-        c = pymongo.Connection()
+        self.redis_key = 'unittest:testprogram'
+        self.redis = Redis()
+        c = Connection()
         c.safe = True
         db = c.test_program_db
-        self.history_manager = HistoryManager(db, 'history')
+        self.history_manager = HistoryManager(db, 'history', self.redis_key, self.redis)
         self.clearData()
 
         #parameters:
@@ -33,6 +36,9 @@ class TestHistoryManager(TestCase, ObjectMaker):
 
     def clearData(self):
         self.history_manager.drop()
+        keys = self.redis.keys("%s:*" % self.redis_key)
+        for key in keys:
+            self.redis.delete(key)
 
     def test_update_status_history_ack(self):
         past = self.property_helper.get_local_time() - timedelta(hours=2)
@@ -43,9 +49,9 @@ class TestHistoryManager(TestCase, ObjectMaker):
             message_direction='outgoing',
             message_status='pending',
             message_id='1')
-        self.history_manager.save(history)
+        history_id = self.history_manager.save(history)
         
-        self.history_manager.update_status('1', 'ack')
+        self.history_manager.update_status(history_id, 'ack')
 
         updated_history = self.history_manager.find_one()
         self.assertEqual(
@@ -61,9 +67,11 @@ class TestHistoryManager(TestCase, ObjectMaker):
             message_direction='outgoing',
             message_status='pending',
             message_id='1')
-        self.history_manager.save(history)
+        history_id = self.history_manager.save(history)
         
-        self.history_manager.update_status('1', {'status': 'failed', 'reason': 'something happend'})
+        self.history_manager.update_status(
+            history_id,
+            {'status': 'failed', 'reason': 'something happend'})
 
         updated_history = self.history_manager.find_one()
         updated_history = history_generator(**updated_history)
@@ -81,9 +89,9 @@ class TestHistoryManager(TestCase, ObjectMaker):
             direction='incoming',
             message_status='forwarded', 
             forwards=[{'status': 'pending', 'message-id': '2','timestamp': '2013-08-06T15:15:01', 'to-addr':'http://something'}])
-        self.history_manager.save(history)
+        history_id = self.history_manager.save(history)
         
-        self.history_manager.update_forwarded_status('2', 'ack')
+        self.history_manager.update_forwarded_status(history_id, '2', 'ack')
         
         updated_history = self.history_manager.find_one()
         updated_history = history_generator(**updated_history)        
@@ -101,9 +109,10 @@ class TestHistoryManager(TestCase, ObjectMaker):
             direction='incoming',
             message_status='forwarded', 
             forwards=[{'status': 'pending', 'message-id': '2','timestamp': '2013-08-06T15:15:01', 'to-addr':'http://something'}])
-        self.history_manager.save(history)
+        history_id = self.history_manager.save(history)
 
-        self.history_manager.update_forwarded_status('2', {'status': 'failed', 'reason': 'some issue'})
+        self.history_manager.update_forwarded_status(
+            history_id, '2', {'status': 'failed', 'reason': 'some issue'})
 
         updated_history = self.history_manager.find_one()
         updated_history = history_generator(**updated_history)        
@@ -317,3 +326,35 @@ class TestHistoryManager(TestCase, ObjectMaker):
         self.assertTrue(result)
         result = yield self.history_manager.was_unattach_sent('07', '4')
         self.assertFalse(result)
+
+    #TODO test collection
+    def test_update_status_from_event(self):
+        history = self.mkobj_history_unattach(
+            unattach_id='2',
+            timestamp='2014-01-01T10:10:00',
+            message_id='1',
+            message_status='pending',
+            message_credits=1)
+        self.history_manager.save_history(**history)
+        ack_event = self.mkmsg_ack(user_message_id='1')
+        new_status, old_status, credits = self.history_manager.update_status_from_event(ack_event)
+        self.assertEqual(new_status, 'ack')
+        self.assertEqual(old_status, 'pending')
+        self.assertEqual(credits, 1)
+
+        fail_event = self.mkmsg_delivery(
+                user_message_id='1',
+                delivery_status='failed',
+                failure_level='http',
+                failure_code='500',
+                failure_reason='SOME INTERNAL STUFF HAPPEN')
+        new_status, old_status, credits = self.history_manager.update_status_from_event(fail_event)
+        self.assertEqual(new_status, 'failed')
+        self.assertEqual(old_status, 'ack')
+        self.assertEqual(credits, 1)        
+
+        deliered_event = self.mkmsg_delivery(user_message_id='1')
+        new_status, old_status, credits = self.history_manager.update_status_from_event(deliered_event)
+        self.assertEqual(new_status, 'delivered')
+        self.assertEqual(old_status, 'failed')
+        self.assertEqual(credits, 1)

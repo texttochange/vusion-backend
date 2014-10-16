@@ -118,6 +118,12 @@ class MessageHistory(History):
         super(MessageHistory, self).validate_fields()        
         self._validate(self, MessageHistory.fields)
 
+    def is_incoming(self):
+        return self['message-direction'] == 'incoming'
+
+    def is_outgoing(self):
+        return self['message-direction'] == 'outgoing'
+
     def valid_forwards(self, forwards):
         if len(forwards) < 1:
             raise InvalidField("Field forwards should have at least 1 element.")

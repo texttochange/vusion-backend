@@ -160,7 +160,7 @@ class DialogueWorker(ApplicationWorker):
         program_db = connection[self.database_name]
         self.setup_collections(program_db, {'program_settings': None,
                                             'unattached_messages': None})
-        self.collections['history'] = HistoryManager(program_db, 'history')
+        self.collections['history'] = HistoryManager(program_db, 'history', self.r_prefix, self.r_server)
         self.collections['content_variables'] = ContentVariableManager(program_db, 'content_variables')
         self.collections['dialogues'] = DialogueManager(program_db, 'dialogues')
         self.collections['requests'] = RequestManager(program_db, 'requests')
@@ -233,32 +233,10 @@ class DialogueWorker(ApplicationWorker):
 
     def dispatch_event(self, message):
         self.log("Event message received %s" % (message,))
-        history = self.collections['history'].get_status_and_credits(
-            message['user_message_id'])
-        if (message['event_type'] == 'ack'):
-            status = 'ack'
-            credit_status = status
-        elif (message['event_type'] == 'delivery_report'):
-            status = message['delivery_status']
-            credit_status = status
-            if (message['delivery_status'] == 'failed'):
-                status = {
-                  'status': message['delivery_status'],
-                  'reason': ("Level:%s Code:%s Message:%s" % (
-                      message.get('failure_level', 'unknown'),
-                      message.get('failure_code', 'unknown'),
-                      message.get('failure_reason', 'unknown')))}
-                credit_status = message['delivery_status']
-        if ('transport_type' in message['transport_metadata'] 
-           and message['transport_metadata']['transport_type'] == 'http_forward'):
-            self.collections['history'].update_forwarded_status(message['user_message_id'], status)
+        new_status, old_status, credits = self.collections['history'].update_status_from_event(message)
+        if new_status is None:
             return
-        self.collections['history'].update_status(message['user_message_id'], status)
-        if history is None:
-            history = {'message-status': 'ack',
-                       'message-credits': 1}
-        self.collections['credit_logs'].increment_event_counter(
-            history['message-status'], credit_status, history['message-credits'])
+        self.collections['credit_logs'].increment_event_counter(old_status, new_status, credits)
 
     def update_participant_transport_metadata(self, message):
         if message['transport_metadata'] is not {}:
@@ -381,9 +359,9 @@ class DialogueWorker(ApplicationWorker):
         elif (action.get_type() == 'proportional-labelling'):
             yield self.run_action_proportional_labelling(participant_phone, action)
         elif (action.get_type() == 'url-forwarding'):
-            self.run_action_url_forwarding(participant_phone, action, context, participant_session_id)
+            yield self.run_action_url_forwarding(participant_phone, action, context, participant_session_id)
         elif (action.get_type() == 'sms-forwarding'):
-            self.run_action_sms_forwarding(participant_phone, action, context)
+            yield self.run_action_sms_forwarding(participant_phone, action, context)
         else:
             self.log("The action is not supported %s" % action.get_type())
 

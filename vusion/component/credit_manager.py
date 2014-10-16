@@ -123,6 +123,8 @@ class CreditManager(object):
         return False
 
     def increase_used_credit_counter(self, message_credits):
+        if message_credits == 0:
+            return
         self.credit_log_collection.increment_outgoing(message_credits)
         self.redis.incr(self.used_credit_counter_key(), message_credits)        
 
