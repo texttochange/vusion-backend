@@ -1,21 +1,5 @@
 ##Vumi
-Twisted==12.1.0
--e git://github.com/praekelt/vumi.git@8fe953604a1855cec9fb0c67ca30f9307c70d7b9#egg=vumi-dev
-zope.interface==4.0.1
-txAMQP==0.6.1
-PyYAML==3.10
-iso8601==0.1.4
-supervisor==3.0a12
-pyOpenSSL==0.11
-python-ssmi==0.0.4
-wokkel==0.7.0
-redis==2.6.2
-txredis==2.2
-python-smpp==0.1
-pytz==2012d
-riakasaurus>=1.0.6
-riak
-https://github.com/dustin/twitty-twister/tarball/master#egg=twittytwister-0.1.1
+-e git://github.com/praekelt/vumi.git@bb957ea0408861843be15df49b6a114fc9c81837#egg=vumi
 
 ##Vusion
 pymongo==2.2
