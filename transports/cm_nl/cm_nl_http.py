@@ -11,6 +11,8 @@ from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
 
 from vumi.transports.base import Transport
+from vumi.transports.httprpc import HttpRpcTransport
+
 from vumi.utils import http_request_full, normalize_msisdn
 from twisted.internet import defer
 
@@ -24,6 +26,8 @@ import re
 ##For MO, it uses the CM API GET
 class CmTransport(Transport):
 
+    transport_type = 'sms'
+
     def mkres(self, cls, publish_func, path_key):
         resource = cls(self.config, publish_func)
         self._resources.append(resource)
@@ -31,8 +35,9 @@ class CmTransport(Transport):
 
     @inlineCallbacks
     def setup_transport(self):
+        super(CmTransport, self).setup_transport()
         self._resources = []
-        log.msg("Setup yo transport %s" % self.config)
+        log.msg("Setup CM transport %s" % self.config)
         self.cmparser = CMXMLParser(self.config)
         resources = [
             self.mkres(ReceiveSMSResource,
@@ -81,16 +86,15 @@ class CmTransport(Transport):
                     failure_reason=response.delivered_body)
                 return
 
-            yield self.publish_delivery_report(
+            yield self.publish_ack(
                 user_message_id=message['message_id'],
-                delivery_status='delivered',
-                to_addr=message['to_addr'])
+                sent_message_id=message['message_id'])
 
         except Exception as ex:
             log.msg("Unexpected error %s" % repr(ex))
 
-    def stopWorker(self):
-        log.msg("stop yo transport")
+    def teardown_transport(self):
+        log.msg("Stop CM Transport")
         if hasattr(self, 'receipt_resource'):
             return self.receipt_resource.stopListening()
 

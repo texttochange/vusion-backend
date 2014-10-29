@@ -1,20 +1,23 @@
-#encoding: UTF-8
+# encoding: UTF-8
+
 from uuid import uuid4
 from datetime import datetime
 
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, DeferredQueue
 from twisted.web import http
 from twisted.web.resource import Resource
 from twisted.trial.unittest import TestCase
 
-from vumi.transports.tests.test_base import TransportTestCase
-from vumi.tests.utils import (get_stubbed_worker, TestResourceWorker,
-                              RegexMatcher, UTCNearNow)
+
+#from vumi.transports.tests.test_base import TransportTestCas
+from vumi.transports.tests.helpers import TransportHelper
+from vumi.tests.utils import (
+    VumiTestCase, MockHttpServer, RegexMatcher, UTCNearNow)
 from vumi.utils import http_request_full
 from vumi.message import TransportMessage, TransportEvent, TransportUserMessage
 
 from tests.utils import ObjectMaker
-from transports.cm_nl_http import CmTransport, CMXMLParser
+from transports.cm_nl.cm_nl_http import CmTransport, CMXMLParser
 
 
 class CmParserTestCase(TestCase, ObjectMaker):
@@ -103,11 +106,11 @@ class CmParserTestCase(TestCase, ObjectMaker):
         #self.assertEqual(expected, output)
 
 
-class CmTransportTestCase(TransportTestCase):
+class CmTransportTestCase(VumiTestCase):
 
-    transport_name = 'cm'
-    transport_type = 'sms'
-    transport_class = CmTransport
+    #transport_name = 'cm'
+    #transport_type = 'sms'
+    #transport_class = CmTransport
 
     cm_incomming_template = (
         'http://localhost:%s%s?recipient=0041791234567&'
@@ -115,12 +118,18 @@ class CmTransportTestCase(TransportTestCase):
 
     @inlineCallbacks
     def setUp(self):
-        yield super(CmTransportTestCase, self).setUp()
-        self.send_path = '/sendsms'
-        self.send_port = 9999
+        self.cm_calls = DeferredQueue()
+        self.mock_cm = MockHttpServer(self.handle_request)
+        self.mock_server_response = ''
+        self.mock_server_response_code = http.OK
+        yield self.mock_cm.start()
+        
+        #yield super(CmTransportTestCase, self).setUp()
+        #self.send_path = '/sendsms'
+        #self.send_port = 9999
         self.config = {
-            'transport_name': 'cm',
-            'url': 'http://localhost:%s%s' % (self.send_port, self.send_path),
+            #'url': 'http://localhost:%s%s' % (self.send_port, self.send_path),
+            'url': self.mock_cm.url,
             'login': 'login',
             'password': 'password',
             'customer_id': '3454',
@@ -129,8 +138,22 @@ class CmTransportTestCase(TransportTestCase):
             'minimum_number_of_message_part': '1',
             'maximum_number_of_message_part': '3'
         }
-        self.worker = yield self.get_transport(self.config)
+        self.tx_helper = self.add_helper(
+            TransportHelper(CmTransport))
+        #self.worker = yield self.get_transport(self.config)
+        self.transport = yield self.tx_helper.get_transport(self.config)
+        #self.transport_url = self.transport.get_transport_url()
         self.today = datetime.utcnow().date()
+
+    @inlineCallbacks
+    def tearDown(self):
+        yield self.mock_cm.stop()
+        yield super(CmTransportTestCase, self).tearDown()
+
+    def handle_request(self, request):
+        self.cm_calls.put(request)
+        request.setResponseCode(self.mock_server_response_code)
+        return self.mock_server_response
 
     def mkmsg_fail(self, user_message_id='1',
                    failure_level='', failure_code=0,
@@ -171,85 +194,56 @@ class CmTransportTestCase(TransportTestCase):
             session_event=session_event,
             timestamp=UTCNearNow())
 
-    def make_resource_worker(self, msg, code=http.OK, send_id=None):
-        w = get_stubbed_worker(TestResourceWorker, {})
-        w.set_resources([
-            (self.send_path, TestResource, (msg, code, send_id))])
-        self._workers.append(w)
-        return w.startWorker()
+    #def make_resource_worker(self, msg, code=http.OK, send_id=None):
+        #w = get_stubbed_worker(TestResourceWorker, {})
+        #w.set_resources([
+            #(self.send_path, TestResource, (msg, code, send_id))])
+        #self._workers.append(w)
+        #return w.startWorker()
 
     @inlineCallbacks
-    def test_sending_one_sms_ok(self):
-        #mocked_message_id = str(uuid4())
-        mocked_message = ""
-        #HTTP response
-        yield self.make_resource_worker(mocked_message)
-        #Message to transport
-        yield self.dispatch(self.mkmsg_out(to_addr='+41791234567'))
-        [smsg] = self.get_dispatched('cm.event')
-        self.assertEqual(self.mkmsg_delivery(user_message_id='1'),
-                         TransportMessage.from_json(smsg.body))
+    def test_outbound_ok(self):
+        yield self.tx_helper.make_dispatch_outbound(
+            "hello world", to_addr="2561111111", message_id='1')
+        req = yield self.cm_calls.get()
+        [ack] = yield self.tx_helper.wait_for_dispatched_events(1)        
+        self.assertEqual(req.path, '/')
+        self.assertEqual(req.method, 'POST')
+        self.assertEqual(req.args, {})
+        self.assertEqual(ack['event_type'], 'ack')
+        self.assertEqual(ack['user_message_id'], '1')
 
     @inlineCallbacks
-    def test_sending_one_sms_http_failure(self):
-        mocked_message = "timeout"
-        mocked_error = http.REQUEST_TIMEOUT
+    def test_outbound_http_failure(self):
+        self.mock_server_response = "timeout"
+        self.mock_server_response_code = http.REQUEST_TIMEOUT
 
-        #HTTP response
-        yield self.make_resource_worker(mocked_message, mocked_error)
-        yield self.dispatch(self.mkmsg_out(to_addr='256788601462'))
+        yield self.tx_helper.make_dispatch_outbound("hello world")
+        [fail] = yield self.tx_helper.wait_for_dispatched_events(1)
+        self.assertEqual('http', fail['failure_level'])
+        self.assertEqual(http.REQUEST_TIMEOUT, fail['failure_code'])
+        self.assertEqual('timeout', fail['failure_reason'])
 
-        [smsg] = self.get_dispatched('cm.event')
-        self.assertEqual(
-            self.mkmsg_fail(failure_level='http',
-                            failure_code=http.REQUEST_TIMEOUT,
-                            failure_reason='timeout'),
-            TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks
-    def test_sending_one_sms_service_failure(self):
-        mocked_message = "Error: ERROR Unknown error"
+    def test_outbound_service_failure(self):
+        self.mock_server_response = "Error: ERROR Unknown error"
+        self.mock_server_response_code = http.OK
+        
+        yield self.tx_helper.make_dispatch_outbound("Hello world")
+        [fail] = yield self.tx_helper.wait_for_dispatched_events(1)
+        self.assertEqual('service', fail['failure_level'])
+        self.assertEqual("Error: ERROR Unknown error", fail['failure_reason'])
 
-        #HTTP response
-        yield self.make_resource_worker(mocked_message)
-        yield self.dispatch(self.mkmsg_out(to_addr='788601462'))
-        [smsg] = self.get_dispatched('cm.event')
-        self.assertEqual(
-            self.mkmsg_fail(failure_level='service',
-                            failure_reason="Error: ERROR Unknown error"),
-            TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks
-    def test_receiving_one_sms(self):
+    def test_inbound(self):
         url = (self.cm_incomming_template
                % (self.config['receive_port'], self.config['receive_path']))
         response = yield http_request_full(url, method='GET')
-        [smsg] = self.get_dispatched('cm.inbound')
+        [smsg] = self.tx_helper.get_dispatched_inbound()
 
-        self.assertEqual(response.code, http.OK)
-        self.assertEqual('Hello World',
-                         TransportMessage.from_json(smsg.body)['content'])
-        self.assertEqual('9292',
-                         TransportMessage.from_json(smsg.body)['to_addr'])
-        self.assertEqual('+41791234567',
-                         TransportMessage.from_json(smsg.body)['from_addr'])
-
-    def get_dispatched(self, rkey):
-        return self._amqp.get_dispatched('vumi', rkey)
-
-
-class TestResource(Resource):
-    isLeaf = True
-
-    def __init__(self, message, code=http.OK, send_id=None):
-        self.message = message
-        self.code = code
-        self.send_id = send_id
-
-    def render_GET(self, request):
-        request.setResponseCode(self.code)
-        return self.message
-
-    def render_POST(self, request):
-        request.setResponseCode(self.code)
-        return self.message
+        self.assertEqual(http.OK, response.code)
+        self.assertEqual('Hello World', smsg['content'])
+        self.assertEqual('9292', smsg['to_addr'])
+        self.assertEqual('+41791234567',smsg['from_addr'])
