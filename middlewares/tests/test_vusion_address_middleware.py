@@ -1,11 +1,9 @@
-from twisted.internet.defer import inlineCallbacks, returnValue
-from twisted.trial.unittest import TestCase
-
 from middlewares.vusion_address_middleware import VusionAddressMiddleware
 from tests.utils import MessageMaker
+from vumi.tests.helpers import VumiTestCase
 
 
-class VusionAddressTestCase(TestCase, MessageMaker):
+class VusionAddressMiddlewareTestCase(VumiTestCase, MessageMaker):
     
     def setUp(self):
         dummy_worker = object()
@@ -57,7 +55,7 @@ class VusionAddressTestCase(TestCase, MessageMaker):
         self.assertEqual(msg_2['from_addr'], '+318888')
 
 
-class VusionAddressRemovePlusTestCase(TestCase, MessageMaker):
+class VusionAddressRemovePlusTestCase(VumiTestCase, MessageMaker):
     
     def setUp(self):
         dummy_worker = object()
@@ -77,7 +75,7 @@ class VusionAddressRemovePlusTestCase(TestCase, MessageMaker):
         self.assertEqual(msg_2['to_addr'], '256')
 
 
-class VusionAddressRemoveInternationalPrefixTestCase(TestCase, MessageMaker):
+class VusionAddressRemoveInternationalPrefixTestCase(VumiTestCase, MessageMaker):
     
     def setUp(self):
         dummy_worker = object()
@@ -99,7 +97,7 @@ class VusionAddressRemoveInternationalPrefixTestCase(TestCase, MessageMaker):
     
 
 
-class VusionAddressAddInternationalPrefix(TestCase, MessageMaker):
+class VusionAddressAddInternationalPrefix(VumiTestCase, MessageMaker):
     
     def setUp(self):
         dummy_worker = object()
