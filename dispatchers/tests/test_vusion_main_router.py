@@ -3,17 +3,16 @@ from twisted.internet.defer import inlineCallbacks
 
 from vumi.dispatchers.base import (BaseDispatchWorker)
 from vumi.tests.utils import FakeRedis
-from vumi.dispatchers.tests.test_base import DispatcherTestCase
+from vumi.tests.helpers import VumiTestCase
+from vumi.dispatchers.tests.helpers import DispatcherHelper
 
-
-class TestVusionMainRouter(DispatcherTestCase):
-    
-    dispatcher_class = BaseDispatchWorker
-    transport_name = 'test_transport'
+class TestVusionMainRouter(VumiTestCase):
     
     @inlineCallbacks
     def setUp(self):
-        yield super(TestVusionMainRouter, self).setUp()
+        self.disp_helper = self.add_helper(
+            DispatcherHelper(BaseDispatchWorker))
+        #yield super(TestVusionMainRouter, self).setUp()
         self.config = {
             'dispatcher_name': 'keyword_dispatcher',
             'router_class': 'dispatchers.VusionMainRouter',
@@ -44,56 +43,64 @@ class TestVusionMainRouter(DispatcherTestCase):
             'fallback_application': 'fallback_app',
             'expire_routing_memory': '3',
             }
-        self.fake_redis = FakeRedis()
-        self.dispatcher = yield self.get_dispatcher(self.config)
+        self.dispatcher = yield self.disp_helper.get_dispatcher(self.config)
         self.router = self.dispatcher._router
-        self.router.r_server = self.fake_redis
-        
-    def tearDown(self):
-        self.fake_redis.teardown()
-        super(TestVusionMainRouter, self).tearDown()
-        
+        yield self.router._redis_d
+        self.add_cleanup(self.router.session_manager.stop)
+        self.redis = self.router.redis
+        yield self.redis._purge_all()
+
+    def ch(self, connector_name):
+        return self.disp_helper.get_connector_helper(connector_name)
+
+    def send_inbound(self, connector_name, content, **kw):
+        return self.ch(connector_name).make_dispatch_inbound(content, **kw)
+
+    def send_outbound(self, connector_name, content, **kw):
+        return self.ch(connector_name).make_dispatch_outbound(content, **kw)
+
+    def assert_dispatched_inbound(self, connector_name, msgs):
+        self.assertEqual(
+            msgs,
+            self.disp_helper.get_dispatched_inbound(connector_name))
+
+    def assert_dispatched_outbound(self, connector_name, msgs):
+        self.assertEqual(
+            msgs,
+            self.disp_helper.get_dispatched_outbound(connector_name))
+
     @inlineCallbacks
     def test_outbound_message_routing(self):
-        msg = self.mkmsg_out(content="hello outbound msg",
-                             from_addr='shortcode1',
-                             transport_name='app2',
-                             transport_type='sms')
-        
-        yield self.dispatch(msg,
-                            transport_name='app2',
-                            direction='outbound')
-        
-        transport1_msgs = self.get_dispatched_messages('transport1',
-                                                      direction='outbound')
-        self.assertEqual(transport1_msgs, [msg])
+    
+        #msg = self.mkmsg_out(content="hello outbound msg",
+                             #from_addr='shortcode1',
+                             #transport_name='app2',
+                             #transport_type='sms')
+        msg = yield self.send_outbound(
+            'app2',
+            'hello world',
+            transport_type='sms',
+            from_addr='shortcode1')
+        self.assert_dispatched_outbound('transport1', [msg])
+        #transport1_msgs = self.get_dispatched_messages('transport1',
+                                                      #direction='outbound')
+        #self.assertEqual(transport1_msgs, [msg])
 
     @inlineCallbacks
     def test_outbound_message_routing_transport_type(self):
-        msg = self.mkmsg_out(content="hello outbound msg",
-                             to_addr='http://server.domain.ext/mo_message',
-                             from_addr='app2',
-                             transport_name='app2',
-                             transport_type='http_forward')
-        
-        yield self.dispatch(msg,
-                            transport_name='app2',
-                            direction='outbound')
-        
-        transport1_msgs = self.get_dispatched_messages('transport-http',
-                                                      direction='outbound')
-        self.assertEqual(transport1_msgs, [msg])
+        msg = yield self.send_outbound(
+            'app2',
+            'hello world',
+            transport_type='http_forward',
+            from_addr='app2',
+            to_addr='http://server.domain.ext/mo_message')        
+        self.assert_dispatched_outbound('transport-http', [msg])
 
     @inlineCallbacks
     def test_inbound_message_not_accent_sensitive(self):
-        msg = self.mkmsg_in(content=u'espaÑol join',
-                             to_addr='8181',
-                             from_addr='+256453')
-        
-        yield self.dispatch(msg,
-                            transport_name='transport1',
-                            direction='inbound')
-        
-        app1_msgs = self.get_dispatched_messages('app1', direction='inbound')
-        self.assertEqual(app1_msgs, [msg])        
-    
+        msg = yield self.send_inbound(
+            'transport1',
+            u'espaÑol join',
+            to_addr='8181',
+            from_addr='+256453')   
+        self.assert_dispatched_inbound('app1', [msg])
