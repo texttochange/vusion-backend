@@ -77,12 +77,10 @@ class CustomMiddlewareStackTestCase(VumiTestCase):
         transport = yield tx_helper.get_transport(self.TEST_MIDDLEWARE_CONFIG_BASIC)
         
         yield tx_helper.make_dispatch_outbound('hello world', timestamp=0)
-        [msgs_stopped] = transport.middlewares[1].outbound_msgs
-        m, o, s = msgs_stopped['record'][0]
-        self.assertEqual('mw1', m)
-        self.assertEqual('outbound', o)
-        self.assertEqual('sphex', s)
-                        
+        [msg_stopped] = transport.middlewares[1].outbound_msgs
+        self.assertEqual(
+            msg_stopped['record'], 
+            [('mw1', 'outbound', 'sphex')])                
     
     @inlineCallbacks
     def test_middleware_for_outbound_resume_propagation(self):
@@ -92,10 +90,13 @@ class CustomMiddlewareStackTestCase(VumiTestCase):
         middleware = transport.middlewares[1]
         yield transport.connectors['sphex']._consume_message('outbound', msg, middleware)
         [msg_sent] = transport.outbound_msgs
-        m, o, s = msg_sent['record'][0]
-        self.assertEqual('mw3', m)
-        self.assertEqual('outbound', o)
-        self.assertEqual('sphex', s)        
+        self.assertEqual(
+            msg_sent['record'], 
+            [('mw3', 'outbound', 'sphex')])
+        #m, o, s = msg_sent['record'][0]
+        #self.assertEqual('mw3', m)
+        #self.assertEqual('outbound', o)
+        #self.assertEqual('sphex', s)        
         
        # middleware = transport.connectors
         #self.tx_helper

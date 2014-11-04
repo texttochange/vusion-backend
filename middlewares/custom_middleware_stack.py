@@ -95,19 +95,12 @@ class CustomReceiveOutboundConnector(ReceiveOutboundConnector):
         handler = self._endpoint_handlers[mtype].get(endpoint_name)
         if handler is None:
             handler = self._default_handlers.get(mtype)        
-
-        def _send_failure(f):
-            self.send_failure(message, f.value, f.getTraceback())
-            log.err(f)
-            if self.SUPPRESS_FAILURE_EXCEPTIONS:
-                return None
-            return f
         
         d = self._middlewares.apply_consume(
             mtype, msg, self.name, from_middleware)
         d.addCallback(handler)
         d.addErrback(self._middlewares.process_control_flag)
-        d.addErrback(_send_failure)
+        d.addErrback(self._ignore_message, msg)
         return d
 
 
