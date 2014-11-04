@@ -93,25 +93,6 @@ class CustomMiddlewareStackTestCase(VumiTestCase):
         self.assertEqual(
             msg_sent['record'], 
             [('mw3', 'outbound', 'sphex')])
-        #m, o, s = msg_sent['record'][0]
-        #self.assertEqual('mw3', m)
-        #self.assertEqual('outbound', o)
-        #self.assertEqual('sphex', s)        
-        
-       # middleware = transport.connectors
-        #self.tx_helper
-        #transport = yield self.get_transport(self.TEST_MIDDLEWARE_CONFIG_BASIC)
-        #msgs = []
-        #transport.handle_outbound_message = msgs.append
-        #orig_msg = self.mkmsg_out()
-        #orig_msg['timestamp'] = 0
-        #middleware = transport._middlewares.middlewares[1]
-        #yield transport._process_message(orig_msg, middleware)
-        ##self.assertEqual(msgs, [])
-        #[msg] = msgs
-        #self.assertEqual(msg['record'], [
-            #('mw3', 'outbound', self.transport_name),
-        #])
     
     #@inlineCallbacks
     #def test_middleware_for_outbound_resume_propagation_stoponly(self):

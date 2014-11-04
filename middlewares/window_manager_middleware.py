@@ -7,8 +7,8 @@ from twisted.internet.task import LoopingCall
 from vumi.middleware import BaseMiddleware
 from vumi.message import TransportUserMessage
 from vumi.log import log
-
-from components.window_manager import WindowManager
+#from vumi.components.window_manager import WindowManager
+from components.window_manager import VusionWindowManager
 
 from middlewares.custom_middleware_stack import StopPropagation
 
@@ -134,7 +134,7 @@ class WindowManagerMiddleware(BaseMiddleware):
 
         r_key = ':'.join(['middlewarewindows', self.transport_name])
         
-        self.wm = WindowManager(
+        self.wm = VusionWindowManager(
             r_server,
             window_size=self.config.get('window_size', 10),
             flight_lifetime=self.config.get('flight_lifetime', 1),
@@ -159,17 +159,18 @@ class WindowManagerMiddleware(BaseMiddleware):
         #other event could maybe remove the key
         if event["event_type"] in ['ack', 'nack']:
             yield self.wm.remove_key(
-                self.queue_name, event['user_message_id'])
+                self.queue_name, event['sent_message_id'])
         returnValue(event)
 
     @inlineCallbacks
     def handle_outbound(self, msg, endpoint):
         yield self.wm.add(
-            self.queue_name, msg.to_json(), msg["message_id"])
+            self.queue_name, msg.to_json(), msg['message_id'])
         raise StopPropagation()
 
     @inlineCallbacks
     def send_outbound(self, window_id, key):
         data = yield self.wm.get_data(window_id, key)
         msg = TransportUserMessage.from_json(data)
-        self.worker._process_message(msg, self)
+        connector_name = self.worker.transport_name
+        self.worker.connectors[connector_name]._consume_message('outbound', msg, self)
