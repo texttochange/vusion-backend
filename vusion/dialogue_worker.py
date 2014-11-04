@@ -46,19 +46,31 @@ from vusion.persist import (Request, ContentVariable, Dialogue,
                             ScheduleManager, ProgramCreditLogManager,
                             ShortcodeManager, UnattachedMessageManager)
 
+from connectors import ReceiveWorkerControlConnector, SendControlConnector
+
 
 class DialogueWorker(ApplicationWorker):
     
     #TODO: deprecated, to remove
-    INCOMING = "incoming"
-    OUTGOING = "outgoing"
+    #INCOMING = "incoming"
+    #OUTGOING = "outgoing"
     
-    def __init__(self, *args, **kwargs):
-        super(DialogueWorker, self).__init__(*args, **kwargs)
+    #def __init__(self, *args, **kwargs):
+        #super(DialogueWorker, self).__init__(*args, **kwargs)
 
-    def startService(self):
-        self._d = Deferred()
-        self._consumers = []
+    #def startService(self):
+        #self._d = Deferred()
+        #self._consumers = []
+        #self.sender = None
+        #self.r_prefix = None
+        #self.r_config = {}
+        #self.control_name = None
+        #self.transport_name = None
+        #self.transport_type = None
+        #self.program_name = None
+        #super(DialogueWorker, self).startService()
+
+    def setup_application(self):
         self.sender = None
         self.r_prefix = None
         self.r_config = {}
@@ -66,10 +78,7 @@ class DialogueWorker(ApplicationWorker):
         self.transport_name = None
         self.transport_type = None
         self.program_name = None
-        super(DialogueWorker, self).startService()
-
-    @inlineCallbacks
-    def setup_application(self):
+        
         #Store basic configuration data
         self.transport_name = self.config['transport_name']
         self.control_name = self.config['control_name']
@@ -82,7 +91,7 @@ class DialogueWorker(ApplicationWorker):
         self.last_script_used = None
         self.r_key = 'vusion:programs:' + self.config['database_name']
         self.r_server = Redis(**self.r_config)
-        self._d.callback(None)
+        #self._d.callback(None)
 
         # Component / Manager initialization
         self.logger = RedisLogger(
@@ -118,29 +127,37 @@ class DialogueWorker(ApplicationWorker):
 
         self.logger.log("Dialogue Worker is starting")
         #Set up dispatcher publisher
-        self.dispatcher_publisher = yield self.publish_to(
-            '%(dispatcher_name)s.control' % self.config)
-
+        #self.dispatcher_publisher = yield self.publish_to(
+            #'%(dispatcher_name)s.control' % self.config)
+        self.setup_dc_connector(self.config['dispatcher_name'])
         #Will need to register the keywords
         self.load_properties(if_needed_register_keywords=True)
 
         #Set up control consumer
-        self.control_consumer = yield self.consume(
-            '%(control_name)s.control' % self.config,
-            self.consume_control,
-            message_class=Message)
-        self._consumers.append(self.control_consumer)
+        #self.control_consumer = yield self.consume(
+            #'%(control_name)s.control' % self.config,
+            #self.consume_control,
+            #message_class=Message)
+        #self._consumers.append(self.control_consumer)
+        #self.setup_wc_connector(self.config['control_name'])        
 
         self.sender = reactor.callLater(2, self.daemon_process)
 
-    @inlineCallbacks
     def teardown_application(self):
         self.log("Worker is stopped.")
         self.logger.stop()
         if self.is_ready():
-            yield self.unregister_from_dispatcher()
+            self.unregister_from_dispatcher()
         if (self.sender.active()):
             self.sender.cancel()
+
+    def setup_wc_connector(self, connector_name):
+        return self.setup_connector(
+            ReceiveWorkerControlConnector,
+            self.transport_name)
+
+    def setup_dc_connector(self, connector_name):
+        return self.setup_connector(SendControlConnector, connector_name)
 
     def save_history(self, **kwargs):
         return self.collections['history'].save_history(**kwargs)
@@ -1034,20 +1051,25 @@ class DialogueWorker(ApplicationWorker):
             self.log("Error send schedule: %r" %
                      traceback.format_exception(exc_type, exc_value, exc_traceback))
             
-    @inlineCallbacks
+    #@inlineCallbacks
     def send_all_messages(self, dialogue, phone_number):
+        self.log("Sending all dialogue %s messages to %s"
+                 % (dialogue['name'], phone_number,))
         for interaction in dialogue['interactions']:
             message_content = self.generate_message(interaction)
-            message = TransportUserMessage(**{
+            #message = TransportUserMessage(**{
+                #'from_addr': self.properties['shortcode'],
+                #'to_addr': phone_number,
+                #'transport_name': self.transport_name,
+                #'transport_type': self.transport_type,
+                #'transport_metadata': '',
+                #'content': message_content})
+            #yield self.transport_publisher.publish_message(message)
+            options = {
                 'from_addr': self.properties['shortcode'],
-                'to_addr': phone_number,
-                'transport_name': self.transport_name,
-                'transport_type': self.transport_type,
-                'transport_metadata': '',
-                'content': message_content})
-            yield self.transport_publisher.publish_message(message)
-            self.log("Test message has been sent to %s '%s'"
-                     % (message['to_addr'], message['content'],))
+                #'transport_name': self.transport_name,
+                'transport_type': 'sms'}
+            self.send_to(phone_number, message_content, **options)
 
     def log(self, msg, level='msg'):
         self.logger.log(msg, level)
@@ -1057,7 +1079,6 @@ class DialogueWorker(ApplicationWorker):
         keywords += self.collections['requests'].get_all_keywords()
         return sorted(set(keywords))
     
-    @inlineCallbacks
     def register_keywords_in_dispatcher(self):
         self.log('Synchronizing with dispatcher')
         keywords = self.get_keywords()
@@ -1075,13 +1096,16 @@ class DialogueWorker(ApplicationWorker):
             action='add_exposed',
             exposed_name=self.transport_name,
             rules=rules)
-        yield self.dispatcher_publisher.publish_message(msg)
+        return self.publish_dispatcher_message(msg)
 
-    @inlineCallbacks
     def unregister_from_dispatcher(self):
         msg = DispatcherControl(action='remove_exposed',
                                 exposed_name=self.transport_name)
-        yield self.dispatcher_publisher.publish_message(msg)
+        return self.publish_dispatcher_message(msg)
+
+    def publish_dispatcher_message(self, message, endpoint_name=None):
+        publisher = self.connectors[self.config['dispatcher_name']]
+        return publisher.publish_control(message, endpoint_name)
 
     #TODO no template defined and no default template defined... what to do?
     def generate_message(self, interaction):

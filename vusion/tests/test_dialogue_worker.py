@@ -1,7 +1,7 @@
 from datetime import datetime, time, date, timedelta
 
 import json
-import pymongo
+from pymongo import MongoClient
 from redis import StrictRedis
 from bson.objectid import ObjectId
 from bson.timestamp import Timestamp
@@ -10,7 +10,8 @@ from twisted.internet.defer import inlineCallbacks
 from twisted.trial.unittest import TestCase
 
 from vumi.message import Message, TransportEvent, TransportUserMessage
-from vumi.tests.utils import get_stubbed_worker, UTCNearNow, RegexMatcher
+from vumi.tests.utils import UTCNearNow, RegexMatcher, VumiTestCase
+from vumi.application.tests.helpers import ApplicationHelper
 
 from vusion.dialogue_worker import DialogueWorker
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
@@ -18,92 +19,64 @@ from vusion.error import MissingData, MissingTemplate
 from vusion.persist.action import Actions
 from vusion.persist import Dialogue, Participant
 from vusion.context import Context
+from vusion.message import DispatcherControl
 
-from tests.utils import MessageMaker, DataLayerUtils, ObjectMaker
+from tests.utils import DataLayerUtils, ObjectMaker
 
 
-class DialogueWorkerTestCase(TestCase, MessageMaker,
-                             DataLayerUtils, ObjectMaker):
+class DialogueWorkerTestCase(VumiTestCase, DataLayerUtils, ObjectMaker):
+    
     @inlineCallbacks
     def setUp(self):
-        self.transport_name = 'test'
         self.control_name = 'mycontrol'
         self.database_name = 'test_program_db'
         self.vusion_database_name = 'test_vusion_db'
-        self.config = {'transport_name': self.transport_name,
-                       'database_name': self.database_name,
+        self.config = {'database_name': self.database_name,
                        'vusion_database_name': self.vusion_database_name,
                        'control_name': self.control_name,
                        'dispatcher_name': 'dispatcher',
                        'mongodb_host': 'localhost',
                        'mongodb_port': 27017,
                        'mongodb_safe': True}
-        self.worker = get_stubbed_worker(DialogueWorker,
-                                         config=self.config)
-        self.broker = self.worker._amqp_client.broker
-
-        self.broker.exchange_declare('vumi', 'direct')
-        self.broker.queue_declare("%s.outbound" % self.transport_name)
-        self.broker.queue_bind("%s.outbound" % self.transport_name,
-                               "vumi",
-                               "%s.outbound" % self.transport_name)
-        #Database to be run in safe mode to guaranty write / edit / delete#
-        connection = pymongo.Connection("localhost", 27017)
-        connection.safe = True
-        self.db = connection[self.config['database_name']]
-
-        self.collections = {}
-        self.setup_collections(['dialogues',
-                                'participants',
-                                'history',
-                                'schedules',
-                                'shortcodes',
-                                'program_settings',
-                                'unattached_messages',
-                                'requests',
-                                'content_variables'])
-        self.db = connection[self.config['vusion_database_name']]
-        self.setup_collections(['templates', 
-                                'shortcodes',
-                                'credit_logs'])
-
+        self.app_helper = self.add_helper(ApplicationHelper(DialogueWorker))
+        self.worker = yield self.app_helper.get_application(self.config)
+        
+        #retrive all collections from worker
+        self.collections = self.worker.collections
+        for collection in self.collections.itervalues():
+            collection.write_concern['j'] = True
         self.drop_collections()
-        self.broker.dispatched = {}
         
         self.redis = StrictRedis()
-        # Let's rock"
-        self.worker.startService()
-        yield self.worker.startWorker()
 
     @inlineCallbacks
     def tearDown(self):
-        self.broker.dispatched = {}
         self.drop_collections()
-        yield self.worker.stopService()
+        yield super(DialogueWorkerTestCase, self).tearDown()
 
-    @inlineCallbacks
-    def send(self, msg, routing_suffix='control'):
-        if (routing_suffix == 'control'):
-            routing_key = "%s.%s" % (self.control_name, routing_suffix)
-        else:
-            routing_key = "%s.%s" % (self.transport_name, routing_suffix)
-        self.broker.publish_message('vumi', routing_key, msg)
-        yield self.broker.kick_delivery()
+    #@inlineCallbacks
+    #def send(self, msg, routing_suffix='control'):
+        #if (routing_suffix == 'control'):
+            #routing_key = "%s.%s" % (self.control_name, routing_suffix)
+        #else:
+            #routing_key = "%s.%s" % (self.transport_name, routing_suffix)
+        #self.broker.publish_message('vumi', routing_key, msg)
+        #yield self.broker.kick_delivery()
 
-    def save_history(self, message_content="hello world",
-                     participant_phone="256", participant_session_id="1",
-                     message_direction="outgoing", message_status="delivered",
-                     timestamp=datetime.now(), metadata={}):
-        history = {
-            'message-content': message_content,
-            'participant-session-id': participant_session_id,
-            'participant-phone': participant_phone,
-            'message-direction': message_direction,
-            'message-status': message_status,
-            'timestamp': time_to_vusion_format(timestamp)}
-        for key in metadata:
-            history[key] = metadata[key]
-        self.collections['history'].save(history)
+    #def save_history(self, message_content="hello world",
+                     #participant_phone="256", participant_session_id="1",
+                     #message_direction="outgoing", message_status="delivered",
+                     #timestamp=datetime.now(), metadata={}):
+        #history = {
+            #'message-content': message_content,
+            #'participant-session-id': participant_session_id,
+            #'participant-phone': participant_phone,
+            #'message-direction': message_direction,
+            #'message-status': message_status,
+            #'timestamp': time_to_vusion_format(timestamp)}
+        #for key in metadata:
+            #history[key] = metadata[key]
+        #self.collections['history'].save(history)
 
     def initialize_properties(self, program_settings=None, shortcode=None, register_keyword=False):
         if program_settings is None:
@@ -457,7 +430,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
 
         yield self.worker.register_keywords_in_dispatcher()
 
-        messages = self.broker.get_messages('vumi', 'dispatcher.control')
+        messages = self.app_helper.get_dispatched('dispatcher', 'control', DispatcherControl)        
         self.assertEqual(1, len(messages))
         self.assertEqual([
             {'app': 'test', 'keyword': 'feel', 'to_addr': '8181', 'prefix': '+256'},
@@ -477,7 +450,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
 
         yield self.worker.register_keywords_in_dispatcher()
 
-        messages = self.broker.get_messages('vumi', 'dispatcher.control')
+        messages = self.app_helper.get_dispatched('dispatcher', 'control', DispatcherControl)
         self.assertEqual(1, len(messages))
         self.assertEqual([
             {'app': 'test', 'keyword': 'www', 'to_addr': '+318181'}],
@@ -493,7 +466,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             self.mk_program_settings_international_shortcode(),
             register_keyword=True)
         
-        messages = self.broker.get_messages('vumi', 'dispatcher.control')
+        messages = self.app_helper.get_dispatched('dispatcher', 'control', DispatcherControl)
         self.assertEqual(1, len(messages))
         self.assertEqual('remove_exposed', messages[0]['action'])
         self.assertFalse(self.worker.is_ready())
@@ -503,8 +476,8 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             self.mk_program_settings_international_shortcode(),
             self.mkobj_shortcode_international(),
             register_keyword=True)
-        
-        messages = self.broker.get_messages('vumi', 'dispatcher.control')
+
+        messages = self.app_helper.get_dispatched('dispatcher', 'control', DispatcherControl)        
         self.assertEqual(2, len(messages))
         self.assertEqual('add_exposed', messages[1]['action'])
         self.assertTrue(self.worker.is_ready())
@@ -514,7 +487,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
 
         self.worker.send_all_messages(self.dialogue_announcement, '06')
 
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 2)
         self.assertEqual(messages[0]['content'], "Hello")
         self.assertEqual(messages[0]['to_addr'], "06")
