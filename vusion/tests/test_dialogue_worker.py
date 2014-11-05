@@ -433,11 +433,11 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         messages = self.app_helper.get_dispatched('dispatcher', 'control', DispatcherControl)        
         self.assertEqual(1, len(messages))
         self.assertEqual([
-            {'app': 'test', 'keyword': 'feel', 'to_addr': '8181', 'prefix': '+256'},
-            {'app': 'test', 'keyword': 'fel', 'to_addr': '8181', 'prefix': '+256'},
-            {'app': 'test', 'keyword': 'quit', 'to_addr': '8181', 'prefix': '+256'},
-            {'app': 'test', 'keyword': 'quitnow', 'to_addr': '8181', 'prefix': '+256'},
-            {'app': 'test', 'keyword': 'www', 'to_addr': '8181', 'prefix': '+256'}],
+            {'app': 'sphex', 'keyword': 'feel', 'to_addr': '8181', 'prefix': '+256'},
+            {'app': 'sphex', 'keyword': 'fel', 'to_addr': '8181', 'prefix': '+256'},
+            {'app': 'sphex', 'keyword': 'quit', 'to_addr': '8181', 'prefix': '+256'},
+            {'app': 'sphex', 'keyword': 'quitnow', 'to_addr': '8181', 'prefix': '+256'},
+            {'app': 'sphex', 'keyword': 'www', 'to_addr': '8181', 'prefix': '+256'}],
             messages[0]['rules'])
 
     @inlineCallbacks
@@ -453,7 +453,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         messages = self.app_helper.get_dispatched('dispatcher', 'control', DispatcherControl)
         self.assertEqual(1, len(messages))
         self.assertEqual([
-            {'app': 'test', 'keyword': 'www', 'to_addr': '+318181'}],
+            {'app': 'sphex', 'keyword': 'www', 'to_addr': '+318181'}],
             messages[0]['rules'])
 
     def test22_daemon_shortcode_updated(self):

@@ -126,21 +126,9 @@ class DialogueWorker(ApplicationWorker):
            self.logger)
 
         self.logger.log("Dialogue Worker is starting")
-        #Set up dispatcher publisher
-        #self.dispatcher_publisher = yield self.publish_to(
-            #'%(dispatcher_name)s.control' % self.config)
         self.setup_dc_connector(self.config['dispatcher_name'])
         #Will need to register the keywords
         self.load_properties(if_needed_register_keywords=True)
-
-        #Set up control consumer
-        #self.control_consumer = yield self.consume(
-            #'%(control_name)s.control' % self.config,
-            #self.consume_control,
-            #message_class=Message)
-        #self._consumers.append(self.control_consumer)
-        #self.setup_wc_connector(self.config['control_name'])        
-
         self.sender = reactor.callLater(2, self.daemon_process)
 
     def teardown_application(self):
@@ -169,9 +157,10 @@ class DialogueWorker(ApplicationWorker):
         self.log("Connecting to database: %s" % self.database_name)
 
         #Initilization of the database
-        connection = pymongo.Connection(self.config['mongodb_host'],
-                                        self.config['mongodb_port'],
-                                        safe=self.config.get('mongodb_safe', False))
+        connection = pymongo.Connection(
+            self.config['mongodb_host'],
+            self.config['mongodb_port'],
+            safe=self.config.get('mongodb_safe', False))
 
         ## Program specific
         program_db = connection[self.database_name]
@@ -1057,17 +1046,8 @@ class DialogueWorker(ApplicationWorker):
                  % (dialogue['name'], phone_number,))
         for interaction in dialogue['interactions']:
             message_content = self.generate_message(interaction)
-            #message = TransportUserMessage(**{
-                #'from_addr': self.properties['shortcode'],
-                #'to_addr': phone_number,
-                #'transport_name': self.transport_name,
-                #'transport_type': self.transport_type,
-                #'transport_metadata': '',
-                #'content': message_content})
-            #yield self.transport_publisher.publish_message(message)
             options = {
                 'from_addr': self.properties['shortcode'],
-                #'transport_name': self.transport_name,
                 'transport_type': 'sms'}
             self.send_to(phone_number, message_content, **options)
 
