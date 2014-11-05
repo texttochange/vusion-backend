@@ -358,3 +358,53 @@ class TestHistoryManager(TestCase, ObjectMaker, MessageMaker):
         self.assertEqual(new_status, 'delivered')
         self.assertEqual(old_status, 'failed')
         self.assertEqual(credits, 1)
+
+    def test_has_already_been_answered(self):
+        dNow = datetime.now()
+
+        participant = self.mkobj_participant()
+
+        self.assertFalse(self.history_manager.has_already_valid_answer(
+            participant, '1', '1'))
+
+        self.history_manager.save(self.mkobj_history_dialogue(
+            direction='incoming',
+            participant_phone='06',
+            participant_session_id='1',
+            timestamp=time_to_vusion_format(dNow),
+            dialogue_id='1',
+            interaction_id='1',
+            matching_answer=None
+        ))
+
+        self.assertFalse(self.history_manager.has_already_valid_answer(
+            participant, '1', '1'))
+        
+        self.assertFalse(self.history_manager.has_already_valid_answer(
+            participant, '1', '1'))
+
+        self.history_manager.save(self.mkobj_history_dialogue(
+            direction='incoming',
+            participant_phone='06',
+            participant_session_id='1',
+            timestamp=time_to_vusion_format(dNow),
+            dialogue_id='1',
+            interaction_id='1',
+            matching_answer='something'
+        ))
+
+        self.assertFalse(self.history_manager.has_already_valid_answer(
+            participant, '1', '1'))
+
+        self.history_manager.save(self.mkobj_history_dialogue(
+            direction='incoming',
+            participant_phone='06',
+            participant_session_id='1',
+            timestamp=time_to_vusion_format(dNow),
+            dialogue_id='1',
+            interaction_id='1',
+            matching_answer='something else'
+        ))
+
+        self.assertTrue(self.history_manager.has_already_valid_answer(
+            participant, '1', '1'))

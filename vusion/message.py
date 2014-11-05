@@ -36,3 +36,8 @@ class WorkerControl(Message):
             self.assert_field_present(field)
             if not check(self[field]):
                 raise InvalidMessageField(self[field])
+
+
+    def get_routing_endpoint(self):
+        return 'default'
+    

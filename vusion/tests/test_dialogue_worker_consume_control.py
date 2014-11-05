@@ -12,7 +12,8 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
     @inlineCallbacks
     def test_consume_control_update_schedule_dialogue(self):
         self.initialize_properties()
-        self.broker.dispatched = {}
+        self.app_helper.clear_all_dispatched()
+        
         dNow = self.worker.get_local_time()
     
         #save dialogues
@@ -26,28 +27,29 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
             self.mkobj_participant(
                 participant_phone='08'))
     
-        event = self.mkmsg_dialogueworker_control(**{
+        control = self.mkmsg_dialogueworker_control(**{
             'action':'update_schedule',
             'schedule_type': 'dialogue',
             'object_id': dialogue_1['dialogue-id']})
-        yield self.send(event, 'control')
+        yield self.dispatch_control(control)
         
         self.assertEqual(2, self.collections['schedules'].count())
         enrolled_participant = Participant(**self.collections['participants'].find_one())
         self.assertTrue(enrolled_participant.is_enrolled('0'))
     
         # the second dialogue is auto-enrollment = 'none'
-        event = self.mkmsg_dialogueworker_control(**{
+        control = self.mkmsg_dialogueworker_control(**{
             'action':'update_schedule',
             'schedule_type': 'dialogue',
             'object_id': dialogue_2['dialogue-id']})
-        yield self.send(event, 'control')
+        yield self.dispatch_control(control)
         self.assertEqual(2, self.collections['schedules'].count())
     
     @inlineCallbacks
     def test_consume_control_update_schedule_unattached(self):
         self.initialize_properties()
-        self.broker.dispatched = {}
+        self.app_helper.clear_all_dispatched()
+        
         dNow = self.worker.get_local_time()
 
         self.collections['participants'].save(
@@ -57,17 +59,18 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
         unattach = self.mkobj_unattach_message_1()
         unattach_id = self.collections['unattached_messages'].save(unattach)
 
-        event = self.mkmsg_dialogueworker_control(**{
+        control = self.mkmsg_dialogueworker_control(**{
             'action':'update_schedule',
             'schedule_type': 'unattach',
             'object_id': str(unattach_id)})
-        yield self.send(event, 'control')
+        yield self.dispatch_control(control)
         self.assertEqual(1, self.collections['schedules'].count())
 
     @inlineCallbacks
     def test_consume_control_mass_tag(self):
         self.initialize_properties()
-        self.broker.dispatched = {}
+        self.app_helper.clear_all_dispatched()
+       
         dNow = self.worker.get_local_time()
 
         self.collections['participants'].save(
@@ -80,17 +83,18 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
             send_to_match_conditions=['mombasa'])
         unattach_id = self.collections['unattached_messages'].save(unattach)
 
-        event = self.mkmsg_dialogueworker_control(**{
+        control = self.mkmsg_dialogueworker_control(**{
             'action':'mass_tag',
             'tag': 'mombasa',
             'selector': {'tags': 'geek'}})
-        yield self.send(event, 'control')
+        yield self.dispatch_control(control)
         self.assertEqual(1, self.collections['schedules'].count())
 
     @inlineCallbacks
     def test_consume_control_mass_untag(self):
         self.initialize_properties()
-        self.broker.dispatched = {}
+        self.app_helper.clear_all_dispatched()
+                        
         dNow = self.worker.get_local_time()
 
         self.collections['participants'].save(
@@ -115,10 +119,10 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
             unattach_id=str(unattach_id))
         self.collections['schedules'].save(schedule)
 
-        event = self.mkmsg_dialogueworker_control(**{
+        control = self.mkmsg_dialogueworker_control(**{
             'action':'mass_untag',
             'tag': 'geek'})
-        yield self.send(event, 'control')
+        yield self.dispatch_control(control)
         self.assertEqual(1, self.collections['schedules'].count())
         schedule = self.collections['schedules'].find_one()
         self.assertEqual('10', schedule['participant-phone'])
@@ -130,44 +134,44 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
             self.mkobj_dialogue_annoucement())
         self.collections['participants'].save(self.mkobj_participant('08'))
     
-        event = self.mkmsg_dialogueworker_control(**{
+        control = self.mkmsg_dialogueworker_control(**{
             'action': 'test_send_all_messages',
             'dialogue_obj_id': str(dialogue_id),
             'phone_number': '08'})
-        yield self.send(event, 'control')
+        yield self.dispatch_control(control)
     
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
     
     @inlineCallbacks
     def test_consume_control_update_keywords(self):
         self.initialize_properties()
-        self.broker.dispatched = {}
-    
-        event = self.mkmsg_dialogueworker_control(**{
+        self.app_helper.clear_all_dispatched()
+                
+        control = self.mkmsg_dialogueworker_control(**{
             'action': 'update_registered_keywords'})
-        yield self.send(event, 'control')
+        yield self.dispatch_control(control)
     
-        messages = self.broker.get_messages('vumi', 'dispatcher.control')
+        messages = yield self.wait_for_dispatched_dispatcher_control(1)
         self.assertEqual(len(messages), 1)
     
     @inlineCallbacks
     def test_consume_control_reload_request(self):
         self.initialize_properties()
-        self.broker.dispatched = {}
-    
+        self.app_helper.clear_all_dispatched()
+        
         join_id = self.collections['requests'].save(self.mkobj_request_join())
     
-        event = self.mkmsg_dialogueworker_control(**{
+        control = self.mkmsg_dialogueworker_control(**{
             'action': 'reload_request', 'object_id': str(join_id)})
-        yield self.send(event, 'control')
+        yield self.dispatch_control(control)
         
-        messages = self.broker.get_messages('vumi', 'dispatcher.control')
+        messages = yield self.wait_for_dispatched_dispatcher_control(1) #self.broker.get_messages('vumi', 'dispatcher.control')
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['action'], 'add_exposed')
-        self.assertEqual(messages[0]['exposed_name'], 'test')
+        self.assertEqual(messages[0]['exposed_name'], 'sphex')
         self.assertEqual(messages[0]['rules'], [{
-            'app': 'test', 'keyword':'www', 'prefix':'+256', 'to_addr': '8181'}])
+            'app': 'sphex', 'keyword':'www', 'prefix':'+256', 'to_addr': '8181'}])
 
     @inlineCallbacks
     def test_consume_control_reload_program_settings(self):
@@ -177,20 +181,7 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
         program_setting['value'] = 'Europe/Paris'
         self.collections['program_settings'].save(program_setting)
     
-        event = self.mkmsg_dialogueworker_control(**{
-            'action': 'reload_program_settings'})
-        yield self.send(event, 'control')
-    
+        control = self.mkmsg_dialogueworker_control(**{
+            'action': 'reload_program_settings'})       
+        yield self.dispatch_control(control)
         self.assertEqual(self.worker.properties['timezone'], 'Europe/Paris')
-    
-    @inlineCallbacks
-    def test_consume_control_badly_formated(self):
-        self.initialize_properties()
-    
-        program_setting = self.collections['program_settings'].find_one({'key': 'timezone'})
-        program_setting['value'] = 'Europe/Paris'
-        self.collections['program_settings'].save(program_setting)
-    
-        event = Message(**{'action': 'reload-program_settings'})
-        yield self.send(event, 'control')
-        self.assertEqual(self.worker.properties['timezone'], 'Africa/Kampala')

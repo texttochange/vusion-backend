@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from bson import ObjectId, Code
+from pymongo import ASCENDING
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.threads import deferToThread
@@ -34,7 +35,10 @@ class HistoryManager(ModelManager):
         self.flying_manager = FlyingMessageManager(prefix_key, redis)
 
     def get_history(self, history_id):
-        return self.collection.find_one({'_id': ObjectId(history_id)})
+        result = self.collection.find_one({'_id': ObjectId(history_id)})
+        if result is None:
+            return None
+        return history_generator(**result)
 
     def save_history(self, **kwargs):
         if 'timestamp' in kwargs and not isinstance(kwargs['timestamp'], str):
@@ -214,3 +218,96 @@ class HistoryManager(ModelManager):
         if unattach_history is None:
             returnValue(False)
         returnValue(True)
+
+    def get_history_of_interaction(self, participant, dialogue_id, interaction_id):
+        result = self.collection.find_one(
+            {'participant-phone': participant['phone'],
+             'participant-session-id': participant['session-id'],
+             'dialogue-id': dialogue_id,
+             'interaction-id': interaction_id,
+             '$or': [{'message-direction': 'outgoing'},
+                     {'message-direction': 'incoming',
+                      'matching-answer': {'$ne':None}}]},
+            sort=[('timestamp', ASCENDING)])
+        if result is None:
+            return None
+        return history_generator(**result)
+
+
+    def get_history_of_offset_condition_answer(self, participant, dialogue_id,
+                                               interaction_id):
+        result = self.collection.find_one(
+            {"participant-phone": participant['phone'],
+             "participant-session-id": participant['session-id'],
+             "message-direction": 'incoming',
+             "dialogue-id": dialogue_id,
+             "interaction-id": interaction_id,
+             "$or": [{'matching-answer': {'$exists': False}},
+                     {'matching-answer': {'$ne': None}}]})
+        if result is None:
+            return None
+        return history_generator(**result)
+
+
+    def add_datepassed_marker(self, participant, dialogue_id, interaction_id):
+        history = {
+            'object-type': 'datepassed-marker-history',
+            'participant-phone': participant['phone'],
+            'participant-session-id': participant['session-id'],
+            'dialogue-id': dialogue_id,
+            'interaction-id': interaction_id}
+        return self.save_history(**history)       
+
+    def add_oneway_marker(self, participant_phone, participant_session_id,
+                          context):
+        if self.has_oneway_marker(participant_phone, participant_session_id, 
+                                  context['dialogue-id'], context['interaction-id']):
+            return
+        history = {
+            'object-type': 'oneway-marker-history',
+            'participant-phone': participant_phone,
+            'participant-session-id':participant_session_id,
+            'dialogue-id': context['dialogue-id'],
+            'interaction-id': context['interaction-id']}
+        self.save_history(**history)
+
+    #def has_oneway_marker(self, participant, dialogue_id, interaction_id):
+        #return self.has_oneway_marker(
+            #participant['phone'], participant['session-id'],
+            #dialogue_id, interaction_id)
+
+    def has_oneway_marker(self, participant_phone, participant_session_id,
+                          dialogue_id, interaction_id):
+        return self.collection.find_one({
+            'object-type': 'oneway-marker-history',
+            'participant-phone': participant_phone,
+            'participant-session-id':participant_session_id,
+            'dialogue-id': dialogue_id,
+            'interaction-id': interaction_id}) is not None
+
+    def participant_has_max_unmatching_answers(self, participant, dialogue_id, interaction):
+        if (not interaction.has_max_unmatching_answers()):
+            return False
+        query = {'participant-phone': participant['phone'],
+                 'participant-session-id':participant['session-id'],
+                 'message-direction': 'incoming',
+                 'dialogue-id': dialogue_id,
+                 'interaction-id': interaction['interaction-id'],
+                 'matching-answer': None}
+        history = self.collection.find(query)
+        if history.count() == int(interaction['max-unmatching-answer-number']):
+            return True
+        return False
+    
+    #TODO: move to History Manager
+    def has_already_valid_answer(self, participant, dialogue_id, interaction_id, number=1):
+        query = {'participant-phone': participant['phone'],
+                 'participant-session-id':participant['session-id'],
+                 'message-direction': 'incoming',
+                 'matching-answer': {'$ne': None},
+                 'dialogue-id': dialogue_id,
+                 'interaction-id': interaction_id}
+        history = self.collection.find(query)
+        if history is None or history.count() <= number:
+            return False
+        return True

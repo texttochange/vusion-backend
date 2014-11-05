@@ -50,25 +50,6 @@ from connectors import ReceiveWorkerControlConnector, SendControlConnector
 
 
 class DialogueWorker(ApplicationWorker):
-    
-    #TODO: deprecated, to remove
-    #INCOMING = "incoming"
-    #OUTGOING = "outgoing"
-    
-    #def __init__(self, *args, **kwargs):
-        #super(DialogueWorker, self).__init__(*args, **kwargs)
-
-    #def startService(self):
-        #self._d = Deferred()
-        #self._consumers = []
-        #self.sender = None
-        #self.r_prefix = None
-        #self.r_config = {}
-        #self.control_name = None
-        #self.transport_name = None
-        #self.transport_type = None
-        #self.program_name = None
-        #super(DialogueWorker, self).startService()
 
     def setup_application(self):
         self.sender = None
@@ -139,7 +120,20 @@ class DialogueWorker(ApplicationWorker):
         if (self.sender.active()):
             self.sender.cancel()
 
-    def setup_wc_connector(self, connector_name):
+    def setup_connectors(self):
+        d = super(DialogueWorker, self).setup_connectors()
+
+        def cb2(connector):
+            connector.set_control_handler(self.dispatch_control)
+            return connector
+        
+        return d.addCallback(cb2)
+
+    @inlineCallbacks
+    def dispatch_control(self, control):
+        yield self.consume_control(control)
+
+    def setup_ri_connector(self, connector_name):
         return self.setup_connector(
             ReceiveWorkerControlConnector,
             self.transport_name)
@@ -476,12 +470,15 @@ class DialogueWorker(ApplicationWorker):
             self.update_participant_transport_metadata(message)
             if (context.is_matching() and participant is not None):
                 if ('interaction' in context):
-                    if self.has_oneway_marker(participant['phone'], participant['session-id'], context):
+                    if self.collections['history'].has_oneway_marker(
+                        participant['phone'], participant['session-id'],
+                        context['dialogue-id'], context['interaction-id']):
                         actions.clear_all()
                     else:
                         self.get_program_actions(participant, context, actions)
-                        if self.participant_has_max_unmatching_answers(participant, context['dialogue-id'], context['interaction']):
-                            self.add_oneway_marker(participant['phone'], participant['session-id'], context)
+                        if self.collections['history'].participant_has_max_unmatching_answers(participant, context['dialogue-id'], context['interaction']):
+                            self.collections['history'].add_oneway_marker(
+                                participant['phone'], participant['session-id'], context)
                             context['interaction'].get_max_unmatching_action(context['dialogue-id'], actions)
                 elif ('request-id' in context):
                     self.get_program_actions(participant, context, actions)                    
@@ -512,81 +509,10 @@ class DialogueWorker(ApplicationWorker):
                     'dialogue-id': context['dialogue-id'],
                     'interaction-id': context['interaction-id']}))
         if ('matching-answer' in context 
-            and self.has_already_valid_answer(participant, context['dialogue-id'], context['interaction-id'])):
+            and self.collections['history'].has_already_valid_answer(participant, context['dialogue-id'], context['interaction-id'])):
             actions.clear_all()
             if self.properties['double-matching-answer-feedback'] is not None:
                 actions.append(FeedbackAction(**{'content': self.properties['double-matching-answer-feedback']}))
-
-    #TODO: move to History Manager
-    def has_already_valid_answer(self, participant, dialogue_id, interaction_id, number=1):
-        query = {'participant-phone': participant['phone'],
-                 'participant-session-id':participant['session-id'],
-                 'message-direction': 'incoming',
-                 'matching-answer': {'$ne': None},
-                 'dialogue-id': dialogue_id,
-                 'interaction-id': interaction_id}
-        history = self.collections['history'].find(query)
-        if history is None or history.count() <= number:
-            return False
-        return True        
-    
-    def participant_has_max_unmatching_answers(self, participant, dialogue_id, interaction):
-        if (not interaction.has_max_unmatching_answers()):
-            return False
-        query = {'participant-phone': participant['phone'],
-                 'participant-session-id':participant['session-id'],
-                 'message-direction': 'incoming',
-                 'dialogue-id': dialogue_id,
-                 'interaction-id': interaction['interaction-id'],
-                 'matching-answer': None}
-        history = self.collections['history'].find(query)
-        if history.count() == int(interaction['max-unmatching-answer-number']):
-            return True
-        return False
-    
-    #TODO: move to History Manager
-    #TODO: DRY with has_oneway_marker
-    def has_one_way_marker(self, participant, dialogue_id, interaction_id):
-        query = {
-            'object-type': 'oneway-marker-history',
-            'participant-phone': participant['phone'],
-            'participant-session-id':participant['session-id'],
-            'dialogue-id': dialogue_id,
-            'interaction-id': interaction_id}
-        history = self.collections['history'].find_one(query)
-        if history is None:
-            return False
-        return True    
-    
-    #TODO: move to History Manager
-    #TODO: DRY with has_one_way_marker
-    def has_oneway_marker(self, participant_phone, participant_session_id,
-                          context):
-        return self.collections['history'].find_one({
-            'object-type': 'oneway-marker-history',
-            'participant-phone': participant_phone,
-            'participant-session-id':participant_session_id,
-            'dialogue-id': context['dialogue-id'],
-            'interaction-id': context['interaction-id']}) is not None
-    
-    #TODO: move to History Manager
-    def add_oneway_marker(self, participant_phone, participant_session_id,
-                          context):
-        history = self.collections['history'].find_one({
-            'object-type': 'oneway-marker-history',
-            'participant-phone': participant_phone,
-            'participant-session-id':participant_session_id,
-            'dialogue-id': context['dialogue-id'],
-            'interaction-id': context['interaction-id']})
-        if history is None:
-            history = {
-                'object-type': 'oneway-marker-history',
-                'timestamp': self.get_local_time(),
-                'participant-phone': participant_phone,
-                'participant-session-id':participant_session_id,
-                'dialogue-id': context['dialogue-id'],
-                'interaction-id': context['interaction-id']}
-            self.save_history(**history)
 
     def daemon_process(self):
         self.load_properties()
@@ -727,18 +653,11 @@ class DialogueWorker(ApplicationWorker):
             for interaction in dialogue.interactions:
                 self.log("Scheduling %s interaction %s for %s" % 
                          (dialogue['name'], interaction['content'], participant['phone'],))
-                history = self.collections['history'].find_one(
-                    {"participant-phone": participant['phone'],
-                     "participant-session-id": participant['session-id'],
-                     "dialogue-id": dialogue["dialogue-id"],
-                     "interaction-id": interaction["interaction-id"],
-                     "$or": [{"message-direction": self.OUTGOING},
-                             {"message-direction": self.INCOMING,
-                              "matching-answer": {"$ne":None}}]},
-                    sort=[("timestamp", pymongo.ASCENDING)])
+                history = self.collections['history'].get_history_of_interaction(
+                    participant, dialogue["dialogue-id"], interaction["interaction-id"])
 
                 #The iteraction has aleardy been sent.
-                if history:
+                if history is not None:
                     previous_sending_date_time = time_from_vusion_format(history["timestamp"])
                     self.schedule_participant_reminders(
                         participant, dialogue, interaction, previous_sending_date_time, True)
@@ -757,15 +676,10 @@ class DialogueWorker(ApplicationWorker):
                 elif (interaction['type-schedule'] == 'fixed-time'):
                     sending_date_time = time_from_vusion_format(interaction['date-time'])
                 elif (interaction['type-schedule'] == 'offset-condition'):
-                    previous = self.collections['history'].find_one(
-                        {"participant-phone": participant['phone'],
-                         "participant-session-id": participant['session-id'],
-                         "message-direction": self.INCOMING,
-                         "dialogue-id": dialogue["dialogue-id"],
-                         "interaction-id": interaction["offset-condition-interaction-id"],
-                         "$or": [{'matching-answer': {'$exists': False}},
-                                 {'matching-answer': {'$ne': None}}]})
-                    # if the answer 
+                    previous = self.collections['history'].get_history_of_offset_condition_answer(
+                        participant,
+                        dialogue["dialogue-id"],
+                        interaction["offset-condition-interaction-id"])      
                     if  previous is None:
                         continue
                     sending_date_time = self.get_local_time() + timedelta(minutes=int(interaction['offset-condition-delay']))
@@ -775,14 +689,10 @@ class DialogueWorker(ApplicationWorker):
 
                 #Scheduling a date already in the past is forbidden.
                 if (sending_date_time + timedelta(minutes=5) < self.get_local_time()):
-                    history = {
-                        'object-type': 'datepassed-marker-history',
-                        'participant-phone': participant['phone'],
-                        'participant-session-id': participant['session-id'],
-                        'dialogue-id': dialogue['dialogue-id'],
-                        'interaction-id': interaction['interaction-id'],
-                        'scheduled-date-time': time_to_vusion_format(sending_date_time)}
-                    self.save_history(**history)
+                    self.collections['history'].add_datepassed_maker(
+                        participant,
+                        dialogue['dialogue-id'],
+                        interaction['interaction-id'])
                     if (schedule):
                         self.collections['schedules'].remove_schedule(schedule)
                     continue
@@ -810,9 +720,12 @@ class DialogueWorker(ApplicationWorker):
                                        interaction_date_time, is_interaction_history=False):
 
         #Do not schedule reminder in case of valide answer or one way marker
-        if self.has_one_way_marker(participant, dialogue['dialogue-id'], interaction['interaction-id']):
+        if self.collections['history'].has_oneway_marker(
+            participant['phone'], participant['session-id'],
+            dialogue['dialogue-id'], interaction['interaction-id']):
             return
-        if self.has_already_valid_answer(participant, dialogue['dialogue-id'], interaction['interaction-id'], 0):
+        if self.collections['history'].has_already_valid_answer(
+            participant, dialogue['dialogue-id'], interaction['interaction-id'], 0):
             return
         
         schedules = self.collections['schedules'].get_participant_reminder_tail(
@@ -945,7 +858,7 @@ class DialogueWorker(ApplicationWorker):
                 if interaction.has_reminder():
                     for action in interaction['reminder-actions']:
                         actions.append(action_generator(**action))
-                    self.add_oneway_marker(
+                    self.collections['history'].add_oneway_marker(
                         schedule['participant-phone'],
                         schedule['participant-session-id'],
                         context.get_dict_for_history())

@@ -21,25 +21,27 @@ from vusion.persist import Dialogue, Participant
 from vusion.context import Context
 from vusion.message import DispatcherControl
 
-from tests.utils import DataLayerUtils, ObjectMaker
+from tests.utils import DataLayerUtils, ObjectMaker, MessageMaker
 
 
-class DialogueWorkerTestCase(VumiTestCase, DataLayerUtils, ObjectMaker):
+class DialogueWorkerTestCase(VumiTestCase, DataLayerUtils, ObjectMaker, MessageMaker):
     
     @inlineCallbacks
     def setUp(self):
         self.control_name = 'mycontrol'
         self.database_name = 'test_program_db'
         self.vusion_database_name = 'test_vusion_db'
+        self.dispatcher_name = 'dispatcher'
         self.config = {'database_name': self.database_name,
                        'vusion_database_name': self.vusion_database_name,
                        'control_name': self.control_name,
-                       'dispatcher_name': 'dispatcher',
+                       'dispatcher_name': self.dispatcher_name,
                        'mongodb_host': 'localhost',
                        'mongodb_port': 27017,
                        'mongodb_safe': True}
         self.app_helper = self.add_helper(ApplicationHelper(DialogueWorker))
         self.worker = yield self.app_helper.get_application(self.config)
+        self.transport_name = self.worker.transport_name
         
         #retrive all collections from worker
         self.collections = self.worker.collections
@@ -95,58 +97,22 @@ class DialogueWorkerTestCase(VumiTestCase, DataLayerUtils, ObjectMaker):
         for key in keys:
             self.redis.delete(key)
 
+    def dispatch_control(self, control):
+        return self.app_helper.dispatch_raw('.'.join([self.transport_name, 'control']), control)
+
+    def get_dispatched_dispatcher_control(self):
+        return self.app_helper.get_dispatched(self.dispatcher_name, 'control', DispatcherControl)
+
+    def wait_for_dispatched_dispatcher_control(self, amount):
+        d = self.app_helper.worker_helper.broker.wait_messages('vumi', '.'.join([self.dispatcher_name, 'control']), amount)
+        d.addCallback(lambda msgs: [
+            DispatcherControl(**msg.payload) for msg in msgs])
+        return d
+
 
 class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
 
-    def test01_has_already_been_answered(self):
-        dNow = datetime.now()
-
-        participant = self.mkobj_participant()
-
-        self.assertFalse(self.worker.has_already_valid_answer(
-            participant, '1', '1'))
-
-        self.collections['history'].save(self.mkobj_history_dialogue(
-            direction='incoming',
-            participant_phone='06',
-            participant_session_id='1',
-            timestamp=time_to_vusion_format(dNow),
-            dialogue_id='1',
-            interaction_id='1',
-            matching_answer=None
-        ))
-
-        self.assertFalse(self.worker.has_already_valid_answer(
-            participant, '1', '1'))
-        
-        self.assertFalse(self.worker.has_already_valid_answer(
-            participant, '1', '1'))
-
-        self.collections['history'].save(self.mkobj_history_dialogue(
-            direction='incoming',
-            participant_phone='06',
-            participant_session_id='1',
-            timestamp=time_to_vusion_format(dNow),
-            dialogue_id='1',
-            interaction_id='1',
-            matching_answer='something'
-        ))
-
-        self.assertFalse(self.worker.has_already_valid_answer(
-            participant, '1', '1'))
-
-        self.collections['history'].save(self.mkobj_history_dialogue(
-            direction='incoming',
-            participant_phone='06',
-            participant_session_id='1',
-            timestamp=time_to_vusion_format(dNow),
-            dialogue_id='1',
-            interaction_id='1',
-            matching_answer='something else'
-        ))
-
-        self.assertTrue(self.worker.has_already_valid_answer(
-            participant, '1', '1'))
+    
 
     def test06_get_program_actions(self):
         self.initialize_properties()
@@ -456,6 +422,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             {'app': 'sphex', 'keyword': 'www', 'to_addr': '+318181'}],
             messages[0]['rules'])
 
+    @inlineCallbacks
     def test22_daemon_shortcode_updated(self):
         ## load a first time the properties        
         self.initialize_properties()
@@ -466,7 +433,7 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
             self.mk_program_settings_international_shortcode(),
             register_keyword=True)
         
-        messages = self.app_helper.get_dispatched('dispatcher', 'control', DispatcherControl)
+        messages = yield self.app_helper.get_dispatched('dispatcher', 'control', DispatcherControl)
         self.assertEqual(1, len(messages))
         self.assertEqual('remove_exposed', messages[0]['action'])
         self.assertFalse(self.worker.is_ready())
