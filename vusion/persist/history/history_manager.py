@@ -311,3 +311,14 @@ class HistoryManager(ModelManager):
         if history is None or history.count() <= number:
             return False
         return True
+
+    def add_outgoing(self, message, message_status, message_credits, context, schedule):
+        history = {
+            'message-content': message['content'],
+            'participant-phone': message['to_addr'],
+            'message-direction': 'outgoing',
+            'message-status': message_status,
+            'message-id': message['message_id'],
+            'message-credits': message_credits}
+        history.update(context.get_dict_for_history(schedule))
+        return self.save_history(**history)

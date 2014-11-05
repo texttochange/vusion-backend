@@ -888,34 +888,33 @@ class DialogueWorker(ApplicationWorker):
                 self.save_history(**history)
                 return
                  
-            message = TransportUserMessage(**{
+            options = {
                 'from_addr': self.properties['shortcode'],
-                'to_addr': schedule['participant-phone'],
-                'transport_name': self.transport_name,
                 'transport_type': self.transport_type,
-                'content': message_content})
+                'transport_metadata': {}}
 
             ## Apply program settings
             if (self.properties['customized-id'] is not None):
-                message['transport_metadata']['customized_id'] = self.properties['customized-id']
+                options['transport_metadata']['customized_id'] = self.properties['customized-id']
 
             ## Check for program properties
             if (schedule.get_type() == 'feedback-schedule'
                 and self.properties['request-and-feedback-prioritized'] is not None):
-                message['transport_metadata']['priority'] = self.properties['request-and-feedback-prioritized']
+                options['transport_metadata']['priority'] = self.properties['request-and-feedback-prioritized']
             elif ('prioritized' in interaction 
                   and interaction['prioritized'] is not None):
-                message['transport_metadata']['priority'] = interaction['prioritized']
+                options['transport_metadata']['priority'] = interaction['prioritized']
 
             ## Necessary for some transport that require tocken to be reuse for MT message
             #TODO only fetch when participant has transport metadata...
             participant = self.collections['participants'].get_participant(schedule['participant-phone'])
             if (participant['transport_metadata'] is not {}):
-                message['transport_metadata'].update(participant['transport_metadata'])
+                options['transport_metadata'].update(participant['transport_metadata'])
             
             message_credits = self.properties.use_credits(message_content)
             if self.credit_manager.is_allowed(message_credits, schedule):
-                yield self.transport_publisher.publish_message(message)
+                #yield self.transport_publisher.publish_message(message)
+                message = yield self.send_to(schedule['participant-phone'], message_content, **options)
                 message_status = 'pending'
                 self.log("Message has been sent to %s '%s'" % (message['to_addr'], message['content']))
             else: 
@@ -926,16 +925,9 @@ class DialogueWorker(ApplicationWorker):
                     message_status = 'no-credit-timeframe'
                     self.log("%s, message hasn't been sent to %s '%s'" % (
                         message_status, message['to_addr'], message['content']))
+            self.collections['history'].add_outgoing(
+                message, message_status, message_credits, context, schedule)
 
-            history = {
-                'message-content': message['content'],
-                'participant-phone': message['to_addr'],
-                'message-direction': 'outgoing',
-                'message-status': message_status,
-                'message-id': message['message_id'],
-                'message-credits': message_credits}
-            history.update(context.get_dict_for_history(schedule))
-            self.save_history(**history)
         except MissingData as e:
             self.log("Error Missing Data: %s" % e.message)
             history = {
