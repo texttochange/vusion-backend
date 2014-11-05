@@ -13,10 +13,10 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
     def test_ack(self):
         self.initialize_properties()
         past = self.worker.get_local_time() - timedelta(hours=5)
-        
+
         event = self.mkmsg_delivery_for_send(
-            event_type='ack',
-            user_message_id='1')
+                   event_type='ack',
+                   user_message_id='1')
 
         history = self.mkobj_history_unattach(
             '4',
@@ -27,7 +27,7 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
 
         self.worker.collections['history'].save_history(**history)
 
-        yield self.send(event, 'event')
+        yield self.app_helper.dispatch_event(event)
 
         status = self.collections['history'].find_one({
             'message-id': event['user_message_id']})
@@ -55,10 +55,13 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
         history_id = self.collections['history'].save(history)
         self.worker.collections['history'].update_forwarding(history_id, '2', 'http://partner.com')
 
-        yield self.send(event, 'event')
+        yield self.app_helper.dispatch_event(event)
 
         history = self.collections['history'].find_one()
         self.assertEqual('ack', history['forwards'][0]['status'])
+
+    def test_nack(self):
+        self.fail()
 
     @inlineCallbacks
     def test_delivery(self):
@@ -75,7 +78,7 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
         
         self.worker.collections['history'].save_history(**history)
 
-        yield self.send(event, 'event')
+        yield self.app_helper.dispatch_event(event)
 
         status = self.collections['history'].find_one({
             'message-id': event['user_message_id']})
@@ -91,7 +94,7 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
         self.initialize_properties()
         event = self.mkmsg_delivery_for_send()
 
-        yield self.send(event, 'event')
+        yield self.app_helper.dispatch_event(event)
 
         status = self.collections['history'].find_one({
             'message-id': event['user_message_id']})
@@ -119,7 +122,7 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
        
         self.worker.collections['history'].save_history(**history)
 
-        yield self.send(event, 'event')
+        yield self.app_helper.dispatch_event(event)
 
         status = self.collections['history'].find_one({
             'message-id': event['user_message_id']})
@@ -148,7 +151,7 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
        
         self.worker.collections['history'].save_history(**history)
 
-        yield self.send(event, 'event')
+        yield self.app_helper.dispatch_event(event)
 
         history = self.collections['history'].find_one({
             'message-id': event['user_message_id']})
