@@ -372,19 +372,17 @@ class DialogueWorker(ApplicationWorker):
             return
         history = self.collections['history'].get_history(context['history_id'])
         participant = self.collections['participants'].get_participant(participant_phone)
-        message = TransportUserMessage(**{
-           'to_addr': action['forward-url'],
+        options = {
            'from_addr': self.transport_name,
-           'transport_name': self.transport_name,
            'transport_type': 'http_forward',
-           'content': history['message-content'],
            'transport_metadata': {
                'program_shortcode': self.properties['shortcode'],
                'participant_phone': participant_phone,
-               'participant_profile': participant['profile']}
-        })
-        yield self.transport_publisher.publish_message(message)
-        self.collections['history'].update_forwarding(context['history_id'], message['message_id'], action['forward-url'])
+               'participant_profile': participant['profile']}}
+        message = yield self.send_to(
+            action['forward-url'], history['message-content'], **options)
+        self.collections['history'].update_forwarding(
+            context['history_id'], message['message_id'], action['forward-url'])
 
     @inlineCallbacks
     def run_action_proportional_tagging(self, participant_phone, action, context=None):
@@ -689,7 +687,7 @@ class DialogueWorker(ApplicationWorker):
 
                 #Scheduling a date already in the past is forbidden.
                 if (sending_date_time + timedelta(minutes=5) < self.get_local_time()):
-                    self.collections['history'].add_datepassed_maker(
+                    self.collections['history'].add_datepassed_marker(
                         participant,
                         dialogue['dialogue-id'],
                         interaction['interaction-id'])
@@ -828,19 +826,13 @@ class DialogueWorker(ApplicationWorker):
 
             ## Delayed action are always run even if there original interaction has been deleted
             if schedule.get_type() == 'action-schedule':
+                action = action_generator(**schedule['action'])
                 if schedule.is_expired(local_time):
-                    action = action_generator(**schedule['action'])
-                    history = {
-                        'object-type': 'datepassed-action-marker-history',
-                        'participant-phone': schedule['participant-phone'],
-                        'participant-session-id': schedule['participant-session-id'],
-                        'action-type': action.get_type(),
-                        'scheduled-date-time': schedule['date-time']}
-                    self.save_history(**history)
+                    self.collections['history'].add_datepassed_action_marker(action, schedule)
                     return
                 self.run_action(
                     schedule['participant-phone'], 
-                    action_generator(**schedule['action']),
+                    action,
                     schedule.get_context(),
                     schedule['participant-session-id'])
                 return
@@ -913,33 +905,19 @@ class DialogueWorker(ApplicationWorker):
             
             message_credits = self.properties.use_credits(message_content)
             if self.credit_manager.is_allowed(message_credits, schedule):
-                #yield self.transport_publisher.publish_message(message)
                 message = yield self.send_to(schedule['participant-phone'], message_content, **options)
-                message_status = 'pending'
-                self.log("Message has been sent to %s '%s'" % (message['to_addr'], message['content']))
-            else: 
-                message_credits = 0
-                if self.credit_manager.is_timeframed():
-                    message_status = 'no-credit'
-                else:
-                    message_status = 'no-credit-timeframe'
-                    self.log("%s, message hasn't been sent to %s '%s'" % (
-                        message_status, message['to_addr'], message['content']))
-            self.collections['history'].add_outgoing(
-                message, message_status, message_credits, context, schedule)
-
+                self.collections['history'].add_outgoing(
+                    message, message_credits, context, schedule)
+                return
+            if self.credit_manager.is_timeframed():
+                self.collections['history'].add_nocredit(
+                    message_content, context, schedule)
+            else:
+                self.collections['history'].add_nocredittimeframe(
+                    message_content, context, schedule) 
         except MissingData as e:
-            self.log("Error Missing Data: %s" % e.message)
-            history = {
-                'message-content': message_content,
-                'participant-phone': schedule['participant-phone'],
-                'message-direction': 'outgoing',
-                'message-status': 'missing-data',
-                'missing-data': [e.message],
-                'message-id': None,
-                'message-credits': 0}
-            history.update(context.get_dict_for_history(schedule))
-            self.save_history(**history)
+            self.collections['history'].add_missingdata(
+                message_content, e.message, context, schedule)
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log("Error send schedule: %r" %

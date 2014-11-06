@@ -56,7 +56,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             UnMatchingAnswerAction(**{'answer': 'best'}),
             context,
             '1')
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
         self.assertEqual(self.collections['history'].count(), 1)
         history = self.collections['history'].find_one()
@@ -127,6 +127,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertTrue(self.collections['participants'].find_one({'profile.value': 'Female'}))
         self.assertEqual(1, self.collections['schedules'].find({'participant-phone':'08'}).count())
 
+    @inlineCallbacks
     def test_run_action_feedback(self):
         self.initialize_properties()
 
@@ -140,7 +141,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             FeedbackAction(**{'content': 'message'}),
             context,
             '1')
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
         self.assertEqual(self.collections['history'].count(), 1)
         history = self.collections['history'].find_one()
@@ -346,10 +347,11 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
 
         self.worker.run_action('06', OptinAction())
         
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 0)
         self.assertEqual(self.collections['history'].count(), 0)
 
+    @inlineCallbacks
     def test_run_action_optin_double_option_error_message_in_setting(self):
         settings = self.mk_program_settings(
             double_optin_error_feedback='You are double optin')
@@ -358,9 +360,9 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.collections['participants'].save(
             self.mkobj_participant(participant_phone='06', session_id='1'))        
 
-        self.worker.run_action('06', OptinAction(),  Context(**{'request-id': '22'}), '1')
+        yield self.worker.run_action('06', OptinAction(),  Context(**{'request-id': '22'}), '1')
 
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages =  yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
         self.assertEqual(self.collections['history'].count(), 1)
 
@@ -368,6 +370,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(history['participant-session-id'], '1')
         self.assertEqual(history['participant-phone'], '06')
 
+    @inlineCallbacks
     def test_run_action_offset_condition(self):
         self.initialize_properties()
 
@@ -402,7 +405,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
                       'matching-answer': None})
 
         # Need to store the message into the history
-        self.worker.run_action("06", OffsetConditionAction(**{
+        yield self.worker.run_action("06", OffsetConditionAction(**{
             'dialogue-id': '01',
             'interaction-id': '01-02'}))
         self.assertEqual(
@@ -419,7 +422,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
                       'matching-answer': 'Fine'})
 
         # Need to store the message into the history
-        self.worker.run_action("06", OffsetConditionAction(**{
+        yield self.worker.run_action("06", OffsetConditionAction(**{
             'dialogue-id': '01',
             'interaction-id':'01-02'}))
         self.assertEqual(
@@ -427,7 +430,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             2)
         
         # Do not reschedule
-        self.worker.run_action("06", OffsetConditionAction(**{
+        yield self.worker.run_action("06", OffsetConditionAction(**{
             'dialogue-id': '01',
             'interaction-id':'01-02'}))        
         self.assertEqual(
@@ -443,7 +446,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             metadata={'dialogue-id': '04',
                       'interaction-id': '01-01'})
 
-        self.worker.run_action("06", OffsetConditionAction(**{
+        yield self.worker.run_action("06", OffsetConditionAction(**{
             'dialogue-id': '04',
             'interaction-id': '01-01'}))
         self.assertEqual(
@@ -701,10 +704,10 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             context,
             participant['session-id'])
         
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['transport_type'], 'http_forward')
-        self.assertEqual(messages[0]['from_addr'], 'test')
+        self.assertEqual(messages[0]['from_addr'], 'sphex')
         self.assertEqual(messages[0]['to_addr'], 'http://partner.com')
         self.assertEqual(
             messages[0]['transport_metadata'], 
@@ -737,7 +740,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             context,
             participant['session-id'])
         
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 0)
         history = DialogueHistory(**self.collections['history'].find_one())
         self.assertEqual(history['message-status'], 'received')
@@ -776,7 +779,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
                              'request-id': '1'})
         yield self.worker.run_action(sender['phone'], sms_forwarding, context)
         
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['to_addr'], receiver_optin['phone'])
         self.assertEqual(messages[0]['transport_type'], 'sms')
@@ -808,7 +811,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
                              'request-id': '1'})
         yield self.worker.run_action(sender['phone'], sms_forwarding, context)
         
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['to_addr'], sender['phone'])
         self.assertEqual(messages[0]['transport_type'], 'sms')
@@ -850,7 +853,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             'request-id': '1'})
         yield self.worker.run_action(sender['phone'], sms_forwarding, context) 
         
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 2)
         self.assertEqual(messages[0]['to_addr'], sender['phone'])
         self.assertEqual(messages[0]['content'], 'No patient is matching the phone number \'this\'.')

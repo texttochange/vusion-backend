@@ -56,29 +56,21 @@ class DialogueWorkerTestCase(VumiTestCase, DataLayerUtils, ObjectMaker, MessageM
         self.drop_collections()
         yield super(DialogueWorkerTestCase, self).tearDown()
 
-    #@inlineCallbacks
-    #def send(self, msg, routing_suffix='control'):
-        #if (routing_suffix == 'control'):
-            #routing_key = "%s.%s" % (self.control_name, routing_suffix)
-        #else:
-            #routing_key = "%s.%s" % (self.transport_name, routing_suffix)
-        #self.broker.publish_message('vumi', routing_key, msg)
-        #yield self.broker.kick_delivery()
-
-    #def save_history(self, message_content="hello world",
-                     #participant_phone="256", participant_session_id="1",
-                     #message_direction="outgoing", message_status="delivered",
-                     #timestamp=datetime.now(), metadata={}):
-        #history = {
-            #'message-content': message_content,
-            #'participant-session-id': participant_session_id,
-            #'participant-phone': participant_phone,
-            #'message-direction': message_direction,
-            #'message-status': message_status,
-            #'timestamp': time_to_vusion_format(timestamp)}
-        #for key in metadata:
-            #history[key] = metadata[key]
-        #self.collections['history'].save(history)
+    def save_history(self, message_content="hello world",
+                     participant_phone="256", participant_session_id="1",
+                     message_direction="outgoing", message_status="delivered",
+                     timestamp=datetime.now(), metadata={}):
+        history = {
+            'message-content': message_content,
+            'participant-session-id': participant_session_id,
+            'participant-phone': participant_phone,
+            'message-direction': message_direction,
+            'message-status': message_status,
+            'timestamp': time_to_vusion_format(timestamp),
+            'message-id': '1'}
+        for key in metadata:
+            history[key] = metadata[key]
+        self.collections['history'].save_history(**history)
 
     def initialize_properties(self, program_settings=None, shortcode=None, register_keyword=False):
         if program_settings is None:

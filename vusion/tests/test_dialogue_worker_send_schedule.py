@@ -10,6 +10,7 @@ from test_dialogue_worker import DialogueWorkerTestCase
 
 class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
 
+    @inlineCallbacks
     def test_send_scheduled_messages(self):
         self.initialize_properties()
         
@@ -64,7 +65,7 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
         self.worker.send_scheduled()
 
         participant_transport_metadata.update({'customized_id': 'myid'})
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.wait_for_dispatched_outbound(3)
         self.assertEqual(len(messages), 3)
         self.assertEqual(messages[0]['content'], 'Today will be sunny')
         self.assertEqual(messages[0]['transport_metadata'], participant_transport_metadata)
@@ -81,7 +82,8 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
         histories = self.collections['history'].find()
         for history in histories:
             self.assertTrue(history['participant-session-id'] is not None)
-            
+    
+    @inlineCallbacks       
     def test_send_scheduled_messages_with_priority(self):
         self.initialize_properties()
                 
@@ -121,7 +123,7 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
         
         self.worker.send_scheduled()
 
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.wait_for_dispatched_outbound(4)
         self.assertEqual(len(messages), 4)
         self.assertTrue('priority' in messages[0]['transport_metadata'])
         self.assertTrue('priority' in messages[1]['transport_metadata'])
@@ -167,7 +169,7 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
         self.assertEqual(saved_participant['session-id'], None)
         history = self.collections['history'].find_one({'object-type': 'oneway-marker-history'})
         self.assertTrue(history is not None)
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
         history = self.collections['history'].find_one({'object-type': 'dialogue-history'})
         self.assertEqual(history['participant-session-id'], '1')
@@ -245,7 +247,7 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
 
         yield self.worker.send_scheduled()
 
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['content'],
                          'What is your gender?\n male or female')
@@ -303,7 +305,7 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
         
         yield self.worker.send_scheduled()
         
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.wait_for_dispatched_outbound(2)
         self.assertEqual(len(messages), 2)
         histories = self.collections['history'].find()
         self.assertEqual(histories.count(), 3)
@@ -345,7 +347,7 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
         
         yield self.worker.send_scheduled()
         
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 0)
         histories = self.collections['history'].find()
         self.assertEqual(histories.count(), 1)
@@ -379,7 +381,7 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
 
         yield self.worker.send_scheduled()
 
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 0)
         histories = self.collections['history'].find()
         self.assertEqual(histories.count(), 1)

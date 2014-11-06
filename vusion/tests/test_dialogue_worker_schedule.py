@@ -467,7 +467,6 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
     def test_reschedule_reminder_after_one_way_marker_in_history(self):
         self.initialize_properties()
         
-        self.broker.dispatched = {}
         d_now = self.worker.get_local_time()
         d_enrolled = d_now - timedelta(minutes=60)
         d_interaction_send = d_enrolled + timedelta(minutes=3)

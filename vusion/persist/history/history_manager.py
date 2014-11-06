@@ -248,16 +248,6 @@ class HistoryManager(ModelManager):
             return None
         return history_generator(**result)
 
-
-    def add_datepassed_marker(self, participant, dialogue_id, interaction_id):
-        history = {
-            'object-type': 'datepassed-marker-history',
-            'participant-phone': participant['phone'],
-            'participant-session-id': participant['session-id'],
-            'dialogue-id': dialogue_id,
-            'interaction-id': interaction_id}
-        return self.save_history(**history)       
-
     def add_oneway_marker(self, participant_phone, participant_session_id,
                           context):
         if self.has_oneway_marker(participant_phone, participant_session_id, 
@@ -312,13 +302,76 @@ class HistoryManager(ModelManager):
             return False
         return True
 
-    def add_outgoing(self, message, message_status, message_credits, context, schedule):
+    def add_outgoing(self, message, message_credits, context, schedule):
+        self.log("Message has been sent to %s '%s'" % (message['to_addr'], message['content']))
         history = {
             'message-content': message['content'],
             'participant-phone': message['to_addr'],
             'message-direction': 'outgoing',
-            'message-status': message_status,
+            'message-status': 'pending',
             'message-id': message['message_id'],
             'message-credits': message_credits}
         history.update(context.get_dict_for_history(schedule))
+        return self.save_history(**history)
+
+    def add_nocredit(self, message_content, context, schedule):
+        self.log("NO CREDIT, message '%s' hasn't been sent to %s" % (
+            message_content, schedule['participant-phone']))        
+        history = {
+             'message-content': message_content,
+             'participant-phone': schedule['participant-phone'],
+             'message-direction': 'outgoing',
+             'message-status': 'no-credit',
+             'message-id': None,
+             'message-credits': 0}
+        history.update(context.get_dict_for_history(schedule))
+        return self.save_history(**history)
+
+    def add_nocredittimeframe(self, message_content, context, schedule):
+        self.log("OUT OF CREDIT TIMEFRAME, message '%s' hasn't been sent to %s" % (
+             message_content, schedule['participant-phone']))        
+        history = {
+             'message-content': message_content,
+             'participant-phone': schedule['participant-phone'],
+             'message-direction': 'outgoing',
+             'message-status': 'no-credit-timeframe',
+             'message-id': None,
+             'message-credits': 0}
+        history.update(context.get_dict_for_history(schedule))
+        return self.save_history(**history)
+
+    def add_missingdata(self, message_content, error_message, context, schedule):
+        self.log("MISSING DATA(%s): message '%s' hasn't been send to %s" % (
+            error_message, message_content, schedule['participant-phone']))
+        history = {
+            'message-content': message_content,
+            'participant-phone': schedule['participant-phone'],
+            'message-direction': 'outgoing',
+            'message-status': 'missing-data',
+            'missing-data': [error_message],
+            'message-id': None,
+            'message-credits': 0}
+        history.update(context.get_dict_for_history(schedule))
+        self.save_history(**history)
+
+    def add_datepassed_action_marker(self, action, schedule):
+        self.log("ADD DATEPASSED ACTION: action '%s' has been added for %s" % (
+                   action.get_type(), schedule['participant-phone']))
+        history = {
+            'object-type': 'datepassed-action-marker-history',
+            'participant-phone': schedule['participant-phone'],
+            'participant-session-id': schedule['participant-session-id'],
+            'action-type': action.get_type(),
+            'scheduled-date-time': schedule['date-time']}
+        self.save_history(**history)
+
+    def add_datepassed_marker(self, participant, dialogue_id, interaction_id):
+        self.log("ADD DATEPASSED: the message dialogue %s and interaction %s hasn't been send to %s" % (
+                   dialogue_id, interaction_id, participant['phone']))
+        history = {
+            'object-type': 'datepassed-marker-history',
+            'participant-phone': participant['phone'],
+            'participant-session-id': participant['session-id'],
+            'dialogue-id': dialogue_id,
+            'interaction-id': interaction_id}
         return self.save_history(**history)
