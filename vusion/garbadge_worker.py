@@ -5,7 +5,7 @@ import traceback
 
 from twisted.internet.defer import Deferred, inlineCallbacks
 
-import pymongo
+from pymongo import MongoClient
 from bson.objectid import ObjectId
 
 from vumi.application import ApplicationWorker
@@ -25,14 +25,16 @@ class GarbageWorker(ApplicationWorker):
 
     regex_KEYWORD = re.compile('KEYWORD')
 
-    def startWorker(self):
-        log.msg("Garbage Worker is starting")
-        super(GarbageWorker, self).startWorker()
+    def setup_application(self):
+        log.msg("Garbage Worker is starting with %r"% self.config)
 
-        connection = pymongo.Connection(self.config['mongodb_host'],
-                                        self.config['mongodb_port'],
-                                        safe=self.config.get('mongodb_safe', False))        
-        db = connection[self.config['database_name']]
+        mongo_client = MongoClient(
+            self.config['mongodb_host'],
+            self.config['mongodb_port'],
+            safe=self.config.get('mongodb_safe', False))
+        if self.config.get('mongodb_safe', False):
+            mongo_client.write_concern['j'] = True
+        db = mongo_client[self.config['database_name']]
         self.collections = {}
         self.collections['unmatchable_reply'] = UnmatchableReplyManager(
             db, 'unmatchable_reply')
@@ -43,6 +45,9 @@ class GarbageWorker(ApplicationWorker):
         self.logger = BasicLogger()        
         for manager in self.collections.itervalues():
             manager.set_log_helper(self.logger)
+
+    def teardown_application(self):
+        pass
 
     @inlineCallbacks
     def consume_user_message(self, msg):
@@ -70,27 +75,26 @@ class GarbageWorker(ApplicationWorker):
             if template is None:
                 return
 
-            error_message = TransportUserMessage(**{
-                'from_addr': get_shortcode_address(matching_code),
-                'to_addr': msg['from_addr'],
-                'transport_name': msg['transport_name'],
-                'transport_type': msg['transport_type'],
-                'transport_metadata': msg['transport_metadata'],
-                'content': re.sub(
+            response_to_addr = msg['from_addr']
+            response_content = re.sub(
                     self.regex_KEYWORD, 
                     get_first_word(msg['content']),
-                    template['template'])})
+                    template['template'])
+            response_options = {
+                'from_addr': get_shortcode_address(matching_code),
+                'transport_type': msg['transport_type'],
+                'transport_metadata': msg['transport_metadata']}
 
-            yield self.transport_publisher.publish_message(error_message)
+            yield self.send_to(response_to_addr, response_content, **response_options)
             response = UnmatchableReply(**{
-                'participant-phone': error_message['from_addr'],
-                'to': error_message['to_addr'],
+                'participant-phone': response_options['from_addr'],
+                'to': response_to_addr,
                 'direction': 'outgoing',
-                'message-content': error_message['content'],
+                'message-content': response_content,
                 'timestamp': msg['timestamp']})
             self.collections['unmatchable_reply'].save_document(response)
             self.collections['credit_log'].increment_outgoing(
-                matching_code.get_message_credits(error_message['content']),
+                matching_code.get_message_credits(response_content),
                 code=matching_code.get_vusion_reference())
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()

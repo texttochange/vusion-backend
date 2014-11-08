@@ -1,4 +1,4 @@
-import pymongo
+from pymongo import MongoClient
 
 from datetime import datetime
 
@@ -6,7 +6,8 @@ from twisted.trial.unittest import TestCase
 from twisted.internet.defer import inlineCallbacks
 
 from vumi.message import TransportUserMessage
-from vumi.tests.utils import get_stubbed_worker, UTCNearNow
+from vumi.tests.utils import VumiTestCase, UTCNearNow
+from vumi.application.tests.helpers import ApplicationHelper
 
 from tests.utils import MessageMaker, ObjectMaker
 from vusion.persist import (UnmatchableReplyManager, ShortcodeManager,
@@ -14,21 +15,22 @@ from vusion.persist import (UnmatchableReplyManager, ShortcodeManager,
 from vusion import GarbageWorker
 
 
-class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
+class GarabageWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
 
     @inlineCallbacks
     def setUp(self):
         self.config = {
-            'database_name': 'test',
-            'application_name': 'garbage',
-            'transport_name': 'garbage',
+            'database_name': 'garbage_test',
             'mongodb_host': 'localhost',
             'mongodb_port': 27017,
             'mongodb_safe': True}
+        
+        self.app_helper = self.add_helper(ApplicationHelper(GarbageWorker))
+        self.worker = yield self.app_helper.get_application(self.config)
 
-        connection = pymongo.Connection('localhost', 27017)
-        connection.safe = True
-        db = connection[self.config['database_name']]
+        mongo_client = MongoClient('localhost', 27017, w=1)
+        mongo_client.write_concern['j'] = True
+        db = mongo_client[self.config['database_name']]
         self.collections = {}
         self.collections['unmatchable_reply'] = UnmatchableReplyManager(
             db, 'unmatchable_reply')
@@ -39,25 +41,14 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
         self.collections['credit_log'] = GarbageCreditLogManager(
             db, 'credit_logs')
 
-        self.worker = get_stubbed_worker(GarbageWorker,
-                                         config=self.config)
-        self.broker = self.worker._amqp_client.broker
-        self.worker.startService()
-        yield self.worker.startWorker()
-
+    @inlineCallbacks
     def tearDown(self):
-        self.broker.dispatched = {}
         self.clearData()
+        yield super(GarabageWorkerTestCase, self).tearDown()
 
     def clearData(self):
         for collection in self.collections.itervalues():
             collection.drop()
-
-    @inlineCallbacks
-    def send(self, msg):
-        self.broker.publish_message(
-            'vumi', '%s.inbound' % self.config['transport_name'], msg)
-        yield self.broker.kick_delivery()
 
     @inlineCallbacks
     def test_receive_user_message_without_error_template(self):
@@ -67,10 +58,10 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
         self.collections['shortcode'].save(
             self.mkobj_shortcode(code='8282', international_prefix='256'))
 
-        yield self.send(msg)
+        yield self.app_helper.dispatch_inbound(msg)
 
         self.assertEqual(1, self.collections['unmatchable_reply'].count())
-        messages = self.broker.get_messages('vumi', 'garbage.outbound')
+        messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 0)
         self.assertEqual(1, self.collections['credit_log'].get_count(now, code='256-8282'))
 
@@ -85,11 +76,11 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
         self.collections['shortcode'].save(
             self.mkobj_shortcode(code='8282', international_prefix='256', error_template=template_id))
 
-        yield self.send(msg)
+        yield self.app_helper.dispatch_inbound(msg)
 
         self.assertTrue(2, self.collections['unmatchable_reply'].count())
         self.assertEqual(2, self.collections['credit_log'].get_count(now, code='256-8282'))
-        messages = self.broker.get_messages('vumi', 'garbage.outbound')
+        messages = yield self.app_helper.wait_for_dispatched_outbound(1)
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['content'],
                          'Gen does not match any keyword.')
@@ -110,10 +101,10 @@ class GarabageWorkerTestCase(TestCase, MessageMaker, ObjectMaker):
         shortcode_2 = self.mkobj_shortcode(error_template=template_2_id, code='8282')
         self.collections['shortcode'].save(shortcode_2)
 
-        yield self.send(msg)
+        yield self.app_helper.dispatch_inbound(msg)
 
         self.assertEqual(2, self.collections['unmatchable_reply'].count())
-        messages = self.broker.get_messages('vumi', 'garbage.outbound')
+        messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['content'],
                          'Gen is not good.')
