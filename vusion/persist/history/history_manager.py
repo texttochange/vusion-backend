@@ -365,7 +365,7 @@ class HistoryManager(ModelManager):
             'scheduled-date-time': schedule['date-time']}
         self.save_history(**history)
 
-    def add_datepassed_marker(self, participant, dialogue_id, interaction_id):
+    def add_datepassed_marker_for_interaction(self, participant, dialogue_id, interaction_id):
         self.log("ADD DATEPASSED: the message dialogue %s and interaction %s hasn't been send to %s" % (
                    dialogue_id, interaction_id, participant['phone']))
         history = {
@@ -374,4 +374,15 @@ class HistoryManager(ModelManager):
             'participant-session-id': participant['session-id'],
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id}
+        return self.save_history(**history)
+
+    def add_datepassed_marker(self, schedule, context):
+        self.log("ADD DATEPASSED: the schedule %r from context %r hasn't been send" % (
+            schedule, context))        
+        history = {
+            'object-type': 'datepassed-marker-history',
+            'participant-phone': schedule['participant-phone'],
+            'participant-session-id': schedule['participant-session-id'],
+            'scheduled-date-time': schedule['date-time']}
+        history.update(context.get_dict_for_history())
         return self.save_history(**history)

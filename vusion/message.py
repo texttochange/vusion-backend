@@ -7,6 +7,9 @@ class DispatcherControl(Message):
     def validate_fields(self):
         self.assert_field_present('action', 'exposed_name')
 
+    def get_routing_endpoint(self):
+        return 'default'
+
 
 class WorkerControl(Message):
 
@@ -37,7 +40,29 @@ class WorkerControl(Message):
             if not check(self[field]):
                 raise InvalidMessageField(self[field])
 
+    def get_routing_endpoint(self):
+        return 'default'
+
+
+class MultiWorkerControl(Message):
+
+    CONTROL_TYPES = {
+        'add_worker': {
+            'worker_name': lambda v: v is not None,
+            'worker_class': lambda v: v is not None,
+            'config': lambda v: v is not None},
+        'remove_worker': {
+            'worker_name': lambda v: v is not None}
+    }
+
+    def validate_fields(self):
+        self.assert_field_present('message_type')
+        if self['message_type'] not in self.CONTROL_TYPES:
+            raise MissingMessageField(self['action'])
+        for field, check in self.CONTROL_TYPES[self['message_type']].items():
+            self.assert_field_present(field)
+            if not check(self[field]):
+                raise InvalidMessageField(self[field])
 
     def get_routing_endpoint(self):
         return 'default'
-    

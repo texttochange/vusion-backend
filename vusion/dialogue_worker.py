@@ -51,7 +51,7 @@ from connectors import ReceiveWorkerControlConnector, SendControlConnector
 
 class DialogueWorker(ApplicationWorker):
 
-    def setup_application(self):
+    def setup_application(self):   
         self.sender = None
         self.r_prefix = None
         self.r_config = {}
@@ -111,10 +111,11 @@ class DialogueWorker(ApplicationWorker):
         #Will need to register the keywords
         self.load_properties(if_needed_register_keywords=True)
         self.sender = reactor.callLater(2, self.daemon_process)
-
+        
     def teardown_application(self):
         self.log("Worker is stopped.")
-        self.logger.stop()
+        if hasattr(self, 'logger'):
+            self.logger.stop()
         if self.is_ready():
             self.unregister_from_dispatcher()
         if (self.sender.active()):
@@ -687,7 +688,7 @@ class DialogueWorker(ApplicationWorker):
 
                 #Scheduling a date already in the past is forbidden.
                 if (sending_date_time + timedelta(minutes=5) < self.get_local_time()):
-                    self.collections['history'].add_datepassed_marker(
+                    self.collections['history'].add_datepassed_marker_for_interaction(
                         participant,
                         dialogue['dialogue-id'],
                         interaction['interaction-id'])
@@ -871,13 +872,7 @@ class DialogueWorker(ApplicationWorker):
 
             ## Do not run expired schedule
             if schedule.is_expired(local_time):
-                history = {
-                    'object-type': 'datepassed-marker-history',
-                    'participant-phone': schedule['participant-phone'],
-                    'participant-session-id': schedule['participant-session-id'],
-                    'scheduled-date-time': schedule['date-time']}
-                history.update(context.get_dict_for_history())
-                self.save_history(**history)
+                self.collections['history'].add_datepassed_marker(schedule, context)
                 return
                  
             options = {
@@ -935,7 +930,8 @@ class DialogueWorker(ApplicationWorker):
             self.send_to(phone_number, message_content, **options)
 
     def log(self, msg, level='msg'):
-        self.logger.log(msg, level)
+        if hasattr(self, 'logger'):
+            self.logger.log(msg, level)
 
     def get_keywords(self):
         keywords = self.collections['dialogues'].get_all_keywords()
