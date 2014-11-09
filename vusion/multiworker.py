@@ -33,6 +33,7 @@ class VusionMultiWorker(BaseWorker):
 
     WORKER_CREATOR = WorkerCreator
     CONFIG_CLASS = VusionMultiworkerConfig
+    UNPAUSE_CONNECTORS = True
 
     def _validate_config(self):
         config = self.get_static_config()
@@ -43,16 +44,17 @@ class VusionMultiWorker(BaseWorker):
         d = self.setup_connector(ReceiveMultiworkerControlConnector, self.application_name)
 
         def cb(connector):
-            connector.set_control_handler(self.consume_control)
+            connector.set_control_handler(self.dispatch_control)
             return connector
         
         return d.addCallback(cb)
 
     def setup_worker(self):
         d = maybeDeferred(self.setup_application)
+        if self.UNPAUSE_CONNECTORS:
+            d.addCallback(lambda r: self.unpause_connectors())        
         return d
     
-    @inlineCallbacks
     def setup_application(self):
         log.debug('Starting Multiworker %s' % (self.config,))
         
@@ -68,7 +70,6 @@ class VusionMultiWorker(BaseWorker):
 
         self.reload_workers_from_config_file()
         self.reload_workers_from_mongodb()
-        yield self.setup_control()
         
     def teardown_worker(self):
         d = self.pause_connectors()
@@ -78,6 +79,7 @@ class VusionMultiWorker(BaseWorker):
     @inlineCallbacks
     def teardown_application(self):
         for worker in self.workers.itervalues():
+            #in the unit test the worker.running is at 0 so the worker is not stopped
             yield worker.stopWorker()
             yield worker.stopService()
             worker.disownServiceParent()
@@ -94,8 +96,9 @@ class VusionMultiWorker(BaseWorker):
         """
         Create a child worker.
         """
-        worker = self.worker_creator.create_worker(worker_config['class'],
-                                                   worker_config['config'])
+        worker = self.worker_creator.create_worker(
+            worker_config['class'],
+            worker_config['config'])
         worker.setName(worker_config['name'])
         worker.setServiceParent(self)
         return worker
@@ -112,22 +115,6 @@ class VusionMultiWorker(BaseWorker):
     def reload_workers_from_mongodb(self):
         for worker_config in self.collections['worker_config'].get_worker_configs():
             self.add_worker(worker_config)
-
-    #def save_worker_config(self, worker_config):
-        #if worker_config.is_already_saved():
-            #return self.collections['worker_config'].save_document(worker_config)
-        ## need a update in case it's a overwriting from the config file
-        #return self.collections['worker_config'].update(
-            #{'name': worker_config['name']},
-            #{'$set': worker_config.get_as_dict()},
-            #True)
-
-    @inlineCallbacks
-    def setup_control(self):
-        self.control = yield self.consume(
-            '%s.control' % (self.config['application_name'],),
-            self.consume_control,
-            message_class=MultiWorkerControl)
 
     def add_worker(self, worker_config):
         if worker_config['name'] in self.workers:
@@ -153,8 +140,12 @@ class VusionMultiWorker(BaseWorker):
         self.workers.pop(worker_name)
 
     @inlineCallbacks
+    def dispatch_control(self, msg):
+        yield self.consume_control(msg)
+
+    @inlineCallbacks
     def consume_control(self, msg):
-        log.debug('Received Control %s' % (msg,))
+        log.debug('Received Control %r' % (msg,))
         try:
             if msg['message_type'] == 'add_worker':
                 self.add_worker(WorkerConfig(**{
@@ -164,5 +155,4 @@ class VusionMultiWorker(BaseWorker):
             if msg['message_type'] == 'remove_worker':
                 yield self.remove_worker(msg['worker_name'])
         except Exception as ex:
-            log.error("Control received: %s" % (msg))
             log.error("Unexpected error %s" % repr(ex))
