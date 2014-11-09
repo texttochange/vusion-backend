@@ -63,7 +63,8 @@ class VusionMultiWorker(BaseWorker):
 
         mongo_client = MongoClient(
             self.config['mongodb_host'],
-            self.config['mongodb_port'])
+            self.config['mongodb_port'],
+            w=1)
         db = mongo_client[self.config['vusion_database_name']]
         self.collections = {}
         self.collections['worker_config'] = WorkerConfigManager(db, 'workers')

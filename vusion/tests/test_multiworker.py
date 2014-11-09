@@ -94,7 +94,7 @@ class VusionMultiWorkerTestCase(VumiTestCase, MessageMaker):
         
         self.application_name = self.base_config['application_name']
         
-        mongo_client = MongoClient()
+        mongo_client = MongoClient(w=1)
         db = mongo_client[self.base_config['vusion_database_name']]
         self.collections = {} 
         self.collections['workers'] = db['workers']

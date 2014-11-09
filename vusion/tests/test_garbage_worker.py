@@ -29,7 +29,6 @@ class GarabageWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
         self.worker = yield self.app_helper.get_application(self.config)
 
         mongo_client = MongoClient('localhost', 27017, w=1)
-        mongo_client.write_concern['j'] = True
         db = mongo_client[self.config['database_name']]
         self.collections = {}
         self.collections['unmatchable_reply'] = UnmatchableReplyManager(
