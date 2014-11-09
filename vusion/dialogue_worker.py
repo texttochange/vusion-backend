@@ -6,7 +6,7 @@ import re
 from twisted.internet.defer import inlineCallbacks, Deferred, returnValue
 from twisted.internet import task, reactor
 
-import pymongo
+from pymongo import MongoClient
 from bson.objectid import ObjectId
 
 from redis import Redis
@@ -152,13 +152,13 @@ class DialogueWorker(ApplicationWorker):
         self.log("Connecting to database: %s" % self.database_name)
 
         #Initilization of the database
-        connection = pymongo.Connection(
+        mongo_client = MongoClient(
             self.config['mongodb_host'],
             self.config['mongodb_port'],
-            safe=self.config.get('mongodb_safe', False))
+            w=1) #write in safe mode by default
 
         ## Program specific
-        program_db = connection[self.database_name]
+        program_db = mongo_client[self.database_name]
         self.setup_collections(program_db, {'program_settings': None,
                                             'unattached_messages': None})
         self.collections['history'] = HistoryManager(program_db, 'history', self.r_prefix, self.r_server)
@@ -170,7 +170,7 @@ class DialogueWorker(ApplicationWorker):
         self.collections['unattached_messages'] = UnattachedMessageManager(program_db, 'unattached_messages')
 
         ## Vusion 
-        vusion_db = connection[self.vusion_database_name]
+        vusion_db = mongo_client[self.vusion_database_name]
         self.setup_collections(vusion_db, {'templates': None})
         self.collections['shortcodes'] = ShortcodeManager(
             vusion_db, 'shortcodes')

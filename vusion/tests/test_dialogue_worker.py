@@ -45,8 +45,6 @@ class DialogueWorkerTestCase(VumiTestCase, DataLayerUtils, ObjectMaker, MessageM
         
         #retrive all collections from worker
         self.collections = self.worker.collections
-        for collection in self.collections.itervalues():
-            collection.write_concern['j'] = True
         self.drop_collections()
         
         self.redis = StrictRedis()
