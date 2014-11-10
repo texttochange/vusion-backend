@@ -24,7 +24,7 @@ import re
 ##This transport is supposed to send and receive sms in 2 different ways.
 ##For MT, it uses the CM API POST
 ##For MO, it uses the CM API GET
-class CmTransport(Transport):
+class CmHttpTransport(Transport):
 
     transport_type = 'sms'
 
@@ -35,9 +35,9 @@ class CmTransport(Transport):
 
     @inlineCallbacks
     def setup_transport(self):
-        super(CmTransport, self).setup_transport()
+        log.msg("Setup CM transport %s" % self.config)        
+        super(CmHttpTransport, self).setup_transport()
         self._resources = []
-        log.msg("Setup CM transport %s" % self.config)
         self.cmparser = CMXMLParser(self.config)
         resources = [
             self.mkres(ReceiveSMSResource,
@@ -45,8 +45,12 @@ class CmTransport(Transport):
                        self.config['receive_path'])
         ]
         self.receipt_resource = yield self.start_web_resources(
-            resources,
-            self.config['receive_port'])
+            resources, self.config['receive_port'])
+
+    def teardown_transport(self):
+        log.msg("Stop CM Transport")
+        if hasattr(self, 'receipt_resource'):
+            return self.receipt_resource.stopListening()
 
     @inlineCallbacks
     def handle_outbound_message(self, message):
@@ -65,6 +69,7 @@ class CmTransport(Transport):
                  'Content-Type': ['application/json;charset=UTF-8'], },
                 'POST')
 
+            #TODO refactor with nack
             if response.code != 200:
                 log.msg("Http Error %s: %s"
                         % (response.code, response.delivered_body))
@@ -92,11 +97,6 @@ class CmTransport(Transport):
 
         except Exception as ex:
             log.msg("Unexpected error %s" % repr(ex))
-
-    def teardown_transport(self):
-        log.msg("Stop CM Transport")
-        if hasattr(self, 'receipt_resource'):
-            return self.receipt_resource.stopListening()
 
 
 class ReceiveSMSResource(Resource):

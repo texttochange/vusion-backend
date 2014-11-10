@@ -15,6 +15,8 @@ from vumi import log
 
 class MobivateHttpTransport(Transport):
     
+    tranport_type = 'sms'
+    
     def mkres(self, cls, publish_func, path_key):
         resource = cls(self.config, publish_func)
         self._resources.append(resource)
@@ -22,8 +24,9 @@ class MobivateHttpTransport(Transport):
         
     @inlineCallbacks
     def setup_transport(self):
-        self._resources = []
         log.msg("Setup mobivate transport %s" % self.config)
+        super(MobivateHttpTransport, self).setup_transport()
+        self._resources = []
         resources = [
             self.mkres(MobivateReceiveSMSResource,
                        self.publish_message,
@@ -34,11 +37,12 @@ class MobivateHttpTransport(Transport):
         ]
         self.receipt_resource = yield self.start_web_resources(
             resources, self.config['receive_port'])
-
-    def phone_format(self, phone):
-            regex = re.compile('^\+')
-            return re.sub(regex, '', phone)
  
+    def teardown_transport(self):
+        log.msg("Stop Mobivate Transport")
+        if hasattr(self, 'receipt_resource'):
+            return self.receipt_resource.stopListening() 
+
     @inlineCallbacks
     def handle_outbound_message(self, message):
         log.msg("Outbound message to be processed %s" % repr(message))
@@ -48,54 +52,38 @@ class MobivateHttpTransport(Transport):
                 'PASSWORD': self.config['password'],
                 'ORIGINATOR': message['from_addr'],
                 'MESSAGE_TEXT': message['content'],
-                'RECIPIENT': self.phone_format(message['to_addr']),
+                'RECIPIENT': message['to_addr'],
                 'REFERENCE': message['message_id']
             }
-            log.msg('Hitting %s with %s' % (self.config['url'], urlencode(params)))
+            encoded_params = urlencode(params)
+            log.msg('Hitting %s with %s' % (self.config['url'], encoded_params))
 
             response = yield http_request_full(
-                "%s?%s" % (self.config['url'], urlencode(params)),
-                "",
-                {'User-Agent': ['Vumi Mobivate Transport'],
-                 'Content-Type': ['application/json;charset=UTF-8'], },
-                'GET')
+                "%s?%s" % (self.config['url'], encoded_params),
+                headers={'User-Agent': ['Vumi Mobivate Transport'],
+                         'Content-Type': ['application/json;charset=UTF-8'], },
+                method='GET')
 
-            if response.code != 200:
-                log.msg("Http Error %s: %s"
-                        % (response.code, response.delivered_body))
-                yield self.publish_delivery_report(
-                    user_message_id=message['message_id'],
-                    sent_message_id=message['message_id'],
-                    delivery_status='failed',
-                    failure_level='http',
-                    failure_code=response.code,
-                    failure_reason=response.delivered_body)
-                return
-
-            response_content = response.delivered_body.split("\n")
-            response_status = response_content[0]
-            if (not response_status in ['0', '1']):
-                log.msg("Mobivate Error %s: %s" %
-                        (response_status, response_content[1]))
-                yield self.publish_delivery_report(
-                    user_message_id=message['message_id'],
-                    delivery_status='failed',
-                    failure_level='service',
-                    failure_code=response_status,
-                    failure_reason=response_content[1])
-                return
-
-            yield self.publish_ack(
-                user_message_id=message['message_id'],
-                sent_message_id=message['message_id'])
+            if response.code == http.OK:
+                response_content = response.delivered_body.split("\n")
+                response_status = response_content[0]
+                response_msg = response_content[1] if len(response_content) > 1 else ''
+                if (response_status in ['0', '1']):
+                    yield self.publish_ack(
+                        user_message_id=message['message_id'],
+                        sent_message_id=message['message_id'])
+                else: 
+                    reason = "SERVICE ERROR %s - %s" % (response_status, response_msg)
+                    yield self.publish_nack(message['message_id'], reason)
+            else:
+                reason = "HTTP ERROR %s - %s" % (response.code, response.delivered_body)
+                yield self.publish_nack(message['message_id'], reason)
+                
         except Exception as ex:
-            #add Nack or failure
             log.msg("Unexpected error %s" % repr(ex))
-
-    def stopWorker(self):
-        log.msg("stop Mobivate transport")
-        if hasattr(self, 'receipt_resource'):
-            return self.receipt_resource.stopListening()
+            reason = "TRANSPORT ERROR %s" % (ex.message)
+            yield self.publish_nack(message['message_id'], reason)
+        
     
 class MobivateReceiveSMSResource(Resource):
     isLeaf = True

@@ -8,8 +8,6 @@ from twisted.web import http
 from twisted.web.resource import Resource
 from twisted.trial.unittest import TestCase
 
-
-#from vumi.transports.tests.test_base import TransportTestCas
 from vumi.transports.tests.helpers import TransportHelper
 from vumi.tests.utils import (
     VumiTestCase, MockHttpServer, RegexMatcher, UTCNearNow)
@@ -17,7 +15,7 @@ from vumi.utils import http_request_full
 from vumi.message import TransportMessage, TransportEvent, TransportUserMessage
 
 from tests.utils import ObjectMaker
-from transports.cm_nl.cm_nl_http import CmTransport, CMXMLParser
+from transports.cm_netherlands.cm_nl_http import CmHttpTransport, CMXMLParser
 
 
 class CmParserTestCase(TestCase, ObjectMaker):
@@ -106,11 +104,7 @@ class CmParserTestCase(TestCase, ObjectMaker):
         #self.assertEqual(expected, output)
 
 
-class CmTransportTestCase(VumiTestCase):
-
-    #transport_name = 'cm'
-    #transport_type = 'sms'
-    #transport_class = CmTransport
+class CmHttpTransportTestCase(VumiTestCase):
 
     cm_incomming_template = (
         'http://localhost:%s%s?recipient=0041791234567&'
@@ -122,13 +116,8 @@ class CmTransportTestCase(VumiTestCase):
         self.mock_cm = MockHttpServer(self.handle_request)
         self.mock_server_response = ''
         self.mock_server_response_code = http.OK
-        yield self.mock_cm.start()
-        
-        #yield super(CmTransportTestCase, self).setUp()
-        #self.send_path = '/sendsms'
-        #self.send_port = 9999
+        yield self.mock_cm.start()        
         self.config = {
-            #'url': 'http://localhost:%s%s' % (self.send_port, self.send_path),
             'url': self.mock_cm.url,
             'login': 'login',
             'password': 'password',
@@ -139,16 +128,13 @@ class CmTransportTestCase(VumiTestCase):
             'maximum_number_of_message_part': '3'
         }
         self.tx_helper = self.add_helper(
-            TransportHelper(CmTransport))
-        #self.worker = yield self.get_transport(self.config)
+            TransportHelper(CmHttpTransport))
         self.transport = yield self.tx_helper.get_transport(self.config)
-        #self.transport_url = self.transport.get_transport_url()
-        self.today = datetime.utcnow().date()
 
     @inlineCallbacks
     def tearDown(self):
         yield self.mock_cm.stop()
-        yield super(CmTransportTestCase, self).tearDown()
+        yield super(CmHttpTransportTestCase, self).tearDown()
 
     def handle_request(self, request):
         self.cm_calls.put(request)
@@ -194,13 +180,6 @@ class CmTransportTestCase(VumiTestCase):
             session_event=session_event,
             timestamp=UTCNearNow())
 
-    #def make_resource_worker(self, msg, code=http.OK, send_id=None):
-        #w = get_stubbed_worker(TestResourceWorker, {})
-        #w.set_resources([
-            #(self.send_path, TestResource, (msg, code, send_id))])
-        #self._workers.append(w)
-        #return w.startWorker()
-
     @inlineCallbacks
     def test_outbound_ok(self):
         yield self.tx_helper.make_dispatch_outbound(
@@ -212,6 +191,7 @@ class CmTransportTestCase(VumiTestCase):
         self.assertEqual(req.args, {})
         self.assertEqual(ack['event_type'], 'ack')
         self.assertEqual(ack['user_message_id'], '1')
+        self.assertEqual(ack['sent_message_id'], '1')
 
     @inlineCallbacks
     def test_outbound_http_failure(self):
