@@ -69,34 +69,21 @@ class CmHttpTransport(Transport):
                  'Content-Type': ['application/json;charset=UTF-8'], },
                 'POST')
 
-            #TODO refactor with nack
-            if response.code != 200:
-                log.msg("Http Error %s: %s"
-                        % (response.code, response.delivered_body))
-                yield self.publish_delivery_report(
-                    user_message_id=message['message_id'],
-                    delivery_status='failed',
-                    failure_level='http',
-                    failure_code=response.code,
-                    failure_reason=response.delivered_body)
-                return
-
-            if response.delivered_body:
-                log.msg("Cm Error: %s" % (response.delivered_body))
-                yield self.publish_delivery_report(
-                    user_message_id=message['message_id'],
-                    delivery_status='failed',
-                    failure_level='service',
-                    failure_code=0,
-                    failure_reason=response.delivered_body)
-                return
-
-            yield self.publish_ack(
-                user_message_id=message['message_id'],
-                sent_message_id=message['message_id'])
+            if response.code == http.OK:
+                if response.delivered_body in [None, '']:
+                    yield self.publish_ack(message['message_id'],
+                                           message['message_id'])
+                else:
+                    reason = "SERVICE ERROR - %s" % (response.delivered_body)
+                    yield self.publish_nack(message['message_id'], reason)
+            else:
+                reason = "HTTP ERROR %s - %s" % (response.code, response.delivered_body)
+                yield self.publish_nack(message['message_id'], reason)
 
         except Exception as ex:
             log.msg("Unexpected error %s" % repr(ex))
+            reason = "TRANSPORT ERROR %s" % (ex.message)
+            yield self.publish_nack(message['message_id'], reason)            
 
 
 class ReceiveSMSResource(Resource):

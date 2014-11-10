@@ -198,23 +198,23 @@ class CmHttpTransportTestCase(VumiTestCase):
         self.mock_server_response = "timeout"
         self.mock_server_response_code = http.REQUEST_TIMEOUT
 
-        yield self.tx_helper.make_dispatch_outbound("hello world")
-        [fail] = yield self.tx_helper.wait_for_dispatched_events(1)
-        self.assertEqual('http', fail['failure_level'])
-        self.assertEqual(http.REQUEST_TIMEOUT, fail['failure_code'])
-        self.assertEqual('timeout', fail['failure_reason'])
-
+        yield self.tx_helper.make_dispatch_outbound(
+            "hello world", message_id='1')
+        [event] = yield self.tx_helper.wait_for_dispatched_events(1)
+        self.assertEqual(event['event_type'], 'nack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['nack_reason'], 'HTTP ERROR 408 - timeout')
 
     @inlineCallbacks
     def test_outbound_service_failure(self):
         self.mock_server_response = "Error: ERROR Unknown error"
         self.mock_server_response_code = http.OK
         
-        yield self.tx_helper.make_dispatch_outbound("Hello world")
-        [fail] = yield self.tx_helper.wait_for_dispatched_events(1)
-        self.assertEqual('service', fail['failure_level'])
-        self.assertEqual("Error: ERROR Unknown error", fail['failure_reason'])
-
+        yield self.tx_helper.make_dispatch_outbound("Hello world", message_id='1')
+        [event] = yield self.tx_helper.wait_for_dispatched_events(1)
+        self.assertEqual(event['event_type'], 'nack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['nack_reason'], "SERVICE ERROR - Error: ERROR Unknown error")
 
     @inlineCallbacks
     def test_inbound(self):
