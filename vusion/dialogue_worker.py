@@ -72,7 +72,6 @@ class DialogueWorker(ApplicationWorker):
         self.last_script_used = None
         self.r_key = 'vusion:programs:' + self.config['database_name']
         self.r_server = Redis(**self.r_config)
-        #self._d.callback(None)
 
         # Component / Manager initialization
         self.logger = RedisLogger(
@@ -114,8 +113,7 @@ class DialogueWorker(ApplicationWorker):
         
     def teardown_application(self):
         self.log("Worker is stopped.")
-        if hasattr(self, 'logger'):
-            self.logger.stop()
+        self.logger.stop()
         if self.is_ready():
             self.unregister_from_dispatcher()
         if (self.sender.active()):
@@ -325,13 +323,10 @@ class DialogueWorker(ApplicationWorker):
                 self.get_local_time(), 
                 action['offset-days']['days'],
                 action['offset-days']['at-time'])
-            schedule = ActionSchedule(**{
-                'participant-phone': participant_phone,
-                'participant-session-id': participant_session_id,
-                'date-time': schedule_time,
-                'action': EnrollingAction(**{'enroll': action['enroll']}).get_as_dict(),
-                'context': context.get_dict_for_history()})
-            self.collections['schedules'].save_schedule(schedule)
+            action = EnrollingAction(**{'enroll': action['enroll']})
+            self.collections['schedules'].add_action(
+                participant_phone, participant_session_id,
+                schedule_time, action, context)
         elif (action.get_type() == 'profiling'):
             self.collections['participants'].labelling(
                 participant_phone, action['label'], action['value'], context['message'])
@@ -742,38 +737,24 @@ class DialogueWorker(ApplicationWorker):
             return
         
         #get number for already send reminders
-        interaction_histories = self.collections['history'].find({
-            'participant-phone': participant['phone'],
-            'participant-session-id': participant['session-id'],
-            'message-direction': 'outgoing',
-            'dialogue-id': dialogue['dialogue-id'],
-            'interaction-id': interaction['interaction-id']})
-        
-        already_send_reminder_count = interaction_histories.count() - 1 if interaction_histories.count() > 0 else 0
+        already_send_reminder_count = self.collections['history'].count_reminders(
+            participant, dialogue['dialogue-id'], interaction['interaction-id'])
 
         #adding reminders
         reminder_times = interaction.get_reminder_times(interaction_date_time)
         for reminder_time in reminder_times[already_send_reminder_count:]:
-            reminder = ReminderSchedule(**{
-                'participant-phone': participant['phone'],
-                'participant-session-id': participant['session-id'],
-                'date-time': reminder_time,
-                'dialogue-id': dialogue['dialogue-id'],
-                'interaction-id': interaction['interaction-id']})
-            self.collections['schedules'].save_schedule(reminder)
+            self.collections['schedules'].add_reminder(
+                participant, reminder_time,
+                dialogue['dialogue-id'], interaction['interaction-id'])
         
         #adding deadline
         deadline_time = interaction.get_deadline_time(interaction_date_time)
         #We don't schedule deadline in the past
         if deadline_time < self.get_local_time():
             deadline_time = self.get_local_time()
-        deadline = DeadlineSchedule(**{
-            'participant-phone': participant['phone'],
-            'participant-session-id': participant['session-id'],
-            'date-time': interaction.get_deadline_time(interaction_date_time),
-            'dialogue-id': dialogue['dialogue-id'],
-            'interaction-id': interaction['interaction-id']})
-        self.collections['schedules'].save_schedule(deadline)
+        self.collections['schedules'].add_deadline(
+            participant, deadline_time, 
+            dialogue['dialogue-id'], interaction['interaction-id'])
     
     # TODO move to the properties helper
     def get_local_time(self, date_format='datetime'):

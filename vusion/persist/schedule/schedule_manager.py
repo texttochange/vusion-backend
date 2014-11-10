@@ -6,7 +6,9 @@ from twisted.internet.defer import returnValue, inlineCallbacks
 
 from vusion.persist.cursor_instanciator import CursorInstanciator
 from vusion.persist import ModelManager, schedule_generator
-from vusion.persist.schedule.schedule import Schedule, UnattachSchedule
+from vusion.persist.schedule.schedule import (
+    Schedule, UnattachSchedule, DeadlineSchedule, ReminderSchedule,
+    ActionSchedule)
 
 
 class ScheduleManager(ModelManager):
@@ -153,3 +155,30 @@ class ScheduleManager(ModelManager):
             yield self.save_unattach_schedule(participant, unattach)
         else:
             yield self.remove_unattach_schedule(participant, unattach)
+
+    def add_reminder(self, participant, reminder_time, dialogue_id, interaction_id):
+        reminder = ReminderSchedule(**{
+            'participant-phone': participant['phone'],
+            'participant-session-id': participant['session-id'],
+            'date-time': reminder_time,
+            'dialogue-id': dialogue_id,
+            'interaction-id': interaction_id})
+        return self.save_schedule(reminder)
+
+    def add_deadline(self, participant, deadline_time, dialogue_id, interaction_id):
+        deadline = DeadlineSchedule(**{
+            'participant-phone': participant['phone'],
+            'participant-session-id': participant['session-id'],
+            'date-time': deadline_time,
+            'dialogue-id': dialogue_id,
+            'interaction-id': interaction_id})
+        return self.save_schedule(deadline)
+
+    def add_action(self, participant_phone, participant_session_id, schedule_time, action, context):
+        schedule = ActionSchedule(**{
+            'participant-phone': participant_phone,
+            'participant-session-id': participant_session_id,
+            'date-time': schedule_time,
+            'action': action.get_as_dict(),
+            'context': context.get_dict_for_history()})
+        self.save_schedule(schedule)

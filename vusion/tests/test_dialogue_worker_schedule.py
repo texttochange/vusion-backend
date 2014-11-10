@@ -337,7 +337,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         d_interaction_reminder_send = d_interaction_send + timedelta(minutes=3)
         d_interaction_deadline = d_interaction_reminder_send + timedelta(minutes=3)
 
-        dialogue = Dialogue(**self.mkobj_dialogue_open_question_reminder())
+        dialogue = Dialogue(**self.mkobj_dialogue_open_question_reminder(reminder_number=2))
         interaction = dialogue['interactions'][0]
 
         participant = self.mkobj_participant(

@@ -386,3 +386,13 @@ class HistoryManager(ModelManager):
             'scheduled-date-time': schedule['date-time']}
         history.update(context.get_dict_for_history())
         return self.save_history(**history)
+
+    def count_reminders(self, participant, dialogue_id, interaction_id):
+        count = self.collection.find({
+            'participant-phone': participant['phone'],
+            'participant-session-id': participant['session-id'],
+            'message-direction': 'outgoing',
+            'dialogue-id': dialogue_id,
+            'interaction-id': interaction_id}).count()
+        return count - 1 if count > 0 else 0
+        
