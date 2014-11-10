@@ -21,32 +21,28 @@ from vumi import log
 from vumi.utils import get_first_word
 from vumi.errors import VumiError
 
-from vusion.utils import (time_to_vusion_format, get_local_time,
-                          get_local_time_as_timestamp, time_from_vusion_format,
-                          get_shortcode_value, get_offset_date_time,
-                          split_keywords, add_char_to_pattern,
-                          dynamic_content_notation_to_string)
-from vusion.error import (MissingData, SendingDatePassed, VusionError,
-                          MissingTemplate, MissingProperty)
+from vusion.utils import (
+    time_to_vusion_format, get_local_time, get_local_time_as_timestamp,
+    time_from_vusion_format, get_shortcode_value, get_offset_date_time,
+    split_keywords, add_char_to_pattern, dynamic_content_notation_to_string)
+from vusion.error import (
+    MissingData, SendingDatePassed, VusionError, MissingTemplate,
+    MissingProperty)
 from vusion.message import DispatcherControl, WorkerControl
 from vusion.context import Context
-from vusion.component import (DialogueWorkerPropertyHelper, CreditManager,
-                              RedisLogger)
+from vusion.component import (
+    DialogueWorkerPropertyHelper, CreditManager, RedisLogger)
 
-from vusion.persist.action import (Actions, action_generator,FeedbackAction,
-                                   EnrollingAction, OptinAction, OptoutAction,
-                                   RemoveRemindersAction)
-from vusion.persist import (Request, ContentVariable, Dialogue,
-                            FeedbackSchedule, UnattachSchedule, ActionSchedule,
-                            DialogueSchedule, ReminderSchedule, DeadlineSchedule,
-                            Participant, UnattachedMessage,
-                            history_generator,
-                            HistoryManager, ContentVariableManager,
-                            DialogueManager, RequestManager, ParticipantManager,
-                            ScheduleManager, ProgramCreditLogManager,
-                            ShortcodeManager, UnattachedMessageManager)
+from vusion.persist.action import (
+    Actions, action_generator, FeedbackAction, EnrollingAction, OptinAction,
+    OptoutAction, RemoveRemindersAction)
+from vusion.persist import (
+    FeedbackSchedule, HistoryManager, ContentVariableManager, DialogueManager,
+    RequestManager, ParticipantManager, ScheduleManager,
+    ProgramCreditLogManager, ShortcodeManager, UnattachedMessageManager)
 
-from connectors import ReceiveWorkerControlConnector, SendControlConnector
+from vusion.connectors import (
+    ReceiveWorkerControlConnector, SendControlConnector)
 
 
 class DialogueWorker(ApplicationWorker):
@@ -692,15 +688,12 @@ class DialogueWorker(ApplicationWorker):
                     continue
 
                 if (not schedule):
-                    schedule = DialogueSchedule(**{
-                        'date-time': sending_date_time,
-                        'participant-phone': participant['phone'],
-                        'participant-session-id': participant['session-id'],
-                        'dialogue-id': dialogue['dialogue-id'],
-                        'interaction-id': interaction["interaction-id"]})
+                    self.collections['schedules'].add_dialogue(
+                        participant, sending_date_time,
+                        dialogue['dialogue-id'], interaction['interaction-id'])
                 else:
                     schedule.set_time(sending_date_time)
-                self.collections['schedules'].save_schedule(schedule)
+                    self.collections['schedules'].save_schedule(schedule)
                 self.schedule_participant_reminders(participant, dialogue, interaction, sending_date_time)
                 self.update_time_next_daemon_iteration()
         except:

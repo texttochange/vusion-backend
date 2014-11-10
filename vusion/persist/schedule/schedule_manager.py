@@ -8,7 +8,7 @@ from vusion.persist.cursor_instanciator import CursorInstanciator
 from vusion.persist import ModelManager, schedule_generator
 from vusion.persist.schedule.schedule import (
     Schedule, UnattachSchedule, DeadlineSchedule, ReminderSchedule,
-    ActionSchedule)
+    ActionSchedule, DialogueSchedule)
 
 
 class ScheduleManager(ModelManager):
@@ -181,4 +181,14 @@ class ScheduleManager(ModelManager):
             'date-time': schedule_time,
             'action': action.get_as_dict(),
             'context': context.get_dict_for_history()})
-        self.save_schedule(schedule)
+        return self.save_schedule(schedule)
+
+    def add_dialogue(self, participant, schedule_time, dialogue_id, interaction_id):
+        schedule = DialogueSchedule(**{
+            'date-time': schedule_time,
+            'participant-phone': participant['phone'],
+            'participant-session-id': participant['session-id'],
+            'dialogue-id': dialogue_id,
+            'interaction-id': interaction_id})
+        return self.save_schedule(schedule)
+        
