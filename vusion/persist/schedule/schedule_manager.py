@@ -13,9 +13,9 @@ class ScheduleManager(ModelManager):
     
     def __init__(self, db, collection_name, **kwargs):
         super(ScheduleManager, self).__init__(db, collection_name, **kwargs)
-        self.collection.ensure_index('date-time', backgound=True)
+        self.collection.ensure_index('date-time', background=True)
         self.collection.ensure_index([
-            ('participant-phone',1), ('interaction-id', 1)], backgroun=True)
+            ('participant-phone',1), ('interaction-id', 1)], background=True)
 
     def save_schedule(self, schedule):
         if not isinstance(schedule, Schedule):
