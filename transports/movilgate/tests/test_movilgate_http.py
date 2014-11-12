@@ -11,9 +11,6 @@ from vumi.transports.tests.helpers import TransportHelper
 from vumi.tests.utils import (
     VumiTestCase, MockHttpServer, RegexMatcher, UTCNearNow)
 from vumi.utils import http_request_full
-from vumi.message import TransportMessage, TransportEvent, TransportUserMessage
-
-from tests.utils import MessageMaker
 
 from transports.movilgate.movilgate_http import (
     MovilgateHttpTransport, MovilgateXMLParser)
@@ -111,8 +108,7 @@ class MovilgateParserTestCase(TestCase):
             reporter), reporter.tostring())
 
 
-class MovilgateHttpTransportTestCase(VumiTestCase, MessageMaker,
-                                     MovilgateRequestMaker):
+class MovilgateHttpTransportTestCase(VumiTestCase, MovilgateRequestMaker):
 
     @inlineCallbacks
     def setUp(self):

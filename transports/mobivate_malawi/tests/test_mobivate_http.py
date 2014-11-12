@@ -8,13 +8,11 @@ from vumi.transports.tests.helpers import TransportHelper
 from vumi.tests.utils import (
     VumiTestCase, MockHttpServer, RegexMatcher, UTCNearNow)
 from vumi.utils import http_request_full
-from vumi.message import TransportMessage, TransportEvent, TransportUserMessage
 
-from tests.utils import MessageMaker
 from transports import MobivateHttpTransport
 
 
-class MobivateHttpTransportTestCase(VumiTestCase, MessageMaker):
+class MobivateHttpTransportTestCase(VumiTestCase):
 
     @inlineCallbacks
     def setUp(self):
@@ -106,27 +104,3 @@ class MobivateHttpTransportTestCase(VumiTestCase, MessageMaker):
         self.assertEqual(event['event_type'], 'delivery_report')
         self.assertEqual(event['user_message_id'], 'ABC123')
         self.assertEqual(event['delivery_status'], 'delivered')
-
-
-class TestResource(Resource):
-    isLeaf = True
-    
-    def __init__(self, response, code=http.OK, send_id=None):
-        self.response = response
-        self.code = code
-        self.send_id = send_id
-        
-    def render_GET(self, request):
-        regex = re.compile('^(\+|00|0)[0-9]*')
-        request.setResponseCode(self.code)
-        if (not ('RECIPIENT' in request.args) or
-                regex.match(request.args['RECIPIENT'][0]) or
-                not ('ORIGINATOR' in request.args) or
-                not ('USER_NAME' in request.args) or
-                not ('PASSWORD' in request.args) or
-                not ('MESSAGE_TEXT' in request.args) or
-                not ('REFERENCE' in request.args) or
-                (self.send_id is not None and self.send_id != request.args['originator'][0])):
-            return "501"
-        else:
-            return self.response
