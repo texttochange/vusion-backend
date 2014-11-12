@@ -1,6 +1,6 @@
 from urllib import urlencode, unquote
 from urlparse import parse_qs
-import re
+import re, sys, traceback
 
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks
@@ -80,7 +80,10 @@ class MobivateHttpTransport(Transport):
                 yield self.publish_nack(message['message_id'], reason)
                 
         except Exception as ex:
-            log.msg("Unexpected error %s" % repr(ex))
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            log.error(
+                "TRANSPORT ERROR: %r" %
+                traceback.format_exception(exc_type, exc_value, exc_traceback))            
             reason = "TRANSPORT ERROR %s" % (ex.message)
             yield self.publish_nack(message['message_id'], reason)
         
