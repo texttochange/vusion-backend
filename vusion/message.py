@@ -23,7 +23,7 @@ class WorkerControl(Message):
         'reload_program_settings': {},
         'mass_tag':{
             'tag': lambda v: v is not None,
-            'selector': lambda v: v is not None},
+            'selector': lambda v: v is None or isinstance(v, dict)},
         'mass_untag': {
             'tag': lambda v: v is not None}
     }

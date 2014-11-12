@@ -88,6 +88,29 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
         self.assertEqual(1, self.collections['schedules'].count())
 
     @inlineCallbacks
+    def test_consume_control_mass_tag_empty_selector(self):
+        self.initialize_properties()
+        self.broker.dispatched = {}
+        dNow = self.worker.get_local_time()
+
+        self.collections['participants'].save(
+            self.mkobj_participant(participant_phone='10', tags=['mombasa']))
+        self.collections['participants'].save(
+            self.mkobj_participant(participant_phone='11', tags=['mombasa']))
+        unattach = self.mkobj_unattach_message(
+            send_to_type='match',
+            send_to_match_operator='all',
+            send_to_match_conditions=['mombasa'])
+        unattach_id = self.collections['unattached_messages'].save(unattach)
+
+        event = self.mkmsg_dialogueworker_control(**{
+            'action':'mass_tag',
+            'tag': 'mombasa',
+            'selector': None})
+        yield self.send(event, 'control')
+        self.assertEqual(2, self.collections['schedules'].count())
+
+    @inlineCallbacks
     def test_consume_control_mass_untag(self):
         self.initialize_properties()
         self.broker.dispatched = {}
