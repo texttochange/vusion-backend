@@ -15,6 +15,7 @@ from vumi import log
 class MovilgateHttpTransport(Transport):
     
     mandatory_metadata_fields = ['servicio_id', 'telefono_id_tran']
+    tranport_type = 'sms'
     
     def mkres(self, cls, publish_func, path_key = None):
         resource = cls(self.config, publish_func)
@@ -27,8 +28,9 @@ class MovilgateHttpTransport(Transport):
         
     @inlineCallbacks
     def setup_transport(self):
-        self._resources = []
         log.msg("Setup mobivate transport %s" % self.config)
+        super(MovilgateHttpTransport, self).setup_transport()
+        self._resources = []
         resources = [
             self.mkres(MovilgateReceiveSMSResource,
                        self.publish_message)
@@ -36,7 +38,8 @@ class MovilgateHttpTransport(Transport):
         self.receipt_resource = yield self.start_web_resources(
             resources, self.config['receive_port'])
 
-    def stopWorker(self):
+    def teardown_transport(self):
+        log.msg("Stop Movilgate Transport")
         if hasattr(self, 'receipt_resource'):
             return self.receipt_resource.stopListening()
 
@@ -68,53 +71,38 @@ class MovilgateHttpTransport(Transport):
                 {'User-Agent': ['Vusion Movilgate Transport'],
                  'Content-Type': ['text/xml; charset=UTF-8']},
                 method='POST')
-            
-            if response.code != 200:
-                log.msg("Http Error %s: %s"
-                        % (response.code, response.delivered_body))
-                if response.code == 500:
+                        
+            if response.code != http.OK:
+                if response.code == http.INTERNAL_SERVER_ERROR:
                     headers = dict(response.headers.getAllRawHeaders())
-                    [reason] = headers.get('X-Movilgate-Status', '')
-                    yield self.publish_delivery_report(
-                        user_message_id=message['message_id'],
-                        delivery_status='failed',
-                        failure_level='service',
-                        failure_code='',
-                        failure_reason=reason)
+                    [reason_msg] = headers.get('X-Movilgate-Status', '')
+                    reason = "SERVICE ERROR %s - %s" % (response.code, reason_msg)
+                    yield self.publish_nack(message['message_id'], reason) 
                 else:
-                    yield self.publish_delivery_report(
-                        user_message_id=message['message_id'],
-                        delivery_status='failed',
-                        failure_level='http',
-                        failure_code=response.code,
-                        failure_reason=response.delivered_body)
+                    reason = "HTTP ERROR %s - %s" % (
+                        response.code, response.delivered_body)                    
+                    yield self.publish_nack(message['message_id'], reason)
+                log.msg("%s" % reason)                
                 return
             
             resp = ElementTree.fromstring(response.delivered_body)
             status = resp.find('Transaccion').attrib['estado']
             if status != "0":
-                yield self.publish_delivery_report(
-                    user_message_id=message['message_id'],
-                    delivery_status='failed',
-                    failure_level='service',
-                    failure_code=status,
-                    failure_reason=resp.find('Texto').text)
+                reason = "SERVICE ERROR %s - %s" % (
+                    status, resp.find('Texto').text)
+                yield self.publish_nack(message['message_id'], reason)
                 return
             
             yield self.publish_ack(
                 user_message_id=message['message_id'],
                 sent_message_id=message['message_id'])
-        except:
+        except Exception as ex:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             log.error(
-                "Error during consume user message: %r" %
+                "TRANSPORT ERROR: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
-            yield self.publish_delivery_report(
-                user_message_id=message['message_id'],
-                delivery_status='failed',
-                failure_level='internal',
-                failure_code=0,
-                failure_reason=traceback.format_exc())
+            reason = "TRANSPORT ERROR %s" % (ex.message)
+            yield self.publish_nack(message['message_id'], reason)  
 
 
 class MovilgateReceiveSMSResource(Resource):
