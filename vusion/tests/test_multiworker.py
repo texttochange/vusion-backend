@@ -53,8 +53,8 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
 
     def setUp(self):
         DataLayerUtils.__init__(self)
-        conn = pymongo.Connection()
-        self.db = conn[self.base_config['vusion_database_name']]
+        self.conn = pymongo.Connection()
+        self.db = self.conn[self.base_config['vusion_database_name']]
         self.setup_collection('workers')
         self.collections['workers'].drop()
 
@@ -62,7 +62,13 @@ class VusionMultiWorkerTestCase(TestCase, MessageMaker, DataLayerUtils):
     def tearDown(self):
         yield self.worker.wait_for_workers()
         yield self.worker.stopService()
-        self.collections['workers'].drop()
+        self.cleanData()
+
+    def cleanData(self):
+        self.conn.drop_database('test')
+        self.conn.drop_database('test2')
+        self.conn.drop_database('test3')
+        self.conn.drop_database(self.base_config['vusion_database_name'])
 
     def send_control(self, rkey, message, exchange='vumi'):
         self.broker.publish_message(exchange,

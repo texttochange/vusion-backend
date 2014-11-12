@@ -63,7 +63,7 @@ class MessageMaker:
             user_message_id=user_message_id,
             sent_message_id=sent_message_id,
             timestamp=UTCNearNow(),
-            transport_name=transport_name,
+            transport_name=self.transport_name,
             transport_metadata=transport_metadata
         )
 
