@@ -43,16 +43,16 @@ class TestDialogue(TestCase, ObjectMaker):
         actions = Actions()        
         dialogue.get_matching_reference_and_actions("feel 1", actions, context)
         self.assertEqual(context['matching-answer'], 'Fine')
-        self.assertEqual(len(actions), 3)
+        self.assertEqual(len(actions), 4)
         self.assertEqual(
             actions[0],
             RemoveQuestionAction(**{'dialogue-id': '01',
                                     'interaction-id': '01-01'}))
         self.assertEqual(
-            actions[1], 
+            actions[2], 
             FeedbackAction(**{'content': 'thank you'}))
         self.assertEqual(
-            actions[2],
+            actions[3],
             FeedbackAction(**{'content': 'thank you again'}))
 
     def test_get_matching_ref_and_action_closed_question_fail_index_lower(self):
@@ -87,7 +87,7 @@ class TestDialogue(TestCase, ObjectMaker):
         actions = Actions()        
         dialogue.get_matching_reference_and_actions("feel ok", actions, context)
         self.assertEqual(context['matching-answer'], 'Ok')
-        self.assertEqual(len(actions), 1)
+        self.assertTrue(actions.contains('profiling'))
     
     def test_get_matching_ref_and_action_closed_question_ok_choice_2_word(self):
         raw_dialogue = self.mkobj_dialogue_question_answer()
@@ -98,7 +98,7 @@ class TestDialogue(TestCase, ObjectMaker):
         actions = Actions()        
         dialogue.get_matching_reference_and_actions("feel ok", actions, context)
         self.assertEqual(context['matching-answer'], 'Ok')
-        self.assertEqual(len(actions), 1)    
+        self.assertTrue(actions.contains('profiling'))
 
     def test_get_matching_ref_and_action_closed_question_ok_keywords(self):
         dialogue = Dialogue(**self.mkobj_dialogue_question_answer())
@@ -107,7 +107,7 @@ class TestDialogue(TestCase, ObjectMaker):
         actions = Actions()                
         dialogue.get_matching_reference_and_actions("fel ok", actions, context)
         self.assertEqual(context['matching-answer'], 'Ok')
-        self.assertEqual(len(actions), 1)
+        self.assertTrue(actions.contains('profiling'))
 
     def test_get_matching_ref_and_action_closed_question_fail_keyword(self):
         dialogue = Dialogue(**self.mkobj_dialogue_question_answer())
@@ -125,10 +125,7 @@ class TestDialogue(TestCase, ObjectMaker):
         actions = Actions()        
         dialogue.get_matching_reference_and_actions('fEel FíNe', actions, context)
         self.assertEqual(context['matching-answer'], 'Fine')
-        self.assertEqual(len(actions), 3)
-        self.assertEqual(actions[0].get_type(), 'remove-question')
-        self.assertEqual(actions[1].get_type(), 'feedback')
-        self.assertEqual(actions[2].get_type(), 'feedback')
+        self.assertTrue(actions.contains('profiling'))
 
     def test_get_matching_ref_and_action_closed_question_ok_unsensitive_end_message(self):
         dialogue = Dialogue(**self.mkobj_dialogue_question_answer())
@@ -140,8 +137,37 @@ class TestDialogue(TestCase, ObjectMaker):
         self.assertEqual(context['dialogue-id'], '01')
         self.assertEqual(context['interaction-id'], '01-01')
         self.assertEqual(context['matching-answer'], 'Ok')
-        self.assertEqual(len(actions), 1)
-        self.assertEqual(actions[0].get_type(), 'remove-question')
+        self.assertTrue(actions.contains('remove-question'))
+
+    def test_get_interaction_actions_closed_question(self):
+        dialogue = Dialogue(**self.mkobj_dialogue_question_answer())
+        actions = Actions()
+        interaction_id = "01-01"
+        answer = 'fine'
+        dialogue.get_interaction_actions(actions, interaction_id, answer)
+        self.assertEqual(len(actions), 4)
+        self.assertFalse(actions.contains("unmatching-answer"))
+        self.assertTrue(actions.contains("profiling"))
+
+    def test_get_interaction_actions_question_multi_keyword(self):
+        dialogue = Dialogue(**self.mkobj_dialogue_question_multi_keyword())
+        actions = Actions()
+        interaction_id = "05"
+        answer = 'female'
+        dialogue.get_interaction_actions(actions, interaction_id, answer)
+        self.assertEqual(len(actions), 3)
+        self.assertFalse(actions.contains("unmatching-answer"))
+        self.assertTrue(actions.contains("feedback"))
+
+    def test_get_interaction_actions_open_question(self):
+        dialogue = Dialogue(**self.mkobj_dialogue_open_question())
+        actions = Actions()
+        interaction_id = "01-01"
+        answer = 'female'
+        dialogue.get_interaction_actions(actions, interaction_id, answer)
+        self.assertEqual(len(actions), 3)
+        self.assertFalse(actions.contains("unmatching-answer"))
+        self.assertTrue(actions.contains("profiling"))
 
     ## TODO: add a test with double word choice    
     def test_get_matching_ref_and_action_closed_question_no_space(self):

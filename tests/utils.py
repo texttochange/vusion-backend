@@ -501,7 +501,7 @@ class ObjectMaker:
                      {'choice': 'Ok',
                       'feedbacks': [{'content': 'Thank you'}],
                       'answer-actions':[{'type-answer-action': 'enrolling',
-                                         'enroll': '2'}]}]}]
+                                         'enroll': '0'}]}]}]
         }).get_as_dict()
 
     def mkobj_dialogue_question_offset_conditional(self):
@@ -572,7 +572,8 @@ class ObjectMaker:
                  'label-for-participant-profiling': 'gender',
                  "answer-keywords": [
                      {"keyword": "maLe"},
-                     {"keyword": "female"}]
+                     {"keyword": "female",
+                      "feedbacks": [{'content': 'Thank you'}]}]
                  }]}).get_as_dict()
 
     def mkobj_dialogue_open_question(self):
@@ -682,6 +683,7 @@ class ObjectMaker:
              'keyword': 'FEEL, Fel',
              'type-question': 'closed-question',
              'set-use-template': None,
+             'label-for-participant-profiling': 'status',
              'answers': [
                  {'choice': 'Fine',
                   'feedbacks': [

@@ -130,3 +130,14 @@ class TestDialogueManager(TestCase, ObjectMaker):
         #Assert the dialogue is now loaded
         self.assertTrue('0' in self.dialogue_manager.loaded_dialogues)
         self.assertTrue(isinstance(self.dialogue_manager.loaded_dialogues['0'], Dialogue));
+
+    def test_get_actions(self):
+        dialogue = self.mkobj_dialogue_question_answer()
+        self.dialogue_manager.save(dialogue)
+
+        actions = self.dialogue_manager.get_actions(
+            dialogue['dialogue-id'],
+            dialogue['interactions'][1]['interaction-id'],
+            'Olivier')
+
+        self.assertTrue(actions.contains('profiling'))
