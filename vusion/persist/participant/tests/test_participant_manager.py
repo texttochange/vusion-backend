@@ -142,7 +142,6 @@ class TestParticipantManager(TestCase, ObjectMaker):
         self.assertEqual(
             {'token': '11'},
             participant['transport_metadata'])
-        
 
     def test_get_participant(self):
         self.manager.save(self.mkobj_participant('1'))

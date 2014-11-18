@@ -532,7 +532,7 @@ class Actions():
         self.actions = []
 
     def append(self, action):
-        if action.get_type == "optin" or action.get_type == "enrolling":
+        if action.get_type() in ["optin", "enrolling", "reset"]:
             self.actions.insert(0, action)
         else:
             self.actions.append(action)
