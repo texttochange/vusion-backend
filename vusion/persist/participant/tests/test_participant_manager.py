@@ -121,8 +121,6 @@ class TestParticipantManager(TestCase, ObjectMaker):
         participant = self.manager.get_participant('1')
         self.assertTrue(participant.is_enrolled('1'))
         
-
-    #TODO: check default behavior, shouldn't be like tagging?
     def test_labelling(self):
         participant = self.mkobj_participant(
             '1', 
@@ -133,8 +131,7 @@ class TestParticipantManager(TestCase, ObjectMaker):
         self.manager.labelling('1', 'name', 'Olivier', 'name Olivier')
         participant = self.manager.get_participant('1')
         self.assertEqual(
-            [{'label': 'name','value': 'Olivier', 'raw': None},
-             {'label': 'name','value': 'Olivier', 'raw': 'name Olivier'}],
+            [{'label': 'name','value': 'Olivier', 'raw': 'name Olivier'}],
             participant['profile'])
 
     def test_save_transport_medadata(self):
