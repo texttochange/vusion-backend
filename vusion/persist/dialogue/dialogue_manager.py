@@ -4,6 +4,7 @@ import pymongo
 from bson.objectid import ObjectId
 
 from vusion.persist import ModelManager, Dialogue
+from vusion.persist.action import Actions
 
 
 class DialogueManager(ModelManager):
@@ -74,6 +75,12 @@ class DialogueManager(ModelManager):
                 message_content, actions, context)
             if context.is_matching():
                 return
+
+    def get_actions(self, dialogue_id, interaction_id, answer):
+        actions = Actions()
+        dialogue = self.get_current_dialogue(dialogue_id)
+        dialogue.get_interaction_actions(actions, interaction_id, answer)
+        return actions
 
     def get_dialogue_interaction(self, dialogue_id, interaction_id):
         dialogue = self.get_current_dialogue(dialogue_id)

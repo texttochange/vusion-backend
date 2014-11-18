@@ -113,6 +113,15 @@ class Dialogue(Model):
                     'dialogue-id': dialogue_id,
                     'interaction-id': interaction_to_schedule}))
 
+    def get_interaction_actions(self, actions, interaction_id, answer):
+        interaction = self.get_interaction(interaction_id)
+        if interaction.is_open_question():    #horrible hack
+            keywords = interaction.get_keywords()
+            fake_msg = "%s %s" % (keywords[0], answer)
+        else:
+            fake_msg = answer
+        interaction.get_actions(self['dialogue-id'], fake_msg, answer, answer, {}, actions)
+
     def get_all_keywords(self):
         keywords = []
         if self.payload['interactions'] is None:

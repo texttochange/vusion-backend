@@ -69,6 +69,11 @@ class ParticipantManager(ModelManager):
     
     def labelling(self, participant_phone, label, value, raw, safe=True):
         self.collection.update(
+                    {'phone': participant_phone,
+                     'session-id': {'$ne': None}},
+                    {'$pull': {'profile': {'label': label}}},
+                    safe=safe)
+        self.collection.update(
             {'phone': participant_phone,
              'session-id': {'$ne': None}},
             {'$push': {'profile': {'label': label,

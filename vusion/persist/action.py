@@ -532,10 +532,25 @@ class Actions():
         self.actions = []
 
     def append(self, action):
-        if action.get_type == "optin" or action.get_type == "enrolling":
-            self.actions.insert(0, action)
+        if action.get_type() in ["optin", "enrolling", "reset"]:
+            i = 0
+            if action.get_type() == "enrolling":
+                i = self.get_position_after(["optin", "reset"])
+            if action.get_type() == "reset":
+                i = self.get_position_after(["optin"])
+            self.actions.insert(i, action)
         else:
             self.actions.append(action)
+
+    def get_position_after(self, action_types):
+        if len(self.actions) == 0:
+            return 0
+        i = 0
+        while (self.actions[i].get_type() in action_types):
+            i = i + 1
+            if len(self.actions) <= i:
+                return i
+        return i
 
     def extend(self, actions):
         for action in actions:
