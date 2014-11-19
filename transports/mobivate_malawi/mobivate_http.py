@@ -24,7 +24,7 @@ class MobivateHttpTransport(Transport):
         
     @inlineCallbacks
     def setup_transport(self):
-        log.msg("Setup mobivate transport %s" % self.config)
+        log.msg("Setup Mobivate Transport %s" % self.config)
         super(MobivateHttpTransport, self).setup_transport()
         self._resources = []
         resources = [
@@ -35,17 +35,17 @@ class MobivateHttpTransport(Transport):
                        self.publish_delivery_report,
                        "DeliveryReciept")
         ]
-        self.receipt_resource = yield self.start_web_resources(
+        self.web_resource = yield self.start_web_resources(
             resources, self.config['receive_port'])
  
     def teardown_transport(self):
         log.msg("Stop Mobivate Transport")
-        if hasattr(self, 'receipt_resource'):
-            return self.receipt_resource.stopListening() 
+        if hasattr(self, 'web_resource'):
+            return self.web_resource.stopListening()
 
     @inlineCallbacks
     def handle_outbound_message(self, message):
-        log.msg("Outbound message to be processed %s" % repr(message))
+        log.msg("Outbound message %s" % repr(message))
         try:
             params = {
                 'USER_NAME': self.config['user_name'],
