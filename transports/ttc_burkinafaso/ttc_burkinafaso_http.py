@@ -12,29 +12,32 @@ from vumi import log
 from vumi.utils import http_request_full
 
 
-class TtcBfHttpTransport(Transport):
+class TtcBurkinafasoHttpTransport(Transport):
+    
+    tranport_type = 'sms'
     
     def mk_resource_worker(self, cls, publish_func, path_key):
         resource = cls(self.config, publish_func)
-        self.resources.append(resource)
+        self._resources.append(resource)
         return (resource, self.config['receive_path'])
 
     @inlineCallbacks
     def setup_transport(self):
-        self.resources = []
         log.msg("Setup TTC Burkina transport %s" %self.config)
+        super(TtcBurkinafasoHttpTransport, self).setup_transport()
+        self._resources = []
         resources = [
             self.mk_resource_worker(
                 TtcBfMoResource,
                 self.publish_message,
                 self.config['receive_path'])]
-        self.resources = yield self.start_web_resources(
+        self.web_resources = yield self.start_web_resources(
             resources, self.config['receive_port'])
 
-    def stopWorker(self):
+    def teardown_transport(self):
         log.msg("Stop TTC Burkina transport")
-        if hasattr(self, 'resources'):
-            return self.resources.stopListening()
+        if hasattr(self, 'web_resources'):
+            return self.web_resources.stopListening()
 
     @inlineCallbacks
     def handle_outbound_message(self, message):
@@ -60,26 +63,20 @@ class TtcBfHttpTransport(Transport):
                 
             response_body = response.delivered_body                
             if  response_body in [None, '']:
-                log.err("HTTP TTC Burkina Error %s: %s" % (response.code, response_body))
-                yield self.publish_delivery_report(
-                    user_message_id=message['message_id'],
-                    delivery_status='failed',
-                    failure_level='http',
-                    failure_code=str(response.code),
-                    failure_reason=response_body)
+                reason = "HTTP ERROR %s - %s" % (response.code, response.delivered_body)
+                yield self.publish_nack(message['message_id'], reason)
                 return
 
-            log.err("TTC Burkina Error %s: %s" % (response.code, response_body))
-            yield self.publish_delivery_report(
-                user_message_id=message['message_id'],
-                delivery_status='failed',
-                failure_level='service',
-                failure_code=str(response.code),
-                failure_reason=response_body)
-
-        except:
+            reason = "SERVICE ERROR %s - %s" % (response.code, response_body)
+            yield self.publish_nack(message['message_id'], reason)
+        
+        except Exception as ex:
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            log.err("Unexpected error %r" % traceback.format_exception(exc_type, exc_value, exc_traceback))
+            log.error(
+                "TRANSPORT ERROR: %r" %
+                traceback.format_exception(exc_type, exc_value, exc_traceback))            
+            reason = "TRANSPORT ERROR %s" % (ex.message)
+            yield self.publish_nack(message['message_id'], reason)
 
 
 class TtcBfMoResource(Resource):
