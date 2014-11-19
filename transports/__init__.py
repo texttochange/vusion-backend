@@ -4,10 +4,10 @@ from movilgate.movilgate_http import MovilgateHttpTransport
 from mobtech_malawi.mobtech_http import MobtechHttpTransport
 from ttc_burkinafaso.ttc_burkinafaso_http import TtcBurkinafasoHttpTransport
 from yo_uganda.yo_http import YoHttpTransport
+from smsgh_ghana.smsgh_smpp import SmsghSmppTransport
 
 
 from push_tz_smpp import PushTzSmppTransport
-from smsgh_smpp import SmsghSmppTransport
 from orange_mali_smpp import OrangeMaliSmppTransport
 from enhanced_smpp.enhanced_client import EnhancedSmppTransport
 
