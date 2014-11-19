@@ -14,25 +14,19 @@ from vumi.utils import http_request_full
 
 class MobtechMlHttpTransport(Transport):
     
+    transport_type = 'sms'
+    
     def make_resource_worker(self, cls, publish_func, path_key):
         resource = cls(self.config, publish_func)
-        self.resources.append(resource)
+        self._resources.append(resource)
         path = '%s/%s' % (self.config['receive_path'], path_key)
         return (resource, path)
 
-    #deprecated
-    def mk_delivery_url(self, message):
-        return 'http://%s:%s/%s/%s?messageid=%s&%s' % (self.config['domain'], 
-                                                    self.config['receive_port'], 
-                                                    self.config['receive_path'], 
-                                                    self.config['delivery_receive_path'], 
-                                                    message['message_id'],
-                                                    self.config['delivery_url_params'])
-
     @inlineCallbacks
     def setup_transport(self):
-        self.resources = []
-        log.msg("Setup MobTech transport %s" %self.config)
+        log.msg("Setup MobTech Transport %s" % self.config)
+        super(MobtechMlHttpTransport, self).setup_transport()
+        self._resources = []
         self.mt_response_regex = re.compile(self.config['mt_response_regex'])
         resources = [
             self.make_resource_worker(
@@ -43,8 +37,13 @@ class MobtechMlHttpTransport(Transport):
                 MobtechMlDeliveryResource,
                 self.publish_delivery_report,
                 self.config['delivery_receive_path'])]
-        self.resources = yield self.start_web_resources(
+        self.web_resource = yield self.start_web_resources(
             resources, self.config['receive_port'])
+
+    def teardown_transport(self):
+        log.msg("Stop Mobtech Transport")
+        if hasattr(self, 'web_resource'):
+            return self.web_resource.stopListening()
 
     @inlineCallbacks
     def handle_outbound_message(self, message):
@@ -67,45 +66,29 @@ class MobtechMlHttpTransport(Transport):
                 'POST')
             
             if response.code != 200:
-                log.err("HTTP Error %s: %s" % (response.code, response.delivered_body))
-                yield self.publish_delivery_report(
-                    user_message_id=message['message_id'],
-                    delivery_status='failed',
-                    failure_level='http',
-                    failure_code=str(response.code),
-                    failure_reason=response.delivered_body)
+                reason = "HTTP ERROR %s - %s" % (response.code, response.delivered_body)
+                yield self.publish_nack(message['message_id'], reason)
                 return
-
+            
             match = re.match(self.mt_response_regex, response.delivered_body)
             response_body = match.groupdict()
             if (response_body['status'] != "0"):
                 keys = response_body.keys()
-                log.err("Mobtech Error %s: %s" % (response_body['status'], response_body['message']))
-                yield self.publish_delivery_report(
-                    user_message_id=message['message_id'],
-                    delivery_status='failed',
-                    failure_level='service',
-                    failure_code=response_body['status'],
-                    failure_reason=response_body['message'])
+                reason = "SERVICE ERROR %s - %s" % (response_body['status'], response_body['message'])
+                #log.err("Mobtech Error %s: %s" % (response_body['status'], response_body['message']))
+                yield self.publish_nack(message['message_id'], reason)
                 return
 
             yield self.publish_ack(
                 user_message_id=message['message_id'],
                 sent_message_id=message['message_id'])
-        except:
+        except Exception as ex:
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            log.err("Unexpected error %r" % traceback.format_exception(exc_type, exc_value, exc_traceback))
-            yield self.publish_delivery_report(
-                user_message_id=message['message_id'],
-                delivery_status='failed',
-                failure_level='transport',
-                failure_code='',
-                failure_reason=response.delivered_body)
-
-    def stopWorker(self):
-        log.msg("Stop Mobtech transport")
-        if hasattr(self, 'resources'):
-            return self.resources.stopListening()
+            log.error(
+                "TRANSPORT ERROR: %r" %
+                traceback.format_exception(exc_type, exc_value, exc_traceback))            
+            reason = "TRANSPORT ERROR %s" % (ex.message)
+            yield self.publish_nack(message['message_id'], reason)
 
 
 class MobtechMlMoResource(Resource):
