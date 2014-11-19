@@ -1,5 +1,5 @@
-# -*- test-case-name: tests.test_yo_ug_http -*-
-
+import re, sys, traceback
+from xml.etree import ElementTree
 from urllib import urlencode, unquote
 from urlparse import parse_qs
 
@@ -9,16 +9,11 @@ from twisted.internet.error import ConnectionRefusedError
 from twisted.web import http
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
+from twisted.internet import defer
 
 from vumi.transports.base import Transport
 from vumi.transports.httprpc import HttpRpcTransport
-
 from vumi.utils import http_request_full, normalize_msisdn
-from twisted.internet import defer
-
-from xml.etree import ElementTree
-
-import re
 
 
 ##This transport is supposed to send and receive sms in 2 different ways.
@@ -81,7 +76,10 @@ class CmHttpTransport(Transport):
                 yield self.publish_nack(message['message_id'], reason)
 
         except Exception as ex:
-            log.msg("Unexpected error %s" % repr(ex))
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            log.error(
+                "TRANSPORT ERROR: %r" %
+                traceback.format_exception(exc_type, exc_value, exc_traceback))
             reason = "TRANSPORT ERROR %s" % (ex.message)
             yield self.publish_nack(message['message_id'], reason)            
 
