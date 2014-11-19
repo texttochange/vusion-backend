@@ -1,11 +1,11 @@
 from cm_netherlands.cm_nl_http import CmHttpTransport
 from mobivate_malawi.mobivate_http import MobivateHttpTransport
 from movilgate.movilgate_http import MovilgateHttpTransport
-from mobtech_malawi.mobtech_http import MobtechMlHttpTransport
+from mobtech_malawi.mobtech_http import MobtechHttpTransport
 from ttc_burkinafaso.ttc_burkinafaso_http import TtcBurkinafasoHttpTransport
+from yo_uganda.yo_http import YoHttpTransport
 
 
-from yo_ug_http import YoUgHttpTransport
 from push_tz_smpp import PushTzSmppTransport
 from smsgh_smpp import SmsghSmppTransport
 from orange_mali_smpp import OrangeMaliSmppTransport
@@ -22,7 +22,7 @@ __all__ = [
     "PushTransport",
     "PushTzSmppTransport",
     "MovilgateHttpTransport",
-    "MobtechMlHttpTransport",
+    "MobtechHttpTransport",
     "SmsghSmppTransport",
     "TtcBurkinafasoHttpTransport",
     "ForwardHttp", "CioecHttp"

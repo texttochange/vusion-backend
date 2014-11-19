@@ -16,33 +16,36 @@ from twisted.web.server import NOT_DONE_YET
 from vumi.transports.base import Transport
 from vumi.utils import http_request_full, normalize_msisdn
 from twisted.internet import defer
-#defer.setDebugging(True)
 
 
-class YoUgHttpTransport(Transport):
+class YoHttpTransport(Transport):
 
+    tranport_type = 'sms'
+    
     def mkres(self, cls, publish_func, path_key):
         resource = cls(self.config, publish_func)
         self._resources.append(resource)
         return (resource, self.config['receive_path'])
 
-    def phone_format_to_yo(self, phone):
-        regex = re.compile('^\+')
-        return re.sub(regex, '', phone)
-
     @inlineCallbacks
     def setup_transport(self):
-        self._resources = []
         log.msg("Setup yo transport %s" % self.config)
+        super(YoHttpTransport, self).setup_transport()
+        self._resources = []
         resources = [self.mkres(YoReceiveSMSResource,
                                 self.publish_message,
                                 self.config['receive_path'])]
-        self.receipt_resource = yield self.start_web_resources(
+        self.web_resources = yield self.start_web_resources(
             resources, self.config['receive_port'])
 
+    def teardown_transport(self):
+        log.msg("STOP YO Transport")
+        if hasattr(self, 'web_resources'):
+            return self.web_resources.stopListening()
+        
     @inlineCallbacks
     def handle_outbound_message(self, message):
-        log.msg("Outbound message to be processed %s" % repr(message))
+        log.msg("Outbound message %s" % repr(message))
         try:
             origin = (self.config['default_origin'] if not "customized_id" in message['transport_metadata'] else message['transport_metadata']['customized_id'])
             params = {
@@ -50,7 +53,7 @@ class YoUgHttpTransport(Transport):
                 'password': self.config['password'],
                 'origin': origin,
                 'sms_content': message['content'].encode('utf-8'),
-                'destinations': self.phone_format_to_yo(message['to_addr']),
+                'destinations': message['to_addr'],
             }
             log.msg('Hitting %s with %s' % (self.config['url'], urlencode(params)))
 
@@ -62,49 +65,30 @@ class YoUgHttpTransport(Transport):
                 'GET')
 
             if response.code != 200:
-                log.msg("Http Error %s: %s"
-                        % (response.code, response.delivered_body))
-                yield self.publish_delivery_report(
-                    user_message_id=message['message_id'],
-                    delivery_status='failed',
-                    failure_level='http',
-                    failure_code=response.code,
-                    failure_reason=response.delivered_body)
+                reason = "HTTP ERROR %s - %s" % (response.code, response.delivered_body)
+                yield self.publish_nack(message['message_id'], reason)
                 return
 
             response_attr = parse_qs(unquote(response.delivered_body))
             [ybs_status] = response_attr['ybs_autocreate_status']
             ybs_msg = response_attr['ybs_autocreate_message'][0] if 'ybs_autocreate_message' in response_attr else None
             if (ybs_status == 'ERROR'):
-                log.msg("Yo Error %s: %s" % (response.code,
-                                             response.delivered_body))
-                yield self.publish_delivery_report(
-                    user_message_id=message['message_id'],
-                    delivery_status='failed',
-                    failure_level='service',
-                    failure_code=ybs_status,
-                    failure_reason=ybs_msg
-                )
+                reason = "SERVICE ERROR %s - %s" % (ybs_status, ybs_msg)
+                yield self.publish_nack(message['message_id'], reason)                
                 return
 
             yield self.publish_ack(
                 user_message_id=message['message_id'],
-                sent_message_id=message['message_id']
-            )
-        except Exception as e:
+                sent_message_id=message['message_id'])
+                
+        except Exception as ex:
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            log.msg("Unexpected error %r" % traceback.format_exception(exc_type, exc_value, exc_traceback))
-            yield self.publish_delivery_report(
-                user_message_id=message['message_id'],
-                delivery_status='failed',
-                failure_level='unexpected',
-                failure_code='',
-                failure_reason=e.message)
+            log.error(
+                "TRANSPORT ERROR: %r" %
+                traceback.format_exception(exc_type, exc_value, exc_traceback))            
+            reason = "TRANSPORT ERROR %s" % (ex.message)
+            yield self.publish_nack(message['message_id'], reason)
 
-    def stopWorker(self):
-        log.msg("stop yo transport")
-        if hasattr(self, 'receipt_resource'):
-            return self.receipt_resource.stopListening()
 
 
 class YoReceiveSMSResource(Resource):
@@ -116,13 +100,6 @@ class YoReceiveSMSResource(Resource):
         self.publish_func = publish_func
         self.transport_name = self.config['transport_name']
 
-    def phone_format_from_yo(self, phone):
-        regex = re.compile('^[(00)(\+)]')
-        regex_single = re.compile('^0')
-        phone = re.sub(regex, '', phone)
-        phone = re.sub(regex_single, '', phone)
-        return ('+%s' % phone)
-
     @inlineCallbacks
     def do_render(self, request):
         log.msg('got hit with %s' % request.args)
@@ -133,7 +110,7 @@ class YoReceiveSMSResource(Resource):
                 transport_name=self.transport_name,
                 transport_type='sms',
                 to_addr=(request.args['code'][0] if request.args['code'][0]!='' else self.config['default_origin']),
-                from_addr=self.phone_format_from_yo(request.args['sender'][0]),
+                from_addr=request.args['sender'][0],
                 content=request.args['message'][0],
                 transport_metadata={}
             )
