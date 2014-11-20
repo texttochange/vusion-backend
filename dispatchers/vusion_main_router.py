@@ -33,7 +33,7 @@ class VusionMainRouter(ContentKeywordRouter):
             return None
         if msg['transport_type'] == 'sms':
             match_transport_name = transport_mappings.get(msg['from_addr'])
-        elif msg['transport_type'] == 'http_forward':
+        elif msg['transport_type'] == 'http_api':
             match_transport_name = transport_mappings
         if match_transport_name is None:
             return None

@@ -12,22 +12,19 @@ class TestVusionMainRouter(VumiTestCase):
     def setUp(self):
         self.disp_helper = self.add_helper(
             DispatcherHelper(BaseDispatchWorker))
-        #yield super(TestVusionMainRouter, self).setUp()
         self.config = {
             'dispatcher_name': 'keyword_dispatcher',
-            'router_class': 'dispatchers.VusionMainRouter',
+            'router_class': 'dispatchers.VusionMainRouter',            
             'transport_names': [
                 'transport1', 
                 'transport2',
                 'transport2-priority',
                 'transport-http'],
             'transport_mappings':{
-                'http_forward': 'transport-http',
+                'http_api': 'transport-http',
                 'sms': {
                     'shortcode1': 'transport1',
-                    'shortcode2': {
-                        'default': 'transport2',
-                        'prioritized': 'transport2-priority'}}},
+                    'shortcode2': 'transport2'}},
             'exposed_names': ['app1', 'app2', 'app3', 'fallback_app'],
             'rules': [{'app': 'app1',
                        'keyword': 'espanol',
@@ -71,27 +68,19 @@ class TestVusionMainRouter(VumiTestCase):
 
     @inlineCallbacks
     def test_outbound_message_routing(self):
-    
-        #msg = self.mkmsg_out(content="hello outbound msg",
-                             #from_addr='shortcode1',
-                             #transport_name='app2',
-                             #transport_type='sms')
         msg = yield self.send_outbound(
             'app2',
             'hello world',
             transport_type='sms',
             from_addr='shortcode1')
         self.assert_dispatched_outbound('transport1', [msg])
-        #transport1_msgs = self.get_dispatched_messages('transport1',
-                                                      #direction='outbound')
-        #self.assertEqual(transport1_msgs, [msg])
-
+        
     @inlineCallbacks
     def test_outbound_message_routing_transport_type(self):
         msg = yield self.send_outbound(
             'app2',
             'hello world',
-            transport_type='http_forward',
+            transport_type='http_api',
             from_addr='app2',
             to_addr='http://server.domain.ext/mo_message')        
         self.assert_dispatched_outbound('transport-http', [msg])
