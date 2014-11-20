@@ -4,27 +4,20 @@ from movilgate.movilgate_http import MovilgateHttpTransport
 from mobtech_malawi.mobtech_http import MobtechHttpTransport
 from ttc_burkinafaso.ttc_burkinafaso_http import TtcBurkinafasoHttpTransport
 from yo_uganda.yo_http import YoHttpTransport
+
 from smsgh_ghana.smsgh_smpp import SmsghSmppTransport
-
-
-from push_tz_smpp import PushTzSmppTransport
-from orange_mali_smpp import OrangeMaliSmppTransport
-from enhanced_smpp.enhanced_client import EnhancedSmppTransport
+from orange_mali.orange_mali_smpp import OrangeMaliSmppTransport
 
 from http_forward.forward_http import ForwardHttp
 from http_forward.cioec_http import CioecHttp
 
 __all__ = [
     "CmHttpTransport",
-    "MobivateHttpTransport",    
-    "YoUgHttpTransport",
-    "PushYoTransport",
-    "PushTransport",
-    "PushTzSmppTransport",
+    "MobivateHttpTransport",
     "MovilgateHttpTransport",
     "MobtechHttpTransport",
-    "SmsghSmppTransport",
     "TtcBurkinafasoHttpTransport",
-    "ForwardHttp", "CioecHttp"
-    "OrangeMaliSmppTransport",
-    "EnhancedSmppTransport"]
+    "YoUgHttpTransport",
+    "SmsghSmppTransport",
+    "ForwardHttp",
+    "CioecHttp"]
