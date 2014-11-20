@@ -5,7 +5,6 @@ from datetime import datetime
 
 from twisted.internet.defer import inlineCallbacks, DeferredQueue
 from twisted.web import http
-from twisted.web.resource import Resource
 from twisted.trial.unittest import TestCase
 
 from vumi.transports.tests.helpers import TransportHelper
