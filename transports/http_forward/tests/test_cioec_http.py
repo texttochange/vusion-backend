@@ -3,31 +3,28 @@ from hashlib import sha1
 from datetime import datetime
 from base64 import b64encode
 
-from twisted.internet.defer import inlineCallbacks
-from twisted.web.resource import Resource
+from twisted.internet.defer import inlineCallbacks, DeferredQueue
 from twisted.web import http
 
-from vumi.transports.tests.test_base import TransportTestCase
-from vumi.tests.utils import get_stubbed_worker, TestResourceWorker
-from vumi.message import TransportMessage
+from vumi.transports.tests.helpers import TransportHelper
+from vumi.tests.utils import MockHttpServer, VumiTestCase
 from vumi.tests.utils import RegexMatcher
-
-from tests.utils import MessageMaker
 
 from transports import CioecHttp
 
 
-class CioecHttpTransportTestCase(MessageMaker, TransportTestCase):
-    
-    transport_name = 'embolivia'
-    transport_type = 'http_forward'
-    transport_class = CioecHttp
-    
+class CioecHttpTransportTestCase(VumiTestCase):
+        
     @inlineCallbacks
     def setUp(self):
-        yield super(CioecHttpTransportTestCase, self).setUp()
+        self.cioec_calls = DeferredQueue()
+        self.cioec_calls_body = [] 
+        self.mock_cioec = MockHttpServer(self.handle_request)
+        self.mock_cioec_response = ''
+        self.mock_cioec_response_code = http.OK
+        yield self.mock_cioec.start()
+        
         self.config = {
-            'transport_name': self.transport_name,
             'api_key': 'a2edrfaQ',
             'salt': 'CIOEC', 
             'api': {
@@ -40,25 +37,20 @@ class CioecHttpTransportTestCase(MessageMaker, TransportTestCase):
                 '/api/unregistration': ['phone'],
                 '/api/publishOffer': ['phone', 'message']}
         }
-        self.worker = yield self.get_transport(self.config)
-        self.worker.get_date = lambda: "2014-06-09"
+        self.tx_helper = self.add_helper(TransportHelper(CioecHttp))
+        self.transport = yield self.tx_helper.get_transport(self.config)
+        self.transport.get_date = lambda: "2014-06-09"
 
-    def make_resource_worker(self, send_paths, responses):
-        w = get_stubbed_worker(TestResourceWorker, {})
-        resources = []
-        for site, details in send_paths.iteritems():
-            resources.append((details['path'], TestResource, responses[site]))
-        w.set_resources(resources)
-        self._workers.append(w)
-        return w.startWorker()
-    
-    def get_dispatched(self, rkey):
-        return self._amqp.get_dispatched('vumi', rkey)
+    @inlineCallbacks
+    def tearDown(self):
+        yield self.mock_cioec.stop()
+        yield super(CioecHttpTransportTestCase, self).tearDown()
 
-    def assert_request(self, request, path, args):
-        self.assertEqual(request.path, path)
-        data = json.loads(request.content.read())
-        self.assertEqual(data, args)
+    def handle_request(self, request):
+        self.cioec_calls.put(request)
+        self.cioec_calls_body.append(request.content.read())
+        request.setResponseCode(self.mock_cioec_response_code)
+        return self.mock_cioec_response
 
     def assert_authentication(self, request):
         headers = request.getAllHeaders()
@@ -69,11 +61,7 @@ class CioecHttpTransportTestCase(MessageMaker, TransportTestCase):
         self.assertEqual(value, "Basic %s" % auth)
 
     @inlineCallbacks
-    def test_sms_registration(self):
-        send_paths = {
-            'partner1': {
-                'path': '/api/registration',
-                'port': 9999}}
+    def test_outbound_ok_registration(self):
         response_body = {
             "status":"success",
             "message":"X user registered",
@@ -81,123 +69,10 @@ class CioecHttpTransportTestCase(MessageMaker, TransportTestCase):
                 "ids":[{"code":"aQx3","phone":"+59177777"}],
             }
         }
-        responses = {
-            'partner1': [
-                 json.dumps(response_body),
-                 http.OK,
-                 self.assert_request,
-                 '/api/registration',
-                 {"data":[{
-                     "phone": "+6",
-                     "name": "Sandra",
-                     "sector": "Productor",
-                     "email": "me@gmail.com",
-                 }]},
-                 self.assert_authentication
-            ]}
-        yield self.make_resource_worker(send_paths, responses)
+        self.mock_cioec_response = json.dumps(response_body)
 
-        msg = self.mkmsg_out(
-            to_addr="http://localhost:9999/api/registration",
-            from_addr="myprogram",
-            content="Hello",
-            message_id='1',
-            transport_metadata={
-                'program_shortcode': '256-8181',
-                'participant_phone': '+6',
-                'participant_profile': [{'label': 'name',
-                                         'value': 'Sandra'},
-                                        {'label': 'sector',
-                                         'value': 'Productor'},
-                                        {'label': 'email',
-                                         'value': 'me@gmail.com'}]})
-        yield self.dispatch(msg)
-        [ack] = self.get_dispatched('embolivia.event')
-        self.assertEqual(
-            self.mkmsg_ack(
-                user_message_id='1',
-                sent_message_id='1',
-                transport_metadata={'transport_type':'http_forward'}),
-            TransportMessage.from_json(ack.body))
-
-    @inlineCallbacks
-    def test_sms_registration_default_value(self):
-            send_paths = {
-                'partner1': {
-                    'path': '/api/registration',
-                    'port': 9999}}
-            response_body = {
-                "status":"success",
-                "message":"X user registered",
-                "data": {
-                    "ids":[{"code":"aQx3","phone":"+59177777"}],
-                }
-            }
-            responses = {
-                'partner1': [
-                     json.dumps(response_body),
-                     http.OK,
-                     self.assert_request,
-                     '/api/registration',
-                     {"data":[{
-                         "phone": "+6",
-                         "name": "Sandra",
-                         "sector": "Productor",
-                         "email": "not_defined",
-                     }]},
-                     self.assert_authentication
-                ]}
-            yield self.make_resource_worker(send_paths, responses)
-
-            msg = self.mkmsg_out(
-                to_addr="http://localhost:9999/api/registration",
-                from_addr="myprogram",
-                content="Hello",
-                message_id='1',
-                transport_metadata={
-                    'program_shortcode': '256-8181',
-                    'participant_phone': '+6',
-                    'participant_profile': [{'label': 'name',
-                                             'value': 'Sandra'},
-                                            {'label': 'sector',
-                                             'value': 'Productor'}]})
-            yield self.dispatch(msg)
-            [ack] = self.get_dispatched('embolivia.event')
-            self.assertEqual(
-                self.mkmsg_ack(
-                    user_message_id='1',
-                    sent_message_id='1',
-                    transport_metadata={'transport_type':'http_forward'}),
-                TransportMessage.from_json(ack.body))
-
-    @inlineCallbacks
-    def test_sms_registration_validation_failed(self):
-        send_paths = {
-            'partner1': {
-                'path': '/api/registration',
-                'port': 9999}}
-        response_body = {
-            "status":"fail",
-            "error": "E010",
-            "message": "Name is required"
-        }
-        responses = {
-            'partner1': [
-                 json.dumps(response_body),
-                 http.OK,
-                 self.assert_request,
-                 '/api/registration',
-                 {"data":[{
-                     "name": "Sandra",
-                     "phone": "+6",
-                     "sector": "Productor",
-                     "email": "me@gmail.com",
-                 }]}
-            ]}
-        yield self.make_resource_worker(send_paths, responses)
-
-        msg = self.mkmsg_out(
-            to_addr="http://localhost:9999/api/registration",
+        yield self.tx_helper.make_dispatch_outbound(
+            to_addr="%sapi/registration" % self.mock_cioec.url,
             from_addr="myprogram",
             content="Hello",
             message_id='1',
@@ -206,80 +81,125 @@ class CioecHttpTransportTestCase(MessageMaker, TransportTestCase):
                 'participant_phone': '+6',
                 'participant_profile': [
                     {'label': 'name',
-                     'value': 'Sandra'},                    
+                     'value': 'Sandra'},
                     {'label': 'sector',
                      'value': 'Productor'},
                     {'label': 'email',
                      'value': 'me@gmail.com'}]})
-        yield self.dispatch(msg)
-        [fail] = self.get_dispatched('embolivia.event')
+        req = yield self.cioec_calls.get()
+        self.assert_authentication(req)
+        req_body = self.cioec_calls_body.pop()
         self.assertEqual(
-            self.mkmsg_delivery(
-                transport_name=self.transport_name,
-                user_message_id='1',
-                delivery_status='failed',
-                failure_level='service',
-                failure_code='E010',
-                failure_reason='Name is required',
-                transport_metadata={'transport_type':'http_forward'}),
-            TransportMessage.from_json(fail.body))
+            json.loads(req_body),
+            {"data":[{
+                "phone": "+6",
+                "name": "Sandra",
+                "sector": "Productor",
+                "email": "me@gmail.com",
+                }]})
+
+        [event] = yield self.tx_helper.get_dispatched_events()
+        self.assertEqual(event['event_type'], 'ack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
 
     @inlineCallbacks
-    def test_sms_registration_data_missing(self):
-        send_paths = {
-            'partner1': {
-                'path': '/api/registration',
-                'port': 9999}}
+    def test_outbound_ok_registration_default_value(self):
+            response_body = {
+                "status":"success",
+                "message":"X user registered",
+                "data": {
+                    "ids":[{"code":"aQx3","phone":"+59177777"}],
+                }
+            }
+            self.mock_cioec_response = json.dumps(response_body)
+
+            yield self.tx_helper.make_dispatch_outbound(
+                to_addr="%sapi/registration" % self.mock_cioec.url,
+                from_addr="myprogram",
+                content="Hello",
+                message_id='1',
+                transport_metadata={
+                    'program_shortcode': '256-8181',
+                    'participant_phone': '+6',
+                    'participant_profile': [
+                        {'label': 'name',
+                         'value': 'Sandra'},
+                        {'label': 'sector',
+                         'value': 'Productor'}]})
+            req = yield self.cioec_calls.get()
+            self.assert_authentication(req)
+            req_body = self.cioec_calls_body.pop()
+            self.assertEqual(
+                json.loads(req_body),
+                {"data":[{
+                    "phone": "+6",
+                    "name": "Sandra",
+                    "sector": "Productor",
+                    "email": "not_defined",
+                    }]})
+            
+            [event] = self.tx_helper.get_dispatched_events()
+            self.assertEqual(event['event_type'], 'ack')
+            self.assertEqual(event['user_message_id'], '1')
+            self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
+
+    @inlineCallbacks
+    def test_outbound_fail_registration_validation_cioec(self):
         response_body = {
             "status":"fail",
             "error": "E010",
             "message": "Name is required"
         }
-        responses = {
-            'partner1': [
-                 json.dumps(response_body),
-                 http.OK,
-                 self.assert_request,
-                 '/api/registration',
-                 {"data":[{
-                     "phone": "+6",
-                     "sector": "Productor",
-                     "email": "me@gmail.com",
-                 }]}
-            ]}
-        yield self.make_resource_worker(send_paths, responses)
+        self.mock_cioec_response = json.dumps(response_body)
 
-        msg = self.mkmsg_out(
-            to_addr="http://localhost:9999/api/registration",
+        yield self.tx_helper.make_dispatch_outbound(
+            to_addr="%sapi/registration" % self.mock_cioec.url,
             from_addr="myprogram",
             content="Hello",
             message_id='1',
             transport_metadata={
                 'program_shortcode': '256-8181',
                 'participant_phone': '+6',
-                'participant_profile': [{'label': 'sector',
-                                         'value': 'Productor'},
-                                        {'label': 'email',
-                                         'value': 'me@gmail.com'}]})
-        yield self.dispatch(msg)
-        [fail] = self.get_dispatched('embolivia.event')
-        self.assertEqual(
-            self.mkmsg_delivery(
-                transport_name=self.transport_name,
-                user_message_id='1',
-                delivery_status='failed',
-                failure_level='transport',
-                failure_code=None,
-                failure_reason='name is missing',
-                transport_metadata={'transport_type':'http_forward'}),
-            TransportMessage.from_json(fail.body))
+                'participant_profile': [
+                    {'label': 'name',
+                     'value': 'Sandra'},
+                    {'label': 'sector',
+                     'value': 'Productor'},
+                    {'label': 'email',
+                     'value': 'me@gmail.com'}]})
+        req = yield self.cioec_calls.get()
+        self.assertEqual('/api/registration', req.path)        
+        
+        [event] = self.tx_helper.get_dispatched_events()
+        self.assertEqual(event['event_type'], 'nack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['nack_reason'], "SERVICE ERROR E010 - Name is required")
+        self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
 
     @inlineCallbacks
-    def test_sms_unregistration(self):
-        send_paths = {
-            'partner1': {
-                'path': '/api/unregistration',
-                'port': 9999}}
+    def test_outbound_fail_registration_validation_transport(self):
+        yield self.tx_helper.make_dispatch_outbound(
+            to_addr="%sapi/registration" % self.mock_cioec.url,
+            from_addr="myprogram",
+            content="Hello",
+            message_id='1',
+            transport_metadata={
+                'program_shortcode': '256-8181',
+                'participant_phone': '+6',
+                'participant_profile': [
+                    {'label': 'sector',
+                     'value': 'Productor'},
+                    {'label': 'email',
+                     'value': 'me@gmail.com'}]})
+        [event] = self.tx_helper.get_dispatched_events()
+        self.assertEqual(event['event_type'], 'nack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['nack_reason'], "MISSING DATA name is missing")
+        self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
+        
+    @inlineCallbacks
+    def test_outbound_ok_unregistration(self):
         response_body = {
             "status":"success",
             "message":"user has unregistered",
@@ -287,41 +207,25 @@ class CioecHttpTransportTestCase(MessageMaker, TransportTestCase):
                 "ids":[{"code":"aQx3","phone":"+59177777"}],
             }
         }
-        responses = {
-            'partner1': [
-                 json.dumps(response_body),
-                 http.OK,
-                 self.assert_request,
-                 '/api/unregistration',
-                 {"data":[{
-                     "phone": "+6",
-                 }]}
-            ]}
-        yield self.make_resource_worker(send_paths, responses)
-
-        msg = self.mkmsg_out(
-            to_addr="http://localhost:9999/api/unregistration",
+        self.mock_cioec_response = json.dumps(response_body)
+        yield self.tx_helper.make_dispatch_outbound(
+            to_addr="%sapi/unregistration" % self.mock_cioec.url,
             from_addr="myprogram",
             content="Hello",
             message_id='1',
             transport_metadata={
                 'program_shortcode': '256-8181',
                 'participant_phone': '+6'})
-        yield self.dispatch(msg)
-        [ack] = self.get_dispatched('embolivia.event')
-        self.assertEqual(
-            self.mkmsg_ack(
-                user_message_id='1',
-                sent_message_id='1',
-                transport_metadata={'transport_type':'http_forward'}),
-            TransportMessage.from_json(ack.body))
+        req = yield self.cioec_calls.get()
+        self.assertEqual('/api/unregistration', req.path)
+        
+        [event] = yield self.tx_helper.get_dispatched_events()
+        self.assertEqual(event['event_type'], 'ack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
 
     @inlineCallbacks
-    def test_sms_publishing_offer(self):
-        send_paths = {
-            'partner1': {
-                'path': '/api/publishOffer',
-                'port': 9999}}
+    def test_outbound_ok_publishing_offer(self):
         response_body = {
             "status":"success",
             "message":"X offers published",
@@ -329,111 +233,56 @@ class CioecHttpTransportTestCase(MessageMaker, TransportTestCase):
                 "ids":[{"code":"aQx3","phone":"+59177777"}],
             }
         }
-        responses = {
-            'partner1': [
-                 json.dumps(response_body),
-                 http.OK,
-                 self.assert_request,
-                 '/api/publishOffer',
-                 {"data":[{
-                     "phone": "+6",
-                     "message": "OFFERT potatoes ,1kg, 22 ,La paz"
-                 }]}
-            ]}
-        yield self.make_resource_worker(send_paths, responses)
+        self.mock_cioec_response = json.dumps(response_body)
 
-        msg = self.mkmsg_out(
-            to_addr="http://localhost:9999/api/publishOffer",
+        yield self.tx_helper.make_dispatch_outbound(
+            to_addr="%sapi/publishOffer" % self.mock_cioec.url,
             from_addr="myprogram",
             content="OFFERT potatoes ,1kg, 22 ,La paz",
             message_id='1',
             transport_metadata={
                 'program_shortcode': '256-8181',
                 'participant_phone': '+6'})
-        yield self.dispatch(msg)
-        [ack] = self.get_dispatched('embolivia.event')
-        self.assertEqual(
-            self.mkmsg_ack(
-                user_message_id='1',
-                sent_message_id='1',
-                transport_metadata={'transport_type':'http_forward'}),
-            TransportMessage.from_json(ack.body))
+        req = yield self.cioec_calls.get()
+        self.assertEqual('/api/publishOffer', req.path)
+        
+        [event] = yield self.tx_helper.get_dispatched_events()
+        self.assertEqual(event['event_type'], 'ack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
 
     @inlineCallbacks
-    def test_send_fail_http_error(self):
-        send_paths = {
-            'partner1': {
-                'path': '/sendsms1',
-                'port': 9999}}        
-        responses = {
-            'partner1': [
-                 'SOME INTERNAL STUFF HAPPEN',
-                 http.INTERNAL_SERVER_ERROR,
-                 self.assert_request,
-                 '/sendsms1']}
-        msg = self.mkmsg_out(
-            to_addr="http://localhost:9999/sendsms1",
+    def test_oubound_fail_http_error(self):
+        self.mock_cioec_response = 'SOME INTERNAL STUFF HAPPEN'
+        self.mock_cioec_response_code = http.INTERNAL_SERVER_ERROR
+        yield self.tx_helper.make_dispatch_outbound(
+            to_addr="%ssendsms1" % self.mock_cioec.url,
             from_addr="myprogram",
             content="Hello",
             message_id='1',
             transport_metadata={
                 'program_shortcode': '256-8181',
                 'participant_phone': '+6'})
-        yield self.make_resource_worker(send_paths, responses)
-        yield self.dispatch(msg)
-        [fail] = self.get_dispatched('embolivia.event')
-        self.assertEqual(
-            self.mkmsg_delivery(
-                transport_name=self.transport_name,
-                user_message_id='1',
-                delivery_status='failed',
-                failure_level='http',
-                failure_code=http.INTERNAL_SERVER_ERROR,
-                failure_reason='SOME INTERNAL STUFF HAPPEN',
-                transport_metadata={'transport_type':'http_forward'}),
-            TransportMessage.from_json(fail.body))
+
+        req = yield self.cioec_calls.get()
+        
+        [event] = yield self.tx_helper.get_dispatched_events()
+        self.assertEqual(event['event_type'], 'nack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['nack_reason'], "HTTP ERROR 500 - SOME INTERNAL STUFF HAPPEN")
 
     @inlineCallbacks
-    def test_send_fail_connection_error(self):
-        send_paths = {}
-        responses = {}
-        msg = self.mkmsg_out(
-            to_addr="http://localhost:9997/sendsms2",
+    def test_outbound_fail_connection_error(self):
+        yield self.tx_helper.make_dispatch_outbound(
+            to_addr="%ssendsms2" % self.mock_cioec.url,
             from_addr="myprogram",
             content="Hello",
             message_id='1',
             transport_metadata={
                 'program_shortcode': '256-8181',
                 'participant_phone': '+6'})
-        yield self.make_resource_worker(send_paths, responses)
-        yield self.dispatch(msg)
-        [fail] = self.get_dispatched('embolivia.event')
-        self.assertEqual(
-            self.mkmsg_delivery(
-                transport_name=self.transport_name,
-                user_message_id='1',
-                delivery_status='failed',
-                failure_level='transport',
-                failure_code=None,
-                failure_reason=RegexMatcher('ConnectionRefusedError'),
-                transport_metadata={'transport_type':'http_forward'}),
-            TransportMessage.from_json(fail.body))  
-
-
-class TestResource(Resource):
-    isLeaf = True
-    
-    def __init__(self, response, code, assert_request, path, args={}, assert_headers=None):
-        self.response = response
-        self.code = code
-        self.assert_request = assert_request
-        self.path = path
-        self.args = args
-        self.assert_headers = assert_headers
-
-    def render_POST(self, request):
-        self.assert_request(request, self.path, self.args)
-        if self.assert_headers is not None:
-            self.assert_headers(request)
-        request.setResponseCode(self.code)
-        return self.response
+        yield self.cioec_calls.get()
+        [event] = self.tx_helper.get_dispatched_events()
+        self.assertEqual(event['event_type'], 'nack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['nack_reason'], RegexMatcher("TRANSPORT ERROR ValueError"))
