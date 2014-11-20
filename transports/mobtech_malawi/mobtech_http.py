@@ -12,7 +12,7 @@ from vumi import log
 from vumi.utils import http_request_full
 
 
-class MobtechMlHttpTransport(Transport):
+class MobtechHttpTransport(Transport):
     
     transport_type = 'sms'
     
@@ -25,7 +25,7 @@ class MobtechMlHttpTransport(Transport):
     @inlineCallbacks
     def setup_transport(self):
         log.msg("Setup MobTech Transport %s" % self.config)
-        super(MobtechMlHttpTransport, self).setup_transport()
+        super(MobtechHttpTransport, self).setup_transport()
         self._resources = []
         self.mt_response_regex = re.compile(self.config['mt_response_regex'])
         resources = [

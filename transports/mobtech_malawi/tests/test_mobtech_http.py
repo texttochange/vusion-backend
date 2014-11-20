@@ -8,13 +8,12 @@ from vumi.transports.tests.helpers import TransportHelper
 from vumi.tests.utils import VumiTestCase, MockHttpServer
 from vumi.utils import http_request_full
 
-from transports import MobtechMlHttpTransport
+from transports import MobtechHttpTransport
 
 class MobtechMlHttpTransportTestCase(VumiTestCase):
       
     @inlineCallbacks
     def setUp(self):
-        #yield super(MobtechMlHttpTransportTestCase, self).setUp()
         self.mobtech_calls = DeferredQueue()
         self.mock_mobtech = MockHttpServer(self.handle_request)
         self.mock_server_response = ''
@@ -39,7 +38,7 @@ class MobtechMlHttpTransportTestCase(VumiTestCase):
             'delivery_url_params': 'type=%d&receiver=%p&reply=%A&time=%t&usr=%n&message=%b&dlr-mask=7',
             'delivery_regex': 'dlvrd:(?P<dlvrd>\d*)',
             'stat_regex': 'stat:(?P<stat>[A-Z]{7})'}
-        self.tx_helper = self.add_helper(TransportHelper(MobtechMlHttpTransport))
+        self.tx_helper = self.add_helper(TransportHelper(MobtechHttpTransport))
         self.transport = yield self.tx_helper.get_transport(self.config)
 
     @inlineCallbacks
@@ -181,7 +180,7 @@ class MobtechMlHttpTransportTestCase(VumiTestCase):
             headers={"Content-Type": ["text/xml"]},
             method='GET')
         self.assertEqual(response.code, http.OK)
-        
+
         [event] = self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'delivery_report')
         self.assertEqual(event['delivery_status'], 'delivered')
@@ -219,14 +218,14 @@ class MobtechMlHttpTransportTestCase(VumiTestCase):
                       'message': 'tete',
                       'dlr-mask': '7'}
         url = url_template % (self.receive_port, self.receive_path, self.delivery_path, urllib.urlencode(url_params))
-        
+
         response = yield http_request_full(
             url,
             None,
             headers={"Content-Type": ["text/xml"]},
             method='GET')
         self.assertEqual(response.code, http.OK)
-        
+
         [event] = yield self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'delivery_report')
         self.assertEqual(event['delivery_status'], 'failed')
@@ -251,34 +250,9 @@ class MobtechMlHttpTransportTestCase(VumiTestCase):
             headers={"Content-Type": ["text/xml"]},
             method='POST')
         self.assertEqual(response.code, http.OK)
-        
+
         [event] = self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'delivery_report')
         self.assertEqual(event['delivery_status'], 'failed')
         self.assertEqual(event['user_message_id'], '4345')
         self.assertEqual(event['failure_reason'], 'REJECTD')
-
-        #self.assertEqual(
-            #self.mkmsg_delivery(
-                #transport_name='mobtech',
-                #delivery_status='failed',
-                #failure_level='service',
-                #failure_code='XX',
-                #failure_reason='REJECTD',
-                #user_message_id='4345'),
-            #sms_delivery)
-
-
-#class TestResource(Resource):
-    #isLeaf = True
-    
-    #def __init__(self, response, code=http.OK, callback=None):
-        #self.response = response
-        #self.code = code
-        #self.callback = callback
-
-    #def render_POST(self, request):
-        #if self.callback is not None:
-            #self.callback(request)
-        #request.setResponseCode(self.code)
-        #return self.response
