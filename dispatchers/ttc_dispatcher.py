@@ -1,5 +1,4 @@
 # -*- tst-case-name tests.test_ttc_dispatcher
-
 import sys, traceback
 import redis
 import functools
@@ -39,27 +38,27 @@ class DynamicDispatchWorker(BaseDispatchWorker):
         yield self.control.stop()
         super(DynamicDispatchWorker, self).stopWorker()
 
-    @inlineCallbacks
-    def setup_exposed_publishers(self):
-        for exposed_name in self._exposed_names:
-            if (exposed_name in self.exposed_publisher
-                    and exposed_name in self.exposed_event_publisher):
-                continue
-            self.exposed_publisher[exposed_name] = yield self.publish_to(
-                '%s.inbound' % (exposed_name,))
-            self.exposed_event_publisher[exposed_name] = yield self.publish_to(
-                '%s.event' % (exposed_name,))
+    #@inlineCallbacks
+    #def setup_exposed_publishers(self):
+        #for exposed_name in self._exposed_names:
+            #if (exposed_name in self.exposed_publisher
+                    #and exposed_name in self.exposed_event_publisher):
+                #continue
+            #self.exposed_publisher[exposed_name] = yield self.publish_to(
+                #'%s.inbound' % (exposed_name,))
+            #self.exposed_event_publisher[exposed_name] = yield self.publish_to(
+                #'%s.event' % (exposed_name,))
 
-    @inlineCallbacks
-    def setup_exposed_consumers(self):
-        for exposed_name in self._exposed_names:
-            if exposed_name in self.exposed_consumer:
-                continue
-            self.exposed_consumer[exposed_name] = yield self.consume(
-                '%s.outbound' % (exposed_name,),
-                functools.partial(self.dispatch_outbound_message,
-                                  exposed_name),
-                message_class=TransportUserMessage)
+    #@inlineCallbacks
+    #def setup_exposed_consumers(self):
+        #for exposed_name in self._exposed_names:
+            #if exposed_name in self.exposed_consumer:
+                #continue
+            #self.exposed_consumer[exposed_name] = yield self.consume(
+                #'%s.outbound' % (exposed_name,),
+                #functools.partial(self.dispatch_outbound_message,
+                                  #exposed_name),
+                #message_class=TransportUserMessage)
 
     @inlineCallbacks
     def setup_control(self):
@@ -71,7 +70,7 @@ class DynamicDispatchWorker(BaseDispatchWorker):
     @inlineCallbacks
     def setup_exposed(self, name):
         log.debug("Setup exposed %s" % (name,))
-        if not name in self._exposed_names:
+        if not name in self.exposed_names:
             self.exposed_publisher[name] = yield self.publish_to(
                 ('%s.inbound' % (name,)).encode('utf-8'))
             self.exposed_event_publisher[name] = yield self.publish_to(
@@ -81,9 +80,10 @@ class DynamicDispatchWorker(BaseDispatchWorker):
                 functools.partial(self.dispatch_outbound_message,
                                   name),
                 message_class=TransportUserMessage)
-            self._exposed_names.append(name.encode('utf-8'))
+            self.exposed_names.append(name.encode('utf-8'))
 
-    ## The dynamic setting up of exposed can be slow and a incoming message can already try to be publish
+    ## The dynamic setting up of exposed can be slow and 
+    ## a incoming message can already try to be publish
     ## to the exposed name with the publisher not yet setup. 
     ## TODO requeue the message instead of just dumping it
     def publish_inbound_message(self, endpoint, msg):
@@ -131,8 +131,8 @@ class DynamicDispatchWorker(BaseDispatchWorker):
                               if name_to_clear != rule['app']]
 
     def receive_control_message(self, msg):
+        log.debug('Received control %r' % msg)
         try:
-            log.debug('Received control message %s' % (msg,))
             if msg['action'] == 'add_exposed':
                 self.setup_exposed(msg['exposed_name'])
                 self.append_mapping(msg['exposed_name'], msg['rules'])
@@ -145,4 +145,6 @@ class DynamicDispatchWorker(BaseDispatchWorker):
             exc_type, exc_value, exc_traceback = sys.exc_info()
             log.error(
                 "Error during consume control message: %r" %
-                traceback.format_exception(exc_type, exc_value, exc_traceback))
+                traceback.format_exception(exc_type,
+                                           exc_value,
+                                           exc_traceback))

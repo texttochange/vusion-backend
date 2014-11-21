@@ -1,28 +1,24 @@
-
 from datetime import datetime
 
-from twisted.trial.unittest import TestCase
 from twisted.internet.defer import inlineCallbacks
 
-from vumi.message import TransportUserMessage, TransportEvent, Message
-from vumi.tests.utils import FakeRedis, get_stubbed_worker
-from vumi.dispatchers.tests.test_base import (DispatcherTestCase,
-                                              TestBaseDispatchWorker)
+from vumi.tests.helpers import VumiTestCase, MessageHelper
+from vumi.dispatchers.tests.helpers import DispatcherHelper
 from vumi.dispatchers.base import BaseDispatchWorker
 
-from vusion.message import DispatcherControl
-from dispatchers.ttc_dispatcher import DynamicDispatchWorker
 from tests.utils import MessageMaker
+from vusion.message import DispatcherControl
+
+from dispatchers.ttc_dispatcher import DynamicDispatchWorker
 
 
-class TestDynamicDispatcherWorker(TestCase, MessageMaker):
+class TestDynamicDispatcherWorker(VumiTestCase, MessageMaker):
 
-    @inlineCallbacks
     def setUp(self):
-        yield self.get_worker()
+        self.disp_helper = self.add_helper(
+            DispatcherHelper(DynamicDispatchWorker))
 
-    @inlineCallbacks
-    def get_worker(self):
+    def get_dispatcher(self, **config_extras):
         config = {
             'dispatcher_name': 'vusion',
             'router_class': 'dispatchers.VusionMainRouter',
@@ -38,132 +34,159 @@ class TestDynamicDispatcherWorker(TestCase, MessageMaker):
                 'sms': {
                     '8181': 'transport1'}},
             'fallback_application': 'fallback_app',
-            'expire_routing_memory': '1'
+            'expire_routing_memory': '1',
+            'middleware': [
+                {'mw1': 'vumi.middleware.tests.utils.RecordingMiddleware'},
+                {'mw2': 'vumi.middleware.tests.utils.RecordingMiddleware'}]
         }
-        self.worker = get_stubbed_worker(DynamicDispatchWorker, config)
-        self._amqp = self.worker._amqp_client.broker
-        yield self.worker.startWorker()
+        config.update(config_extras)
+        self.config = config
+        return self.disp_helper.get_dispatcher(config)
 
-    @inlineCallbacks
-    def tearDown(self):
-        self.clear_dispatched()
-        yield self.worker.stopWorker()
+    def make_dispatch_control(self, **kwargs):
+        control = self.mkmsg_dispatcher_control(**kwargs)
+        rkey = '.'.join([self.config['dispatcher_name'], 'control'])
+        return self.disp_helper.dispatch_raw(rkey, control)
 
-    def dispatch(self, message, rkey=None, exchange='vumi'):
-        if rkey is None:
-            rkey = self.rkey('control')
-        self._amqp.publish_message(exchange, rkey, message)
-        return self._amqp.kick_delivery()
+    def ch(self, connector_name):
+        return self.disp_helper.get_connector_helper(connector_name)
 
-    def assert_messages(self, rkey, msgs):
-        self.assertEqual(msgs, self._amqp.get_messages('vumi', rkey))
+    def mk_middleware_records(self, rkey_in, rkey_out):
+        records = []
+        for rkey, direction in [(rkey_in, False), (rkey_out, True)]:
+            endpoint, method = rkey.split('.', 1)
+            mw = [[name, method, endpoint] for name in ("mw1", "mw2")]
+            if direction:
+                mw.reverse()
+            records.extend(mw)
+        return records
 
-    def assert_no_messages(self, *rkeys):
-        for rkey in rkeys:
-            self.assertEqual([], self._amqp.get_messages('vumi', rkey))
+    def assert_inbound(self, dst_conn, src_conn, msg):
+        [dst_msg] = self.disp_helper.get_dispatched_inbound(dst_conn)
+        middleware_records = self.mk_middleware_records(
+            src_conn + '.inbound', dst_conn + '.inbound')
+        self.assertEqual(dst_msg.payload.pop('record'), middleware_records)
+        self.assertEqual(msg, dst_msg)
 
-    def clear_dispatched(self):
-        self._amqp.dispatched = {}
+    def assert_event(self, dst_conn, src_conn, msg):
+        [dst_msg] = self.disp_helper.get_dispatched_events(dst_conn)
+        middleware_records = self.mk_middleware_records(
+            src_conn + '.event', dst_conn + '.event')
+        self.assertEqual(dst_msg.payload.pop('record'), middleware_records)
+        self.assertEqual(msg, dst_msg)
+
+    def assert_outbound(self, dst_conn, src_conn_msg_pairs):
+        dst_msgs = self.disp_helper.get_dispatched_outbound(dst_conn)
+        for src_conn, msg in src_conn_msg_pairs:
+            dst_msg = dst_msgs.pop(0)
+            middleware_records = self.mk_middleware_records(
+                src_conn + '.outbound', dst_conn + '.outbound')
+            self.assertEqual(dst_msg.payload.pop('record'), middleware_records)
+            self.assertEqual(msg, dst_msg)
+        self.assertEqual([], dst_msgs)
+
+    def assert_no_inbound(self, *conns):
+        for conn in conns:
+            self.assertEqual([], self.disp_helper.get_dispatched_inbound(conn))
+
+    def assert_no_outbound(self, *conns):
+        for conn in conns:
+            self.assertEqual(
+                [], self.disp_helper.get_dispatched_outbound(conn))
+
+    def assert_no_events(self, *conns):
+        for conn in conns:
+            self.assertEqual([], self.disp_helper.get_dispatched_events(conn))
 
     @inlineCallbacks
     def test_unmatching_routing(self):
-        in_msg = self.mkmsg_in(content='keyword3')
-        yield self.dispatch(in_msg, 'transport1.inbound')
-        self.assert_messages('fallback_app.inbound', [in_msg])
+        yield self.get_dispatcher()
+        msg = yield self.ch('transport1').make_dispatch_inbound(
+            "keyword3")
+        self.assert_inbound('fallback_app', 'transport1', msg)
 
     @inlineCallbacks
-    def test_control_register_exposed(self):
-        control_msg_add = self.mkmsg_dispatcher_control(
+    def test_control_add_remove_exposed(self):
+        yield self.get_dispatcher()
+        
+        ## there is no rule for keyword3 => inbound fallback_app
+        msg_in = yield self.ch('transport1').make_dispatch_inbound(
+            'keyword3 1st message')
+        self.assert_inbound('fallback_app', 'transport1', msg_in)
+        self.assert_no_inbound('app1')
+        
+        ## the rule for keyword3 is added => inbound app2
+        self.disp_helper.clear_all_dispatched()
+        yield self.make_dispatch_control(
             action='add_exposed',
             exposed_name='app2',
             rules=[
                 {'app': 'app2', 'keyword': 'keyword2'},
                 {'app': 'app2', 'keyword': 'keyword3'},
             ])
-        control_msg_remove = self.mkmsg_dispatcher_control(
+        msg_in = yield self.ch('transport1').make_dispatch_inbound(
+            'keyword3 2nd messsage')
+        self.assert_inbound('app2', 'transport1', msg_in)
+        self.assert_no_inbound('app1')        
+        
+        ## the rule for keyword3 is removed => inbound fallback_app
+        self.disp_helper.clear_all_dispatched()
+        yield self.make_dispatch_control(
             action='remove_exposed',
-            exposed_name='app2'
-        )
-        in_msg = self.mkmsg_in(content='keyword2')
-        out_msg = self.mkmsg_out(from_addr='8181',
-                                 transport_type='sms')
-
-        yield self.dispatch(in_msg, 'transport1.inbound')
-        self.assert_no_messages('app2.inbound')
-
-        self.clear_dispatched()
-
-        yield self.dispatch(control_msg_add, 'vusion.control')
-        yield self.dispatch(in_msg, 'transport1.inbound')
-        self.assert_messages('app2.inbound', [in_msg])
-
-        yield self.dispatch(out_msg, 'app2.outbound')
-        self.assert_messages('transport1.outbound', [out_msg])
-
-        self.clear_dispatched()
-
-        yield self.dispatch(control_msg_remove, 'vusion.control')
-        yield self.dispatch(in_msg, 'transport1.inbound')
-        self.assertNotIn('app2', self.worker.exposed_consumer)
-        self.assert_no_messages('app2.inbound')
-
-    def test_append_mapping(self):
-        add_mappings = [
-            {'app': 'app2',
-             'keyword': 'keyword2',
-             'to_addr': '8181'},
-            {'app': 'app2',
-             'to_addr': 'keyword3'}]
-
-        self.worker.append_mapping('app2', add_mappings)
-        self.worker.append_mapping('app2', add_mappings)
-
-        self.assertEqual(
-            self.worker._router.rules,
-            [{'app': 'app1', 'keyword': 'keyword2', 'to_addr': '8181'},
-             {'app': 'app1', 'keyword': 'keyword1'},
-             {'app': 'app2', 'keyword': 'keyword2', 'to_addr': '8181'},
-             {'app': 'app2', 'to_addr': 'keyword3'}]
-        )
-
-        self.worker.append_mapping(
-            'app2',
-            [{'app': 'app2', 'keyword': 'keyword2', 'to_addr': '8181'}])
-
-        self.assertEqual(
-            self.worker._router.rules,
-            [{'app': 'app1', 'keyword': 'keyword2', 'to_addr': '8181'},
-             {'app': 'app1', 'keyword': 'keyword1'},
-             {'app': 'app2', 'keyword': 'keyword2', 'to_addr': '8181'}])
+            exposed_name='app2')
+        msg_in = yield self.ch('transport1').make_dispatch_inbound(
+            'keyword3 3rd message')
+        self.assert_inbound('fallback_app', 'transport1', msg_in)
+        self.assert_no_inbound('app1')
 
     @inlineCallbacks
-    def test_append_mapping_not_finished(self):
-        add_mappings = [
-                    {'app': 'app2',
-                     'keyword': 'keyword2',
-                     'to_addr': '8181'}]        
-        self.worker.append_mapping('app2', add_mappings)
-        in_msg = self.mkmsg_in(content='keyword2', to_addr='8181')
-        
-        yield self.dispatch(in_msg, 'transport1.inbound')
-        self.assert_no_messages('app2.inbound')
+    def test_control_add_exposed_append_mapping_only_once(self):
+        yield self.get_dispatcher()
+        yield self.make_dispatch_control(
+            action='add_exposed',
+            exposed_name='app2',
+            rules=[
+                {'app': 'app2', 'keyword': 'keyword2', 'to_addr': '8181'},
+                {'app': 'app2', 'keyword': 'keyword3'},
+            ])
+        yield self.make_dispatch_control(
+            action='add_exposed',
+            exposed_name='app2',
+            rules=[
+                {'app': 'app2', 'keyword': 'keyword2', 'to_addr': '8181'},
+                {'app': 'app2', 'keyword': 'keyword3'},
+            ])
+        msg_in = yield self.ch('transport1').make_dispatch_inbound(
+            'keyword3')
+        self.assert_inbound('app2', 'transport1', msg_in)
+        self.assert_no_inbound('app1', 'fallback_app')
 
+    @inlineCallbacks
+    def test_control_add_exposed_append_mapping_replace(self):
+        yield self.get_dispatcher()
+        ## first message is routed to app2
+        yield self.make_dispatch_control(
+            action='add_exposed',
+            exposed_name='app2',
+            rules=[
+                {'app': 'app2', 'keyword': 'keyword2', 'to_addr': '8181'},
+                {'app': 'app2', 'keyword': 'keyword3'},
+            ])
+        msg_in = yield self.ch('transport1').make_dispatch_inbound(
+            'keyword3 1nd messsage', to_addr='8282')        
+        self.assert_inbound('app2', 'transport1', msg_in)
+        self.assert_no_inbound('app1', 'fallback_app')
 
-class DummyDispatcher(object):
-
-    class DummyPublisher(object):
-        def __init__(self):
-            self.msgs = []
-
-        def publish_message(self, msg):
-            self.msgs.append(msg)
-
-    def __init__(self, config):
-        self.transport_publisher = {}
-        for transport in config['transport_names']:
-            self.transport_publisher[transport] = self.DummyPublisher()
-        self.exposed_publisher = {}
-        self.exposed_event_publisher = {}
-        for exposed in config['exposed_names']:
-            self.exposed_publisher[exposed] = self.DummyPublisher()
-            self.exposed_event_publisher[exposed] = self.DummyPublisher()
+        ## second message is not matching one condition => fallback_app
+        self.disp_helper.clear_all_dispatched()        
+        yield self.make_dispatch_control(
+            action='add_exposed',
+            exposed_name='app2',
+            rules=[
+                {'app': 'app2', 'keyword': 'keyword2', 'to_addr': '8181'},
+                {'app': 'app2', 'keyword': 'keyword3', 'to_addr': '8181'},
+            ])
+        msg_in = yield self.ch('transport1').make_dispatch_inbound(
+            'keyword3 2nd messsage', to_addr='8282')
+        self.assert_inbound('fallback_app', 'transport1', msg_in)
+        self.assert_no_inbound('app1', 'app2')
