@@ -91,6 +91,28 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
         self.assertEqual(1, self.collections['schedules'].count())
 
     @inlineCallbacks
+    def test_consume_control_mass_tag_empty_selector(self):
+        self.initialize_properties()
+        dNow = self.worker.get_local_time()
+
+        self.collections['participants'].save(
+            self.mkobj_participant(participant_phone='10', tags=['mombasa']))
+        self.collections['participants'].save(
+            self.mkobj_participant(participant_phone='11', tags=['mombasa']))
+        unattach = self.mkobj_unattach_message(
+            send_to_type='match',
+            send_to_match_operator='all',
+            send_to_match_conditions=['mombasa'])
+        unattach_id = self.collections['unattached_messages'].save(unattach)
+
+        control = self.mkmsg_dialogueworker_control(**{
+            'action':'mass_tag',
+            'tag': 'mombasa',
+            'selector': None})
+        yield self.dispatch_control(control)
+        self.assertEqual(2, self.collections['schedules'].count())
+
+    @inlineCallbacks
     def test_consume_control_mass_untag(self):
         self.initialize_properties()
         self.app_helper.clear_all_dispatched()
@@ -185,3 +207,41 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
             'action': 'reload_program_settings'})       
         yield self.dispatch_control(control)
         self.assertEqual(self.worker.properties['timezone'], 'Europe/Paris')
+    
+    #@inlineCallbacks
+    #def test_consume_control_badly_formated(self):
+        #self.initialize_properties()
+    
+        #program_setting = self.collections['program_settings'].find_one({'key': 'timezone'})
+        #program_setting['value'] = 'Europe/Paris'
+        #self.collections['program_settings'].save(program_setting)
+    
+        #event = Message(**{'action': 'reload-program_settings'})
+        #yield self.send(event, 'control')
+        #self.assertEqual(self.worker.properties['timezone'], 'Africa/Kampala')
+
+    @inlineCallbacks
+    def test_consume_control_run_actions(self):
+        self.initialize_properties()
+        
+        dialogue_01 = self.mkobj_dialogue_question_offset_days()
+        self.collections['dialogues'].save(dialogue_01)
+        dialogue_02 = self.mkobj_dialogue_announcement_offset_days()
+        self.collections['dialogues'].save(dialogue_02)
+
+        #save participant
+        self.collections['participants'].save(
+            self.mkobj_participant(
+                participant_phone='+06'))
+
+        control = self.mkmsg_dialogueworker_control(**{
+            'action':'run_actions',
+            'participant_phone': '+06',
+            'dialogue_id': dialogue_01['dialogue-id'],
+            'interaction_id': dialogue_01['interactions'][0]['interaction-id'],
+            'answer': 'ok'})
+        yield self.dispatch_control(control)
+
+        saved_participant = self.collections['participants'].find_one({'phone': '+06'})
+        self.assertEqual(saved_participant['enrolled'][0]['dialogue-id'], '0')
+        self.assertEqual(2, self.collections['schedules'].count())

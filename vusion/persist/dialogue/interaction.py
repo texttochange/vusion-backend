@@ -315,6 +315,16 @@ class Interaction(Model):
     def is_matching(self, keyword):
         return keyword in self.keywords
 
+    def is_multi_keyword(self):
+        if 'answer-keywords' in self.payload:
+            return True
+        return False
+
+    def is_open_question(self):
+        if 'type-question' in self.payload and self['type-question'] == 'open-question':
+            return True
+        return False
+
     def generate_reminder_times(self, interaction_date_time):
         if not self.has_reminder:
             return None

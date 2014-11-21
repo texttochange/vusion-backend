@@ -1,10 +1,10 @@
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import inlineCallbacks
 
-from vusion.persist.action import (Action, action_generator,
-                                   ProportionalTagging, TaggingAction, 
-                                   Participant, ProportionalLabelling,
-                                   ProfilingAction)
+from vusion.persist.action import (
+    Action, action_generator, ProportionalTagging, TaggingAction, 
+    Participant, ProportionalLabelling, ProfilingAction, ResetAction,
+    EnrollingAction, FeedbackAction, Actions)
 from vusion.error import MissingField, InvalidField, MissingData
 
 from vusion.context import Context
@@ -441,3 +441,23 @@ class TestSmsForwardingAction(TestCase, ObjectMaker):
              'tags': 'my tag',
              'session-id': {'$ne': None}},             
             sms_forwarding_action.get_query_selector(participant, context))
+
+
+class testActions(TestCase, ObjectMaker):
+    
+    def test_priority(self):
+        actions = Actions()
+        optin = action_generator(**{'type-action': 'optin'})
+        enroll = action_generator(**{'type-action': 'enrolling', 'enroll': '1'})
+        reset = action_generator(**{'type-action': 'reset'})
+        feedback = action_generator(**{'type-action': 'feedback', 'content': 'hello'})
+
+        actions.append(feedback)
+        actions.append(optin)
+        actions.append(reset)
+        actions.append(enroll)
+
+        self.assertEqual(actions[0].get_type(), 'optin')
+        self.assertEqual(actions[1].get_type(), 'reset')
+        self.assertEqual(actions[2].get_type(), 'enrolling')
+        self.assertEqual(actions[3].get_type(), 'feedback')

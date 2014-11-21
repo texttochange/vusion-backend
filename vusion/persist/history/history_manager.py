@@ -26,10 +26,10 @@ class HistoryManager(ModelManager):
         self.collection.ensure_index('participant-phone',
                                      background=True)
         self.collection.ensure_index([('interaction-id', 1),('participant-session-id',1)],
-                                     sparce = True,
+                                     sparce=True,
                                      background=True)
         self.collection.ensure_index('unattach-id',
-                                     sparce = True,
+                                     sparce=True,
                                      background=True)
         self.prefix_key = prefix_key
         self.flying_manager = FlyingMessageManager(prefix_key, redis)

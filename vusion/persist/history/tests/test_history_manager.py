@@ -17,6 +17,7 @@ from vusion.utils import time_to_vusion_format, date_from_vusion_format, time_to
 class TestHistoryManager(TestCase, ObjectMaker, MessageMaker):
     
     def setUp(self):
+        self.transport_name = 'test' #for using the message maker
         self.database_name = 'test_program_db'
         self.redis_key = 'unittest:testprogram'
         self.redis = Redis()

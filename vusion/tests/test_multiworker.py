@@ -94,20 +94,23 @@ class VusionMultiWorkerTestCase(VumiTestCase, MessageMaker):
         
         self.application_name = self.base_config['application_name']
         
-        mongo_client = MongoClient(w=1)
-        db = mongo_client[self.base_config['vusion_database_name']]
+        self.mongo_client = MongoClient(w=1)
+        self.cleanData()
+        db = self.mongo_client[self.base_config['vusion_database_name']]
         self.collections = {} 
         self.collections['workers'] = db['workers']
-        self.clearData()
-    
-    def clearData(self):
-        self.collections['workers'].drop()
-    
+        
     @inlineCallbacks
     def tearDown(self):
-        self.clearData()
         yield self.worker.stopService()
-        yield super(VusionMultiWorkerTestCase, self).tearDown()
+        yield super(VusionMultiWorkerTestCase, self).tearDown()   
+        self.cleanData()
+
+    def cleanData(self):
+        self.mongo_client.drop_database('test1')
+        self.mongo_client.drop_database('test2')
+        self.mongo_client.drop_database('test3')
+        self.mongo_client.drop_database(self.base_config['vusion_database_name'])
 
     def dispatch_control(self, control):
         return self.worker_helper.dispatch_raw('.'.join([self.application_name, 'control']), control)

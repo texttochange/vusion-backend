@@ -218,6 +218,13 @@ class DialogueWorker(ApplicationWorker):
                 self.send_all_messages(dialogue, message['phone_number'])
             elif message['action'] == 'update_registered_keywords':
                 self.register_keywords_in_dispatcher()
+            elif message['action'] == 'run_actions':
+                actions = self.collections['dialogues'].get_actions(
+                    message['dialogue_id'],
+                    message['interaction_id'],
+                    message['answer'])
+                for action in actions.items():
+                    yield self.run_action(message['participant_phone'], action)
         except (VusionError, VumiError) as e:
             self.log('ERROR: %s(%s)' % (e.__class__.__name__, e.message), level='error')
         except:

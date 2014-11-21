@@ -26,9 +26,14 @@ class WorkerControl(Message):
         'reload_program_settings': {},
         'mass_tag':{
             'tag': lambda v: v is not None,
-            'selector': lambda v: v is not None},
+            'selector': lambda v: v is None or isinstance(v, dict)},
         'mass_untag': {
-            'tag': lambda v: v is not None}
+            'tag': lambda v: v is not None},
+        'run_actions': {
+            'participant_phone': lambda v: v is not None,
+            'dialogue_id': lambda v: v is not None,
+            'interaction_id': lambda v: v is not None,
+            'answer': lambda v: v is not None}
     }
 
     def validate_fields(self):
