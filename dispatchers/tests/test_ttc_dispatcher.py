@@ -30,7 +30,7 @@ class TestDynamicDispatcherWorker(VumiTestCase, MessageMaker):
                 'to_addr': '8181'}],
             'transport_names': ['transport1', 'forward_http'],
             'transport_mappings': {
-                'http_forward': 'forward_http',
+                'http_api': 'forward_http',
                 'sms': {
                     '8181': 'transport1'}},
             'fallback_application': 'fallback_app',

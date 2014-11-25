@@ -5,7 +5,7 @@ transport_names:
         - 256-8282-yo
         - forward-http
 transport_mappings:
-    http_forward: forward-http
+    http_api: forward-http
     sms:
         '256-8181': 256-8181-dispatcher
         '256-8282': 256-8282-yo

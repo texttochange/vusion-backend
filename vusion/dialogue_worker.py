@@ -373,7 +373,7 @@ class DialogueWorker(ApplicationWorker):
         participant = self.collections['participants'].get_participant(participant_phone)
         options = {
            'from_addr': self.transport_name,
-           'transport_type': 'http_forward',
+           'transport_type': 'http_api',
            'transport_metadata': {
                'program_shortcode': self.properties['shortcode'],
                'participant_phone': participant_phone,

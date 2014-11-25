@@ -22,6 +22,6 @@ class FlyingMessageManager(object):
         key = self.data_key(message_user_id)
         data = self.redis.get(key)
         if data is None:
-            return None, 0
+            return None, 0, None
         [history_id, credits, status] = re.split(':', data)
         return ObjectId(history_id), int(credits), status

@@ -360,6 +360,23 @@ class TestHistoryManager(TestCase, ObjectMaker, MessageMaker):
         self.assertEqual(old_status, 'failed')
         self.assertEqual(credits, 1)
 
+    def test_update_status_from_event_flyingmanager_expired(self):
+        history = self.mkobj_history_unattach(
+            unattach_id='2',
+            timestamp='2014-01-01T10:10:00',
+            message_id='1',
+            message_status='pending',
+             message_credits=1)
+        self.history_manager.save_history(**history)
+        ack_event = self.mkmsg_ack(user_message_id='1')
+        def returnNone(id):
+            return None, 0, None
+        self.history_manager.flying_manager.get_message_data = returnNone
+        new_status, old_status, credits = self.history_manager.update_status_from_event(ack_event)
+        self.assertEqual(new_status, 'ack')
+        self.assertEqual(old_status, None)
+        self.assertEqual(credits, 0)
+
     def test_has_already_been_answered(self):
         dNow = datetime.now()
 

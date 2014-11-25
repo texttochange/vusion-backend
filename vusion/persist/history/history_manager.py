@@ -61,10 +61,15 @@ class HistoryManager(ModelManager):
         history_id, credits, old_status = self.flying_manager.get_message_data(event['user_message_id'])
         if history_id is None:
             self.log("Cannot find flying message %s, cannot proceed updating the history" % event['user_message_id'])
-            return None
+            return event['event_type'], None, credits
         if (event['event_type'] == 'ack'):
-            status = 'ack'
+            status = event['event_type']
             new_status = status
+        elif (event['event_type'] == 'nack'):
+            status = {
+                'status': event['event_type'],
+                'reason': event['nack_reason']}
+            new_status = 'nack'
         elif (event['event_type'] == 'delivery_report'):
             status = event['delivery_status']
             new_status = status
@@ -77,7 +82,7 @@ class HistoryManager(ModelManager):
                       event.get('failure_reason', 'unknown')))}
                 credit_status = event['delivery_status']
         if ('transport_type' in event['transport_metadata']
-           and event['transport_metadata']['transport_type'] == 'http_forward'):
+           and event['transport_metadata']['transport_type'] == 'http_api'):
             self.update_forwarded_status(history_id, event['user_message_id'], status)
         else:
             self.update_status(history_id, status)

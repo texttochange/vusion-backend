@@ -706,7 +706,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         
         messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
-        self.assertEqual(messages[0]['transport_type'], 'http_forward')
+        self.assertEqual(messages[0]['transport_type'], 'http_api')
         self.assertEqual(messages[0]['from_addr'], 'sphex')
         self.assertEqual(messages[0]['to_addr'], 'http://partner.com')
         self.assertEqual(

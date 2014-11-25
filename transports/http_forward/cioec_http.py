@@ -97,16 +97,7 @@ class CioecHttp(Transport):
                     message['message_id'], reason,
                     transport_metadata=self.transport_metadata)
                 return
-            
-                #log.msg("Service Error: %s" % response_body['message'])
-                #yield self.publish_delivery_report(
-                    #user_message_id=message['message_id'],
-                    #delivery_status='failed',
-                    #failure_level='service',
-                    #failure_code=response_body['error'],
-                    #failure_reason=response_body['message'],
-                    #transport_metadata={'transport_type':'http_forward'})
-                #return                
+
             yield self.publish_ack(
                 user_message_id=message['message_id'],
                 sent_message_id=message['message_id'],
@@ -116,26 +107,8 @@ class CioecHttp(Transport):
             yield self.publish_nack(
                 message['message_id'], reason,
                 transport_metadata=self.transport_metadata)
-            
-            #log.msg("Missing Data error %s" % repr(ex))
-            #yield self.publish_delivery_report(
-                #user_message_id=message['message_id'],
-                #delivery_status='failed',
-                #failure_level='transport',
-                #failure_code=None,
-                #failure_reason=ex.message,
-                #transport_metadata={'transport_type':'http_forward'})            
         except Exception as ex:
             reason = "TRANSPORT ERROR %s" % repr(ex)
             yield self.publish_nack(
                 message['message_id'], reason,
                 transport_metadata=self.transport_metadata)
-            
-            #log.msg("Unexpected error %s" % repr(ex))
-            #yield self.publish_delivery_report(
-                #user_message_id=message['message_id'],
-                #delivery_status='failed',
-                #failure_level='transport',
-                #failure_code=None,
-                #failure_reason=repr(ex),
-                #transport_metadata={'transport_type':'http_forward'})

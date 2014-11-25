@@ -208,6 +208,7 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
         yield self.dispatch_control(control)
         self.assertEqual(self.worker.properties['timezone'], 'Europe/Paris')
     
+    #not happening anymore, it fails much before in vumi
     #@inlineCallbacks
     #def test_consume_control_badly_formated(self):
         #self.initialize_properties()
