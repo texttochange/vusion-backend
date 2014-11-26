@@ -37,3 +37,4 @@ meld3==1.0.0
 ##Vusion
 pymongo==2.7.2
 Unidecode==0.04.16
+supervisor==3.1.3
