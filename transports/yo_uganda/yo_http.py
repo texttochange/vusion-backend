@@ -6,7 +6,7 @@ from urllib import urlencode, unquote
 from urlparse import parse_qs
 import re
 
-from twisted.python import log
+from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet.error import ConnectionRefusedError
 from twisted.web import http
@@ -15,7 +15,7 @@ from twisted.web.server import NOT_DONE_YET
 
 from vumi.transports.base import Transport
 from vumi.utils import http_request_full, normalize_msisdn
-from twisted.internet import defer
+from vumi import log
 
 
 class YoHttpTransport(Transport):
@@ -88,6 +88,7 @@ class YoHttpTransport(Transport):
                 traceback.format_exception(exc_type, exc_value, exc_traceback))            
             reason = "TRANSPORT ERROR %s" % (ex.message)
             yield self.publish_nack(message['message_id'], reason)
+            pass
 
 
 

@@ -63,7 +63,7 @@ class MobivateHttpTransportTestCase(VumiTestCase):
         self.assertEqual(event['sent_message_id'], '1')
 
     @inlineCallbacks
-    def test_outbound_fail(self):
+    def test_outbound_fail_service(self):
         self.mock_server_response = "500\nSome internal issue"
         yield self.tx_helper.make_dispatch_outbound(
                     "hello world", message_id='1')
@@ -71,6 +71,16 @@ class MobivateHttpTransportTestCase(VumiTestCase):
         self.assertEqual(event['event_type'], 'nack')
         self.assertEqual(event['user_message_id'], '1')
         self.assertEqual(event['nack_reason'], "SERVICE ERROR 500 - Some internal issue")
+
+    @inlineCallbacks
+    def test_outbound_fail_transport(self):
+        yield self.mock_mobivate.stop()        
+        yield self.tx_helper.make_dispatch_outbound(
+                    "hello world", message_id='1')
+        [event] = yield self.tx_helper.wait_for_dispatched_events(1)
+        self.assertEqual(event['event_type'], 'nack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['nack_reason'], "TRANSPORT ERROR Connection refused")
 
     @inlineCallbacks
     def test_inbound(self):

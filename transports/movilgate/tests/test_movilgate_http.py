@@ -238,7 +238,7 @@ class MovilgateHttpTransportTestCase(VumiTestCase, MovilgateRequestMaker):
         self.assertEqual(event['sent_message_id'], '1')
 
     @inlineCallbacks
-    def test_sending_mt_ok_servicioid_missing(self):
+    def test_outbound_ok_servicioid_missing(self):
         self.mock_server_response = self.mk_mt_response_ok()
         self.mock_server_response_code = http.OK
         self.mock_server_response_headers = {'X-Movilgate-Carrier': '2229.tigo.bo'}
@@ -261,7 +261,7 @@ class MovilgateHttpTransportTestCase(VumiTestCase, MovilgateRequestMaker):
         self.assertEqual(event['sent_message_id'], '1')
 
     @inlineCallbacks
-    def test_outboudn_ok_idtran_missing(self):
+    def test_outbound_ok_idtran_missing(self):
         self.mock_server_response = self.mk_mt_response_ok()
         self.mock_server_response_code = http.OK
         self.mock_server_response_headers = {'X-Movilgate-Carrier': '2229.tigo.bo'}
@@ -283,7 +283,7 @@ class MovilgateHttpTransportTestCase(VumiTestCase, MovilgateRequestMaker):
         self.assertEqual(event['sent_message_id'], '1')
         
     @inlineCallbacks
-    def test_sending_mt_fail(self):
+    def test_outbound_fail_service(self):
         self.mock_server_response = self.mk_mt_response_fail()
         self.mock_server_response_code = http.OK
         self.mock_server_response_headers = {'X-Movilgate-Carrier': '2229.tigo.bo'}        
@@ -295,7 +295,22 @@ class MovilgateHttpTransportTestCase(VumiTestCase, MovilgateRequestMaker):
         [event] = yield self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'nack')
         self.assertEqual(event['user_message_id'], '1')
-        self.assertEqual(event['nack_reason'], "SERVICE ERROR 3 - Fail: some reason")        
+        self.assertEqual(event['nack_reason'], "SERVICE ERROR 3 - Fail: some reason")
+
+
+    @inlineCallbacks
+    def test_outbound_fail_transport(self):
+        yield self.mock_movilgate.stop()        
+        transport_metadata = {'telefono_id_tran': '12345678', 'servicio_id': '2229.tigo.bo'}
+        yield self.tx_helper.make_dispatch_outbound(
+            "hello world", message_id='1', from_addr='2229', transport_metadata=transport_metadata)
+    
+        ## assert the event
+        [event] = yield self.tx_helper.get_dispatched_events()
+        self.assertEqual(event['event_type'], 'nack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['nack_reason'], "TRANSPORT ERROR Connection refused")
+
 
     @inlineCallbacks
     def test_inbound(self):

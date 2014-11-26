@@ -1,4 +1,4 @@
-import re, json
+import re, json, sys, traceback
 from urlparse import urlparse
 from hashlib import sha1
 from datetime import datetime
@@ -108,7 +108,12 @@ class CioecHttp(Transport):
                 message['message_id'], reason,
                 transport_metadata=self.transport_metadata)
         except Exception as ex:
-            reason = "TRANSPORT ERROR %s" % repr(ex)
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            log.error(
+                "TRANSPORT ERROR: %r" %
+                traceback.format_exception(exc_type, exc_value, exc_traceback))
+            reason = "TRANSPORT ERROR %s" % (ex.message)
             yield self.publish_nack(
-                message['message_id'], reason,
-                transport_metadata=self.transport_metadata)
+                message['message_id'],
+                reason,
+                transport_metadata=self.transport_metadata) 

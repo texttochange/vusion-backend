@@ -112,7 +112,7 @@ class ForwardHttpTransportTestCase(VumiTestCase):
         self.assertEqual(ack2['transport_metadata'], {'transport_type':'http_api'})
 
     @inlineCallbacks
-    def test_outbound_fail_service_error(self):
+    def test_outbound_fail_service(self):
         self.mock_fh_1_response = "SOME INTERNAL STUFF HAPPEN"
         self.mock_fh_1_response_code = http.INTERNAL_SERVER_ERROR
         yield self.tx_helper.make_dispatch_outbound(
@@ -132,7 +132,7 @@ class ForwardHttpTransportTestCase(VumiTestCase):
         self.assertEqual(event['transport_metadata'], {'transport_type': 'http_api'})
 
     @inlineCallbacks
-    def test_outbound_fail_connection_error(self):
+    def test_outbound_fail_transport(self):
         yield self.tx_helper.make_dispatch_outbound(
             to_addr="http://localhost:9997/sendsms2",
             from_addr="myprogram",

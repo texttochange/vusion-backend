@@ -193,7 +193,7 @@ class CmHttpTransportTestCase(VumiTestCase):
         self.assertEqual(ack['sent_message_id'], '1')
 
     @inlineCallbacks
-    def test_outbound_http_failure(self):
+    def test_outbound_fail_http(self):
         self.mock_server_response = "timeout"
         self.mock_server_response_code = http.REQUEST_TIMEOUT
 
@@ -205,7 +205,7 @@ class CmHttpTransportTestCase(VumiTestCase):
         self.assertEqual(event['nack_reason'], 'HTTP ERROR 408 - timeout')
 
     @inlineCallbacks
-    def test_outbound_service_failure(self):
+    def test_outbound_fail_service(self):
         self.mock_server_response = "Error: ERROR Unknown error"
         self.mock_server_response_code = http.OK
         
@@ -214,6 +214,15 @@ class CmHttpTransportTestCase(VumiTestCase):
         self.assertEqual(event['event_type'], 'nack')
         self.assertEqual(event['user_message_id'], '1')
         self.assertEqual(event['nack_reason'], "SERVICE ERROR - Error: ERROR Unknown error")
+
+    @inlineCallbacks
+    def test_outbound_fail_transport(self):
+        yield self.mock_cm.stop()
+        yield self.tx_helper.make_dispatch_outbound("Hello world", message_id='1')
+        [event] = yield self.tx_helper.wait_for_dispatched_events(1)
+        self.assertEqual(event['event_type'], 'nack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['nack_reason'], "TRANSPORT ERROR Connection refused")
 
     @inlineCallbacks
     def test_inbound(self):

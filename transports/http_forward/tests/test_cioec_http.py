@@ -197,7 +197,31 @@ class CioecHttpTransportTestCase(VumiTestCase):
         self.assertEqual(event['user_message_id'], '1')
         self.assertEqual(event['nack_reason'], "MISSING DATA name is missing")
         self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
-        
+
+    @inlineCallbacks
+    def test_outbound_fail_transport(self):
+        yield self.mock_cioec.stop()        
+        yield self.tx_helper.make_dispatch_outbound(
+            to_addr="%sapi/registration" % self.mock_cioec.url,
+            from_addr="myprogram",
+            content="Hello",
+            message_id='1',
+              transport_metadata={
+                'program_shortcode': '256-8181',
+                'participant_phone': '+6',
+                'participant_profile': [
+                    {'label': 'name',
+                     'value': 'Sandra'},
+                    {'label': 'sector',
+                     'value': 'Productor'},
+                    {'label': 'email',
+                     'value': 'me@gmail.com'}]})
+        [event] = self.tx_helper.get_dispatched_events()
+        self.assertEqual(event['event_type'], 'nack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['nack_reason'], "TRANSPORT ERROR Connection refused")
+        self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
+
     @inlineCallbacks
     def test_outbound_ok_unregistration(self):
         response_body = {
@@ -285,4 +309,4 @@ class CioecHttpTransportTestCase(VumiTestCase):
         [event] = self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'nack')
         self.assertEqual(event['user_message_id'], '1')
-        self.assertEqual(event['nack_reason'], RegexMatcher("TRANSPORT ERROR ValueError"))
+        self.assertEqual(event['nack_reason'], "TRANSPORT ERROR No JSON object could be decoded")

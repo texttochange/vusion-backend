@@ -3,7 +3,6 @@ from xml.etree import ElementTree
 from urllib import urlencode, unquote
 from urlparse import parse_qs
 
-from twisted.python import log
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet.error import ConnectionRefusedError
 from twisted.web import http
@@ -14,7 +13,7 @@ from twisted.internet import defer
 from vumi.transports.base import Transport
 from vumi.transports.httprpc import HttpRpcTransport
 from vumi.utils import http_request_full, normalize_msisdn
-
+from vumi import log
 
 ##This transport is supposed to send and receive sms in 2 different ways.
 ##For MT, it uses the CM API POST

@@ -105,6 +105,17 @@ class YoUgHttpTransportTestCase(VumiTestCase):
         self.assertEqual(event['nack_reason'], "HTTP ERROR 408 - timeout")
 
     @inlineCallbacks
+    def test_outbound_nack_transport(self):
+        yield self.mock_yo.stop()
+        yield self.tx_helper.make_dispatch_outbound(
+            "hello world", message_id = '1')
+ 
+        [event] = yield self.tx_helper.get_dispatched_events()
+        self.assertEqual(event['event_type'], 'nack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['nack_reason'], "TRANSPORT ERROR Connection refused")    
+
+    @inlineCallbacks
     def test_outbound_nack_service(self):
         self.mock_server_response = (
             "ybs_autocreate_status%3DERROR%26"
