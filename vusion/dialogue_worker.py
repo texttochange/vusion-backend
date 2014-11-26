@@ -54,13 +54,11 @@ class DialogueWorker(ApplicationWorker):
         self.r_config = {}
         self.control_name = None
         self.transport_name = None
-        self.transport_type = None
         self.program_name = None
         
         #Store basic configuration data
         self.transport_name = self.config['transport_name']
         self.control_name = self.config['control_name']
-        self.transport_type = 'sms'
         self.r_config = self.config.get('redis_config', {})
         self.r_prefix = "%(control_name)s:" % self.config
 
@@ -374,6 +372,7 @@ class DialogueWorker(ApplicationWorker):
         participant = self.collections['participants'].get_participant(participant_phone)
         options = {
            'from_addr': self.transport_name,
+           'transport_name': self.transport_name,
            'transport_type': 'http_api',
            'transport_metadata': {
                'program_shortcode': self.properties['shortcode'],
@@ -859,7 +858,8 @@ class DialogueWorker(ApplicationWorker):
                  
             options = {
                 'from_addr': self.properties['shortcode'],
-                'transport_type': self.transport_type,
+                'transport_name': self.transport_name,
+                'transport_type': 'sms',
                 'transport_metadata': {}}
 
             ## Apply program settings
@@ -908,6 +908,7 @@ class DialogueWorker(ApplicationWorker):
             message_content = self.generate_message(interaction)
             options = {
                 'from_addr': self.properties['shortcode'],
+                'transport_name': self.transport_name,
                 'transport_type': 'sms'}
             self.send_to(phone_number, message_content, **options)
 

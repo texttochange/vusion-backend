@@ -108,13 +108,13 @@ class TestDynamicDispatcherWorker(VumiTestCase, MessageMaker):
     @inlineCallbacks
     def test_control_add_remove_exposed(self):
         yield self.get_dispatcher()
-        
+
         ## there is no rule for keyword3 => inbound fallback_app
         msg_in = yield self.ch('transport1').make_dispatch_inbound(
             'keyword3 1st message')
         self.assert_inbound('fallback_app', 'transport1', msg_in)
         self.assert_no_inbound('app1')
-        
+
         ## the rule for keyword3 is added => inbound app2
         self.disp_helper.clear_all_dispatched()
         yield self.make_dispatch_control(
@@ -127,8 +127,16 @@ class TestDynamicDispatcherWorker(VumiTestCase, MessageMaker):
         msg_in = yield self.ch('transport1').make_dispatch_inbound(
             'keyword3 2nd messsage')
         self.assert_inbound('app2', 'transport1', msg_in)
-        self.assert_no_inbound('app1')        
-        
+        self.assert_no_inbound('app1')
+
+        ## event are also route down
+        msg_out = yield self.ch('app2').make_dispatch_outbound(
+            'hello world', from_addr='8181', transport_name='app2')
+        self.assert_outbound('transport1', [('app2', msg_out)])
+        event_in = yield self.ch('transport1').make_dispatch_ack(
+            msg=msg_out, transport_name='transport1')
+        self.assert_event('app2', 'transport1', event_in)
+
         ## the rule for keyword3 is removed => inbound fallback_app
         self.disp_helper.clear_all_dispatched()
         yield self.make_dispatch_control(

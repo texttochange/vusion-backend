@@ -682,32 +682,33 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
     @inlineCallbacks
     def test_run_action_url_forwarding(self):
         self.initialize_properties()
-        
+
         self.collections['participants'].save(self.mkobj_participant(
             participant_phone='+6',
             profile=[{'label': 'name', 'value': 'olivier', 'raw': None}]))
-        
+
         history_id = self.collections['history'].save(self.mkobj_history_dialogue(
             dialogue_id='1',
             interaction_id='1',
             timestamp='2012-08-04T15:15:00',
             direction='incoming'))
         participant = self.mkobj_participant(participant_phone='+6')
-        
+
         message_forwarding = UrlForwarding(**{'forward-url': 'http://partner.com'})
-        
+
         context = Context(**{'history_id': str(history_id)})
-        
+
         yield self.worker.run_action(
             participant['phone'],
             message_forwarding,
             context,
             participant['session-id'])
-        
+
         messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
-        self.assertEqual(messages[0]['transport_type'], 'http_api')
         self.assertEqual(messages[0]['from_addr'], 'sphex')
+        self.assertEqual(messages[0]['transport_name'], 'sphex')
+        self.assertEqual(messages[0]['transport_type'], 'http_api')
         self.assertEqual(messages[0]['to_addr'], 'http://partner.com')
         self.assertEqual(
             messages[0]['transport_metadata'], 
@@ -721,7 +722,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
     def test_run_action_url_forwarding_not_allowed(self):
         program_settings = self.mk_program_settings('256-8181', sms_forwarding_allowed='none')
         self.initialize_properties(program_settings)
-        
+
         history_id = self.collections['history'].save(self.mkobj_history_dialogue(
             dialogue_id='1',
             interaction_id='1',
@@ -757,18 +758,18 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
                       'value': 'kampala'}],
             tags=['my tag'])
         self.collections['participants'].save(sender)
-        
+
         receiver_optin = self.mkobj_participant(
             participant_phone='+9',
             tags=['my tag'])
         self.collections['participants'].save(receiver_optin)
-        
+
         receiver_optout = self.mkobj_participant(
             participant_phone='+5',
             tags=['my tag'],
             session_id=None)
         self.collections['participants'].save(receiver_optout)
-        
+
         sms_forwarding = SmsForwarding(**{
             'forward-to': 'my tag',
             'forward-content': ('[participant.name]([participant.phone]) ' 
@@ -778,10 +779,11 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         context = Context(**{'message': 'Alert',
                              'request-id': '1'})
         yield self.worker.run_action(sender['phone'], sms_forwarding, context)
-        
+
         messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['to_addr'], receiver_optin['phone'])
+        self.assertEqual(messages[0]['transport_name'], 'sphex')
         self.assertEqual(messages[0]['transport_type'], 'sms')
         self.assertRegexpMatches(messages[0]['content'], 'mark\(\+1\) living in kampala sent Alert at \d{2}:\d{2}')
         self.assertEqual(self.collections['history'].count(), 1)
@@ -791,7 +793,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
     @inlineCallbacks
     def test_run_action_sms_forwarding_no_participant(self):
         self.initialize_properties()
-        
+
         sender = self.mkobj_participant(
             participant_phone='+1',
             profile=[{'label': 'name',
@@ -800,7 +802,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
                       'value': 'kampala'}],
             tags=['my tag'])
         self.collections['participants'].save(sender)
-                        
+
         sms_forwarding = SmsForwarding(**{
             'forward-to': 'geek',
             'forward-content': 'Hello...',
@@ -810,7 +812,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         context = Context(**{'message': 'ANSWER +1234',
                              'request-id': '1'})
         yield self.worker.run_action(sender['phone'], sms_forwarding, context)
-        
+
         messages = self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['to_addr'], sender['phone'])
@@ -821,7 +823,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
     @inlineCallbacks
     def test_run_action_sms_forwarding_no_conditions(self):
         self.initialize_properties()
-        
+
         sender = self.mkobj_participant(
             participant_phone='+1',
             profile=[{'label': 'name',
@@ -835,24 +837,24 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             participant_phone='+9',
             tags=['my tag'])
         self.collections['participants'].save(receiver)
-                        
+
         sms_forwarding = SmsForwarding(**{
             'forward-to': 'geek',
             'forward-content': 'Hello...',
             'set-forward-message-condition': 'forward-message-condition',
             'forward-message-condition-type': 'phone-number',
             'forward-message-no-participant-feedback': 'No patient is matching the phone number \'[context.message.2]\'.'})
-        
+
         context = Context(**{
             'message': 'ANSWER this is a message',
             'request-id': '1'})
         yield self.worker.run_action(sender['phone'], sms_forwarding, context)
-        
+
         context = Context(**{
             'message': 'ANSWER this is my message',
             'request-id': '1'})
         yield self.worker.run_action(sender['phone'], sms_forwarding, context) 
-        
+
         messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 2)
         self.assertEqual(messages[0]['to_addr'], sender['phone'])
