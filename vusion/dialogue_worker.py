@@ -47,6 +47,7 @@ from vusion.connectors import (
 
 class DialogueWorker(ApplicationWorker):
 
+    @inlineCallbacks
     def setup_application(self):   
         self.sender = None
         self.r_prefix = None
@@ -102,7 +103,7 @@ class DialogueWorker(ApplicationWorker):
            self.logger)
 
         self.logger.log("Dialogue Worker is starting")
-        self.setup_dc_connector(self.config['dispatcher_name'])
+        yield self.setup_dc_connector(self.config['dispatcher_name'])
         #Will need to register the keywords
         self.load_properties(if_needed_register_keywords=True)
         self.sender = reactor.callLater(2, self.daemon_process)
