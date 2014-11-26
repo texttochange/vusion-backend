@@ -9,14 +9,12 @@ receive_path: /yo
 receive_port: 2221
 
 
-#middleware:
-#       - mw1: middlewares.vusion_address_middleware.VusionAddressMiddleware
-#       - wm: middlewares.window_manager_middleware.WindowManagerMiddleware
-wm:
-      window_size: 1
-      flight_lifetime: 2
-      monitor_loop: 3
-      gc_interval: 15
+middleware:
+    - vam: middlewares.vusion_address_middleware.VusionAddressMiddleware
+    - mw1: middlewares.triming_middleware.TrimingMiddleware
+
+wam:
+    trim_plus_outbound: Y
 
 mw1:
-       trim_plus_outbound: Y
+    extra_trim: '".'
