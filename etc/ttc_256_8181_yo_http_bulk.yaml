@@ -9,7 +9,7 @@ receive_path: /yo
 receive_port: 2223
 
 middleware:
-    - vam: middlewares.vusion_address_middleware.VusionAddressMiddleware
+    - vam: middlewares.VusionAddressMiddleware
 
 wam:
     trim_plus_outbound: Y

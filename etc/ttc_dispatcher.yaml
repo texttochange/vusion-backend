@@ -15,4 +15,4 @@ fallback_application: garbage
 expire_routing_memory: 25
 
 middleware: 
-       - mw1: middlewares.triming_middleware.TrimingMiddleware
+       - mw1: middlewares.TrimingMiddleware
