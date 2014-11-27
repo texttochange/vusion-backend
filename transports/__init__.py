@@ -17,7 +17,7 @@ __all__ = [
     "MovilgateHttpTransport",
     "MobtechHttpTransport",
     "TtcBurkinafasoHttpTransport",
-    "YoUgHttpTransport",
+    "YoHttpTransport",
     "SmsghSmppTransport",
     "ForwardHttp",
     "CioecHttp"]

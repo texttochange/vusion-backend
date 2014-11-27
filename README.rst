@@ -39,7 +39,7 @@ This creates the virtual enviroment where your porject is going to run
 
 	$ virtualenv ve
 	$ source ve/bin/activate
-	$ pip install -r requirements.pip
+	$ pip install -r pip/requirements.pip
 
 Running
 --------
