@@ -1,5 +1,6 @@
 import re, sys, traceback
 from xml.etree import ElementTree
+from xml.etree.ElementTree import ParseError
 
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks
@@ -11,6 +12,7 @@ from twisted.web.server import NOT_DONE_YET
 from vumi.transports.base import Transport
 from vumi.utils import http_request_full, normalize_msisdn
 from vumi import log
+
 
 class MovilgateHttpTransport(Transport):
     
@@ -125,27 +127,35 @@ class MovilgateReceiveSMSResource(Resource):
                 request.setResponseCode(http.OK)
                 request.finish()
                 return
-            mo_request = ElementTree.fromstring(raw_body)
-            contenido = mo_request.find('Contenido').text
-            servicio_id = mo_request.find('Servicio').attrib['Id']
-            from_add = mo_request.find('Telefono').attrib['msisdn']
-            id_tran = mo_request.find('Telefono').attrib['IdTran']
-            to_addr = servicio_id.split('.')[0]
-            yield self.publish_func(
-                transport_type='sms',
-                to_addr=to_addr,
-                from_addr=from_add,
-                content=contenido,
-                transport_metadata={'telefono_id_tran': id_tran, 'servicio_id': servicio_id})
-            request.setResponseCode(http.OK)
-            request.setHeader('Content-Type', 'text/plain')
+            if raw_body == '\n':
+                request.setResponseCode(http.OK)
+            else:
+                mo_request = ElementTree.fromstring(raw_body)
+                contenido = mo_request.find('Contenido').text
+                servicio_id = mo_request.find('Servicio').attrib['Id']
+                from_add = mo_request.find('Telefono').attrib['msisdn']
+                id_tran = mo_request.find('Telefono').attrib['IdTran']
+                to_addr = servicio_id.split('.')[0]
+                yield self.publish_func(
+                    transport_type='sms',
+                    to_addr=to_addr,
+                    from_addr=from_add,
+                    content=contenido,
+                    transport_metadata={
+                        'telefono_id_tran': id_tran,
+                        'servicio_id': servicio_id})
+                request.setResponseCode(http.OK)
+                request.setHeader('Content-Type', 'text/plain')
+        except ParseError as ex:
+            request.setResponseCode(http.INTERNAL_SERVER_ERROR)
+            log.msg("Error parsing the request body %s" % raw_body)
         except:
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
             log.msg("Error processing the request: %s" % (request,))
             exc_type, exc_value, exc_traceback = sys.exc_info()
             log.error(
                 "Error during consume user message: %r" %
-                traceback.format_exception(exc_type, exc_value, exc_traceback))            
+                traceback.format_exception(exc_type, exc_value, exc_traceback))
         request.finish()
 
     def render(self, request):

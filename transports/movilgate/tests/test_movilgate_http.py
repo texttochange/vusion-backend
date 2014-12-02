@@ -26,7 +26,7 @@ class MovilgateRequestMaker:
             '<Telefono msisdn="256788" IdTran="12345678"/>'
             '<Contenido>ola mundo</Contenido>'
             '</MTRequest>')
-    
+
     def mk_mt_request_foreign_language(self):
         return (
             '<MTRequest>'
@@ -35,7 +35,7 @@ class MovilgateRequestMaker:
             '<Telefono msisdn="256788" IdTran="12345678"/>'
             '<Contenido>ola España</Contenido>'
             '</MTRequest>')
-    
+
     def mk_mt_response_ok(self):
         return (
             '<MTResponse>'
@@ -49,7 +49,7 @@ class MovilgateRequestMaker:
             '<Transaccion estado="3" IdTran="123" Fecha="2005-02-0 1 20:40:30"/>'
             '<Texto>Fail: some reason</Texto>'
             '</MTResponse>')
-    
+
     def mk_mo_request(self):
         return (
             '<MORequest>'
@@ -149,7 +149,7 @@ class MovilgateHttpTransportTestCase(VumiTestCase, MovilgateRequestMaker):
         self.mock_server_response_headers = {'X-Movilgate-Carrier': '2229.tigo.bo'}
         yield self.tx_helper.make_dispatch_outbound(
             "hello world", message_id='1', from_addr='2229')
-        
+
         ## assert the request
         req = yield self.movilgate_calls.get()
         headers = dict(req.requestHeaders.getAllRawHeaders())
@@ -160,7 +160,7 @@ class MovilgateHttpTransportTestCase(VumiTestCase, MovilgateRequestMaker):
         self.assertEqual(encoded_msg.find('Servicio').attrib['ShortNumber'], "2229")
         idTran = re.compile("^[0-9]{5,}$");
         self.assertTrue(idTran.match(encoded_msg.find('Telefono').attrib['IdTran']))
-   
+
         ## assert the event
         [event] = yield self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'ack')
@@ -172,13 +172,13 @@ class MovilgateHttpTransportTestCase(VumiTestCase, MovilgateRequestMaker):
         self.mock_server_response = ''
         self.mock_server_response_code = http.INTERNAL_SERVER_ERROR
         self.mock_server_response_headers = {'X-Movilgate-Status': 'ERROR_NO_CARRIERDETECT'}
-        
+
         yield self.tx_helper.make_dispatch_outbound(
             "hello world", message_id='1', from_addr='2229')
-        
+
         ## wait for the request to arrive
         req = yield self.movilgate_calls.get()
-        
+
         ## assert the event
         [event] = yield self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'nack')
@@ -204,13 +204,13 @@ class MovilgateHttpTransportTestCase(VumiTestCase, MovilgateRequestMaker):
         self.assertEqual(encoded_msg.find('Servicio').attrib['Id'],"2229.tigo.bo")
         self.assertTrue('ShortNumber' not in encoded_msg.find('Servicio').attrib)
         self.assertEqual(encoded_msg.find('Telefono').attrib['IdTran'],"12345678") 
-            
+
         ## assert the event
         [event] = yield self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'ack')
         self.assertEqual(event['user_message_id'], '1')
         self.assertEqual(event['sent_message_id'], '1')
-    
+
     @inlineCallbacks
     def test_outbound_ok_message_with_accent(self):
         self.mock_server_response = self.mk_mt_response_ok()
@@ -221,7 +221,7 @@ class MovilgateHttpTransportTestCase(VumiTestCase, MovilgateRequestMaker):
         transport_metadata = {'telefono_id_tran': '12345678', 'servicio_id': '2229.tigo.bo'}        
         yield self.tx_helper.make_dispatch_outbound(
             content, message_id='1', from_addr='2229', transport_metadata=transport_metadata)
-        
+
         ## assert http request
         req = yield self.movilgate_calls.get()        
         headers = dict(req.requestHeaders.getAllRawHeaders())
@@ -230,7 +230,7 @@ class MovilgateHttpTransportTestCase(VumiTestCase, MovilgateRequestMaker):
         encoded_msg = ElementTree.fromstring(body)
         self.assertTrue(isinstance(encoded_msg.find('Contenido').text, unicode))
         self.assertEqual(content, encoded_msg.find('Contenido').text)
-            
+
          ## assert the event
         [event] = yield self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'ack')
@@ -268,20 +268,20 @@ class MovilgateHttpTransportTestCase(VumiTestCase, MovilgateRequestMaker):
         transport_metadata = {'servicio_id': '2229.tigo.bo'}
         yield self.tx_helper.make_dispatch_outbound(
             "hello world", message_id='1', from_addr='2229', transport_metadata=transport_metadata)
-        
+
         req = yield self.movilgate_calls.get()
         body = self.movilgate_calls_body.pop()
         encoded_msg = ElementTree.fromstring(body)
         self.assertEqual(encoded_msg.find('Servicio').attrib['Id'], "2229.tigo.bo")
         self.assertTrue('ShortNumber' not in encoded_msg.find('Servicio').attrib)
         self.assertEqual(encoded_msg.find('Telefono').attrib['IdTran'], "0")
-        
+
         ## assert the event
         [event] = yield self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'ack')
         self.assertEqual(event['user_message_id'], '1')
         self.assertEqual(event['sent_message_id'], '1')
-        
+
     @inlineCallbacks
     def test_outbound_fail_service(self):
         self.mock_server_response = self.mk_mt_response_fail()
@@ -290,7 +290,7 @@ class MovilgateHttpTransportTestCase(VumiTestCase, MovilgateRequestMaker):
         transport_metadata = {'telefono_id_tran': '12345678', 'servicio_id': '2229.tigo.bo'}
         yield self.tx_helper.make_dispatch_outbound(
             "hello world", message_id='1', from_addr='2229', transport_metadata=transport_metadata)
-    
+
         ## assert the event
         [event] = yield self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'nack')
@@ -304,13 +304,12 @@ class MovilgateHttpTransportTestCase(VumiTestCase, MovilgateRequestMaker):
         transport_metadata = {'telefono_id_tran': '12345678', 'servicio_id': '2229.tigo.bo'}
         yield self.tx_helper.make_dispatch_outbound(
             "hello world", message_id='1', from_addr='2229', transport_metadata=transport_metadata)
-    
+
         ## assert the event
         [event] = yield self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'nack')
         self.assertEqual(event['user_message_id'], '1')
         self.assertEqual(event['nack_reason'], "TRANSPORT ERROR Connection refused")
-
 
     @inlineCallbacks
     def test_inbound(self):
@@ -318,13 +317,32 @@ class MovilgateHttpTransportTestCase(VumiTestCase, MovilgateRequestMaker):
                % (self.config['receive_port'], self.config['receive_path']))
         response = yield http_request_full(url, data=self.mk_mo_request())
         self.assertEqual(response.code, http.OK)
-        
+
         [user_msg] = yield self.tx_helper.get_dispatched_inbound()        
         self.assertEqual('hello world', user_msg['content'])
         self.assertEqual('41791234567', user_msg['from_addr'])
         self.assertEqual('2229', user_msg['to_addr'])
         self.assertEqual('12345678', user_msg['transport_metadata']['telefono_id_tran'])
         self.assertEqual('2229.tigo.bo', user_msg['transport_metadata']['servicio_id'])
+
+    @inlineCallbacks
+    def test_inbound_ping(self):
+        url = ("http://localhost:%s%s"
+               % (self.config['receive_port'], self.config['receive_path']))
+        response = yield http_request_full(url, data='\n')
+        self.assertEqual(response.code, http.OK)
+
+        user_msgs = yield self.tx_helper.get_dispatched_inbound()
+        self.assertEqual(len(user_msgs), 0)
+
+    @inlineCallbacks
+    def test_inbound_fail(self):
+        url = ("http://localhost:%s%s"
+               % (self.config['receive_port'], self.config['receive_path']))
+        response = yield http_request_full(url, data=' something is wrong')
+        self.assertEqual(response.code, http.INTERNAL_SERVER_ERROR)
+        user_msgs = yield self.tx_helper.get_dispatched_inbound()
+        self.assertEqual(len(user_msgs), 0)
 
     @inlineCallbacks
     def test_receiving_ping(self):
