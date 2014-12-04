@@ -57,7 +57,7 @@ class HistoryManager(ModelManager):
         history_id, credits, old_status = self.flying_manager.get_message_data(event['user_message_id'])
         if history_id is None:
             self.log("Cannot find flying message %s, cannot proceed updating the history" % event['user_message_id'])
-            return None
+            return event['event_type'], None, credits
         if (event['event_type'] == 'ack'):
             status = 'ack'
             new_status = status

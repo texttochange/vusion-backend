@@ -316,6 +316,28 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
     def test_receiving_ping(self):
         url = ("http://localhost:%s%s"
                % (self.config['receive_port'], self.config['receive_path']))
+        response = yield http_request_full(url, data='\n')
+        
+        msgs = self.get_dispatched('movilgate.inbound')
+        
+        self.assertEqual(response.code, http.OK)
+        self.assertEqual(len(msgs), 0)
+
+    @inlineCallbacks
+    def test_receiving_fail(self):
+        url = ("http://localhost:%s%s"
+               % (self.config['receive_port'], self.config['receive_path']))
+        response = yield http_request_full(url, data=' something strange')
+        
+        msgs = self.get_dispatched('movilgate.inbound')
+        
+        self.assertEqual(response.code, http.INTERNAL_SERVER_ERROR)
+        self.assertEqual(len(msgs), 0)
+
+    @inlineCallbacks
+    def test_receiving_ping(self):
+        url = ("http://localhost:%s%s"
+               % (self.config['receive_port'], self.config['receive_path']))
         response = yield http_request_full(url, data='')
         self.assertEqual(200, response.code)
 
