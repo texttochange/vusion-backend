@@ -31,7 +31,7 @@ class MobivateHttpTransport(Transport):
             self.mkres(MobivateReceiveSMSResource,
                        self.publish_message,
                        "SMSfromMobiles"),
-            self.mkres(MobivateReceiveReciept,
+            self.mkres(MobivateReceiveReceipt,
                        self.publish_delivery_report,
                        "DeliveryReciept")
         ]
@@ -121,7 +121,7 @@ class MobivateReceiveSMSResource(Resource):
         return NOT_DONE_YET
 
 
-class MobivateReceiveReciept(Resource):
+class MobivateReceiveReceipt(Resource):
     isLeaf = True
     
     def __init__(self, config, publish_func):
