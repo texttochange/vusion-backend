@@ -11,6 +11,7 @@ from smsgh_smpp import SmsghSmppTransport
 from ttc_bf_http import TtcBfHttpTransport
 from orange_mali_smpp import OrangeMaliSmppTransport
 from enhanced_smpp.enhanced_client import EnhancedSmppTransport
+from crmtext_usa_http import CrmTextHttpTransport
 
 from http_forward.forward_http import ForwardHttp
 from http_forward.cioec_http import CioecHttp
@@ -28,4 +29,5 @@ __all__ = ["YoUgHttpTransport",
            "TtcBfHttpTransport",
            "ForwardHttp", "CioecHttp"
            "OrangeMaliSmppTransport",
-           "EnhancedSmppTransport"]
+           "EnhancedSmppTransport",
+           "CrmTextHttpTransport"]
