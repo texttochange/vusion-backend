@@ -1,5 +1,6 @@
 import re, sys, traceback
 from xml.etree import ElementTree
+from xml.etree.ElementTree import ParseError
 
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks
@@ -35,6 +36,7 @@ class MovilgateHttpTransport(Transport):
         ]
         self.receipt_resource = yield self.start_web_resources(
             resources, self.config['receive_port'])
+        self.movilgate_parser = MovilgateXMLParser()
 
     def stopWorker(self):
         if hasattr(self, 'receipt_resource'):
@@ -44,13 +46,12 @@ class MovilgateHttpTransport(Transport):
     def handle_outbound_message(self, message):
         log.msg("Outbound message to be processed %s" % repr(message))
         try:
-            movilgate_parser = MovilgateXMLParser()
             servicio_id = message['transport_metadata'].get('servicio_id', "")
             if servicio_id != "":
                 id_tran = message['transport_metadata'].get('telefono_id_tran', "0")
             else:
                 id_tran = str(hash(message['to_addr']) % ((sys.maxsize + 1) * 2))
-            mobilgate_msg = movilgate_parser.build({
+            mobilgate_msg = self.movilgate_parser.build({
             'proveedor': {
                 'id': self.config['proveedor_id'],
                 'password': self.config['proveedor_password']},
@@ -131,7 +132,7 @@ class MovilgateReceiveSMSResource(Resource):
         try:
             raw_body = request.content.read()
             log.msg('got hit with %s' % raw_body)
-            if raw_body is None or raw_body == "":
+            if raw_body in [None, "", "\n"]:
                 #it's a ping from movilgate
                 log.msg('PING from Movilgate')
                 request.setResponseCode(http.OK)
@@ -151,6 +152,11 @@ class MovilgateReceiveSMSResource(Resource):
                 transport_metadata={'telefono_id_tran': id_tran, 'servicio_id': servicio_id})
             request.setResponseCode(http.OK)
             request.setHeader('Content-Type', 'text/plain')
+        except ParseError as ex:
+            request.setResponseCode(http.INTERNAL_SERVER_ERROR)
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            log.error(
+                "Error during parse movilage body: %s" % raw_body)
         except:
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
             log.msg("Error processing the request: %s" % (request,))
