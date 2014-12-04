@@ -119,7 +119,7 @@ class MovilgateHttpTransportTestCase(VumiTestCase, MovilgateRequestMaker):
         self.mock_server_response_code = http.OK
         self.mock_server_response_headers = {}
         yield self.mock_movilgate.start()
-        self.config ={
+        self.config = {
             'url': self.mock_movilgate.url,
             'proveedor_id': 'mylogin',
             'proveedor_password': 'mypassword',

@@ -15,10 +15,10 @@ from vumi import log
 
 
 class MovilgateHttpTransport(Transport):
-    
+
     mandatory_metadata_fields = ['servicio_id', 'telefono_id_tran']
     tranport_type = 'sms'
-    
+
     def mkres(self, cls, publish_func, path_key = None):
         resource = cls(self.config, publish_func)
         self._resources.append(resource)
@@ -27,7 +27,7 @@ class MovilgateHttpTransport(Transport):
         else:
             path = "%s/%s" % (self.config['receive_path'], path_key)
         return (resource, path)
-        
+
     @inlineCallbacks
     def setup_transport(self):
         log.msg("Setup mobivate transport %s" % self.config)
@@ -39,6 +39,7 @@ class MovilgateHttpTransport(Transport):
         ]
         self.receipt_resource = yield self.start_web_resources(
             resources, self.config['receive_port'])
+        self.movilgate_parser = MovilgateXMLParser()
 
     def teardown_transport(self):
         log.msg("Stop Movilgate Transport")
@@ -49,13 +50,12 @@ class MovilgateHttpTransport(Transport):
     def handle_outbound_message(self, message):
         log.msg("Outbound message to be processed %s" % repr(message))
         try:
-            movilgate_parser = MovilgateXMLParser()
             servicio_id = message['transport_metadata'].get('servicio_id', "")
             if servicio_id != "":
                 id_tran = message['transport_metadata'].get('telefono_id_tran', "0")
             else:
                 id_tran = str(hash(message['to_addr']) % ((sys.maxsize + 1) * 2))
-            mobilgate_msg = movilgate_parser.build({
+            mobilgate_msg = self.movilgate_parser.build({
             'proveedor': {
                 'id': self.config['proveedor_id'],
                 'password': self.config['proveedor_password']},
@@ -104,7 +104,7 @@ class MovilgateHttpTransport(Transport):
                 "TRANSPORT ERROR: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
             reason = "TRANSPORT ERROR %s" % (ex.message)
-            yield self.publish_nack(message['message_id'], reason)  
+            yield self.publish_nack(message['message_id'], reason)
 
 
 class MovilgateReceiveSMSResource(Resource):
@@ -121,31 +121,28 @@ class MovilgateReceiveSMSResource(Resource):
         try:
             raw_body = request.content.read()
             log.msg('got hit with %s' % raw_body)
-            if raw_body is None or raw_body == "":
+            if raw_body in [None, "", "\n"]:
                 #it's a ping from movilgate
                 log.msg('PING from Movilgate')
                 request.setResponseCode(http.OK)
                 request.finish()
                 return
-            if raw_body == '\n':
-                request.setResponseCode(http.OK)
-            else:
-                mo_request = ElementTree.fromstring(raw_body)
-                contenido = mo_request.find('Contenido').text
-                servicio_id = mo_request.find('Servicio').attrib['Id']
-                from_add = mo_request.find('Telefono').attrib['msisdn']
-                id_tran = mo_request.find('Telefono').attrib['IdTran']
-                to_addr = servicio_id.split('.')[0]
-                yield self.publish_func(
-                    transport_type='sms',
-                    to_addr=to_addr,
-                    from_addr=from_add,
-                    content=contenido,
-                    transport_metadata={
-                        'telefono_id_tran': id_tran,
-                        'servicio_id': servicio_id})
-                request.setResponseCode(http.OK)
-                request.setHeader('Content-Type', 'text/plain')
+            mo_request = ElementTree.fromstring(raw_body)
+            contenido = mo_request.find('Contenido').text
+            servicio_id = mo_request.find('Servicio').attrib['Id']
+            from_add = mo_request.find('Telefono').attrib['msisdn']
+            id_tran = mo_request.find('Telefono').attrib['IdTran']
+            to_addr = servicio_id.split('.')[0]
+            yield self.publish_func(
+                transport_type='sms',
+                to_addr=to_addr,
+                from_addr=from_add,
+                content=contenido,
+                transport_metadata={
+                    'telefono_id_tran': id_tran,
+                    'servicio_id': servicio_id})
+            request.setResponseCode(http.OK)
+            request.setHeader('Content-Type', 'text/plain')
         except ParseError as ex:
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
             log.msg("Error parsing the request body %s" % raw_body)
