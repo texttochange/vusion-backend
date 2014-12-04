@@ -1,4 +1,6 @@
-import sys, traceback
+import sys
+import traceback
+import urlparse
 from urllib import urlencode
 from base64 import b64encode
 from xml.etree import ElementTree
@@ -128,12 +130,15 @@ class CrmTextReceiveSmsResource(Resource):
     @inlineCallbacks
     def do_render(self, request):
         try:
+            raw_body = request.content.read()
+            log.msg('got hit with %s' % raw_body)
+            args = urlparse.parse_qs(raw_body)
             yield self.publish_func(
                 transport_name=self.transport_name,
                 transport_type='sms',
                 to_addr=self.config['shortcode'],
-                from_addr=request.args['Mobile Number'][0],
-                content=request.args['Message'][0])
+                from_addr=args['Mobile Number'][0],
+                content=args['Message'][0])
             request.setResponseCode(http.OK)
         except:
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
