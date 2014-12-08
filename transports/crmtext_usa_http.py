@@ -1,6 +1,9 @@
 import sys
 import traceback
 import urlparse
+import cgi
+import re
+from cStringIO import StringIO
 from urllib import urlencode
 from base64 import b64encode
 from xml.etree import ElementTree
@@ -55,7 +58,7 @@ class CrmTextHttpTransport(Transport):
         log.msg("Registering callback...")
         params = {
             'method': 'setcallback',
-            'callback': "%s:%s/%s" % (
+            'callback': "%s:%s%s" % (
                 self.config['receive_domain'],
                 self.config['receive_port'],
                 self.config['receive_path'])}
@@ -132,13 +135,15 @@ class CrmTextReceiveSmsResource(Resource):
         try:
             raw_body = request.content.read()
             log.msg('got hit with %s' % raw_body)
-            args = urlparse.parse_qs(raw_body)
+            ctype, pdict = cgi.parse_header(request.getHeader('content-type'))
+            log.msg('content type is %r' % pdict)
+            parsed = cgi.parse_multipart(StringIO(raw_body), pdict)
             yield self.publish_func(
                 transport_name=self.transport_name,
                 transport_type='sms',
                 to_addr=self.config['shortcode'],
-                from_addr=args['Mobile Number'][0],
-                content=args['Message'][0])
+                from_addr=re.match('[0-9]*', parsed['mobileNum'][0]).group(0),
+                content=parsed['message'][0])
             request.setResponseCode(http.OK)
         except:
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
