@@ -57,6 +57,50 @@ class CrmTextMessageMaker:
             'msgID': '123456789',
             'Subacct_Name': 'The Store Name'}
 
+    def mk_mo_2(self):
+        return (
+            "------------------------------ba3884f919c6\r\n"
+            "Content-Disposition: form-data; name=\"custID\"\r\n"
+            "\r\n"
+            "7829018\r\n"
+            "------------------------------ba3884f919c6\r\n"
+            'Content-Disposition: form-data; name="message"\r\n'
+            '\r\n'
+            'ttc hello world\r\n'
+            '------------------------------ba3884f919c6\r\n'
+            'Content-Disposition: form-data; name="keyword"\r\n'
+            '\r\n'
+            'TTC\r\n'
+            '------------------------------ba3884f919c6\r\n'
+            'Content-Disposition: form-data; name="mobileNum"\r\n'
+            '\r\n'
+            '9992221234 <tel:9992221234> \r\n'
+            '------------------------------ba3884f919c6\r\n'
+            'Content-Disposition: form-data; name="optInStatus"\r\n'
+            '\r\n'
+            'opt-in\r\n'
+            '------------------------------ba3884f919c6\r\n'
+            'Content-Disposition: form-data; name="timeStamp"\r\n'
+            '\r\n'
+            '2014-05-12 08:05:42\r\n'
+            '------------------------------ba3884f919c6\r\n'
+            'Content-Disposition: form-data; name="subacct"\r\n'
+            '\r\n'
+            '4021\r\n'
+            '------------------------------ba3884f919c6\r\n'
+            'Content-Disposition: form-data; name="custName"\r\n'
+            '\r\n'
+            '\r\n'
+            '------------------------------ba3884f919c6\r\n'
+            'Content-Disposition: form-data; name="msgID"'
+            '\r\n'
+            '9961254\r\n'
+            '------------------------------ba3884f919c6\r\n'
+            'Content-Disposition: form-data; name="subacct_name"\r\n'
+            '\r\n'
+            'TTC Mobile\r\n'
+            '------------------------------ba3884f919c6--')
+
 
 class CrmTextHttpTransportTestCase(VumiTestCase, CrmTextMessageMaker):
 
@@ -105,10 +149,7 @@ class CrmTextHttpTransportTestCase(VumiTestCase, CrmTextMessageMaker):
         req = yield self.crmtext_calls.get()
         headers = dict(req.requestHeaders.getAllRawHeaders())
         self.assert_authentication(req)
-        callback_url = '%s:%s/%s' % (
-            self.config['receive_domain'],
-            self.config['receive_port'],
-            self.config['receive_path'])
+        callback_url = 'http://localhost:9998/crmtext' 
         self.assertEqual(
             req.args,
             {'method': ['setcallback'],
@@ -189,18 +230,19 @@ class CrmTextHttpTransportTestCase(VumiTestCase, CrmTextMessageMaker):
         self.mock_crmtext_server_response_code = http.OK
         self.mock_crmtext_server_response = self.mk_setcallback_response_ok()        
         self.transport = yield self.tx_helper.get_transport(self.config)
-        
+
+        data = self.mk_mo_2()
         url = ("http://localhost:%s%s"
                % (self.config['receive_port'], self.config['receive_path']))
         response = yield http_request_full(
             url,
-            headers={'Content-Type': ['application/x-www-form-urlencoded']},
+            headers={'Content-Type': ['multipart/form-data; boundary=----------------------------ba3884f919c6']},
             method='POST',
-            data=urlencode(self.mk_mo())
+            data=data
         )
-        
+
         self.assertEqual(response.code, http.OK)
 
         [user_msg] = yield self.tx_helper.get_dispatched_inbound()        
-        self.assertEqual('hello world', user_msg['content'])
+        self.assertEqual('ttc hello world', user_msg['content'])
         self.assertEqual('9992221234', user_msg['from_addr'])
