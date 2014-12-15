@@ -68,7 +68,7 @@ class MahindraConvivaHttpTransportTestCase(VumiTestCase,
             'password': 'mypassword',
             'receive_port': 9998,
             'receive_path': '/mahindraconviva',
-            'default_shortcode': '747'
+            'default_shortcode': '474'
         }
         self.tx_helper = self.add_helper(TransportHelper(
             MahindraConvivaHttpTransport))
