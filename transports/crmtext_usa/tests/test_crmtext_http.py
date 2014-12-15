@@ -32,7 +32,7 @@ class CrmTextMessageMaker:
             '<custId>1234567891011</custId>'
             '<subacct>456</subacct>'
             '<timestamp>2014-08-11 09:19:12</timestamp>'
-            '<optinsStatus>3</optinStatus>'
+            '<optinStatus>3</optinStatus>'
             '<custName>John Queue</custName>'
             '<custMobile>9993338888</custMobile>'
             '</customer>'
@@ -113,9 +113,9 @@ class CrmTextHttpTransportTestCase(VumiTestCase, CrmTextMessageMaker):
         yield self.mock_crmtext_server.start()
         self.config = {
             'url': self.mock_crmtext_server.url,
-            'user_id': 'myuserid',
+            'user_id': 'mylogin',
             'password': 'mypassword',
-            'keyword_store': 'mykeyword',
+            'keyword_store': 'TTC',
             'receive_domain': 'http://localhost',
             'receive_port': 9998,
             'receive_path': '/crmtext',
@@ -173,7 +173,7 @@ class CrmTextHttpTransportTestCase(VumiTestCase, CrmTextMessageMaker):
         self.assert_authentication(req)
         self.assertEqual(
             req.args,
-            { 'method': ['sendsmssmg'],
+            { 'method': ['sendsmsmsg'],
               'message': ['hello world'],
               'phone_number': ['+41791234567']})
 
@@ -189,7 +189,7 @@ class CrmTextHttpTransportTestCase(VumiTestCase, CrmTextMessageMaker):
         self.transport = yield self.tx_helper.get_transport(self.config)
         callback_req = yield self.crmtext_calls.get()
         
-        self.mock_crmtext_server_response_code = http.BAD_REQUEST
+        self.mock_crmtext_server_response_code = http.OK
         self.mock_crmtext_server_response = self.mk_mt_response_fail()
         yield self.tx_helper.make_dispatch_outbound(
             "hello world", message_id='1')
@@ -199,7 +199,7 @@ class CrmTextHttpTransportTestCase(VumiTestCase, CrmTextMessageMaker):
         self.assert_authentication(req)
         self.assertEqual(
             req.args,
-            { 'method': ['sendsmssmg'],
+            { 'method': ['sendsmsmsg'],
               'message': ['hello world'],
               'phone_number': ['+41791234567']})
 

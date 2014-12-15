@@ -40,7 +40,7 @@ class CrmTextHttpTransport(Transport):
         ]
         self.web_resources = yield self.start_web_resources(
             resources, self.config['receive_port'])
-        self.handle_set_callback()
+        self.set_callback()
 
     def teardown_transport(self):
         log.msg("Stop CRMText Transport")
@@ -54,7 +54,7 @@ class CrmTextHttpTransport(Transport):
         return b64encode(auth)
 
     @inlineCallbacks
-    def handle_set_callback(self):
+    def set_callback(self):
         log.msg("Registering callback...")
         params = {
             'method': 'setcallback',
@@ -66,10 +66,10 @@ class CrmTextHttpTransport(Transport):
         response = yield http_request_full(
             "%s?%s" % (self.config['url'], encoded_params),
             headers={
-                'User-Agent': ['Vumi CrmText Transport'],
+                'User-Agent': ['Vusion CrmText Transport'],
                 'Content-Type': ['application/xml;charset=UTF-8'],
                 'Authorization': ['Basic %s' % self.get_auth_header()]},
-            method='GET')
+            method='POST')
         if response.code != http.OK:
             response_msg = ElementTree.fromstring(response.delivered_body)
             error_message = response_msg.attrib['message']
@@ -83,7 +83,7 @@ class CrmTextHttpTransport(Transport):
         log.msg("Outbound message %r" % message)
         try:
             params = {
-                'method': 'sendsmssmg',
+                'method': 'sendsmsmsg',
                 'phone_number': message['to_addr'],
                 'message': message['content']}
             encoded_params = urlencode(params)
@@ -95,16 +95,16 @@ class CrmTextHttpTransport(Transport):
                     'User-Agent': ['Vumi CrmText Transport'],
                     'Content-Type': ['application/xml;charset=UTF-8'],
                     'Authorization': ['Basic %s' % self.get_auth_header()]},
-                method='GET')
+                method='POST')
 
-            if response.code >= 400 and response.code < 500:
-                response_elt = ElementTree.fromstring(response.delivered_body)
-                reason = "SERVICE ERROR %s - %s" % (response.code, response_elt.attrib['message'], )
+            if response.code != http.OK:
+                reason = "HTTP ERROR %s - %s" % (response.code, response.delivered_body)
                 yield self.publish_nack(message['message_id'], reason)
                 return
 
-            if response.code != 200:
-                reason = "HTTP ERROR %s - %s" % (response.code, response.delivered_body)
+            response_elt = ElementTree.fromstring(response.delivered_body)
+            if response_elt.attrib['status'] != "200":
+                reason = "SERVICE ERROR %s - %s" % (response_elt.attrib['status'], response_elt.attrib['message'], )
                 yield self.publish_nack(message['message_id'], reason)
                 return
 
