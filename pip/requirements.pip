@@ -28,7 +28,7 @@ txJSON-RPC==0.3.1
 txTwitter==0.1.5
 txredis==2.3
 txssmi==0.3.0
--e git://github.com/praekelt/vumi.git@bb957ea0408861843be15df49b6a114fc9c81837#egg=vumi-dev
+-e git://github.com/praekelt/vumi.git@f6ea7a5b663c1a9369074f0619ecf07e82d51cc9#egg=vumi-dev
 wokkel==0.7.1
 wsgiref==0.1.2
 zope.interface==4.1.1
