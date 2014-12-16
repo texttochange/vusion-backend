@@ -33,7 +33,7 @@ class FlyingMessageTestCase(TestCase):
         self.assertEqual(status, 'ack')
 
     def test_append_get_not_present(self):
-        saved_history_id, credit, status= self.fm.get_message_data('1')
+        saved_history_id, credit, status = self.fm.get_message_data('1')
         self.assertTrue(saved_history_id is None)
         self.assertTrue(credit == 0)
         self.assertTrue(status is None)

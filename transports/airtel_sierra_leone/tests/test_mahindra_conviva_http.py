@@ -100,7 +100,7 @@ class MahindraConvivaHttpTransportTestCase(VumiTestCase,
              'PASSWORD': ['mypassword'],
              'MOBILENO': ['+41791234567'],
              'MESSAGE': ['hello world'],
-             'ORIGIN_ADDR': ['747'],
+             'ORIGIN_ADDR': ['474'],
              'TYPE': ['0']})
 
         [event] = yield self.tx_helper.get_dispatched_events()
@@ -110,7 +110,7 @@ class MahindraConvivaHttpTransportTestCase(VumiTestCase,
 
     @inlineCallbacks
     def test_outbound_fail_service(self):
-        self.mock_msdp_response_code = http.OK
+        self.mock_msdp_response_code = http.INTERNAL_SERVER_ERROR
         self.mock_msdp_response = self.mk_mt_response_failure()
 
         yield self.tx_helper.make_dispatch_outbound(
@@ -124,13 +124,13 @@ class MahindraConvivaHttpTransportTestCase(VumiTestCase,
              'PASSWORD': ['mypassword'],
              'MOBILENO': ['+41791234567'],
              'MESSAGE': ['hello world'],
-             'ORIGIN_ADDR': ['747'],
+             'ORIGIN_ADDR': ['474'],
              'TYPE': ['0']})
 
         [event] = yield self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'nack')
         self.assertEqual(event['user_message_id'], '1')
-        self.assertEqual(event['nack_reason'], '1')
+        self.assertEqual(event['nack_reason'], "HTTP ERROR 500 - 17\nUnknown Error\nMesg ID:919886881284_1207261324111\n")
 
     @inlineCallbacks
     def test_inbound(self):        
