@@ -66,6 +66,7 @@ class YoHttpTransport(Transport):
 
             if response.code != 200:
                 reason = "HTTP ERROR %s - %s" % (response.code, response.delivered_body)
+                log.error(reason)
                 yield self.publish_nack(message['message_id'], reason)
                 return
 
@@ -74,7 +75,8 @@ class YoHttpTransport(Transport):
             ybs_msg = response_attr['ybs_autocreate_message'][0] if 'ybs_autocreate_message' in response_attr else None
             if (ybs_status == 'ERROR'):
                 reason = "SERVICE ERROR %s - %s" % (ybs_status, ybs_msg)
-                yield self.publish_nack(message['message_id'], reason)                
+                log.error(reason)
+                yield self.publish_nack(message['message_id'], reason)
                 return
 
             yield self.publish_ack(
@@ -85,10 +87,9 @@ class YoHttpTransport(Transport):
             exc_type, exc_value, exc_traceback = sys.exc_info()
             log.error(
                 "TRANSPORT ERROR: %r" %
-                traceback.format_exception(exc_type, exc_value, exc_traceback))            
+                traceback.format_exception(exc_type, exc_value, exc_traceback))
             reason = "TRANSPORT ERROR %s" % (ex.message)
             yield self.publish_nack(message['message_id'], reason)
-            pass
 
 
 

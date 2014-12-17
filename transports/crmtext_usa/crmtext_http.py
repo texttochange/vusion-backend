@@ -99,12 +99,14 @@ class CrmTextHttpTransport(Transport):
 
             if response.code != http.OK:
                 reason = "HTTP ERROR %s - %s" % (response.code, response.delivered_body)
+                log.error(reason)
                 yield self.publish_nack(message['message_id'], reason)
                 return
 
             response_elt = ElementTree.fromstring(response.delivered_body)
             if response_elt.attrib['status'] != "200":
                 reason = "SERVICE ERROR %s - %s" % (response_elt.attrib['status'], response_elt.attrib['message'], )
+                log.error(reason)
                 yield self.publish_nack(message['message_id'], reason)
                 return
 

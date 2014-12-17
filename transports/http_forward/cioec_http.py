@@ -85,6 +85,7 @@ class CioecHttp(Transport):
 
             if response.code != 200:
                 reason = "HTTP ERROR %s - %s" % (response.code, response.delivered_body)
+                log.error(reason)
                 yield self.publish_nack(
                     message['message_id'], reason,
                     transport_metadata=self.transport_metadata)
@@ -93,6 +94,7 @@ class CioecHttp(Transport):
             response_body = json.loads(response.delivered_body)
             if response_body['status'] == 'fail':
                 reason = "SERVICE ERROR %s - %s" % (response_body['error'], response_body['message'])
+                log.error(reason)
                 yield self.publish_nack(
                     message['message_id'], reason,
                     transport_metadata=self.transport_metadata)

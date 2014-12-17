@@ -61,6 +61,7 @@ class ForwardHttp(Transport):
             
             if response.code != 200:
                 reason = "HTTP ERROR %s - %s" % (response.code, response.delivered_body)
+                log.error(reason)
                 yield self.publish_nack(
                     message['message_id'],
                     reason,

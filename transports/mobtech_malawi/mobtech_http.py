@@ -67,6 +67,7 @@ class MobtechHttpTransport(Transport):
             
             if response.code != 200:
                 reason = "HTTP ERROR %s - %s" % (response.code, response.delivered_body)
+                log.error(reason)
                 yield self.publish_nack(message['message_id'], reason)
                 return
             
@@ -75,7 +76,7 @@ class MobtechHttpTransport(Transport):
             if (response_body['status'] != "0"):
                 keys = response_body.keys()
                 reason = "SERVICE ERROR %s - %s" % (response_body['status'], response_body['message'])
-                #log.err("Mobtech Error %s: %s" % (response_body['status'], response_body['message']))
+                log.error(reason)
                 yield self.publish_nack(message['message_id'], reason)
                 return
 
