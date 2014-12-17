@@ -6,7 +6,6 @@ class RateManager(object):
     def __init__(self, redis, window_size=100, per_seconds=1):
         self.window_size = window_size
         self.per_seconds = per_seconds
-        self.per_milliseconds = per_seconds * 1000
         self.redis = redis
 
     def rate_key(self, key):
