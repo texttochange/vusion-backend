@@ -280,7 +280,7 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
                 user_message_id='1',
                 sent_message_id='1'),
             TransportMessage.from_json(smsg.body))
-        
+
     @inlineCallbacks
     def test_sending_mt_fail(self):
         yield self.make_resource_worker(self.mk_mt_response_fail())
@@ -295,6 +295,22 @@ class MovilgateHttpTransportTestCase(MessageMaker, TransportTestCase,
                 failure_level='service',
                 failure_code='3',
                 failure_reason='Fail: some reason'),
+            TransportMessage.from_json(smsg.body))
+
+    @inlineCallbacks
+    def test_sending_mt_fail_transport(self):
+        #yield self.make_resource_worker(self.mk_mt_response_fail())
+        transport_metadata = {'telefono_id_tran': '12345678', 'servicio_id': '2229.tigo.bo'}
+        yield self.dispatch(self.mkmsg_out(transport_metadata=transport_metadata))
+        [smsg] = self.get_dispatched('movilgate.event')
+        self.assertEqual(
+            self.mkmsg_delivery(
+                transport_name=self.transport_name,
+                sent_message_id='1',
+                delivery_status='failed',
+                failure_level='internal',
+                failure_code=0,
+                failure_reason='Connection refused'),
             TransportMessage.from_json(smsg.body))
 
     @inlineCallbacks

@@ -105,7 +105,7 @@ class MovilgateHttpTransport(Transport):
             yield self.publish_ack(
                 user_message_id=message['message_id'],
                 sent_message_id=message['message_id'])
-        except:
+        except Exception as ex:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             log.error(
                 "Error during consume user message: %r" %
@@ -115,7 +115,7 @@ class MovilgateHttpTransport(Transport):
                 delivery_status='failed',
                 failure_level='internal',
                 failure_code=0,
-                failure_reason=traceback.format_exc())
+                failure_reason=ex.message)
 
 
 class MovilgateReceiveSMSResource(Resource):
