@@ -16,6 +16,7 @@ from transports.movilgate.movilgate_http import (
     MovilgateHttpTransport, MovilgateXMLParser)
 from transports.tests.utils import xml_compare, Reporter
 
+
 class MovilgateRequestMaker:
 
     def mk_mt_request(self):

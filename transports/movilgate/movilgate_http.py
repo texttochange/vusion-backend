@@ -82,9 +82,9 @@ class MovilgateHttpTransport(Transport):
                     yield self.publish_nack(message['message_id'], reason) 
                 else:
                     reason = "HTTP ERROR %s - %s" % (
-                        response.code, response.delivered_body)                    
+                        response.code, response.delivered_body)
                     yield self.publish_nack(message['message_id'], reason)
-                log.msg("%s" % reason)                
+                log.msg("%s" % reason)
                 return
             
             resp = ElementTree.fromstring(response.delivered_body)
@@ -92,6 +92,7 @@ class MovilgateHttpTransport(Transport):
             if status != "0":
                 reason = "SERVICE ERROR %s - %s" % (
                     status, resp.find('Texto').text)
+                log.error(reason)
                 yield self.publish_nack(message['message_id'], reason)
                 return
             

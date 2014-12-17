@@ -69,9 +69,11 @@ class CmHttpTransport(Transport):
                                            message['message_id'])
                 else:
                     reason = "SERVICE ERROR - %s" % (response.delivered_body)
+                    log.error(reason)
                     yield self.publish_nack(message['message_id'], reason)
             else:
                 reason = "HTTP ERROR %s - %s" % (response.code, response.delivered_body)
+                log.error(reason)
                 yield self.publish_nack(message['message_id'], reason)
 
         except Exception as ex:

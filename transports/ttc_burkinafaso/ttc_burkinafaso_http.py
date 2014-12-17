@@ -64,10 +64,12 @@ class TtcBurkinafasoHttpTransport(Transport):
             response_body = response.delivered_body                
             if  response_body in [None, '']:
                 reason = "HTTP ERROR %s - %s" % (response.code, response.delivered_body)
+                log.error(reason)
                 yield self.publish_nack(message['message_id'], reason)
                 return
 
             reason = "SERVICE ERROR %s - %s" % (response.code, response_body)
+            log.error(reason)
             yield self.publish_nack(message['message_id'], reason)
         
         except Exception as ex:
