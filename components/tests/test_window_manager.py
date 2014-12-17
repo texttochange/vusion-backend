@@ -32,6 +32,3 @@ class VusionWindowManagerTestCase(VumiTestCase):
     def tearDown(self):
         #yield self.wm.stop()
         yield super(VusionWindowManagerTestCase, self).tearDown()
-
-    def test_todo(self):
-        self.fail()

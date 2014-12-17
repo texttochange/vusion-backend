@@ -65,5 +65,5 @@ class RateManagerMiddlewareTestCase(VumiTestCase):
         msg_2_after = yield self.rm.handle_outbound(msg_2, 'outbound')
         self.assertTrue(self.transport.paused)
 
-        yield wait(1.5)
+        yield wait(2.5)
         self.assertFalse(self.transport.paused)
