@@ -1,20 +1,17 @@
 from twisted.internet.defer import inlineCallbacks
 
 from vumi.dispatchers.base import BaseDispatchWorker
-from vumi.dispatchers.tests.test_base import DispatcherTestCase
+from vumi.dispatchers.tests.helpers import DispatcherHelper, DummyDispatcher
+from vumi.tests.helpers import VumiTestCase, MessageHelper
+
+from dispatchers.to_addr_router import ToAddrRouter
 
 
-class TestToAddrRouter(DispatcherTestCase):
-    
-    dispatcher_class = BaseDispatchWorker
-    transport_name = 'test_transport'
-    
+class TestToAddrRouter(VumiTestCase):
+
     @inlineCallbacks
     def setUp(self):
-        yield super(TestToAddrRouter, self).setUp()
         self.config = {
-            'dispatcher_name': 'keyword_dispatcher',
-            'router_class': 'dispatchers.ToAddrRouter',
             'exposed_names': ['app'],
             'transport_names': [
                 'transport1',
@@ -28,90 +25,57 @@ class TestToAddrRouter(DispatcherTestCase):
                 'transport2': ['9']},
             'transport_fallback': 'transport-default'
             }
-        self.dispatcher = yield self.get_dispatcher(self.config)
-        self.router = self.dispatcher._router
-
-    def tearDown(self):
-        super(TestToAddrRouter, self).tearDown()
-
-    @inlineCallbacks
+        self.dispatcher = DummyDispatcher(self.config)
+        self.router = ToAddrRouter(self.dispatcher, self.config)
+        yield self.router.setup_routing()
+        self.msg_helper = self.add_helper(MessageHelper())
+ 
     def test_inbound_message(self):
-        msg = self.mkmsg_in()
-        yield self.dispatch(
-            msg,
-            transport_name='transport1',
-            direction='inbound')
-        
-        yield self.dispatch(
-            msg,
-            transport_name='transport-default',
-            direction='inbound')        
-        
-        app_msgs = self.get_dispatched_messages('app', direction='inbound')
-        self.assertEqual(app_msgs, [msg, msg])        
+        msg = self.msg_helper.make_inbound(
+            "1", transport_name='transport1')
+        self.router.dispatch_inbound_message(msg)
+        publishers = self.dispatcher.exposed_publisher
+        self.assertEqual(publishers['app'].msgs, [msg])
 
-    @inlineCallbacks
+        publishers['app'].clear()
+        msg = self.msg_helper.make_inbound(
+            "1", transport_name='transport-default')
+        self.router.dispatch_inbound_message(msg)
+        self.assertEqual(publishers['app'].msgs, [msg])
+
     def test_inbound_event(self):
-        msg1 = self.mkmsg_ack()
-        yield self.dispatch(
-            msg1,
-            transport_name='transport1',
-            direction='event')
-        
-        msg2 = self.mkmsg_ack()
-        yield self.dispatch(
-            msg2,
-            transport_name='transport-default',
-            direction='event')
-        
-        app_routing_event = self.get_dispatched_messages(
-            'app', direction='event')
-        self.assertEqual(app_routing_event, [msg1, msg2])
+        msg1 = self.msg_helper.make_ack(transport_name='transport1')
+        msg2 = self.msg_helper.make_ack(transport_name='transport-default')
 
-    @inlineCallbacks
+        self.router.dispatch_inbound_event(msg1)
+        self.router.dispatch_inbound_event(msg2)
+        event_publishers = self.dispatcher.exposed_event_publisher
+
+        self.assertEqual(event_publishers['app'].msgs, [msg1, msg2])
+
     def test_outbound_message(self):
-        msg1 = self.mkmsg_out(to_addr='+25523')
-        yield self.dispatch(
-            msg1,
-            transport_name='app',
-            direction='outbound')
-        
-        transport1_msgs = self.get_dispatched_messages(
-            'transport1', direction='outbound')
-        self.assertEqual(transport1_msgs, [msg1])
-        
-        msg2 = self.mkmsg_out(to_addr='+2559')
-        yield self.dispatch(
-            msg2,
-            transport_name='app',
-            direction='outbound')
-        
-        transport2_msgs = self.get_dispatched_messages(
-            'transport2', direction='outbound')
-        self.assertEqual(transport2_msgs, [msg2])
+        msg1 = self.msg_helper.make_outbound(
+            "out", to_addr='+25523')
+        self.router.dispatch_outbound_message(msg1)
+        publishers = self.dispatcher.transport_publisher
+        self.assertEqual(publishers['transport1'].msgs, [msg1])
+      
+        msg2 = self.msg_helper.make_outbound(
+            "out", to_addr='+2559')
+        self.router.dispatch_outbound_message(msg2)
+        self.assertEqual(publishers['transport2'].msgs, [msg2])
 
-        msg3 = self.mkmsg_out(to_addr='+2558')
-        yield self.dispatch(
-            msg3,
-            transport_name='app',
-            direction='outbound')
-        
-        transport_default_msgs = self.get_dispatched_messages(
-            'transport-default', direction='outbound')
-        self.assertEqual(transport_default_msgs, [msg3])
+        msg3 = self.msg_helper.make_outbound(
+            "out", to_addr='+2558')
+        self.router.dispatch_outbound_message(msg3)
+        self.assertEqual(publishers['transport-default'].msgs, [msg3])
 
 
-class TestToAddrRouterUrl(DispatcherTestCase):
-    
-    dispatcher_class = BaseDispatchWorker
-    transport_name = 'test_transport'
-    
+class TestToAddrRouterUrl(VumiTestCase):
+        
     @inlineCallbacks
     def setUp(self):
-        yield super(TestToAddrRouterUrl, self).setUp()
         self.config = {
-            'dispatcher_name': 'keyword_dispatcher',
-            'router_class': 'dispatchers.ToAddrRouter',
             'exposed_names': ['app'],
             'transport_names': [
                 'transport1',
@@ -125,27 +89,23 @@ class TestToAddrRouterUrl(DispatcherTestCase):
                     '.*mobile.partner2.com']},
             'transport_fallback': 'transport-default'
             }
-        self.dispatcher = yield self.get_dispatcher(self.config)
-        self.router = self.dispatcher._router
+        self.dispatcher = DummyDispatcher(self.config)
+        self.router = ToAddrRouter(self.dispatcher, self.config)
+        yield self.router.setup_routing()
+        self.msg_helper = self.add_helper(MessageHelper())
 
-    @inlineCallbacks
     def test_outbound_message(self):
-        msg1 = self.mkmsg_out(to_addr='partner1.org/api')
-        yield self.dispatch(
-            msg1,
-            transport_name='app',
-            direction='outbound')
-        
-        transport1_msgs = self.get_dispatched_messages(
-            'transport1', direction='outbound')
-        self.assertEqual(transport1_msgs, [msg1])
+        msg1 = self.msg_helper.make_outbound(
+            "out", to_addr='partner1.org/api')
+        self.router.dispatch_outbound_message(msg1)
 
-        msg2 = self.mkmsg_out(to_addr='http://mobile.partner2.com')
-        yield self.dispatch(
-            msg2,
-            transport_name='app',
-            direction='outbound')
-        
-        transport2_msgs = self.get_dispatched_messages(
-            'transport2', direction='outbound')
-        self.assertEqual(transport2_msgs, [msg2])
+        publishers = self.dispatcher.transport_publisher
+        self.assertEqual(publishers['transport1'].msgs, [msg1])
+
+        self.dispatcher.transport_publisher['transport1'].clear()
+
+        msg2 = self.msg_helper.make_outbound(
+            "out", to_addr='http://mobile.partner2.com')
+        self.router.dispatch_outbound_message(msg2)
+        publishers = self.dispatcher.transport_publisher
+        self.assertEqual(publishers['transport2'].msgs, [msg2])

@@ -65,7 +65,7 @@ class MessageHistory(History):
                  'pending': [],
                  'delivered': [],
                  'ack': [],
-                 'nack': [],
+                 'nack': ['failure-reason'],
                  'no-credit': [],
                  'no-credit-timeframe': [],
                  'missing-data': ['missing-data'],

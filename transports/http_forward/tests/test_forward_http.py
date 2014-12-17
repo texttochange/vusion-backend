@@ -1,27 +1,30 @@
 
-from twisted.internet.defer import inlineCallbacks
-from twisted.web.resource import Resource
+from twisted.internet.defer import inlineCallbacks, DeferredQueue
 from twisted.web import http
 
-from vumi.transports.tests.test_base import TransportTestCase
-from vumi.tests.utils import get_stubbed_worker, TestResourceWorker
-from vumi.message import TransportMessage
-
-from tests.utils import MessageMaker
+from vumi.transports.tests.helpers import TransportHelper
+from vumi.tests.utils import VumiTestCase, MockHttpServer
 
 from transports import ForwardHttp
 
-class ForwardHttpTransportTestCase(MessageMaker, TransportTestCase):
-    
-    transport_name = 'forward'
-    transport_type = 'http_forward'
-    transport_class = ForwardHttp
-    
+
+class ForwardHttpTransportTestCase(VumiTestCase):
+
     @inlineCallbacks
     def setUp(self):
-        yield super(ForwardHttpTransportTestCase, self).setUp()
+        self.fh_1_calls = DeferredQueue()
+        self.mock_fh_1 = MockHttpServer(self.handle_request_1)
+        self.mock_fh_1_response = ''
+        self.mock_fh_1_response_code = http.OK
+        yield self.mock_fh_1.start()
+
+        self.fh_2_calls = DeferredQueue()
+        self.mock_fh_2 = MockHttpServer(self.handle_request_2)
+        self.mock_fh_2_response = ''
+        self.mock_fh_2_response_code = http.OK
+        yield self.mock_fh_2.start()
+
         self.config = {
-            'transport_name': self.transport_name,
             'message_replacement':{
                 'content': '\[MESSAGE\]',
                 'from_addr': '\[PROGRAM\]'},
@@ -29,201 +32,133 @@ class ForwardHttpTransportTestCase(MessageMaker, TransportTestCase):
                 'participant_phone': '\[FROM\]',
                 'program_shortcode': '\[TO\]'}
         }
-        self.worker = yield self.get_transport(self.config)
-
-    def make_resource_worker(self, send_paths, responses):
-        w = get_stubbed_worker(TestResourceWorker, {})
-        resources = []
-        for site, details in send_paths.iteritems():
-            resources.append((details['path'], TestResource, responses[site]))
-        w.set_resources(resources)
-        self._workers.append(w)
-        return w.startWorker()
-    
-    def get_dispatched(self, rkey):
-        return self._amqp.get_dispatched('vumi', rkey)
-
-    def assert_request(self, request, path, args):
-        self.assertEqual(request.path, path)
-        self.assertEqual(request.args, args)    
+        self.tx_helper = self.add_helper(TransportHelper(ForwardHttp))
+        self.transport = yield self.tx_helper.get_transport(self.config)
 
     @inlineCallbacks
-    def test_sending_ok_same_message_multiple_forward(self):
-        send_paths = {
-            'partner1': {
-                'path': '/sendsms1',
-                'port': 9999},
-            'partner2': {
-                'path': '/sendsms2',
-                'port': 9999}}        
-        responses = {
-            'partner1': [
-                '',
-                http.OK,
-                self.assert_request,
-                '/sendsms1'],
-            'partner2': [
-                '',
-                http.OK,
-                self.assert_request,                
-                '/sendsms2']}
-        msg1 = self.mkmsg_out(to_addr="http://localhost:9999/sendsms1",
-                             from_addr="myprogram",
-                             message_id='1',
-                             transport_metadata={
-                                 'program_shortcode': '256-8181',
-                                 'participant_phone': '+6'})
-        msg2 = self.mkmsg_out(to_addr="http://localhost:9999/sendsms2",
-                              from_addr="myprogram",
-                              message_id='2',
-                              transport_metadata={
-                                  'program_shortcode': '256-8181',
-                                  'participant_phone': '+6'})
-        yield self.make_resource_worker(send_paths, responses)
-        yield self.dispatch(msg1)
-        yield self.dispatch(msg2)        
-        [ack1, ack2] = self.get_dispatched('forward.event')
-        self.assertEqual(
-            self.mkmsg_ack(
-                user_message_id='1',
-                sent_message_id='1',
-                transport_metadata={'transport_type':'http_forward'}),
-            TransportMessage.from_json(ack1.body))
-        self.assertEqual(
-            self.mkmsg_ack(
-                user_message_id='2',
-                sent_message_id='2',
-                transport_metadata={'transport_type':'http_forward'}),
-            TransportMessage.from_json(ack2.body))
+    def tearDown(self):
+        yield self.mock_fh_1.stop()
+        yield self.mock_fh_2.stop()
+        yield super(ForwardHttpTransportTestCase, self).tearDown()
+
+    def handle_request_1(self, request):
+        self.fh_1_calls.put(request)
+        request.setResponseCode(self.mock_fh_1_response_code)
+        return self.mock_fh_1_response
+
+    def handle_request_2(self, request):
+        self.fh_2_calls.put(request)
+        request.setResponseCode(self.mock_fh_2_response_code)
+        return self.mock_fh_2_response
 
     @inlineCallbacks
-    def test_sending_ok_url_with_arguments(self):
-        send_paths = {
-            'partner1': {
-                'path': '/sendsms1',
-                'port': 9999}}        
-        responses = {
-            'partner1': [
-                 '',
-                 http.OK,
-                 self.assert_request,
-                 '/sendsms1',
-                 {'message': ['Hello'],
-                  'to': ['256-8181'],
-                  'from': ['+6'],
-                  'program': ['myprogram']}]}
-        msg = self.mkmsg_out(to_addr="http://localhost:9999/sendsms1?message=[MESSAGE]&from=[FROM]&to=[TO]&program=[PROGRAM]",
-                             from_addr="myprogram",
-                             content="Hello",
-                             message_id='1',
-                             transport_metadata={
-                                 'program_shortcode': '256-8181',
-                                 'participant_phone': '+6'})
-        yield self.make_resource_worker(send_paths, responses)
-        yield self.dispatch(msg)
-        [ack] = self.get_dispatched('forward.event')
+    def test_outbound_ok_url_with_arguments(self):
+        yield self.tx_helper.make_dispatch_outbound(
+            to_addr="%ssendsms1?message=[MESSAGE]&from=[FROM]&to=[TO]&program=[PROGRAM]" % self.mock_fh_1.url,
+            from_addr="myprogram",
+            content="hello world",
+            message_id='1',
+            transport_metadata={
+                'program_shortcode': '256-8181',
+                'participant_phone': '+6'})
+        req_1 = yield self.fh_1_calls.get()
         self.assertEqual(
-            self.mkmsg_ack(
-                user_message_id='1',
-                sent_message_id='1',
-                transport_metadata={'transport_type':'http_forward'}),
-            TransportMessage.from_json(ack.body))
+            req_1.args, 
+            {'to':['256-8181'],
+             'message': ['hello world'],
+             'program': ['myprogram'],
+             'from': ['+6']});
+        [event] = self.tx_helper.get_dispatched_events()
+        self.assertEqual(event['event_type'], 'ack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
 
     @inlineCallbacks
-    def test_send_fail_service_error(self):
-        send_paths = {
-            'partner1': {
-                'path': '/sendsms1',
-                'port': 9999}}        
-        responses = {
-            'partner1': [
-                 'SOME INTERNAL STUFF HAPPEN',
-                 http.INTERNAL_SERVER_ERROR,
-                 self.assert_request,
-                 '/sendsms1']}
-        msg = self.mkmsg_out(to_addr="http://localhost:9999/sendsms1",
-                             from_addr="myprogram",
-                             content="Hello",
-                             message_id='1',
-                             transport_metadata={
-                                 'program_shortcode': '256-8181',
-                                 'participant_phone': '+6'})
-        yield self.make_resource_worker(send_paths, responses)
-        yield self.dispatch(msg)
-        [fail] = self.get_dispatched('forward.event')
-        self.assertEqual(
-            self.mkmsg_delivery(
-                transport_name=self.transport_name,
-                user_message_id='1',
-                delivery_status='failed',
-                failure_level='http',
-                failure_code=http.INTERNAL_SERVER_ERROR,
-                failure_reason='SOME INTERNAL STUFF HAPPEN',
-                transport_metadata={'transport_type':'http_forward'}),
-            TransportMessage.from_json(fail.body))
+    def test_outbound_ok_same_message_multiple_forward(self):
+        yield self.tx_helper.make_dispatch_outbound(
+            "hello world 1",
+            to_addr="%ssendsms1?message=[MESSAGE]&from=[FROM]&to=[TO]&program=[PROGRAM]" % self.mock_fh_1.url,
+            from_addr="myprogram",
+            message_id='1',
+            transport_metadata={
+                'program_shortcode': '256-8181',
+                'participant_phone': '+6'})
+        yield self.tx_helper.make_dispatch_outbound(
+            "hello world 2",
+            to_addr="%ssendsms2" % self.mock_fh_2.url,
+            from_addr="myprogram",
+            message_id='2',
+            transport_metadata={
+                'program_shortcode': '256-8181',
+                'participant_phone': '+6'})
 
-    @inlineCallbacks
-    def test_send_fail_connection_error(self):
-        send_paths = {}
-        responses = {}
-        msg = self.mkmsg_out(to_addr="http://localhost:9997/sendsms2",
-                             from_addr="myprogram",
-                             content="Hello",
-                             message_id='1',
-                             transport_metadata={
-                                 'program_shortcode': '256-8181',
-                                 'participant_phone': '+6'})
-        yield self.make_resource_worker(send_paths, responses)
-        yield self.dispatch(msg)
-        [fail] = self.get_dispatched('forward.event')
+        req_1 = yield self.fh_1_calls.get()
         self.assertEqual(
-            self.mkmsg_delivery(
-                transport_name=self.transport_name,
-                user_message_id='1',
-                delivery_status='failed',
-                failure_level='transport',
-                failure_code=None,
-                failure_reason='ConnectionRefusedError(\'Connection refused\',)',
-                transport_metadata={'transport_type':'http_forward'}),
-            TransportMessage.from_json(fail.body))        
-    
-    @inlineCallbacks
-    def test_send_fail_wrong_url_format(self):
-        send_paths = {}
-        responses = {}
-        msg = self.mkmsg_out(to_addr="htp://localhost:9997/sendsms",
-                             from_addr="myprogram",
-                             content="Hello",
-                             message_id='1',
-                             transport_metadata={
-                                 'program_shortcode': '256-8181',
-                                 'participant_phone': '+6'})
-        yield self.make_resource_worker(send_paths, responses)
-        yield self.dispatch(msg)
-        [fail] = self.get_dispatched('forward.event')
-        self.assertEqual(
-            self.mkmsg_delivery(
-                transport_name=self.transport_name,
-                user_message_id='1',
-                delivery_status='failed',
-                failure_level='transport',
-                failure_code=None,
-                failure_reason='SchemeNotSupported("Unsupported scheme: \'htp\'",)',
-                transport_metadata={'transport_type':'http_forward'}),
-            TransportMessage.from_json(fail.body))
+            req_1.args,
+            {'to':['256-8181'],
+             'message': ['hello world 1'],
+             'program': ['myprogram'],
+             'from': ['+6']});
+        req_2 = yield self.fh_2_calls.get()
+        self.assertEqual(req_2.args, {}); 
 
-class TestResource(Resource):
-    isLeaf = True
-    
-    def __init__(self, response, code, assert_request, path, args={}):
-        self.response = response
-        self.code = code
-        self.assert_request = assert_request
-        self.path = path
-        self.args = args
-
-    def render_GET(self, request):
-        self.assert_request(request, self.path, self.args)
-        request.setResponseCode(self.code)
-        return self.response
+        [ack1, ack2] = yield self.tx_helper.get_dispatched_events()
+        self.assertEqual(ack1['event_type'], 'ack')
+        self.assertEqual(ack1['user_message_id'], '1')
+        self.assertEqual(ack1['transport_metadata'], {'transport_type':'http_api'})
         
+        self.assertEqual(ack2['event_type'], 'ack')
+        self.assertEqual(ack2['user_message_id'], '2')
+        self.assertEqual(ack2['transport_metadata'], {'transport_type':'http_api'})
+
+    @inlineCallbacks
+    def test_outbound_fail_service(self):
+        self.mock_fh_1_response = "SOME INTERNAL STUFF HAPPEN"
+        self.mock_fh_1_response_code = http.INTERNAL_SERVER_ERROR
+        yield self.tx_helper.make_dispatch_outbound(
+            to_addr="%ssendsms1" % self.mock_fh_1.url,
+            from_addr="myprogram",
+            content="Hello",
+            message_id='1',
+            transport_metadata={
+                'program_shortcode': '256-8181',
+                'participant_phone': '+6'})
+        req = yield self.fh_1_calls.get()
+
+        [event] = yield self.tx_helper.get_dispatched_events()
+        self.assertEqual(event['event_type'], 'nack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['nack_reason'], 'HTTP ERROR 500 - SOME INTERNAL STUFF HAPPEN')
+        self.assertEqual(event['transport_metadata'], {'transport_type': 'http_api'})
+
+    @inlineCallbacks
+    def test_outbound_fail_transport(self):
+        yield self.tx_helper.make_dispatch_outbound(
+            to_addr="http://localhost:9997/sendsms2",
+            from_addr="myprogram",
+            content="Hello",
+            message_id='1',
+            transport_metadata={
+                'program_shortcode': '256-8181',
+                'participant_phone': '+6'})
+        [event] = yield self.tx_helper.get_dispatched_events()
+        self.assertEqual(event['event_type'], 'nack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['nack_reason'], 'TRANSPORT ERROR Connection refused')
+        self.assertEqual(event['transport_metadata'], {'transport_type': 'http_api'})
+
+    @inlineCallbacks
+    def test_outbound_fail_wrong_url_format(self):
+        yield self.tx_helper.make_dispatch_outbound(
+            to_addr="htp://localhost:9997/sendsms",
+            from_addr="myprogram",
+            content="Hello",
+            message_id='1',
+            transport_metadata={
+                'program_shortcode': '256-8181',
+                'participant_phone': '+6'})
+        [event] = yield self.tx_helper.get_dispatched_events()
+        self.assertEqual(event['event_type'], 'nack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['nack_reason'], 'TRANSPORT ERROR Unsupported scheme: \'htp\'')
+        self.assertEqual(event['transport_metadata'], {'transport_type': 'http_api'})

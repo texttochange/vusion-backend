@@ -7,3 +7,9 @@ default_origin: 8181
 
 receive_path: /yo
 receive_port: 2223
+
+middleware:
+    - vam: middlewares.VusionAddressMiddleware
+
+wam:
+    trim_plus_outbound: Y

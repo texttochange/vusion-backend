@@ -7,3 +7,16 @@ default_origin: 8282
 
 receive_path: /yo
 receive_port: 2222
+
+middleware:
+    - vam: middlewares.VusionAddressMiddleware
+    - mw1: middlewares.TrimingMiddleware
+    - rm: middlewares.RateManagerMiddleware
+
+wam:
+    trim_plus_outbound: Y
+
+rm:
+    unpause_check_delay: 1
+    window_size: 1
+    per_seconds: 10

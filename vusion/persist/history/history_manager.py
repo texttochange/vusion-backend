@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from bson import ObjectId, Code
+from pymongo import ASCENDING
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.threads import deferToThread
@@ -34,7 +35,10 @@ class HistoryManager(ModelManager):
         self.flying_manager = FlyingMessageManager(prefix_key, redis)
 
     def get_history(self, history_id):
-        return self.collection.find_one({'_id': ObjectId(history_id)})
+        result = self.collection.find_one({'_id': ObjectId(history_id)})
+        if result is None:
+            return None
+        return history_generator(**result)
 
     def save_history(self, **kwargs):
         if 'timestamp' in kwargs and not isinstance(kwargs['timestamp'], str):
@@ -59,8 +63,13 @@ class HistoryManager(ModelManager):
             self.log("Cannot find flying message %s, cannot proceed updating the history" % event['user_message_id'])
             return event['event_type'], None, credits
         if (event['event_type'] == 'ack'):
-            status = 'ack'
+            status = event['event_type']
             new_status = status
+        elif (event['event_type'] == 'nack'):
+            status = {
+                'status': event['event_type'],
+                'reason': event['nack_reason']}
+            new_status = 'nack'
         elif (event['event_type'] == 'delivery_report'):
             status = event['delivery_status']
             new_status = status
@@ -73,7 +82,7 @@ class HistoryManager(ModelManager):
                       event.get('failure_reason', 'unknown')))}
                 credit_status = event['delivery_status']
         if ('transport_type' in event['transport_metadata']
-           and event['transport_metadata']['transport_type'] == 'http_forward'):
+           and event['transport_metadata']['transport_type'] == 'http_api'):
             self.update_forwarded_status(history_id, event['user_message_id'], status)
         else:
             self.update_status(history_id, status)
@@ -214,3 +223,181 @@ class HistoryManager(ModelManager):
         if unattach_history is None:
             returnValue(False)
         returnValue(True)
+
+    def get_history_of_interaction(self, participant, dialogue_id, interaction_id):
+        result = self.collection.find_one(
+            {'participant-phone': participant['phone'],
+             'participant-session-id': participant['session-id'],
+             'dialogue-id': dialogue_id,
+             'interaction-id': interaction_id,
+             '$or': [{'message-direction': 'outgoing'},
+                     {'message-direction': 'incoming',
+                      'matching-answer': {'$ne':None}}]},
+            sort=[('timestamp', ASCENDING)])
+        if result is None:
+            return None
+        return history_generator(**result)
+
+
+    def get_history_of_offset_condition_answer(self, participant, dialogue_id,
+                                               interaction_id):
+        result = self.collection.find_one(
+            {"participant-phone": participant['phone'],
+             "participant-session-id": participant['session-id'],
+             "message-direction": 'incoming',
+             "dialogue-id": dialogue_id,
+             "interaction-id": interaction_id,
+             "$or": [{'matching-answer': {'$exists': False}},
+                     {'matching-answer': {'$ne': None}}]})
+        if result is None:
+            return None
+        return history_generator(**result)
+
+    def add_oneway_marker(self, participant_phone, participant_session_id,
+                          context):
+        if self.has_oneway_marker(participant_phone, participant_session_id, 
+                                  context['dialogue-id'], context['interaction-id']):
+            return
+        history = {
+            'object-type': 'oneway-marker-history',
+            'participant-phone': participant_phone,
+            'participant-session-id':participant_session_id,
+            'dialogue-id': context['dialogue-id'],
+            'interaction-id': context['interaction-id']}
+        self.save_history(**history)
+
+    #def has_oneway_marker(self, participant, dialogue_id, interaction_id):
+        #return self.has_oneway_marker(
+            #participant['phone'], participant['session-id'],
+            #dialogue_id, interaction_id)
+
+    def has_oneway_marker(self, participant_phone, participant_session_id,
+                          dialogue_id, interaction_id):
+        return self.collection.find_one({
+            'object-type': 'oneway-marker-history',
+            'participant-phone': participant_phone,
+            'participant-session-id':participant_session_id,
+            'dialogue-id': dialogue_id,
+            'interaction-id': interaction_id}) is not None
+
+    def participant_has_max_unmatching_answers(self, participant, dialogue_id, interaction):
+        if (not interaction.has_max_unmatching_answers()):
+            return False
+        query = {'participant-phone': participant['phone'],
+                 'participant-session-id':participant['session-id'],
+                 'message-direction': 'incoming',
+                 'dialogue-id': dialogue_id,
+                 'interaction-id': interaction['interaction-id'],
+                 'matching-answer': None}
+        history = self.collection.find(query)
+        if history.count() == int(interaction['max-unmatching-answer-number']):
+            return True
+        return False
+    
+    #TODO: move to History Manager
+    def has_already_valid_answer(self, participant, dialogue_id, interaction_id, number=1):
+        query = {'participant-phone': participant['phone'],
+                 'participant-session-id':participant['session-id'],
+                 'message-direction': 'incoming',
+                 'matching-answer': {'$ne': None},
+                 'dialogue-id': dialogue_id,
+                 'interaction-id': interaction_id}
+        history = self.collection.find(query)
+        if history is None or history.count() <= number:
+            return False
+        return True
+
+    def add_outgoing(self, message, message_credits, context, schedule):
+        self.log("Message has been sent to %s '%s'" % (message['to_addr'], message['content']))
+        history = {
+            'message-content': message['content'],
+            'participant-phone': message['to_addr'],
+            'message-direction': 'outgoing',
+            'message-status': 'pending',
+            'message-id': message['message_id'],
+            'message-credits': message_credits}
+        history.update(context.get_dict_for_history(schedule))
+        return self.save_history(**history)
+
+    def add_nocredit(self, message_content, context, schedule):
+        self.log("NO CREDIT, message '%s' hasn't been sent to %s" % (
+            message_content, schedule['participant-phone']))        
+        history = {
+             'message-content': message_content,
+             'participant-phone': schedule['participant-phone'],
+             'message-direction': 'outgoing',
+             'message-status': 'no-credit',
+             'message-id': None,
+             'message-credits': 0}
+        history.update(context.get_dict_for_history(schedule))
+        return self.save_history(**history)
+
+    def add_nocredittimeframe(self, message_content, context, schedule):
+        self.log("OUT OF CREDIT TIMEFRAME, message '%s' hasn't been sent to %s" % (
+             message_content, schedule['participant-phone']))        
+        history = {
+             'message-content': message_content,
+             'participant-phone': schedule['participant-phone'],
+             'message-direction': 'outgoing',
+             'message-status': 'no-credit-timeframe',
+             'message-id': None,
+             'message-credits': 0}
+        history.update(context.get_dict_for_history(schedule))
+        return self.save_history(**history)
+
+    def add_missingdata(self, message_content, error_message, context, schedule):
+        self.log("MISSING DATA(%s): message '%s' hasn't been send to %s" % (
+            error_message, message_content, schedule['participant-phone']))
+        history = {
+            'message-content': message_content,
+            'participant-phone': schedule['participant-phone'],
+            'message-direction': 'outgoing',
+            'message-status': 'missing-data',
+            'missing-data': [error_message],
+            'message-id': None,
+            'message-credits': 0}
+        history.update(context.get_dict_for_history(schedule))
+        self.save_history(**history)
+
+    def add_datepassed_action_marker(self, action, schedule):
+        self.log("ADD DATEPASSED ACTION: action '%s' has been added for %s" % (
+                   action.get_type(), schedule['participant-phone']))
+        history = {
+            'object-type': 'datepassed-action-marker-history',
+            'participant-phone': schedule['participant-phone'],
+            'participant-session-id': schedule['participant-session-id'],
+            'action-type': action.get_type(),
+            'scheduled-date-time': schedule['date-time']}
+        self.save_history(**history)
+
+    def add_datepassed_marker_for_interaction(self, participant, dialogue_id, interaction_id):
+        self.log("ADD DATEPASSED: the message dialogue %s and interaction %s hasn't been send to %s" % (
+                   dialogue_id, interaction_id, participant['phone']))
+        history = {
+            'object-type': 'datepassed-marker-history',
+            'participant-phone': participant['phone'],
+            'participant-session-id': participant['session-id'],
+            'dialogue-id': dialogue_id,
+            'interaction-id': interaction_id}
+        return self.save_history(**history)
+
+    def add_datepassed_marker(self, schedule, context):
+        self.log("ADD DATEPASSED: the schedule %r from context %r hasn't been send" % (
+            schedule, context))        
+        history = {
+            'object-type': 'datepassed-marker-history',
+            'participant-phone': schedule['participant-phone'],
+            'participant-session-id': schedule['participant-session-id'],
+            'scheduled-date-time': schedule['date-time']}
+        history.update(context.get_dict_for_history())
+        return self.save_history(**history)
+
+    def count_reminders(self, participant, dialogue_id, interaction_id):
+        count = self.collection.find({
+            'participant-phone': participant['phone'],
+            'participant-session-id': participant['session-id'],
+            'message-direction': 'outgoing',
+            'dialogue-id': dialogue_id,
+            'interaction-id': interaction_id}).count()
+        return count - 1 if count > 0 else 0
+        

@@ -6,7 +6,7 @@ import re
 from twisted.internet.defer import inlineCallbacks, Deferred, returnValue
 from twisted.internet import task, reactor
 
-import pymongo
+from pymongo import MongoClient
 from bson.objectid import ObjectId
 
 from redis import Redis
@@ -21,59 +21,44 @@ from vumi import log
 from vumi.utils import get_first_word
 from vumi.errors import VumiError
 
-from vusion.utils import (time_to_vusion_format, get_local_time,
-                          get_local_time_as_timestamp, time_from_vusion_format,
-                          get_shortcode_value, get_offset_date_time,
-                          split_keywords, add_char_to_pattern,
-                          dynamic_content_notation_to_string)
-from vusion.error import (MissingData, SendingDatePassed, VusionError,
-                          MissingTemplate, MissingProperty)
+from vusion.utils import (
+    time_to_vusion_format, get_local_time, get_local_time_as_timestamp,
+    time_from_vusion_format, get_shortcode_value, get_offset_date_time,
+    split_keywords, add_char_to_pattern, dynamic_content_notation_to_string)
+from vusion.error import (
+    MissingData, SendingDatePassed, VusionError, MissingTemplate,
+    MissingProperty)
 from vusion.message import DispatcherControl, WorkerControl
 from vusion.context import Context
-from vusion.component import (DialogueWorkerPropertyHelper, CreditManager,
-                              RedisLogger)
+from vusion.component import (
+    DialogueWorkerPropertyHelper, CreditManager, RedisLogger)
 
-from vusion.persist.action import (Actions, action_generator,FeedbackAction,
-                                   EnrollingAction, OptinAction, OptoutAction,
-                                   RemoveRemindersAction)
-from vusion.persist import (Request, ContentVariable, Dialogue,
-                            FeedbackSchedule, UnattachSchedule, ActionSchedule,
-                            DialogueSchedule, ReminderSchedule, DeadlineSchedule,
-                            Participant, UnattachedMessage,
-                            history_generator,
-                            HistoryManager, ContentVariableManager,
-                            DialogueManager, RequestManager, ParticipantManager,
-                            ScheduleManager, ProgramCreditLogManager,
-                            ShortcodeManager, UnattachedMessageManager)
+from vusion.persist.action import (
+    Actions, action_generator, FeedbackAction, EnrollingAction, OptinAction,
+    OptoutAction, RemoveRemindersAction)
+from vusion.persist import (
+    FeedbackSchedule, HistoryManager, ContentVariableManager, DialogueManager,
+    RequestManager, ParticipantManager, ScheduleManager,
+    ProgramCreditLogManager, ShortcodeManager, UnattachedMessageManager)
+
+from vusion.connectors import (
+    ReceiveWorkerControlConnector, SendControlConnector)
 
 
 class DialogueWorker(ApplicationWorker):
-    
-    #TODO: deprecated, to remove
-    INCOMING = "incoming"
-    OUTGOING = "outgoing"
-    
-    def __init__(self, *args, **kwargs):
-        super(DialogueWorker, self).__init__(*args, **kwargs)
 
-    def startService(self):
-        self._d = Deferred()
-        self._consumers = []
+    @inlineCallbacks
+    def setup_application(self):   
         self.sender = None
         self.r_prefix = None
         self.r_config = {}
         self.control_name = None
         self.transport_name = None
-        self.transport_type = None
         self.program_name = None
-        super(DialogueWorker, self).startService()
-
-    @inlineCallbacks
-    def setup_application(self):
+        
         #Store basic configuration data
         self.transport_name = self.config['transport_name']
         self.control_name = self.config['control_name']
-        self.transport_type = 'sms'
         self.r_config = self.config.get('redis_config', {})
         self.r_prefix = "%(control_name)s:" % self.config
 
@@ -82,7 +67,6 @@ class DialogueWorker(ApplicationWorker):
         self.last_script_used = None
         self.r_key = 'vusion:programs:' + self.config['database_name']
         self.r_server = Redis(**self.r_config)
-        self._d.callback(None)
 
         # Component / Manager initialization
         self.logger = RedisLogger(
@@ -117,30 +101,39 @@ class DialogueWorker(ApplicationWorker):
            self.logger)
 
         self.logger.log("Dialogue Worker is starting")
-        #Set up dispatcher publisher
-        self.dispatcher_publisher = yield self.publish_to(
-            '%(dispatcher_name)s.control' % self.config)
-
+        yield self.setup_dc_connector(self.config['dispatcher_name'])
         #Will need to register the keywords
         self.load_properties(if_needed_register_keywords=True)
-
-        #Set up control consumer
-        self.control_consumer = yield self.consume(
-            '%(control_name)s.control' % self.config,
-            self.consume_control,
-            message_class=Message)
-        self._consumers.append(self.control_consumer)
-
         self.sender = reactor.callLater(2, self.daemon_process)
-
-    @inlineCallbacks
+        
     def teardown_application(self):
         self.log("Worker is stopped.")
         self.logger.stop()
         if self.is_ready():
-            yield self.unregister_from_dispatcher()
+            self.unregister_from_dispatcher()
         if (self.sender.active()):
             self.sender.cancel()
+
+    def setup_connectors(self):
+        d = super(DialogueWorker, self).setup_connectors()
+
+        def cb2(connector):
+            connector.set_control_handler(self.dispatch_control)
+            return connector
+        
+        return d.addCallback(cb2)
+
+    @inlineCallbacks
+    def dispatch_control(self, control):
+        yield self.consume_control(control)
+
+    def setup_ri_connector(self, connector_name):
+        return self.setup_connector(
+            ReceiveWorkerControlConnector,
+            self.transport_name)
+
+    def setup_dc_connector(self, connector_name):
+        return self.setup_connector(SendControlConnector, connector_name)
 
     def save_history(self, **kwargs):
         return self.collections['history'].save_history(**kwargs)
@@ -152,12 +145,13 @@ class DialogueWorker(ApplicationWorker):
         self.log("Connecting to database: %s" % self.database_name)
 
         #Initilization of the database
-        connection = pymongo.Connection(self.config['mongodb_host'],
-                                        self.config['mongodb_port'],
-                                        safe=self.config.get('mongodb_safe', False))
+        mongo_client = MongoClient(
+            self.config['mongodb_host'],
+            self.config['mongodb_port'],
+            w=1) #write in safe mode by default
 
         ## Program specific
-        program_db = connection[self.database_name]
+        program_db = mongo_client[self.database_name]
         self.setup_collections(program_db, {'program_settings': None,
                                             'unattached_messages': None})
         self.collections['history'] = HistoryManager(program_db, 'history', self.r_prefix, self.r_server)
@@ -169,7 +163,7 @@ class DialogueWorker(ApplicationWorker):
         self.collections['unattached_messages'] = UnattachedMessageManager(program_db, 'unattached_messages')
 
         ## Vusion 
-        vusion_db = connection[self.vusion_database_name]
+        vusion_db = mongo_client[self.vusion_database_name]
         self.setup_collections(vusion_db, {'templates': None})
         self.collections['shortcodes'] = ShortcodeManager(
             vusion_db, 'shortcodes')
@@ -331,13 +325,10 @@ class DialogueWorker(ApplicationWorker):
                 self.get_local_time(), 
                 action['offset-days']['days'],
                 action['offset-days']['at-time'])
-            schedule = ActionSchedule(**{
-                'participant-phone': participant_phone,
-                'participant-session-id': participant_session_id,
-                'date-time': schedule_time,
-                'action': EnrollingAction(**{'enroll': action['enroll']}).get_as_dict(),
-                'context': context.get_dict_for_history()})
-            self.collections['schedules'].save_schedule(schedule)
+            action = EnrollingAction(**{'enroll': action['enroll']})
+            self.collections['schedules'].add_action(
+                participant_phone, participant_session_id,
+                schedule_time, action, context)
         elif (action.get_type() == 'profiling'):
             self.collections['participants'].labelling(
                 participant_phone, action['label'], action['value'], context['message'])
@@ -379,19 +370,18 @@ class DialogueWorker(ApplicationWorker):
             return
         history = self.collections['history'].get_history(context['history_id'])
         participant = self.collections['participants'].get_participant(participant_phone)
-        message = TransportUserMessage(**{
-           'to_addr': action['forward-url'],
+        options = {
            'from_addr': self.transport_name,
            'transport_name': self.transport_name,
-           'transport_type': 'http_forward',
-           'content': history['message-content'],
+           'transport_type': 'http_api',
            'transport_metadata': {
                'program_shortcode': self.properties['shortcode'],
                'participant_phone': participant_phone,
-               'participant_profile': participant['profile']}
-        })
-        yield self.transport_publisher.publish_message(message)
-        self.collections['history'].update_forwarding(context['history_id'], message['message_id'], action['forward-url'])
+               'participant_profile': participant['profile']}}
+        message = yield self.send_to(
+            action['forward-url'], history['message-content'], **options)
+        self.collections['history'].update_forwarding(
+            context['history_id'], message['message_id'], action['forward-url'])
 
     @inlineCallbacks
     def run_action_proportional_tagging(self, participant_phone, action, context=None):
@@ -477,12 +467,15 @@ class DialogueWorker(ApplicationWorker):
             self.update_participant_transport_metadata(message)
             if (context.is_matching() and participant is not None):
                 if ('interaction' in context):
-                    if self.has_oneway_marker(participant['phone'], participant['session-id'], context):
+                    if self.collections['history'].has_oneway_marker(
+                        participant['phone'], participant['session-id'],
+                        context['dialogue-id'], context['interaction-id']):
                         actions.clear_all()
                     else:
                         self.get_program_actions(participant, context, actions)
-                        if self.participant_has_max_unmatching_answers(participant, context['dialogue-id'], context['interaction']):
-                            self.add_oneway_marker(participant['phone'], participant['session-id'], context)
+                        if self.collections['history'].participant_has_max_unmatching_answers(participant, context['dialogue-id'], context['interaction']):
+                            self.collections['history'].add_oneway_marker(
+                                participant['phone'], participant['session-id'], context)
                             context['interaction'].get_max_unmatching_action(context['dialogue-id'], actions)
                 elif ('request-id' in context):
                     self.get_program_actions(participant, context, actions)                    
@@ -513,81 +506,10 @@ class DialogueWorker(ApplicationWorker):
                     'dialogue-id': context['dialogue-id'],
                     'interaction-id': context['interaction-id']}))
         if ('matching-answer' in context 
-            and self.has_already_valid_answer(participant, context['dialogue-id'], context['interaction-id'])):
+            and self.collections['history'].has_already_valid_answer(participant, context['dialogue-id'], context['interaction-id'])):
             actions.clear_all()
             if self.properties['double-matching-answer-feedback'] is not None:
                 actions.append(FeedbackAction(**{'content': self.properties['double-matching-answer-feedback']}))
-
-    #TODO: move to History Manager
-    def has_already_valid_answer(self, participant, dialogue_id, interaction_id, number=1):
-        query = {'participant-phone': participant['phone'],
-                 'participant-session-id':participant['session-id'],
-                 'message-direction': 'incoming',
-                 'matching-answer': {'$ne': None},
-                 'dialogue-id': dialogue_id,
-                 'interaction-id': interaction_id}
-        history = self.collections['history'].find(query)
-        if history is None or history.count() <= number:
-            return False
-        return True        
-    
-    def participant_has_max_unmatching_answers(self, participant, dialogue_id, interaction):
-        if (not interaction.has_max_unmatching_answers()):
-            return False
-        query = {'participant-phone': participant['phone'],
-                 'participant-session-id':participant['session-id'],
-                 'message-direction': 'incoming',
-                 'dialogue-id': dialogue_id,
-                 'interaction-id': interaction['interaction-id'],
-                 'matching-answer': None}
-        history = self.collections['history'].find(query)
-        if history.count() == int(interaction['max-unmatching-answer-number']):
-            return True
-        return False
-    
-    #TODO: move to History Manager
-    #TODO: DRY with has_oneway_marker
-    def has_one_way_marker(self, participant, dialogue_id, interaction_id):
-        query = {
-            'object-type': 'oneway-marker-history',
-            'participant-phone': participant['phone'],
-            'participant-session-id':participant['session-id'],
-            'dialogue-id': dialogue_id,
-            'interaction-id': interaction_id}
-        history = self.collections['history'].find_one(query)
-        if history is None:
-            return False
-        return True    
-    
-    #TODO: move to History Manager
-    #TODO: DRY with has_one_way_marker
-    def has_oneway_marker(self, participant_phone, participant_session_id,
-                          context):
-        return self.collections['history'].find_one({
-            'object-type': 'oneway-marker-history',
-            'participant-phone': participant_phone,
-            'participant-session-id':participant_session_id,
-            'dialogue-id': context['dialogue-id'],
-            'interaction-id': context['interaction-id']}) is not None
-    
-    #TODO: move to History Manager
-    def add_oneway_marker(self, participant_phone, participant_session_id,
-                          context):
-        history = self.collections['history'].find_one({
-            'object-type': 'oneway-marker-history',
-            'participant-phone': participant_phone,
-            'participant-session-id':participant_session_id,
-            'dialogue-id': context['dialogue-id'],
-            'interaction-id': context['interaction-id']})
-        if history is None:
-            history = {
-                'object-type': 'oneway-marker-history',
-                'timestamp': self.get_local_time(),
-                'participant-phone': participant_phone,
-                'participant-session-id':participant_session_id,
-                'dialogue-id': context['dialogue-id'],
-                'interaction-id': context['interaction-id']}
-            self.save_history(**history)
 
     def daemon_process(self):
         self.load_properties()
@@ -728,18 +650,11 @@ class DialogueWorker(ApplicationWorker):
             for interaction in dialogue.interactions:
                 self.log("Scheduling %s interaction %s for %s" % 
                          (dialogue['name'], interaction['content'], participant['phone'],))
-                history = self.collections['history'].find_one(
-                    {"participant-phone": participant['phone'],
-                     "participant-session-id": participant['session-id'],
-                     "dialogue-id": dialogue["dialogue-id"],
-                     "interaction-id": interaction["interaction-id"],
-                     "$or": [{"message-direction": self.OUTGOING},
-                             {"message-direction": self.INCOMING,
-                              "matching-answer": {"$ne":None}}]},
-                    sort=[("timestamp", pymongo.ASCENDING)])
+                history = self.collections['history'].get_history_of_interaction(
+                    participant, dialogue["dialogue-id"], interaction["interaction-id"])
 
                 #The iteraction has aleardy been sent.
-                if history:
+                if history is not None:
                     previous_sending_date_time = time_from_vusion_format(history["timestamp"])
                     self.schedule_participant_reminders(
                         participant, dialogue, interaction, previous_sending_date_time, True)
@@ -758,15 +673,10 @@ class DialogueWorker(ApplicationWorker):
                 elif (interaction['type-schedule'] == 'fixed-time'):
                     sending_date_time = time_from_vusion_format(interaction['date-time'])
                 elif (interaction['type-schedule'] == 'offset-condition'):
-                    previous = self.collections['history'].find_one(
-                        {"participant-phone": participant['phone'],
-                         "participant-session-id": participant['session-id'],
-                         "message-direction": self.INCOMING,
-                         "dialogue-id": dialogue["dialogue-id"],
-                         "interaction-id": interaction["offset-condition-interaction-id"],
-                         "$or": [{'matching-answer': {'$exists': False}},
-                                 {'matching-answer': {'$ne': None}}]})
-                    # if the answer 
+                    previous = self.collections['history'].get_history_of_offset_condition_answer(
+                        participant,
+                        dialogue["dialogue-id"],
+                        interaction["offset-condition-interaction-id"])      
                     if  previous is None:
                         continue
                     sending_date_time = self.get_local_time() + timedelta(minutes=int(interaction['offset-condition-delay']))
@@ -776,28 +686,21 @@ class DialogueWorker(ApplicationWorker):
 
                 #Scheduling a date already in the past is forbidden.
                 if (sending_date_time + timedelta(minutes=5) < self.get_local_time()):
-                    history = {
-                        'object-type': 'datepassed-marker-history',
-                        'participant-phone': participant['phone'],
-                        'participant-session-id': participant['session-id'],
-                        'dialogue-id': dialogue['dialogue-id'],
-                        'interaction-id': interaction['interaction-id'],
-                        'scheduled-date-time': time_to_vusion_format(sending_date_time)}
-                    self.save_history(**history)
+                    self.collections['history'].add_datepassed_marker_for_interaction(
+                        participant,
+                        dialogue['dialogue-id'],
+                        interaction['interaction-id'])
                     if (schedule):
                         self.collections['schedules'].remove_schedule(schedule)
                     continue
 
                 if (not schedule):
-                    schedule = DialogueSchedule(**{
-                        'date-time': sending_date_time,
-                        'participant-phone': participant['phone'],
-                        'participant-session-id': participant['session-id'],
-                        'dialogue-id': dialogue['dialogue-id'],
-                        'interaction-id': interaction["interaction-id"]})
+                    self.collections['schedules'].add_dialogue(
+                        participant, sending_date_time,
+                        dialogue['dialogue-id'], interaction['interaction-id'])
                 else:
                     schedule.set_time(sending_date_time)
-                self.collections['schedules'].save_schedule(schedule)
+                    self.collections['schedules'].save_schedule(schedule)
                 self.schedule_participant_reminders(participant, dialogue, interaction, sending_date_time)
                 self.update_time_next_daemon_iteration()
         except:
@@ -811,9 +714,12 @@ class DialogueWorker(ApplicationWorker):
                                        interaction_date_time, is_interaction_history=False):
 
         #Do not schedule reminder in case of valide answer or one way marker
-        if self.has_one_way_marker(participant, dialogue['dialogue-id'], interaction['interaction-id']):
+        if self.collections['history'].has_oneway_marker(
+            participant['phone'], participant['session-id'],
+            dialogue['dialogue-id'], interaction['interaction-id']):
             return
-        if self.has_already_valid_answer(participant, dialogue['dialogue-id'], interaction['interaction-id'], 0):
+        if self.collections['history'].has_already_valid_answer(
+            participant, dialogue['dialogue-id'], interaction['interaction-id'], 0):
             return
         
         schedules = self.collections['schedules'].get_participant_reminder_tail(
@@ -831,38 +737,24 @@ class DialogueWorker(ApplicationWorker):
             return
         
         #get number for already send reminders
-        interaction_histories = self.collections['history'].find({
-            'participant-phone': participant['phone'],
-            'participant-session-id': participant['session-id'],
-            'message-direction': 'outgoing',
-            'dialogue-id': dialogue['dialogue-id'],
-            'interaction-id': interaction['interaction-id']})
-        
-        already_send_reminder_count = interaction_histories.count() - 1 if interaction_histories.count() > 0 else 0
+        already_send_reminder_count = self.collections['history'].count_reminders(
+            participant, dialogue['dialogue-id'], interaction['interaction-id'])
 
         #adding reminders
         reminder_times = interaction.get_reminder_times(interaction_date_time)
         for reminder_time in reminder_times[already_send_reminder_count:]:
-            reminder = ReminderSchedule(**{
-                'participant-phone': participant['phone'],
-                'participant-session-id': participant['session-id'],
-                'date-time': reminder_time,
-                'dialogue-id': dialogue['dialogue-id'],
-                'interaction-id': interaction['interaction-id']})
-            self.collections['schedules'].save_schedule(reminder)
+            self.collections['schedules'].add_reminder(
+                participant, reminder_time,
+                dialogue['dialogue-id'], interaction['interaction-id'])
         
         #adding deadline
         deadline_time = interaction.get_deadline_time(interaction_date_time)
         #We don't schedule deadline in the past
         if deadline_time < self.get_local_time():
             deadline_time = self.get_local_time()
-        deadline = DeadlineSchedule(**{
-            'participant-phone': participant['phone'],
-            'participant-session-id': participant['session-id'],
-            'date-time': interaction.get_deadline_time(interaction_date_time),
-            'dialogue-id': dialogue['dialogue-id'],
-            'interaction-id': interaction['interaction-id']})
-        self.collections['schedules'].save_schedule(deadline)
+        self.collections['schedules'].add_deadline(
+            participant, deadline_time, 
+            dialogue['dialogue-id'], interaction['interaction-id'])
     
     # TODO move to the properties helper
     def get_local_time(self, date_format='datetime'):
@@ -916,19 +808,13 @@ class DialogueWorker(ApplicationWorker):
 
             ## Delayed action are always run even if there original interaction has been deleted
             if schedule.get_type() == 'action-schedule':
+                action = action_generator(**schedule['action'])
                 if schedule.is_expired(local_time):
-                    action = action_generator(**schedule['action'])
-                    history = {
-                        'object-type': 'datepassed-action-marker-history',
-                        'participant-phone': schedule['participant-phone'],
-                        'participant-session-id': schedule['participant-session-id'],
-                        'action-type': action.get_type(),
-                        'scheduled-date-time': schedule['date-time']}
-                    self.save_history(**history)
+                    self.collections['history'].add_datepassed_action_marker(action, schedule)
                     return
                 self.run_action(
                     schedule['participant-phone'], 
-                    action_generator(**schedule['action']),
+                    action,
                     schedule.get_context(),
                     schedule['participant-session-id'])
                 return
@@ -946,7 +832,7 @@ class DialogueWorker(ApplicationWorker):
                 if interaction.has_reminder():
                     for action in interaction['reminder-actions']:
                         actions.append(action_generator(**action))
-                    self.add_oneway_marker(
+                    self.collections['history'].add_oneway_marker(
                         schedule['participant-phone'],
                         schedule['participant-session-id'],
                         context.get_dict_for_history())
@@ -967,104 +853,74 @@ class DialogueWorker(ApplicationWorker):
 
             ## Do not run expired schedule
             if schedule.is_expired(local_time):
-                history = {
-                    'object-type': 'datepassed-marker-history',
-                    'participant-phone': schedule['participant-phone'],
-                    'participant-session-id': schedule['participant-session-id'],
-                    'scheduled-date-time': schedule['date-time']}
-                history.update(context.get_dict_for_history())
-                self.save_history(**history)
+                self.collections['history'].add_datepassed_marker(schedule, context)
                 return
                  
-            message = TransportUserMessage(**{
+            options = {
                 'from_addr': self.properties['shortcode'],
-                'to_addr': schedule['participant-phone'],
                 'transport_name': self.transport_name,
-                'transport_type': self.transport_type,
-                'content': message_content})
+                'transport_type': 'sms',
+                'transport_metadata': {}}
 
             ## Apply program settings
             if (self.properties['customized-id'] is not None):
-                message['transport_metadata']['customized_id'] = self.properties['customized-id']
+                options['transport_metadata']['customized_id'] = self.properties['customized-id']
 
             ## Check for program properties
             if (schedule.get_type() == 'feedback-schedule'
                 and self.properties['request-and-feedback-prioritized'] is not None):
-                message['transport_metadata']['priority'] = self.properties['request-and-feedback-prioritized']
+                options['transport_metadata']['priority'] = self.properties['request-and-feedback-prioritized']
             elif ('prioritized' in interaction 
                   and interaction['prioritized'] is not None):
-                message['transport_metadata']['priority'] = interaction['prioritized']
+                options['transport_metadata']['priority'] = interaction['prioritized']
 
             ## Necessary for some transport that require tocken to be reuse for MT message
             #TODO only fetch when participant has transport metadata...
             participant = self.collections['participants'].get_participant(schedule['participant-phone'])
             if (participant['transport_metadata'] is not {}):
-                message['transport_metadata'].update(participant['transport_metadata'])
+                options['transport_metadata'].update(participant['transport_metadata'])
             
             message_credits = self.properties.use_credits(message_content)
             if self.credit_manager.is_allowed(message_credits, schedule):
-                yield self.transport_publisher.publish_message(message)
-                message_status = 'pending'
-                self.log("Message has been sent to %s '%s'" % (message['to_addr'], message['content']))
-            else: 
-                message_credits = 0
-                if self.credit_manager.is_timeframed():
-                    message_status = 'no-credit'
-                else:
-                    message_status = 'no-credit-timeframe'
-                    self.log("%s, message hasn't been sent to %s '%s'" % (
-                        message_status, message['to_addr'], message['content']))
-
-            history = {
-                'message-content': message['content'],
-                'participant-phone': message['to_addr'],
-                'message-direction': 'outgoing',
-                'message-status': message_status,
-                'message-id': message['message_id'],
-                'message-credits': message_credits}
-            history.update(context.get_dict_for_history(schedule))
-            self.save_history(**history)
+                message = yield self.send_to(schedule['participant-phone'], message_content, **options)
+                self.collections['history'].add_outgoing(
+                    message, message_credits, context, schedule)
+                return
+            if self.credit_manager.is_timeframed():
+                self.collections['history'].add_nocredit(
+                    message_content, context, schedule)
+            else:
+                self.collections['history'].add_nocredittimeframe(
+                    message_content, context, schedule) 
         except MissingData as e:
-            self.log("Error Missing Data: %s" % e.message)
-            history = {
-                'message-content': message_content,
-                'participant-phone': schedule['participant-phone'],
-                'message-direction': 'outgoing',
-                'message-status': 'missing-data',
-                'missing-data': [e.message],
-                'message-id': None,
-                'message-credits': 0}
-            history.update(context.get_dict_for_history(schedule))
-            self.save_history(**history)
+            self.collections['history'].add_missingdata(
+                message_content, e.message, context, schedule)
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log("Error send schedule: %r" %
                      traceback.format_exception(exc_type, exc_value, exc_traceback))
             
-    @inlineCallbacks
+    #@inlineCallbacks
     def send_all_messages(self, dialogue, phone_number):
+        self.log("Sending all dialogue %s messages to %s"
+                 % (dialogue['name'], phone_number,))
         for interaction in dialogue['interactions']:
             message_content = self.generate_message(interaction)
-            message = TransportUserMessage(**{
+            options = {
                 'from_addr': self.properties['shortcode'],
-                'to_addr': phone_number,
                 'transport_name': self.transport_name,
-                'transport_type': self.transport_type,
-                'transport_metadata': '',
-                'content': message_content})
-            yield self.transport_publisher.publish_message(message)
-            self.log("Test message has been sent to %s '%s'"
-                     % (message['to_addr'], message['content'],))
+                'transport_type': 'sms'}
+            self.send_to(phone_number, message_content, **options)
 
     def log(self, msg, level='msg'):
-        self.logger.log(msg, level)
+        if hasattr(self, 'logger'):
+            self.logger.log(msg, level)
 
     def get_keywords(self):
         keywords = self.collections['dialogues'].get_all_keywords()
         keywords += self.collections['requests'].get_all_keywords()
         return sorted(set(keywords))
     
-    @inlineCallbacks
     def register_keywords_in_dispatcher(self):
         self.log('Synchronizing with dispatcher')
         keywords = self.get_keywords()
@@ -1082,13 +938,16 @@ class DialogueWorker(ApplicationWorker):
             action='add_exposed',
             exposed_name=self.transport_name,
             rules=rules)
-        yield self.dispatcher_publisher.publish_message(msg)
+        return self.publish_dispatcher_message(msg)
 
-    @inlineCallbacks
     def unregister_from_dispatcher(self):
         msg = DispatcherControl(action='remove_exposed',
                                 exposed_name=self.transport_name)
-        yield self.dispatcher_publisher.publish_message(msg)
+        return self.publish_dispatcher_message(msg)
+
+    def publish_dispatcher_message(self, message, endpoint_name=None):
+        publisher = self.connectors[self.config['dispatcher_name']]
+        return publisher.publish_control(message, endpoint_name)
 
     #TODO no template defined and no default template defined... what to do?
     def generate_message(self, interaction):

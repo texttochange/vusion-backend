@@ -337,7 +337,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         d_interaction_reminder_send = d_interaction_send + timedelta(minutes=3)
         d_interaction_deadline = d_interaction_reminder_send + timedelta(minutes=3)
 
-        dialogue = Dialogue(**self.mkobj_dialogue_open_question_reminder())
+        dialogue = Dialogue(**self.mkobj_dialogue_open_question_reminder(reminder_number=2))
         interaction = dialogue['interactions'][0]
 
         participant = self.mkobj_participant(
@@ -467,7 +467,6 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
     def test_reschedule_reminder_after_one_way_marker_in_history(self):
         self.initialize_properties()
         
-        self.broker.dispatched = {}
         d_now = self.worker.get_local_time()
         d_enrolled = d_now - timedelta(minutes=60)
         d_interaction_send = d_enrolled + timedelta(minutes=3)

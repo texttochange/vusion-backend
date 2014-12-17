@@ -1,4 +1,4 @@
-import re, json
+import re, json, sys, traceback
 from urlparse import urlparse
 from hashlib import sha1
 from datetime import datetime
@@ -15,8 +15,14 @@ from vusion.error import MissingData
 
 class CioecHttp(Transport):
     
+    transport_type = 'http_api'
+    
     def setup_transport(self):
-        log.msg("Setup embolivia http transport %s" % self.config)
+        log.msg("Setup Embolivia http transport %s" % self.config)
+        self.transport_metadata = {'transport_type': self.transport_type}
+
+    def teardown_transport(self):
+        log.msg("Stop forward http transport")
 
     def build_data(self, message, labels_to_add):
         data = {}
@@ -78,51 +84,38 @@ class CioecHttp(Transport):
                 'POST')
 
             if response.code != 200:
-                log.msg("Http Error %s: %s"
-                        % (response.code, response.delivered_body))
-                yield self.publish_delivery_report(
-                    user_message_id=message['message_id'],
-                    delivery_status='failed',
-                    failure_level='http',
-                    failure_code=response.code,
-                    failure_reason=response.delivered_body,
-                    transport_metadata={'transport_type':'http_forward'})
+                reason = "HTTP ERROR %s - %s" % (response.code, response.delivered_body)
+                log.error(reason)
+                yield self.publish_nack(
+                    message['message_id'], reason,
+                    transport_metadata=self.transport_metadata)
                 return
-            log.msg("Response body: %s" % response.delivered_body)
             
             response_body = json.loads(response.delivered_body)
             if response_body['status'] == 'fail':
-                log.msg("Service Error: %s" % response_body['message'])
-                yield self.publish_delivery_report(
-                    user_message_id=message['message_id'],
-                    delivery_status='failed',
-                    failure_level='service',
-                    failure_code=response_body['error'],
-                    failure_reason=response_body['message'],
-                    transport_metadata={'transport_type':'http_forward'})
-                return                
+                reason = "SERVICE ERROR %s - %s" % (response_body['error'], response_body['message'])
+                log.error(reason)
+                yield self.publish_nack(
+                    message['message_id'], reason,
+                    transport_metadata=self.transport_metadata)
+                return
+
             yield self.publish_ack(
                 user_message_id=message['message_id'],
                 sent_message_id=message['message_id'],
-                transport_metadata={'transport_type': 'http_forward'})
+                transport_metadata=self.transport_metadata)
         except MissingData as ex:
-            log.msg("Missing Data error %s" % repr(ex))
-            yield self.publish_delivery_report(
-                user_message_id=message['message_id'],
-                delivery_status='failed',
-                failure_level='transport',
-                failure_code=None,
-                failure_reason=ex.message,
-                transport_metadata={'transport_type':'http_forward'})            
+            reason = "MISSING DATA %s" % ex.message
+            yield self.publish_nack(
+                message['message_id'], reason,
+                transport_metadata=self.transport_metadata)
         except Exception as ex:
-            log.msg("Unexpected error %s" % repr(ex))
-            yield self.publish_delivery_report(
-                user_message_id=message['message_id'],
-                delivery_status='failed',
-                failure_level='transport',
-                failure_code=None,
-                failure_reason=repr(ex),
-                transport_metadata={'transport_type':'http_forward'})
-
-    def stopWorker(self):
-        log.msg("stop forward http transport")
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            log.error(
+                "TRANSPORT ERROR: %r" %
+                traceback.format_exception(exc_type, exc_value, exc_traceback))
+            reason = "TRANSPORT ERROR %s" % (ex.message)
+            yield self.publish_nack(
+                message['message_id'],
+                reason,
+                transport_metadata=self.transport_metadata) 

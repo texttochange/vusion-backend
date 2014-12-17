@@ -10,6 +10,7 @@ from test_dialogue_worker import DialogueWorkerTestCase
 
 class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
 
+    @inlineCallbacks
     def test_send_scheduled_messages(self):
         self.initialize_properties()
         
@@ -64,15 +65,21 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
         self.worker.send_scheduled()
 
         participant_transport_metadata.update({'customized_id': 'myid'})
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.wait_for_dispatched_outbound(3)
         self.assertEqual(len(messages), 3)
+        self.assertEqual(messages[0]['transport_name'], 'sphex')
         self.assertEqual(messages[0]['content'], 'Today will be sunny')
-        self.assertEqual(messages[0]['transport_metadata'], participant_transport_metadata)
+        self.assertEqual(
+            messages[0]['transport_metadata'], participant_transport_metadata)
+        self.assertEqual(messages[1]['transport_name'], 'sphex')
         self.assertEqual(messages[1]['content'], 'Hello unattached')
-        self.assertEqual(messages[1]['transport_metadata'], participant_transport_metadata)        
+        self.assertEqual(
+            messages[1]['transport_metadata'], participant_transport_metadata)
+        self.assertEqual(messages[2]['transport_name'], 'sphex')
         self.assertEqual(messages[2]['content'], 'Thank you')
-        participant_transport_metadata.update({'priority': 'prioritized'})        
-        self.assertEqual(messages[2]['transport_metadata'], participant_transport_metadata) 
+        participant_transport_metadata.update({'priority': 'prioritized'})
+        self.assertEqual(
+            messages[2]['transport_metadata'], participant_transport_metadata)
         for message in messages:
             self.assertTrue('customized_id' in message['transport_metadata'])
 
@@ -81,19 +88,20 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
         histories = self.collections['history'].find()
         for history in histories:
             self.assertTrue(history['participant-session-id'] is not None)
-            
+
+    @inlineCallbacks       
     def test_send_scheduled_messages_with_priority(self):
         self.initialize_properties()
-                
+
         dNow = self.worker.get_local_time()
         dNow = dNow - timedelta(minutes=2)
-       
+
         dialogue = self.mkobj_dialogue_announcement_prioritized()
         participant = self.mkobj_participant('10')
-        
+
         self.collections['dialogues'].save(dialogue)
         self.collections['participants'].save(participant)
-        
+
         self.collections['schedules'].save(
             self.mkobj_schedule(
                 date_time=time_to_vusion_format(dNow),
@@ -118,17 +126,17 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
                 content='Thank you',
                 participant_phone='10',
                 context={'dialogue-id': '2', 'interaction-id': '1'}))
-        
+
         self.worker.send_scheduled()
 
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.wait_for_dispatched_outbound(4)
         self.assertEqual(len(messages), 4)
         self.assertTrue('priority' in messages[0]['transport_metadata'])
         self.assertTrue('priority' in messages[1]['transport_metadata'])
         self.assertTrue('priority' in messages[3]['transport_metadata'])
-        
+
         self.assertFalse('priority' in messages[2]['transport_metadata'])
-        
+
         ## Assert interaction specific priority
         self.assertEqual(messages[0]['transport_metadata']['priority'],
             dialogue['interactions'][0]['prioritized'])
@@ -165,11 +173,13 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
 
         saved_participant = self.collections['participants'].find_one()
         self.assertEqual(saved_participant['session-id'], None)
-        history = self.collections['history'].find_one({'object-type': 'oneway-marker-history'})
+        history = self.collections['history'].find_one({
+            'object-type': 'oneway-marker-history'})
         self.assertTrue(history is not None)
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
-        history = self.collections['history'].find_one({'object-type': 'dialogue-history'})
+        history = self.collections['history'].find_one({
+            'object-type': 'dialogue-history'})
         self.assertEqual(history['participant-session-id'], '1')
         self.assertEqual(history['message-content'], 'Bye')
 
@@ -201,10 +211,10 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
     @inlineCallbacks
     def test_send_scheduled_run_action_expired(self):
         self.initialize_properties()
-        
+
         dNow = self.worker.get_local_time()
         dPast = dNow - timedelta(minutes=61)
-        
+
         dialogue = self.mkobj_dialogue_open_question()
         participant = self.mkobj_participant('06')
         self.collections['dialogues'].save(dialogue)
@@ -219,7 +229,7 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
 
         self.collections['schedules'].save(schedule.get_as_dict())
         yield self.worker.send_scheduled()
-  
+
         saved_participant = self.collections['participants'].find_one({
             'enrolled.dialogue-id': '04'})
         self.assertTrue(saved_participant is None)
@@ -245,7 +255,7 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
 
         yield self.worker.send_scheduled()
 
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['content'],
                          'What is your gender?\n male or female')
@@ -258,18 +268,18 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
             sms_limit_from_date='2013-01-01T00:00:00',
             sms_limit_to_date='2020-01-01T00:00:00')
         self.initialize_properties(program_settings=settings)
-        
+
         dNow = self.worker.get_local_time()
         dJustPast = dNow - timedelta(minutes=1)
         dPast = dNow - timedelta(minutes=60)
         dFuture = dNow + timedelta(minutes=30)        
-        
+
         ## A first to be send
         unattached = self.mkobj_unattach_message(
             content=self.mk_content(280),
             fixed_time=time_to_vusion_format(dJustPast))
         unattached_id = self.collections['unattached_messages'].save(unattached)
-        
+
         participant = self.mkobj_participant('+1', session_id='1')
         self.collections['participants'].save(participant)
         participant = self.mkobj_participant('+2', session_id='1')
@@ -287,23 +297,23 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
             date_time=time_to_vusion_format(dJustPast))
         self.collections['schedules'].save(schedule_first)
         self.collections['schedules'].save(schedule_second)
-        
+
         ## A second for which, the program doesn't have enougth credit
         unattached = self.mkobj_unattach_message(
             content=self.mk_content(),
             fixed_time=time_to_vusion_format(dJustPast))
         unattached_id = self.collections['unattached_messages'].save(unattached)
-        
+
         schedule_no_credit = self.mkobj_schedule_unattach(
             participant_phone='+1',
             participant_session_id='1',
             unattach_id=str(unattached_id),
             date_time=time_to_vusion_format(dJustPast))
         self.collections['schedules'].save(schedule_no_credit)
-        
+
         yield self.worker.send_scheduled()
-        
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+
+        messages = yield self.app_helper.wait_for_dispatched_outbound(2)
         self.assertEqual(len(messages), 2)
         histories = self.collections['history'].find()
         self.assertEqual(histories.count(), 3)
@@ -313,7 +323,6 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
         self.assertEqual(histories[1]['message-credits'], 2)
         self.assertEqual(histories[2]['message-status'], 'no-credit')
         self.assertEqual(histories[2]['message-credits'], 0)
-        
 
     @inlineCallbacks
     def test_send_scheduled_messages_sms_limit_no_credit_timeframe(self):
@@ -323,16 +332,16 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
             sms_limit_from_date='2013-01-01T00:00:00',
             sms_limit_to_date='2013-01-02T00:00:00')
         self.initialize_properties(program_settings=settings)
-        
+
         dNow = self.worker.get_local_time()
         dJustPast = dNow - timedelta(minutes=1)
-        
+
         ## A first to be send
         unattached = self.mkobj_unattach_message(
             content=self.mk_content(),
             fixed_time=time_to_vusion_format(dJustPast))
         unattached_id = self.collections['unattached_messages'].save(unattached)
-        
+
         participant = self.mkobj_participant('+1', session_id='1')
         self.collections['participants'].save(participant)
 
@@ -342,10 +351,10 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
             unattach_id=str(unattached_id),
             date_time=time_to_vusion_format(dJustPast))
         self.collections['schedules'].save(schedule_first)
-        
+
         yield self.worker.send_scheduled()
-        
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+
+        messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 0)
         histories = self.collections['history'].find()
         self.assertEqual(histories.count(), 1)
@@ -355,7 +364,7 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
     @inlineCallbacks
     def test_send_scheduled_messages_fail_missing_data(self):
         self.initialize_properties()
-        
+
         dNow = self.worker.get_local_time()
         dNow = dNow - timedelta(minutes=2)
 
@@ -364,12 +373,13 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
             profile=[{'label': 'name',
                       'value': 'oliv'}])
         self.collections['participants'].save(participant)
-       
+
         unattached_message = self.mkobj_unattach_message(
             content="Hello [participant.firstname]",
             fixed_time=time_to_vusion_format(dNow))
-        
-        unattached_message_id = self.collections['unattached_messages'].save(unattached_message)
+
+        unattached_message_id = self.collections['unattached_messages'].save(
+            unattached_message)
 
         self.collections['schedules'].save(
             self.mkobj_schedule_unattach(
@@ -379,10 +389,12 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
 
         yield self.worker.send_scheduled()
 
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 0)
         histories = self.collections['history'].find()
         self.assertEqual(histories.count(), 1)
         self.assertEqual(histories[0]['message-status'], 'missing-data')
-        self.assertEqual(histories[0]['missing-data'], ['Participant 06 doesn\'t have a label firstname'])
+        self.assertEqual(
+            histories[0]['missing-data'],
+            ['Participant 06 doesn\'t have a label firstname'])
         self.assertEqual(histories[0]['unattach-id'], str(unattached_message_id))

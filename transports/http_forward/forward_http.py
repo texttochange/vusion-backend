@@ -1,10 +1,10 @@
-import re
-import urllib
+import re, sys, traceback, urllib
+
 from urlparse import urlparse, parse_qs
 
 from twisted.internet.defer import inlineCallbacks
 
-from vumi.transports import Transport
+from vumi.transports.base import Transport
 from vumi.utils import http_request_full
 from vumi import log
 
@@ -12,12 +12,18 @@ from vumi import log
 ## Outgoing only transport, will generate a URL replacing element of the to_addr field
 class ForwardHttp(Transport):
     
+    transport_type = 'http_api'
+
     def setup_transport(self):
-        log.msg("Setup forward http transport %s" % self.config)
+        log.msg("Setup Forward HTTP transport %r" % self.config)
         self.message_replacement = self.config['message_replacement']
         self.compile_replacement(self.message_replacement)
         self.message_metadata_replacement = self.config['message_metadata_replacement']
         self.compile_replacement(self.message_metadata_replacement)
+        self.transport_metadata = {'transport_type': self.transport_type}
+
+    def teardown_transport(self):
+        log.msg("Stop Forward HTTP Transport")
 
     def compile_replacement(self, replacements={}):
         for field, regex_txt in replacements.iteritems():
@@ -33,7 +39,7 @@ class ForwardHttp(Transport):
     
     @inlineCallbacks
     def handle_outbound_message(self, message):
-        log.msg("Outboung message to be processed %s" % repr(message))
+        log.msg("Outboung message %r" % message)
         try:
             url = message['to_addr']
             url = self.replace_arguments_get_url(message, self.message_replacement, url)
@@ -54,30 +60,26 @@ class ForwardHttp(Transport):
                 'GET')
             
             if response.code != 200:
-                log.msg("Http Error %s: %s"
-                        % (response.code, response.delivered_body))
-                yield self.publish_delivery_report(
-                    user_message_id=message['message_id'],
-                    delivery_status='failed',
-                    failure_level='http',
-                    failure_code=response.code,
-                    failure_reason=response.delivered_body,
-                    transport_metadata={'transport_type':'http_forward'})
+                reason = "HTTP ERROR %s - %s" % (response.code, response.delivered_body)
+                log.error(reason)
+                yield self.publish_nack(
+                    message['message_id'],
+                    reason,
+                    transport_metadata=self.transport_metadata)
                 return
             
             yield self.publish_ack(
                 user_message_id=message['message_id'],
                 sent_message_id=message['message_id'],
-                transport_metadata={'transport_type': 'http_forward'})
-        except Exception as ex:
-            log.msg("Unexpected error %s" % repr(ex))
-            yield self.publish_delivery_report(
-                user_message_id=message['message_id'],
-                delivery_status='failed',
-                failure_level='transport',
-                failure_code=None,
-                failure_reason=repr(ex),
-                transport_metadata={'transport_type':'http_forward'})
+                transport_metadata=self.transport_metadata)
 
-    def stopWorker(self):
-        log.msg("stop forward http transport")
+        except Exception as ex:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            log.error(
+                "TRANSPORT ERROR: %r" %
+                traceback.format_exception(exc_type, exc_value, exc_traceback))
+            reason = "TRANSPORT ERROR %s" % (ex.message)
+            yield self.publish_nack(
+                message['message_id'],
+                reason,
+                transport_metadata=self.transport_metadata)

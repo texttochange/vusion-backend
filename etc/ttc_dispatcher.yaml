@@ -5,14 +5,14 @@ transport_names:
         - 256-8282-yo
         - forward-http
 transport_mappings:
-    http_forward: forward-http
+    http_api: forward-http
     sms:
         '256-8181': 256-8181-dispatcher
         '256-8282': 256-8282-yo
 exposed_names: 
         - garbage
 fallback_application: garbage
-expire_routing_memory: 20
+expire_routing_memory: 25
 
 middleware: 
-       - mw1: middlewares.triming_middleware.TrimingMiddleware
+       - mw1: middlewares.TrimingMiddleware

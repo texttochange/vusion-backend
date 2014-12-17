@@ -13,10 +13,10 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
     def test_ack(self):
         self.initialize_properties()
         past = self.worker.get_local_time() - timedelta(hours=5)
-        
+
         event = self.mkmsg_delivery_for_send(
-            event_type='ack',
-            user_message_id='1')
+                   event_type='ack',
+                   user_message_id='1')
 
         history = self.mkobj_history_unattach(
             '4',
@@ -27,13 +27,41 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
 
         self.worker.collections['history'].save_history(**history)
 
-        yield self.send(event, 'event')
+        yield self.app_helper.dispatch_event(event)
 
         status = self.collections['history'].find_one({
             'message-id': event['user_message_id']})
         self.assertEqual('ack', status['message-status'])
         credit_log = self.collections['credit_logs'].find_one()
         self.assertEqual(1, credit_log['outgoing-acked'])
+
+    @inlineCallbacks
+    def test_nack(self):
+        self.initialize_properties()
+        past = self.worker.get_local_time() - timedelta(hours=5)
+
+        event = self.mkmsg_delivery_for_send(
+                   event_type='nack',
+                   user_message_id='1',
+                   nack_reason ='HTTP ERROR ...')
+
+        history = self.mkobj_history_unattach(
+            '4',
+            time_to_vusion_format(past),
+            message_direction='outgoing',
+            message_status='pending',
+            message_id='1')
+
+        self.worker.collections['history'].save_history(**history)
+
+        yield self.app_helper.dispatch_event(event)
+
+        history = self.collections['history'].find_one({
+            'message-id': event['user_message_id']})
+        self.assertEqual('nack', history['message-status'])
+        credit_log = self.collections['credit_logs'].find_one()
+        self.assertEqual(1, credit_log['outgoing-nacked'])
+        self.assertEqual('HTTP ERROR ...', history['failure-reason'])
 
     @inlineCallbacks
     def test_ack_forward(self):
@@ -43,7 +71,7 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
         event = self.mkmsg_delivery_for_send(
             event_type='ack',
             user_message_id='2',
-            transport_metadata={'transport_type':'http_forward'})
+            transport_metadata={'transport_type':'http_api'})
 
         history = self.mkobj_history_dialogue(
             dialogue_id='1',
@@ -52,13 +80,40 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
             direction='incoming',
             message_id='1')
 
-        history_id = self.collections['history'].save(history)
+        history_id = self.collections['history'].save_history(**history)
         self.worker.collections['history'].update_forwarding(history_id, '2', 'http://partner.com')
 
-        yield self.send(event, 'event')
+        yield self.app_helper.dispatch_event(event)
 
         history = self.collections['history'].find_one()
         self.assertEqual('ack', history['forwards'][0]['status'])
+
+    @inlineCallbacks
+    def test_nack_forward(self):
+        self.initialize_properties()
+        past = self.worker.get_local_time() - timedelta(hours=2)
+
+        event = self.mkmsg_delivery_for_send(
+            event_type='nack',
+            user_message_id='2',
+            nack_reason='HTTP ERROR ...',
+            transport_metadata={'transport_type':'http_api'})
+
+        history = self.mkobj_history_dialogue(
+            dialogue_id='1',
+            interaction_id='1',
+            timestamp=time_to_vusion_format(past),
+            direction='incoming',
+            message_id='1')
+
+        history_id = self.collections['history'].save(history)
+        self.worker.collections['history'].update_forwarding(history_id, '2', 'http://partner.com')
+
+        yield self.app_helper.dispatch_event(event)
+
+        history = self.collections['history'].find_one()
+        self.assertEqual('nack', history['forwards'][0]['status'])
+        self.assertEqual('HTTP ERROR ...', history['forwards'][0]['failure-reason'])
 
     @inlineCallbacks
     def test_delivery(self):
@@ -75,7 +130,7 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
         
         self.worker.collections['history'].save_history(**history)
 
-        yield self.send(event, 'event')
+        yield self.app_helper.dispatch_event(event)
 
         status = self.collections['history'].find_one({
             'message-id': event['user_message_id']})
@@ -91,7 +146,7 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
         self.initialize_properties()
         event = self.mkmsg_delivery_for_send()
 
-        yield self.send(event, 'event')
+        yield self.app_helper.dispatch_event(event)
 
         status = self.collections['history'].find_one({
             'message-id': event['user_message_id']})
@@ -119,7 +174,7 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
        
         self.worker.collections['history'].save_history(**history)
 
-        yield self.send(event, 'event')
+        yield self.app_helper.dispatch_event(event)
 
         status = self.collections['history'].find_one({
             'message-id': event['user_message_id']})
@@ -148,7 +203,7 @@ class DialogueWorkerTestCase_consumeEvent(DialogueWorkerTestCase):
        
         self.worker.collections['history'].save_history(**history)
 
-        yield self.send(event, 'event')
+        yield self.app_helper.dispatch_event(event)
 
         history = self.collections['history'].find_one({
             'message-id': event['user_message_id']})

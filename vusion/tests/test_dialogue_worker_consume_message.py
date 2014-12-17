@@ -37,8 +37,8 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         inbound_msg_matching = self.mkmsg_in(
             from_addr='06',
             content='Feel ok')
-        yield self.send(inbound_msg_matching, 'inbound')
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching)
+        messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
         self.assertEqual(2, self.collections['history'].count())
 
@@ -46,7 +46,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         inbound_msg_non_matching_keyword = self.mkmsg_in(
             from_addr='06',
             content='ok')
-        yield self.send(inbound_msg_non_matching_keyword, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_non_matching_keyword)
         self.assertEqual(3, self.collections['history'].count())
         history_unmatching = self.collections['history'].find_one({
             'object-type': 'unmatching-history'})
@@ -55,7 +55,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         inbound_msg_non_matching_answer = self.mkmsg_in(
             from_addr='06',
             content='Feel good')
-        yield self.send(inbound_msg_non_matching_answer, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_non_matching_answer)
 
         self.assertEqual(4, self.collections['history'].count())
         histories = self.collections['history'].find({'object-type': 'dialogue-history'})
@@ -87,7 +87,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         inbound_msg_matching = self.mkmsg_in(
             from_addr='06',
             content='name olivier')
-        yield self.send(inbound_msg_matching, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching)
 
         self.assertEqual(1, self.collections['schedules'].count())
 
@@ -136,7 +136,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
             from_addr='06',
             content='name ok')
 
-        yield self.send(inbound_msg_matching, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching)
 
         self.assertEqual(0, self.collections['schedules'].count())   
 
@@ -157,7 +157,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         inbound_msg_matching_request = self.mkmsg_in(
             from_addr='06',
             content='name john doe')
-        yield self.send(inbound_msg_matching_request, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching_request)
 
         participant = self.collections['participants'].find_one({'phone': '06'})
         self.assertEqual(len(participant['profile']), 1)
@@ -168,10 +168,10 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         inbound_msg_matching_request = self.mkmsg_in(
             from_addr='06',
             content='name olivier')
-        yield self.send(inbound_msg_matching_request, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching_request)
         participant = self.collections['participants'].find_one({'phone': '06'})
         self.assertEqual('john doe', participant['profile'][0]['value'])
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.wait_for_dispatched_outbound(1)
         self.assertEqual(len(messages), 1)
         history = self.collections['history'].find_one({
             'object-type': 'dialogue-history',
@@ -203,7 +203,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
             from_addr='06',
             content='name john doe')
 
-        yield self.send(inbound_msg_matching_request, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching_request)
 
         participant = self.collections['participants'].find_one({'phone': '06'})
         self.assertEqual(1, len(participant['enrolled']))
@@ -216,7 +216,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         inbound_msg_matching_request = self.mkmsg_in(
             from_addr='06',
             content='name john doe')
-        yield self.send(inbound_msg_matching_request, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching_request)
 
         participant = self.collections['participants'].find_one({'phone': '06'})
         self.assertEqual(participant['profile'], [])
@@ -228,7 +228,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
         inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
                                                      content='wWw info')
-        yield self.send(inbound_msg_matching_request, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching_request)
 
         self.assertEqual(1, self.collections['history'].count())
         self.assertEqual(0, self.collections['schedules'].count())
@@ -245,7 +245,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
         inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
                                                      content='wWw info')
-        yield self.send(inbound_msg_matching_request, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching_request)
 
         self.assertEqual(1, self.collections['history'].count())
         self.assertEqual(0, self.collections['schedules'].count())
@@ -260,9 +260,9 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
         inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
                                                      content='www')
-        yield self.send(inbound_msg_matching_request, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching_request)
  
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.wait_for_dispatched_outbound(2)
         self.assertEqual(len(messages), 2)
         self.assertEqual(messages[0]['content'], 'thankyou of joining')
         self.assertEqual(messages[1]['content'], 'soon more is coming')
@@ -273,8 +273,8 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
         inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
                                                      content='www')
-        yield self.send(inbound_msg_matching_request, 'inbound')
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching_request)
+        messages = yield self.app_helper.wait_for_dispatched_outbound(5)
         self.assertEqual(len(messages), 5)
         self.assertEqual(messages[2]['content'], 'you have already optin')
         self.assertEqual(messages[3]['content'], 'thankyou of joining')
@@ -293,7 +293,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
             content='www',
             transport_metadata=transport_metadata)
 
-        yield self.send(inbound_msg_matching_request, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching_request)
         
         participant = self.collections['participants'].find_one()
         self.assertTrue(participant is None)
@@ -301,7 +301,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         #Second test with a optin request
         request_id = self.collections['requests'].save(self.mkobj_request_join())
 
-        yield self.send(inbound_msg_matching_request, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching_request)
  
         participant = self.collections['participants'].find_one()
         self.assertEqual(transport_metadata, participant['transport_metadata'])
@@ -313,7 +313,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
             content='www',
             transport_metadata=transport_metadata)
         
-        yield self.send(inbound_msg_matching_request, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching_request)
  
         participant = self.collections['participants'].find_one()
         self.assertEqual(transport_metadata, participant['transport_metadata'])        
@@ -325,16 +325,16 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         request_id = self.collections['requests'].save(self.mkobj_request_join())
         inbound_msg_matching_request = self.mkmsg_in(from_addr='07',
                                                      content='wWw')
-        yield self.send(inbound_msg_matching_request, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching_request)
 
         inbound_msg_matching_request = self.mkmsg_in(from_addr='08',
                                                      content='www join')
-        yield self.send(inbound_msg_matching_request, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching_request)
 
         self.assertEqual(6, self.collections['history'].count())
         self.assertEqual(2, self.collections['participants'].count())
         self.assertEqual(0, self.collections['schedules'].count())
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.wait_for_dispatched_outbound(4)
         self.assertEqual(len(messages), 4)
 
         participant = self.collections['participants'].find_one({'phone': '07'})
@@ -357,7 +357,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         # No action in case never optin
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
                                              content='www tagme')
-        yield self.send(inbound_msg_matching, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching)
 
         self.assertEqual(0, self.collections['participants'].count())
         self.assertEqual(0, self.collections['schedules'].count())
@@ -366,7 +366,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         # Still participant can optin
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
                                              content='www join')
-        yield self.send(inbound_msg_matching, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching)
         self.assertEqual(1, self.collections['participants'].count())
         self.assertEqual(0, self.collections['schedules'].count())
         self.assertEqual(4, self.collections['history'].count())
@@ -374,13 +374,13 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         # When they optout no action is performed
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
                                              content='www quit')
-        yield self.send(inbound_msg_matching, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching)
         self.assertEqual(0, self.collections['schedules'].count())
         self.assertEqual(5, self.collections['history'].count())
 
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
                                              content='www tagme')
-        yield self.send(inbound_msg_matching, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching)
         self.assertEqual(None, self.collections['participants'].find_one({'tags':'onetag'}))
         self.assertEqual(0, self.collections['schedules'].count())
         self.assertEqual(6, self.collections['history'].count())
@@ -419,7 +419,7 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
                                                content='feel weird')
         for num in range(5):
             self.assertEqual(self.collections['schedules'].count(), 2)
-            yield self.send(inbound_msg_unmatching, 'inbound')
+            yield self.app_helper.dispatch_inbound(inbound_msg_unmatching)
         self.assertEqual(7, self.collections['history'].count())
         history = self.collections['history'].find_one({'object-type': 'oneway-marker-history'})
         self.assertTrue(history is not None)
@@ -432,10 +432,10 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
 
         inbound_msg_matching = self.mkmsg_in(from_addr='06',
                                              content='feel ok')   
-        yield self.send(inbound_msg_matching, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching)
         self.assertEqual(self.collections['schedules'].count(), 0)
 
-        yield self.send(inbound_msg_unmatching, 'inbound')
+        yield self.app_helper.dispatch_inbound(inbound_msg_unmatching)
         self.assertEqual(self.collections['schedules'].count(), 0)
 
     @inlineCallbacks
@@ -452,15 +452,15 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         self.collections['requests'].save(self.mkobj_request_response('www'))
         
         inbound_msg_matching_request = self.mkmsg_in(from_addr='+1', content='www')
-        yield self.send(inbound_msg_matching_request, 'inbound')   ## response is allowed
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching_request)   ## response is allowed
         self.assertEqual(2, self.worker.credit_manager.get_used_credit_counter())
         
-        yield self.send(inbound_msg_matching_request, 'inbound')   ## response is not allowed
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching_request)   ## response is not allowed
         self.assertEqual(3, self.worker.credit_manager.get_used_credit_counter())
         
         inbound_msg_matching_request = self.mkmsg_in(from_addr='+1', content=self.mk_content(200, 'www'))
-        yield self.send(inbound_msg_matching_request, 'inbound')   ## response is not allowed
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching_request)   ## response is not allowed
         self.assertEqual(5, self.worker.credit_manager.get_used_credit_counter()) 
  
-        messages = self.broker.get_messages('vumi', 'test.outbound')
+        messages = yield self.app_helper.wait_for_dispatched_outbound(1)
         self.assertEqual(len(messages), 1)
