@@ -15,12 +15,14 @@ from vumi.transports.base import Transport
 from vumi.utils import http_request_full
 from vumi import log
 
-from vusion.utils import get_shortcode_value
+from vusion.utils import get_shortcode_value, get_shortcode_international_prefix
 
 
 class OrangeSdpHttpTransport(Transport):
 
     transport_type = 'sms'
+    shortcodes = {}
+    subscription_ids = []
 
     def mkres(self, cls, publish_mo_func, publish_dlr_func, path_key = None):
         resource = cls(self.config, publish_mo_func, publish_dlr_func)
@@ -43,9 +45,24 @@ class OrangeSdpHttpTransport(Transport):
         ]
         self.web_resources = yield self.start_web_resources(
             resources, self.config['receive_port'])
-        yield self.set_mo_callback()
+        yield self.set_callbacks()
 
+    @inlineCallbacks
+    def set_callbacks(self):
+        yield self.set_mo_callback()
+        for prefix, codes in self.config['shortcodes'].iteritems():
+            for code in codes:
+                yield self.set_dlr_callback('%s%s' % (prefix, code))
+
+    @inlineCallbacks
+    def stop_callbacks(self):
+        for (direction, subscription_id) in self.subscription_ids:
+            yield self.stop_subscription(direction, subscription_id)
+        self.subscription_ids = []
+
+    @inlineCallbacks
     def teardown_transport(self):
+        yield self.stop_callbacks()
         log.msg("Stop Orange SPD Transport")
         self.web_resources.stopListening()
 
@@ -70,14 +87,29 @@ class OrangeSdpHttpTransport(Transport):
     def from_vusion_code_2_shortcode(self, code):
         return get_shortcode_value(code)
 
-    def from_vusion_code_2_orangecode(self, code):
-        return "+%s" % re.sub('-', '', code).encode('ascii')
+    def from_msg_2_orangecode(self, msg):
+        for prefix, codes in self.config['shortcodes'].iteritems():
+            if msg['to_addr'].startswith(prefix):
+                for code in codes:
+                    if code == msg['from_addr']:
+                        return "%s%s" % (prefix, code)
+        raise Exception("Shortcode not supported %s for %s" % (shortcode, to_addr))
 
     def get_req_content(self, request):
         try:
-            response_body = json.loads(response.content.read())
+            return json.loads(request.delivered_body)
         except:
             return None
+
+    def from_sub_dlr_response_2_sub_id(self, response_body):
+        resource_url = response_body['deliveryReceiptSubscription']['resourceURL']
+        match = re.search(r'[0-9A-Z]*$', resource_url)
+        return match.group(0)
+
+    def from_sub_mo_response_2_sub_id(self, response_body):
+        resource_url = response_body['resourceReference']['resourceURL']
+        match = re.search(r'[0-9A-Z]*$', resource_url)
+        return match.group(0)
 
     @inlineCallbacks
     def set_mo_callback(self):
@@ -96,73 +128,90 @@ class OrangeSdpHttpTransport(Transport):
                 'Authorization': ['AUTH %s' % self.get_auth_header()]},
             method='POST',
             data=json.dumps(data))
+        response_body = self.get_req_content(response)
         if response.code != http.CREATED:
-            response_body = self.get_req_content(response)
             reason = "TRANSPORT FAILD SET MO CALLBACK %s - %s" % (
                 response.code, (response_body or ''))
             log.error(reason)
             self.teardown_transport()
+        sub_id = self.from_sub_mo_response_2_sub_id(response_body)
+        self.subscription_ids.append(('inbound', sub_id))
         log.msg("Callback Mo Registered!")
 
     @inlineCallbacks
-    def set_dlr_callback(self, phone_number):
+    def set_dlr_callback(self, shortcode):
         log.msg("Registering DLR callback...")
         data = {
             'notifyURL': '%s:%s%s' % (
                 self.config['receive_domain'],
                 self.config['receive_port'],
                 self.config['receive_path']),
-            'clientCorrelator': 'ttc_dlr_%s' % phone_number}
+            'clientCorrelator': 'ttc_dlr_%s' % shortcode}
         response = yield http_request_full(
-            "%s/1/smsmessaging/outbound/%s/subscriptions" % (
-                self.config['url'], phone_number),
+            "%s/1/smsmessaging/outbound/+%s/subscriptions" % (
+                self.config['url'], shortcode),
             headers={
                 'User-Agent': ['Vusion OrangeSpd Transport'],
                 'Content-Type': ['application/json;charset=UTF-8'],
                 'Authorization': ['AUTH %s' % self.get_auth_header()]},
             method='POST',
             data=json.dumps(data))
+        response_body = self.get_req_content(response)
         if response.code != http.CREATED:
-            response_body = self.get_req_content(response)
             reason = "TRANSPORT FAILD SET DLR CALLBACK %s - %s" % (
                 response.code, (response_body or ''))
             log.error(reason)
-        else:
-            log.msg("Callback DLR Registered for %s!" % phone_number)
+            return
+        sub_id = self.from_sub_dlr_response_2_sub_id(response_body)
+        self.subscription_ids.append(('outbound', sub_id))
+        log.msg("Callback DLR Registered for %s with sub_id %s!" % (
+            shortcode, sub_id))
+
+    @inlineCallbacks
+    def stop_subscription(self, direction, subscription_id):
+        log.msg("Stopping subscription %s..." % subscription_id)
+        response = yield http_request_full(
+        "%s/1/smsmessaging/%s/subscriptions/%s" % (
+            self.config['url'], direction, str(subscription_id)),
+        headers={
+            'User-Agent': ['Vusion OrangeSpd Transport'],
+            'Content-Type': ['application/json;charset=UTF-8'],
+            'Authorization': ['AUTH %s' % self.get_auth_header()]},
+        method='DELETE')
 
     @inlineCallbacks
     def handle_outbound_message(self, message):
         log.msg("Outbound message %r" % message)
         try:
+            sender_addr = 'tel:+%s' % self.from_msg_2_orangecode(message)
             data = {
                 'address': ['tel:%s' % message['to_addr']], 
                 'message': message['content'], 
                 'clientCorrelator': message['message_id'], 
-                'senderName': self.from_vusion_code_2_shortcode(
-                    message['from_addr'])}
-            
+                'senderAddress': sender_addr,
+                'callbackData': message['message_id']}
+
             response = yield http_request_full(
-                "%s/1/smsmessaging/outbound/tel:%s/requests" % (
-                    self.config['url'],
-                    self.from_vusion_code_2_orangecode(message['from_addr'])),
+                "%s/1/smsmessaging/outbound/%s/requests" % (
+                    self.config['url'], sender_addr),
                 headers={
                     'User-Agent': ['Vusion OrangeSpd Transport'],
                     'Content-Type': ['application/json;charset=UTF-8'],
                     'Authorization': ['AUTH %s' % self.get_auth_header()]},
                 method='POST',
                 data=json.dumps(data))
-            
+
             if response.code != http.CREATED:
                 reason = "HTTP/SERVICE ERROR %s - %s" % (
                     response.code, response.delivered_body)
                 log.error(reason)
                 yield self.publish_nack(message['message_id'], reason)
                 return
-            
+
             yield self.publish_ack(
                            user_message_id=message['message_id'],
                            sent_message_id=message['message_id'])
-            
+
         except Exception as ex:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             log.error(
@@ -195,6 +244,9 @@ class OrangeSdpMoResource(Resource):
 
     def from_dlr_data_2_callback_data(self, data):
         return data['deliveryInfoNotification']['callbackData']
+    
+    def from_dlr_data_2_status_data(self, data):
+        return data['deliveryInfoNotification']['deliveryInfo']['deliveryStatus']
 
     @inlineCallbacks
     def do_render(self, request):
@@ -210,9 +262,16 @@ class OrangeSdpMoResource(Resource):
                     from_addr=self.from_mo_data_2_from_addr(data),
                     content=self.from_mo_data_2_content(data))
             elif 'deliveryInfoNotification' in data:
-                yield self.publish_dlr_func(
-                    delivery_status='delivered',
-                    user_messsage_id=self.from_dlr_data_2_callback_data(data))
+                user_message_id = self.from_dlr_data_2_callback_data(data)
+                status = self.from_dlr_data_2_status_data(data)
+                if status == "DeliveredToTerminal":
+                    yield self.publish_dlr_func(
+                        user_message_id,
+                        'delivered')
+                elif status == "DeliveryImpossible":
+                    yield self.publish_dlr_func(
+                        user_message_id,
+                        'failed')
             else:
                 pass
             request.setResponseCode(http.OK)

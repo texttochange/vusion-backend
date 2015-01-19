@@ -1,3 +1,9 @@
+from twisted.internet.defer import DeferredQueue, inlineCallbacks
+from twisted.internet import reactor
+from vumi.utils import LogFilterSite
+from vumi.tests.utils import MockResource
+
+
 def xml_compare(x1, x2, reporter=None):
     if x1.tag != x2.tag:
         if reporter:
@@ -65,3 +71,35 @@ class Reporter:
         for message in self.report:
             summary = summary + message + ".\n"
         return summary
+
+class MockAllResource(MockResource):
+
+    def render_DELETE(self, request):
+        return self.handler(request)
+
+
+class MockHttpServer(object):
+
+    def __init__(self, handler=None):
+        self.queue = DeferredQueue()
+        self._handler = handler or self.handle_request
+        self._webserver = None
+        self.addr = None
+        self.url = None
+
+    def handle_request(self, request):
+        self.queue.put(request)
+
+    @inlineCallbacks
+    def start(self):
+        root = MockAllResource(self._handler)
+        site_factory = LogFilterSite(root)
+        self._webserver = yield reactor.listenTCP(
+            0, site_factory, interface='127.0.0.1')
+        self.addr = self._webserver.getHost()
+        self.url = "http://%s:%s/" % (self.addr.host, self.addr.port)
+
+    @inlineCallbacks
+    def stop(self):
+        yield self._webserver.stopListening()
+        yield self._webserver.loseConnection()
