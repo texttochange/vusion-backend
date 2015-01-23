@@ -82,12 +82,14 @@ class ExportWorkerControl(Message):
             'file_full_name': lambda v: v is not None,
             'conditions': lambda v: isinstance(v, dict),
             'database': lambda v: v is not None,
-            'collection': lambda v: v is not None},
+            'collection': lambda v: v is not None,
+            'redis_key': lambda v: v is not None},
         'export_history': {
             'file_full_name': lambda v: v is not None,
             'conditions': lambda v: isinstance(v, dict),
             'database': lambda v: v is not None,
-            'collection': lambda v: v is not None}}
+            'collection': lambda v: v is not None,
+            'redis_key': lambda v: v is not None}}
 
     ## emtpy dictionary might be converted to list
     def process_fields(self, fields):
@@ -103,7 +105,7 @@ class ExportWorkerControl(Message):
         for field, check in self.CONTROL_TYPES[self['message_type']].items():
             self.assert_field_present(field)
             if not check(self[field]):
-                raise InvalidMessageField(self[field])
+                raise InvalidMessageField("%s=%s" % (field, self[field]))
 
     def get_routing_endpoint(self):
         return 'default'

@@ -55,7 +55,8 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
             message_type='export_participants',
             file_full_name='testing_export.csv',
             database='test',
-            conditions={'tags': 'mombasa'})
+            conditions={'tags': 'mombasa'},
+            redis_key='unittest:myprogramUrl:participants')
         yield self.dispatch_control(control)
 
         self.assertTrue(os.path.isfile('testing_export.csv'))
@@ -82,7 +83,8 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
             message_type='export_participants',
             file_full_name='testing_export.csv',
             database='test',
-            conditions=[])
+            conditions=[],
+            redis_key='unittest:myprogramUrl:participants')
         yield self.dispatch_control(control)
 
         self.assertTrue(os.path.isfile('testing_export.csv'))
@@ -107,7 +109,8 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
             file_full_name='testing_export.csv', 
             conditions=None, 
             collection='history', 
-            database='test')  
+            database='test',
+            redis_key='unittest:myprogramUrl:history')
 
         yield self.dispatch_control(control)
 

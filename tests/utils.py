@@ -206,13 +206,15 @@ class MessageMaker:
     def mkmsg_exportworker_control(self, message_type,
                                    file_full_name, conditions=[],
                                    collection='participants',
-                                   database='localhost'):
+                                   database='localhost',
+                                   redis_key='unittest'):
         return ExportWorkerControl(
             message_type=message_type,
             database=database,
             collection=collection,
             conditions=conditions,
-            file_full_name=file_full_name)
+            file_full_name=file_full_name,
+            redis_key=redis_key)
 
     def mkmsg_dialogueworker_control(self, **kwargs):
         return WorkerControl(**kwargs)

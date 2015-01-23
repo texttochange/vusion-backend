@@ -6,6 +6,7 @@ from pymongo import MongoClient
 
 from twisted.internet.defer import inlineCallbacks, maybeDeferred
 
+from vumi.persist.txredis_manager import TxRedisManager
 from vumi.config import ConfigText, ConfigInt
 from vumi.worker import BaseWorker
 from vumi import log
@@ -56,29 +57,36 @@ class ExportWorker(BaseWorker):
     def setup_worker(self):
         d = maybeDeferred(self.setup_application)
         if self.UNPAUSE_CONNECTORS:
-            d.addCallback(lambda r: self.unpause_connectors())        
+            d.addCallback(lambda r: self.unpause_connectors())
         return d
 
+    @inlineCallbacks
     def setup_application(self):
-        pass
+        r_config = self.config.get('redis_manager', {})
+        self.redis = yield TxRedisManager.from_config(r_config)
 
     def teardown_worker(self):
         d = self.pause_connectors()
         d.addCallback(lambda r: self.teardown_application())
         return d
 
+    @inlineCallbacks
     def teardown_application(self):
-        pass
+        yield self.redis._close()
 
     @inlineCallbacks
     def dispatch_control(self, msg):
         try:
             log.debug("Exporting %r" % msg)
+            import time
+            time.sleep(10)
             if msg['message_type'] == 'export_participants':
                 yield self.export_participants(msg)
             elif msg['message_type'] == 'export_history':
                 self.export_history(msg)
+            yield self.redis.decr(msg['redis_key'])
         except Exception as e:
+            self.redis.decr(msg['redis_key'])
             exc_type, exc_value, exc_traceback = sys.exc_info()
             log.error(
                 "Exception: %r" %
