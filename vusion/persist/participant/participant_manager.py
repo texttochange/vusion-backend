@@ -121,7 +121,7 @@ class ParticipantManager(ModelManager):
 
     def _get_labels_async(self, query):
         pipeline = []
-        if query != None:
+        if query != None and query != []:
             pipeline.append({'$match': query})
         pipeline.append({'$project': {'_id': 0, 'profile':1}})
         pipeline.append({'$unwind': '$profile'})

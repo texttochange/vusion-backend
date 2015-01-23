@@ -1,5 +1,6 @@
 from vumi.errors import MissingMessageField, InvalidMessageField
-from vumi.message import Message
+from vumi.message import Message, from_json
+from vumi.utils import to_kwargs
 from vumi import log
 
 
@@ -79,14 +80,21 @@ class ExportWorkerControl(Message):
     CONTROL_TYPES = {
         'export_participants': {
             'file_full_name': lambda v: v is not None,
-            'conditions': lambda v: True,
+            'conditions': lambda v: isinstance(v, dict),
             'database': lambda v: v is not None,
             'collection': lambda v: v is not None},
         'export_history': {
             'file_full_name': lambda v: v is not None,
-            'conditions': lambda v: True,
+            'conditions': lambda v: isinstance(v, dict),
             'database': lambda v: v is not None,
             'collection': lambda v: v is not None}}
+
+    ## emtpy dictionary might be converted to list
+    def process_fields(self, fields):
+        log.debug("process fields!!!")
+        if 'conditions' in fields and (fields['conditions'] is None or fields['conditions'] == []):
+            fields['conditions'] = {}
+        return fields
 
     def validate_fields(self):
         self.assert_field_present('message_type')
@@ -99,3 +107,7 @@ class ExportWorkerControl(Message):
 
     def get_routing_endpoint(self):
         return 'default'
+
+    @classmethod
+    def from_json(cls, json_string):
+        return cls(_process_fields=True, **to_kwargs(from_json(json_string)))
