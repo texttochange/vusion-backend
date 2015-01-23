@@ -1,5 +1,6 @@
 from vumi.errors import MissingMessageField, InvalidMessageField
 from vumi.message import Message
+from vumi import log
 
 
 class DispatcherControl(Message):
@@ -59,6 +60,33 @@ class MultiWorkerControl(Message):
         'remove_worker': {
             'worker_name': lambda v: v is not None}
     }
+
+    def validate_fields(self):
+        self.assert_field_present('message_type')
+        if self['message_type'] not in self.CONTROL_TYPES:
+            raise MissingMessageField(self['action'])
+        for field, check in self.CONTROL_TYPES[self['message_type']].items():
+            self.assert_field_present(field)
+            if not check(self[field]):
+                raise InvalidMessageField(self[field])
+
+    def get_routing_endpoint(self):
+        return 'default'
+
+
+class ExportWorkerControl(Message):
+
+    CONTROL_TYPES = {
+        'export_participants': {
+            'file_full_name': lambda v: v is not None,
+            'conditions': lambda v: True,
+            'database': lambda v: v is not None,
+            'collection': lambda v: v is not None},
+        'export_history': {
+            'file_full_name': lambda v: v is not None,
+            'conditions': lambda v: True,
+            'database': lambda v: v is not None,
+            'collection': lambda v: v is not None}}
 
     def validate_fields(self):
         self.assert_field_present('message_type')

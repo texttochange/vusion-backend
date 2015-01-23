@@ -11,12 +11,13 @@ from vumi.message import (TransportEvent, TransportMessage,
 from vumi.transports.failures import FailureMessage
 from vumi.tests.utils import RegexMatcher, UTCNearNow
 
-from vusion.message import DispatcherControl, WorkerControl
+from vusion.message import (
+    DispatcherControl, WorkerControl, MultiWorkerControl, ExportWorkerControl)
 
-from vusion.persist import (Dialogue, DialogueHistory, UnattachHistory,
-                            history_generator, schedule_generator, Participant,
-                            UnattachedMessage, Request, Interaction, ProgramCreditLog,
-                            WorkerConfig, UnmatchableReply)
+from vusion.persist import (
+    Dialogue, DialogueHistory, UnattachHistory, history_generator,
+    schedule_generator, Participant, UnattachedMessage,
+    Request, Interaction, ProgramCreditLog, WorkerConfig, UnmatchableReply)
 
 from vusion.utils import time_to_vusion_format_date
 
@@ -196,11 +197,22 @@ class MessageMaker:
                                   config=None):
         if config is None:
             config = []
-        return Message(
+        return MultiWorkerControl(
             message_type=message_type,
             worker_name=worker_name,
             worker_class=worker_class,
             config=config)
+
+    def mkmsg_exportworker_control(self, message_type,
+                                   file_full_name, conditions=[],
+                                   collection='participants',
+                                   database='localhost'):
+        return ExportWorkerControl(
+            message_type=message_type,
+            database=database,
+            collection=collection,
+            conditions=conditions,
+            file_full_name=file_full_name)
 
     def mkmsg_dialogueworker_control(self, **kwargs):
         return WorkerControl(**kwargs)
