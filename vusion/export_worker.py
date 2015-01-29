@@ -4,7 +4,7 @@ import csv
 
 from pymongo import MongoClient
 
-from twisted.internet.defer import inlineCallbacks, maybeDeferred
+from twisted.internet.defer import inlineCallbacks, maybeDeferred, returnValue
 
 from vumi.persist.txredis_manager import TxRedisManager
 from vumi.config import ConfigText, ConfigInt
@@ -13,7 +13,7 @@ from vumi import log
 
 from vusion.connectors import ReceiveExportWorkerControlConnector
 from vusion.message import ExportWorkerControl
-from vusion.persist import ParticipantManager, HistoryManager
+from vusion.persist import ParticipantManager, HistoryManager, ScheduleManager
 
 
 class ExportWorkerConfig(BaseWorker.CONFIG_CLASS):
@@ -78,8 +78,6 @@ class ExportWorker(BaseWorker):
     def dispatch_control(self, msg):
         try:
             log.debug("Exporting %r" % msg)
-            import time
-            time.sleep(10)
             if msg['message_type'] == 'export_participants':
                 yield self.export_participants(msg)
             elif msg['message_type'] == 'export_history':
@@ -93,17 +91,45 @@ class ExportWorker(BaseWorker):
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
 
     @inlineCallbacks
+    def replace_join(self, conditions, schedule_mgr):
+        if not isinstance(conditions, dict) and not isinstance(conditions, list):
+            returnValue(conditions)
+        if isinstance(conditions, list):
+            result_conditions = []
+            for item in conditions:
+                r = yield self.replace_join(item, schedule_mgr)
+                result_conditions.append(r)
+            returnValue(result_conditions)
+        else:
+            result_conditions = {} 
+            for key, value in conditions.iteritems():
+                if key == '$join':
+                    c = yield schedule_mgr.get_unique_participant_phones()
+                    result_conditions['$in'] = []
+                    for item in c:
+                        result_conditions['$in'].append(item['_id'])
+                else:
+                    if isinstance(value, dict) or isinstance(value, list):
+                        result_conditions[key] = yield self.replace_join(value, schedule_mgr)
+                    else:
+                        result_conditions[key] = value
+            returnValue(result_conditions)
+
+    @inlineCallbacks
     def export_participants(self, msg):
         config = self.get_static_config()
         mongo = MongoClient(config.mongodb_host, config.mongodb_port)
         db = mongo[msg['database']]
-        manager = ParticipantManager(db, msg['collection'])
+        schedule_mgr = ScheduleManager(db, 'schedules')
+        conditions = yield self.replace_join(msg['conditions'], schedule_mgr)
+        log.debug("running conditions %r" % conditions) 
+        participant_mgr = ParticipantManager(db, msg['collection'])
         headers = ['phone', 'tags'] 
-        label_headers = yield manager.get_labels(msg['conditions'])
+        label_headers = yield participant_mgr.get_labels(conditions)
         headers += label_headers
         with open(msg['file_full_name'], 'wb') as csvfile:
             csvfile.write("%s\n" % ','.join(headers))
-            cursor = manager.get_participants(msg['conditions'])
+            cursor = participant_mgr.get_participants(conditions)
             row_template = dict((header, "") for header in headers)
             for participant in cursor:
                 row = row_template.copy()

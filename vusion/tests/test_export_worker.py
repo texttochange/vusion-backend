@@ -6,16 +6,19 @@ from vumi.tests.helpers import VumiTestCase, MessageHelper, WorkerHelper
 
 from tests.utils import MessageMaker, ObjectMaker
 
-from vusion.persist import ParticipantManager, HistoryManager, history_generator
+from vusion.persist import (
+    ParticipantManager, HistoryManager, history_generator, ScheduleManager)
 from vusion.export_worker import ExportWorker
 
 
 class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
+    timeout = 100
     
     base_config = {
         'application_name': 'export',
         'mongodb_host': 'localhost',
-        'mongodb_port': 27017}
+        'mongodb_port': 27017,
+        'redis_manager': {'host': 'localhost', 'port': 6379}}
     
     @inlineCallbacks
     def setUp(self):
@@ -95,6 +98,56 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
                 '"06","geek,mombasa",,"olivier"\n', csvfile.readline())
             self.assertEqual(
                 '"06","nogeek","20","steve"\n', csvfile.readline())
+            self.assertEqual('', csvfile.readline())
+
+    @inlineCallbacks
+    def test_export_participant_with_fakejoin(self):
+        manager = ParticipantManager(self.mongo['test'], 'participants')
+        participant = self.mkobj_participant(
+            participant_phone='06',
+            session_id='1',
+            tags=['geek', 'mombasa'],
+            profile=[{'label': 'name',
+                      'value': 'olivier'}])
+        manager.save_participant(participant)
+        manager.save_participant(self.mkobj_participant(
+            participant_phone='01',
+            tags=['nogeek'],
+            profile=[{'label': 'name',
+                      'value': 'steve'}]))
+
+        schedule_mgr = ScheduleManager(self.mongo['test'], 'schedules')
+        schedule_mgr.add_reminder(
+            participant,
+            '2100-01-01T10:10:10',
+            '01',
+            '01')
+
+        conditions = {
+            '$and': [{
+                'phone': {
+                    '$join': {
+                        'function': 'getUniqueParticipantPhone',
+                        'field': 'phone',
+                        'model': 'Schedule',
+                        'parameters': {
+                            'cursor': True}}}}
+                ,{
+                'phone': '06'}]}
+
+        control = self.mkmsg_exportworker_control(
+                    message_type='export_participants',
+                    file_full_name='testing_export.csv',
+                    database='test',
+                    conditions=conditions,
+                    redis_key='unittest:myprogramUrl:participants')
+
+        yield self.dispatch_control(control)
+
+        self.assertTrue(os.path.isfile('testing_export.csv'))
+        with open('testing_export.csv', 'rb') as csvfile:
+            self.assertEqual('phone,tags,name\n', csvfile.readline())
+            self.assertEqual('"06","geek,mombasa","olivier"\n', csvfile.readline())
             self.assertEqual('', csvfile.readline())
 
     @inlineCallbacks

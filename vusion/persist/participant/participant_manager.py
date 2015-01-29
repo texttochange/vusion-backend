@@ -123,7 +123,7 @@ class ParticipantManager(ModelManager):
         pipeline = []
         if query != None and query != []:
             pipeline.append({'$match': query})
-        pipeline.append({'$project': {'_id': 0, 'profile':1}})
+        pipeline.append({'$project': {'_id': 0, 'profile': 1}})
         pipeline.append({'$unwind': '$profile'})
         pipeline.append({'$group': {'_id': '$profile.label'}})
         cursor = self.aggregate(pipeline, cursor={})
