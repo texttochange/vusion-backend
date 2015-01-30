@@ -164,6 +164,8 @@ class ExportWorker(BaseWorker):
             cursor = manager.get_historys(msg['conditions'])
             row_template = dict((header, "") for header in headers)
             for history in cursor:
+                if history is None:
+                    continue
                 row = row_template.copy()
                 row['participant-phone'] = '"%s"' % history['participant-phone']
                 row['message-direction'] = '"%s"' % history['message-direction']
