@@ -17,6 +17,7 @@ class VusionAddressMiddleware(BaseMiddleware):
         self.trim_international_prefix_outbound = self.config.get('trim_international_prefix_outbound', False)
         if self.international_prefix is not None:
             self.regex_internation_prefix = re.compile(("^\+?%s" % self.international_prefix))
+        self.overwrite_from_addr = self.config.get('overwrite_from_addr', False)
     
     def handle_inbound(self, msg, endpoint):
         msg['from_addr'] = re.sub(self.regex_trim, "", msg['from_addr'])
@@ -33,6 +34,8 @@ class VusionAddressMiddleware(BaseMiddleware):
 
     def handle_outbound(self, msg, endpoint):
         msg['from_addr'] = get_shortcode_value(msg['from_addr'])
+        if self.overwrite_from_addr is not False:
+            msg['from_addr'] = self.overwrite_from_addr
         if self.trim_international_prefix_outbound:
             msg['to_addr'] = re.sub(self.regex_internation_prefix, '', msg['to_addr'])        
         if self.trim_plus_outbound:
