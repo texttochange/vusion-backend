@@ -132,6 +132,8 @@ class ExportWorker(BaseWorker):
             cursor = participant_mgr.get_participants(conditions)
             row_template = dict((header, "") for header in headers)
             for participant in cursor:
+                if participant is None:
+                    continue
                 row = row_template.copy()
                 row['phone'] = '"%s"' % participant['phone']
                 row['tags'] = '"%s"' % ','.join(participant['tags'])
