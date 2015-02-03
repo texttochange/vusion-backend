@@ -2,6 +2,7 @@ import re
 
 from vusion.persist import Model
 from vusion.error import InvalidField, VusionError
+from vusion.utils import time_from_vusion_format
 
 
 class History(Model):
@@ -25,6 +26,14 @@ class History(Model):
 
     def validate_fields(self):
         self._validate(self, History.fields)
+
+    def get_timestamp(self, time_format='datetime'):
+        if time_format == 'vusion':
+            return self['timestamp']
+        elif time_format == 'datetime':
+            return time_from_vusion_format(self['timestamp'])
+        else:
+            raise Exception("format not supported")
 
 
 class MessageHistory(History):

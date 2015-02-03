@@ -13,7 +13,6 @@ from vusion.persist import HistoryManager, history_generator
 from vusion.utils import time_to_vusion_format, date_from_vusion_format, time_to_vusion_format_date
 
 
-
 class TestHistoryManager(TestCase, ObjectMaker, MessageMaker):
     
     def setUp(self):
@@ -426,3 +425,36 @@ class TestHistoryManager(TestCase, ObjectMaker, MessageMaker):
 
         self.assertTrue(self.history_manager.has_already_valid_answer(
             participant, '1', '1'))
+
+    def test_has_marker(self):
+        dNow = datetime.now()
+        participant = self.mkobj_participant()
+
+        self.assertFalse(
+            self.history_manager.has_marker(
+                participant, 
+                '1',
+                '1'))
+
+        self.history_manager.save(
+            self.mkobj_history_one_way_marker(
+                '1',
+                '1',
+                time_to_vusion_format(dNow)))
+        self.assertTrue(
+            self.history_manager.has_marker(
+                participant, 
+                '1',
+                '1'))
+
+        self.history_manager.drop()
+        self.history_manager.save(
+            self.mkobj_history_datepassed_marker(
+                '1',
+                '1',
+                time_to_vusion_format(dNow)))
+        self.assertTrue(
+            self.history_manager.has_marker(
+                participant,
+                '1',
+                '1'))
