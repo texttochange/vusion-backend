@@ -360,6 +360,8 @@ class DialogueWorker(ApplicationWorker):
             yield self.run_action_url_forwarding(participant_phone, action, context, participant_session_id)
         elif (action.get_type() == 'sms-forwarding'):
             yield self.run_action_sms_forwarding(participant_phone, action, context)
+        elif (action.get_type() == 'sms-invite'):
+            yield self.run_action_sms_invite(participant_phone, action, context)
         else:
             self.log("The action is not supported %s" % action.get_type())
 
@@ -431,6 +433,39 @@ class DialogueWorker(ApplicationWorker):
                 'content': content,
                 'context': context.payload})
             yield self.send_schedule(schedule)
+
+    @inlineCallbacks
+    def run_action_sms_invite(self, participant_phone, action, context):
+        sender = self.collections['participants'].get_participant(participant_phone)
+        query = action.get_query_selector(sender, context)
+        """"participants = self.collections['participants'].get_participants(query)
+        if participants.count() == 0 and action.has_no_participant_feedback():
+            content = self.customize_message(
+                action.get_no_participant_feedback(),
+                sender['phone'], 
+                context)
+            schedule = FeedbackSchedule(**{
+                'participant-phone': sender['phone'],
+                'participant-session-id': sender['session-id'],
+                'date-time': self.get_local_time('vusion'),
+                'content': content,
+                'context': context.payload})
+            yield self.send_schedule(schedule)
+            return
+        for participant in participants:
+            content = self.customize_message(
+                action['forward-content'],
+                participant_phone,
+                context)
+            schedule = FeedbackSchedule(**{
+                'participant-phone': participant['phone'],
+                'participant-session-id': participant['session-id'],
+                'date-time': self.get_local_time('vusion'),
+                'content': content,
+                'context': context.payload})
+            yield self.send_schedule(schedule)        
+"""
+
 
     def consume_user_message(self, message):
         self.log("User message received from %s '%s'" % (message['from_addr'],

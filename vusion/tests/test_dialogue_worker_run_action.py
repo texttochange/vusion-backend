@@ -22,7 +22,7 @@ from vusion.persist.action import (UnMatchingAnswerAction, EnrollingAction,
                                    ResetAction, RemoveDeadlineAction,
                                    DelayedEnrollingAction,
                                    ProportionalTagging, ProportionalLabelling,
-                                   action_generator, Actions, UrlForwarding, SmsForwarding)
+                                   action_generator, Actions, UrlForwarding, SmsForwarding, SmsInviteAction)
 from vusion.context import Context
 from vusion.persist import Dialogue, DialogueHistory
 
@@ -861,3 +861,36 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(messages[0]['content'], 'No patient is matching the phone number \'this\'.')
         self.assertEqual(messages[1]['to_addr'], sender['phone'])
         self.assertEqual(messages[1]['content'], 'No patient is matching the phone number \'this\'.')
+
+
+    @inlineCallbacks
+    def test_run_action_sms_invite(self):
+        self.initialize_properties()
+
+        sender = self.mkobj_participant(
+            participant_phone='+154',
+            profile=[{'label': 'name',
+                      'value': 'max'},
+                     {'label': 'address',
+                      'value': 'kampala'}],
+            tags=['my tag'])
+        self.collections['participants'].save(sender)
+
+        receiver_optin = self.mkobj_participant(
+            participant_phone='+9',
+            tags=['my tag'])
+        self.collections['participants'].save(receiver_optin)
+
+        receiver_optout = self.mkobj_participant(
+            participant_phone='+5',
+            tags=['my tag'],
+            session_id=None)
+        self.collections['participants'].save(receiver_optout)
+
+        sms_invite = SmsInviteAction(**{
+            'message': '[participant.phone] invites you',
+            'invitee-tag': 'invited'})
+        context = Context(**{'message': 'Join +5',
+                                     'request-id': '1'})        
+        yield self.worker.run_action(sender['phone'], sms_invite, context)
+
