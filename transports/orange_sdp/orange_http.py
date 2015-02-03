@@ -34,7 +34,7 @@ class OrangeSdpHttpTransport(Transport):
 
     @inlineCallbacks
     def setup_transport(self):
-        log.msg("Setup Orange SPD Transport %s" % self.config)
+        log.msg("Setup Orange SDP Transport %s" % self.config)
         ## Make sure there is not tailing / in the url
         self.config['url'] = re.sub('/$','', self.config['url'])
         super(OrangeSdpHttpTransport, self).setup_transport()
@@ -63,7 +63,7 @@ class OrangeSdpHttpTransport(Transport):
     @inlineCallbacks
     def teardown_transport(self):
         yield self.stop_callbacks()
-        log.msg("Stop Orange SPD Transport")
+        log.msg("Stop Orange SDP Transport")
         self.web_resources.stopListening()
 
     ## return only milliseconds precision
@@ -123,7 +123,7 @@ class OrangeSdpHttpTransport(Transport):
         response = yield http_request_full(
             "%s/1/smsmessaging/inbound/subscriptions" % self.config['url'],
             headers={
-                'User-Agent': ['Vusion OrangeSpd Transport'],
+                'User-Agent': ['Vusion OrangeSDP Transport'],
                 'Content-Type': ['application/json;charset=UTF-8'],
                 'Authorization': ['AUTH %s' % self.get_auth_header()]},
             method='POST',
@@ -151,7 +151,7 @@ class OrangeSdpHttpTransport(Transport):
             "%s/1/smsmessaging/outbound/+%s/subscriptions" % (
                 self.config['url'], shortcode),
             headers={
-                'User-Agent': ['Vusion OrangeSpd Transport'],
+                'User-Agent': ['Vusion OrangeSDP Transport'],
                 'Content-Type': ['application/json;charset=UTF-8'],
                 'Authorization': ['AUTH %s' % self.get_auth_header()]},
             method='POST',
@@ -174,7 +174,7 @@ class OrangeSdpHttpTransport(Transport):
         "%s/1/smsmessaging/%s/subscriptions/%s" % (
             self.config['url'], direction, str(subscription_id)),
         headers={
-            'User-Agent': ['Vusion OrangeSpd Transport'],
+            'User-Agent': ['Vusion OrangeSDP Transport'],
             'Content-Type': ['application/json;charset=UTF-8'],
             'Authorization': ['AUTH %s' % self.get_auth_header()]},
         method='DELETE')
@@ -195,7 +195,7 @@ class OrangeSdpHttpTransport(Transport):
                 "%s/1/smsmessaging/outbound/%s/requests" % (
                     self.config['url'], sender_addr),
                 headers={
-                    'User-Agent': ['Vusion OrangeSpd Transport'],
+                    'User-Agent': ['Vusion OrangeSDP Transport'],
                     'Content-Type': ['application/json;charset=UTF-8'],
                     'Authorization': ['AUTH %s' % self.get_auth_header()]},
                 method='POST',
@@ -225,7 +225,7 @@ class OrangeSdpMoResource(Resource):
     isLeaf = True
 
     def __init__(self, config, publish_mo_func, publish_dlr_func):
-        log.msg("Init OrangeSpdReveiveSmsResource")
+        log.msg("Init OrangeSdpReveiveSmsResource")
         self.config = config
         self.publish_mo_func = publish_mo_func
         self.publish_dlr_func = publish_dlr_func

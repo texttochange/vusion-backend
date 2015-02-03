@@ -10,6 +10,7 @@ from transports.airtel_sierra_leone.mahindra_conviva_http import (
 
 from smsgh_ghana.smsgh_smpp import SmsghSmppTransport
 from orange_mali.orange_mali_smpp import OrangeMaliSmppTransport
+from orange_sdp.orange_http import OrangeSdpHttpTransport
 
 from http_forward.forward_http import ForwardHttp
 from http_forward.cioec_http import CioecHttp
@@ -24,5 +25,6 @@ __all__ = [
     "TtcBurkinafasoHttpTransport",
     "YoHttpTransport",
     "SmsghSmppTransport",
+    "OrangeSdpHttpTransport",
     "ForwardHttp",
     "CioecHttp"]
