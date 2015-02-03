@@ -10,6 +10,7 @@ from vusion.persist.model_manager import ModelManager
 from vusion.utils import (time_to_vusion_format, time_to_vusion_format_date, 
                           date_from_vusion_format)
 from vusion.component.flying_messsage_manager import FlyingMessageManager
+from vusion.persist.cursor_instanciator import CursorInstanciator
 from history import history_generator
 
 
@@ -39,6 +40,11 @@ class HistoryManager(ModelManager):
         if result is None:
             return None
         return history_generator(**result)
+
+    def get_historys(self, query=None):
+        def log(exception, item=None):
+            self.log("Exception %r while instanciating an history %r" % (exception, item))
+        return CursorInstanciator(self.collection.find(query), history_generator, [log])
 
     def save_history(self, **kwargs):
         if 'timestamp' in kwargs and not isinstance(kwargs['timestamp'], str):
