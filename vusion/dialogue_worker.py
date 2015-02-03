@@ -18,7 +18,6 @@ from vumi.application import ApplicationWorker
 from vumi.message import Message, TransportUserMessage, TransportEvent
 from vumi.application import SessionManager
 from vumi import log
-from vumi.utils import get_first_word
 from vumi.errors import VumiError
 
 from vusion.utils import (

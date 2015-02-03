@@ -3,8 +3,10 @@ import re
 from twisted.internet.defer import inlineCallbacks
 
 from vumi.dispatchers.base import ContentKeywordRouter
+from vumi.utils import get_first_word
 from vumi import log
 
+from vusion.utils import get_first_msg_word
 from vusion import clean_keyword
 
 
@@ -45,3 +47,19 @@ class VusionMainRouter(ContentKeywordRouter):
         rule['keyword'] = clean_keyword(rule['keyword'])
         return super(VusionMainRouter, self).is_msg_matching_routing_rules(
             clean_keyword(keyword), msg, rule)
+
+    def dispatch_inbound_message(self, msg):
+        keyword = get_first_msg_word(msg['content']).lower()
+        matched = False
+        for rule in self.rules:
+            if self.is_msg_matching_routing_rules(keyword, msg, rule):
+                matched = True
+                # copy message so that the middleware doesn't see a particular
+                # message instance multiple times
+                self.publish_exposed_inbound(rule['app'], msg.copy())
+        if not matched:
+            if self.fallback_application is not None:
+                self.publish_exposed_inbound(self.fallback_application, msg)
+            else:
+                log.error(DispatcherError(
+                    "No transport for %s" % (msg['from_addr'],)))

@@ -2,10 +2,7 @@ import re
 from copy import copy
 from datetime import timedelta, datetime, time
 
-from vumi.utils import get_first_word
-
-from vusion.utils import clean_keyword
-
+from vusion.utils import clean_keyword, get_first_msg_word
 from vusion.persist import Model
 from vusion.error import InvalidField, MissingField
 from vusion.persist.action import (action_generator, FeedbackAction,
@@ -512,7 +509,7 @@ class Interaction(Model):
             if re.match(regex_CHOICE, reply) is not None:
                 return answer
         try:
-            probable_index = get_first_word(reply)
+            probable_index = get_first_msg_word(reply)
             index = int(probable_index) - 1
             if index < 0 or index > len(answers):
                 return None
