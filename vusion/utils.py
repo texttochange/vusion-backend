@@ -128,6 +128,10 @@ def is_int(s):
         return False
 
 
+def get_keyword(msg):
+    return clean_keyword(get_first_msg_word(msg))
+
+
 def get_first_msg_word(content):
     return get_first_word(clean_msg(content))
 

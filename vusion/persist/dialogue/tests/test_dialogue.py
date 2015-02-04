@@ -104,8 +104,17 @@ class TestDialogue(TestCase, ObjectMaker):
         dialogue = Dialogue(**self.mkobj_dialogue_question_answer())
 
         context = Context()
-        actions = Actions()                
+        actions = Actions()
         dialogue.get_matching_reference_and_actions("fel ok", actions, context)
+        self.assertEqual(context['matching-answer'], 'Ok')
+        self.assertTrue(actions.contains('profiling'))
+
+    def test_get_matching_ref_and_action_closed_question_ok_eol(self):
+        dialogue = Dialogue(**self.mkobj_dialogue_question_answer())
+
+        context = Context()
+        actions = Actions()
+        dialogue.get_matching_reference_and_actions("fel\nok", actions, context)
         self.assertEqual(context['matching-answer'], 'Ok')
         self.assertTrue(actions.contains('profiling'))
 
