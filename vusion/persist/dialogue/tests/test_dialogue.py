@@ -242,12 +242,13 @@ class TestDialogue(TestCase, ObjectMaker):
         dialogue.get_matching_reference_and_actions("Genok", actions, context)
         self.assertFalse(context.is_matching())
 
-    def test_get_matching_open_question(self):
+    def test_get_matching_reference_and_actions_open_question(self):
         script = Dialogue(**self.mkobj_dialogue_question_answer())
+        msg = "name john doe"
 
-        context = Context(**{'message': "name john doe"})
+        context = Context(**{'message': msg})
         actions = Actions()
-        script.get_matching_reference_and_actions("name john doe", actions, context)
+        script.get_matching_reference_and_actions(msg, actions, context)
         self.assertEqual(context['dialogue-id'], '01')
         self.assertEqual(context['interaction-id'], '01-02')
         self.assertEqual(context['matching-answer'], "john doe")
@@ -265,18 +266,44 @@ class TestDialogue(TestCase, ObjectMaker):
             actions[1],
             ProfilingAction(**{'label': 'name', 'value': 'john doe'}))
 
-        context = Context(**{'message': "name john doe"})
+    def test_get_matching_reference_and_actions_open_question_eol(self):
+            script = Dialogue(**self.mkobj_dialogue_question_answer())
+            msg = "name\njohn\ndoe"
+
+            context = Context(**{'message': msg})
+            actions = Actions()
+            script.get_matching_reference_and_actions(msg, actions, context)
+            self.assertEqual(context['dialogue-id'], '01')
+            self.assertEqual(context['interaction-id'], '01-02')
+            self.assertEqual(context['matching-answer'], "john doe")
+
+            self.assertEqual(len(actions), 3)
+            self.assertEqual(
+                actions[0],
+                RemoveQuestionAction(**{'dialogue-id': '01',
+                                        'interaction-id': '01-02'}))
+            self.assertEqual(
+                actions[2],
+                FeedbackAction(**{'content': 'thank you for this answer'}))
+            self.assertEqual(
+                actions[1],
+                ProfilingAction(**{'label': 'name', 'value': 'john doe'}))
+
+    def test_get_matching_reference_and_actions_open_question_empty(self):
+        script = Dialogue(**self.mkobj_dialogue_question_answer())
+
+        context = Context(**{'message': "name"})
         actions = Actions()
         script.get_matching_reference_and_actions("name", actions, context)
         self.assertEqual(context['dialogue-id'], '01')
         self.assertEqual(context['interaction-id'], '01-02')
         self.assertEqual(context['matching-answer'], None)
-        self.assertEqual(context['message'], 'name john doe')
+        self.assertEqual(context['message'], 'name')
 
         self.assertEqual(len(actions), 2)
         self.assertEqual(
             actions[1],
-            UnMatchingAnswerAction(**{'answer': ''}))
+            UnMatchingAnswerAction(**{'answer': 'name'}))
 
     def test_get_matching_question_multi_keyword(self):
         dialogue = Dialogue(**self.mkobj_dialogue_question_multi_keyword())
@@ -356,7 +383,7 @@ class TestDialogue(TestCase, ObjectMaker):
         self.assertEqual(2, len(actions))
         self.assertEqual(
             actions[1],
-            UnMatchingAnswerAction(**{'answer': ''}))
+            UnMatchingAnswerAction(**{'answer': 'name'}))
 
         context = Context()
         actions = Actions()

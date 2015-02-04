@@ -2,7 +2,7 @@ from copy import copy
 
 from vumi import log
 
-from vusion.utils import clean_keyword, get_first_msg_word
+from vusion.utils import clean_keyword, get_first_msg_word, clean_msg
 
 from vusion.persist.action import (UnMatchingAnswerAction, FeedbackAction,
                                    action_generator, ProfilingAction,
@@ -66,9 +66,10 @@ class Dialogue(Model):
         elif kwargs['model-version'] == '2':
             kwargs['model-version'] = '3'
         return kwargs
-    
-    def get_reply(self, content, delimiter=' '):
-        return (content or '').partition(delimiter)[2]
+
+    #def get_reply(self, content, delimiter=' '):
+        #content = clean_msg(content)
+        #return content.partition(delimiter)[2]
 
     def split_keywords(self, keywords):
         return [k.lower() for k in (keywords or '').split(', ')]
@@ -91,7 +92,6 @@ class Dialogue(Model):
 
     def get_matching_reference_and_actions(self, message, actions, context):
         keyword = clean_keyword(get_first_msg_word(message))
-        reply = clean_keyword(self.get_reply(message))
         dialogue_id, interaction = self.get_matching_interaction(keyword)
 
         if not interaction:
@@ -103,7 +103,7 @@ class Dialogue(Model):
             'interaction': interaction,
             'matching-answer': None})
 
-        interaction.get_actions(dialogue_id, message, keyword, reply, context, actions)
+        interaction.get_actions(dialogue_id, message, keyword, context, actions)
 
         # Check if offset condition on this answer
         if context.is_matching_answer():
@@ -114,12 +114,16 @@ class Dialogue(Model):
 
     def get_interaction_actions(self, actions, interaction_id, answer):
         interaction = self.get_interaction(interaction_id)
-        if interaction.is_open_question():    #horrible hack
+        ## horrible hack in order to reuse the get_actions()
+        keyword = None
+        if interaction.is_open_question() or interaction.is_closed_question():
             keywords = interaction.get_keywords()
+            keyword = keywords[0]
             fake_msg = "%s %s" % (keywords[0], answer)
-        else:
-            fake_msg = answer
-        interaction.get_actions(self['dialogue-id'], fake_msg, answer, answer, {}, actions)
+        elif interaction.is_multi_keyword():
+            fake_msg, keyword = answer, answer
+        interaction.get_actions(self['dialogue-id'], fake_msg, keyword, {}, actions)
+
 
     def get_all_keywords(self):
         keywords = []

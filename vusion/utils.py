@@ -25,6 +25,12 @@ def clean_keyword(keyword):
     return unidecode(keyword).lower()
 
 
+def clean_msg(content):
+    if content is None:
+        return ''
+    content = content.replace('\n', ' ')
+    return content
+
 def time_to_vusion_format(timestamp):
     return timestamp.strftime('%Y-%m-%dT%H:%M:%S')
 
@@ -123,7 +129,7 @@ def is_int(s):
 
 
 def get_first_msg_word(content):
-    return get_first_word(content.replace('\n', ' '))
+    return get_first_word(clean_msg(content))
 
 
 def get_word(content, position=0, delimiter=' '):
