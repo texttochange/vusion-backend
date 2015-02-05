@@ -7,7 +7,8 @@ from vumi.tests.helpers import VumiTestCase, MessageHelper, WorkerHelper
 from tests.utils import MessageMaker, ObjectMaker
 
 from vusion.persist import (
-    ParticipantManager, HistoryManager, history_generator, ScheduleManager)
+    ParticipantManager, HistoryManager, history_generator, ScheduleManager,
+    UnmatchableReplyManager)
 from vusion.export_worker import ExportWorker
 
 
@@ -173,4 +174,28 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
                 'participant-phone,message-direction,message-status,message-content,timestamp\n', csvfile.readline())
             self.assertEqual(
                 '"06","outgoing","delivered","hello","2015-01-20T10:10:10"\n', csvfile.readline())
+            self.assertEqual('', csvfile.readline())
+
+    @inlineCallbacks
+    def test_export_unmatchable_reply(self):
+        manager = UnmatchableReplyManager(self.mongo['test'], 'unmatchable-reply')
+        unmatchable = self.mkobj_unmatchable_reply()
+        manager.save_document(unmatchable)
+
+        control = self.mkmsg_exportworker_control(
+            message_type='export_unmatchable_reply',
+            file_full_name='testing_export.csv',
+            conditions=None,
+            collection='unmatchable-reply',
+            database='test',
+            redis_key='unittest:myprogramUrl:unmatchable-reply')
+
+        yield self.dispatch_control(control)
+
+        self.assertTrue(os.path.isfile('testing_export.csv'))
+        with open('testing_export.csv', 'rb') as csvfile:
+            self.assertEqual(
+                'from,to,message-content,timestamp\n', csvfile.readline())
+            self.assertEqual(
+                '"+25611111","256-8181","Hello","2014-01-01T10:10:00"\n', csvfile.readline())
             self.assertEqual('', csvfile.readline())

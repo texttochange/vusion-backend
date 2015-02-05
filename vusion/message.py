@@ -89,6 +89,12 @@ class ExportWorkerControl(Message):
             'conditions': lambda v: isinstance(v, dict),
             'database': lambda v: v is not None,
             'collection': lambda v: v is not None,
+            'redis_key': lambda v: v is not None},
+        'export_unmatchable_reply': {
+            'file_full_name': lambda v: v is not None,
+            'conditions': lambda v: isinstance(v, dict),
+            'database': lambda v: v is not None,
+            'collection': lambda v: v is not None,
             'redis_key': lambda v: v is not None}}
 
     ## emtpy dictionary might be converted to list
