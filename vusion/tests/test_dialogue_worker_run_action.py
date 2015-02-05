@@ -864,7 +864,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
 
 
     @inlineCallbacks
-    def test_run_action_sms_invite(self):
+    def test_run_action_sms_invite_new_participant(self):
         self.initialize_properties()
 
         sender = self.mkobj_participant(
@@ -876,21 +876,81 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             tags=['my tag'])
         self.collections['participants'].save(sender)
 
-        receiver_optin = self.mkobj_participant(
-            participant_phone='+9',
-            tags=['my tag'])
-        self.collections['participants'].save(receiver_optin)
-
-        receiver_optout = self.mkobj_participant(
-            participant_phone='+5',
-            tags=['my tag'],
-            session_id=None)
-        self.collections['participants'].save(receiver_optout)
-
         sms_invite = SmsInviteAction(**{
-            'message': '[participant.phone] invites you',
-            'invitee-tag': 'invited'})
-        context = Context(**{'message': 'Join +5',
+            'message': 'invites you',
+            'invitee-tag': 'invited',
+            'feedback-already-optin': 'already in the program'})
+        context = Context(**{'message': 'Join +569',
                                      'request-id': '1'})        
         yield self.worker.run_action(sender['phone'], sms_invite, context)
+
+        messages = yield self.app_helper.get_dispatched_outbound()
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0]['to_addr'], '+569')
+        self.assertRegexpMatches(messages[0]['content'], 'invites you')
+
+
+    @inlineCallbacks
+    def test_run_action_sms_invite_optout_participant(self):
+        self.initialize_properties()
+
+        sender = self.mkobj_participant(
+            participant_phone='+1545',
+            profile=[{'label': 'name',
+                      'value': 'max'},
+                     {'label': 'address',
+                      'value': 'kampala'}],
+            tags=['my tag'])
+        self.collections['participants'].save(sender)
+
+        invitee_optout = self.mkobj_participant(
+            participant_phone='+598',
+            tags=['my tag'],
+            session_id=None)
+        self.collections['participants'].save(invitee_optout)
+
+        sms_invite = SmsInviteAction(**{
+            'message': 'invites you',
+            'invitee-tag': 'invited',
+            'feedback-already-optin': 'already in the program'})
+        context = Context(**{'message': 'Join +598',
+                                     'request-id': '1'})        
+        yield self.worker.run_action(sender['phone'], sms_invite, context)
+
+        messages = yield self.app_helper.get_dispatched_outbound()
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0]['to_addr'], '+598')
+        self.assertRegexpMatches(messages[0]['content'], 'invites you')
+
+
+    @inlineCallbacks
+    def test_run_action_sms_invite_optin_participant(self):
+        self.initialize_properties()
+
+        sender = self.mkobj_participant(
+            participant_phone='+1545',
+            profile=[{'label': 'name',
+                      'value': 'max'},
+                     {'label': 'address',
+                      'value': 'kampala'}],
+            tags=['my tag'])
+        self.collections['participants'].save(sender)
+
+        invitee_optin = self.mkobj_participant(
+            participant_phone='+5987',
+            tags=['my tag'])
+        self.collections['participants'].save(invitee_optin)
+
+        sms_invite = SmsInviteAction(**{
+            'message': 'invites you',
+            'invitee-tag': 'invited',
+            'feedback-already-optin': 'already in the program'})
+        context = Context(**{'message': 'Join +5987',
+                                     'request-id': '1'})        
+        yield self.worker.run_action(sender['phone'], sms_invite, context)
+
+        messages = yield self.app_helper.get_dispatched_outbound()
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0]['to_addr'], '+1545')
+        self.assertRegexpMatches(messages[0]['content'], 'already in the program')
 
