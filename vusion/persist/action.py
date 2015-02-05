@@ -452,6 +452,7 @@ class SmsForwarding(Action):
         custom_regexp = re.compile(r'\[participant.(?P<key1>[^\.\]]+)\]')
         matches = re.finditer(custom_regexp, customized_selector)
         for match in matches:
+            print(match)
             match = match.groupdict() if match is not None else None
             if match is None:
                 continue
@@ -499,6 +500,12 @@ class SmsInviteAction(Action):
             'message',
             'invitee-tag',
             'feedback-already-optin')
+
+    def get_sender_message_invitee_phone(self, context):
+            second_word = context.get_message_second_word()
+            if second_word is None:
+                return {'phone': ''}
+            return {'phone': clean_phone(second_word)}
 
 
 def action_generator(**kwargs):
