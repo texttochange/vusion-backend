@@ -445,11 +445,15 @@ class DialogueWorker(ApplicationWorker):
             self.collections['participants'].opting_in(invitee['phone'], True)
             invited_participant = self.collections['participants'].get_participant(invitee['phone'])
             self.collections['participants'].tagging(invited_participant['phone'], action['invitee-tag'])
+            content = self.customize_message(
+                            action['invite-content'],
+                            participant_phone,
+                            context)            
             schedule = FeedbackSchedule(**{
                 'participant-phone': invited_participant['phone'],
                 'participant-session-id': invited_participant['session-id'],
                 'date-time': self.get_local_time('vusion'),
-                'content': action['message'],
+                'content': content,
                 'context': context.payload})
             yield self.send_schedule(schedule)
         elif participant['session-id'] is None:
@@ -461,7 +465,7 @@ class DialogueWorker(ApplicationWorker):
                 'participant-phone': invited_participant['phone'],
                 'participant-session-id': invited_participant['session-id'],
                 'date-time': self.get_local_time('vusion'),
-                'content': action['message'],
+                'content': action['invite-content'],
                 'context': context.payload})
             yield self.send_schedule(schedule)            
         else:

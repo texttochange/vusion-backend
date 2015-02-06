@@ -877,7 +877,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.collections['participants'].save(sender)
 
         sms_invite = SmsInviteAction(**{
-            'message': 'invites you',
+            'invite-content': '[participant.name]([participant.phone]) invites you',
             'invitee-tag': 'invited',
             'feedback-already-optin': 'already in the program'})
         context = Context(**{'message': 'Join +569',
@@ -887,7 +887,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['to_addr'], '+569')
-        self.assertRegexpMatches(messages[0]['content'], 'invites you')
+        self.assertRegexpMatches(messages[0]['content'], 'max\(\+154\) invites you')
 
 
     @inlineCallbacks
@@ -910,7 +910,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.collections['participants'].save(invitee_optout)
 
         sms_invite = SmsInviteAction(**{
-            'message': 'invites you',
+            'invite-content': 'invites you',
             'invitee-tag': 'invited',
             'feedback-already-optin': 'already in the program'})
         context = Context(**{'message': 'Join +598',
@@ -942,9 +942,9 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.collections['participants'].save(invitee_optin)
 
         sms_invite = SmsInviteAction(**{
-            'message': 'invites you',
+            'invite-content': 'invites you',
             'invitee-tag': 'invited',
-            'feedback-already-optin': 'already in the program'})
+            'feedback-already-optin': '[context.message.2] is already in the program'})
         context = Context(**{'message': 'Join +5987',
                                      'request-id': '1'})        
         yield self.worker.run_action(sender['phone'], sms_invite, context)
@@ -952,5 +952,5 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['to_addr'], '+1545')
-        self.assertRegexpMatches(messages[0]['content'], 'already in the program')
+        self.assertRegexpMatches(messages[0]['content'], '\+5987 is already in the program')
 
