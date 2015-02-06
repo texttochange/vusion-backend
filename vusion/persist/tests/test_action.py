@@ -468,7 +468,7 @@ class TestSmsInviteAction(TestCase, ObjectMaker):
     def test_generate_action(self):
         action = {
             'type-action': 'sms-invite',
-            'message': 'iam inviting you',
+            'invite-content': 'iam inviting you',
             'invitee-tag': 'invited',
             'feedback-already-optin': 'already in the program'}
         a = action_generator(**action)

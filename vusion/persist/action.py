@@ -497,7 +497,7 @@ class SmsInviteAction(Action):
     def validate_fields(self):
         super(SmsInviteAction, self).validate_fields()
         self.assert_field_present(
-            'message',
+            'invite-content',
             'invitee-tag',
             'feedback-already-optin')
 
