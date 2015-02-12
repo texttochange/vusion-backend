@@ -239,7 +239,7 @@ class OrangeSdpHttpTransportTestCase(VumiTestCase, OrangeSdpMessageMaker):
         self.mock_orange_server_response.append((
             http.CREATED, json.dumps(self.mk_mt_response())))
         yield self.tx_helper.make_dispatch_outbound(
-            "hello world", message_id='1', from_addr='8181', to_addr='254111')
+            "hello world", message_id='1', from_addr='8181', to_addr='+254111')
 
         req = yield self.orange_calls.get()
         self.assert_auth(req)
@@ -259,7 +259,7 @@ class OrangeSdpHttpTransportTestCase(VumiTestCase, OrangeSdpMessageMaker):
         self.mock_orange_server_response.append(
             (http.BAD_REQUEST, json.dumps(self.mk_policy_error_response())))
         yield self.tx_helper.make_dispatch_outbound(
-            "hello world", message_id='1', from_addr="8181", to_addr="254111")
+            "hello world", message_id='1', from_addr="8181", to_addr="+254111")
 
         req = yield self.orange_calls.get()
 
@@ -279,7 +279,7 @@ class OrangeSdpHttpTransportTestCase(VumiTestCase, OrangeSdpMessageMaker):
         self.mock_orange_server.stop()
 
         yield self.tx_helper.make_dispatch_outbound(
-            "hello world", message_id='1', from_addr='8181', to_addr='254111')
+            "hello world", message_id='1', from_addr='8181', to_addr='+254111')
 
         [event] = yield self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'nack')

@@ -89,11 +89,11 @@ class OrangeSdpHttpTransport(Transport):
 
     def from_msg_2_orangecode(self, msg):
         for prefix, codes in self.config['shortcodes'].iteritems():
-            if msg['to_addr'].startswith(prefix):
+            if msg['to_addr'].startswith('+%s' % prefix):
                 for code in codes:
                     if code == msg['from_addr']:
                         return "%s%s" % (prefix, code)
-        raise Exception("Shortcode not supported %s for %s" % (shortcode, to_addr))
+        raise Exception("Shortcode not supported %s for %s" % (msg['from_addr'], msg['to_addr']))
 
     def get_req_content(self, request):
         try:
