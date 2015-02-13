@@ -6,7 +6,7 @@ from twisted.trial.unittest import TestCase
 
 from tests.utils import ObjectMaker
 
-from vusion.persist import UnmatchableReplyManager
+from vusion.persist import UnmatchableReplyManager, UnmatchableReply
 
 
 class TestUnmatchableReplyManager(TestCase, ObjectMaker):
@@ -97,3 +97,17 @@ class TestUnmatchableReplyManager(TestCase, ObjectMaker):
         self.assertEqual(
             {'incoming':1, 'outgoing': 0},
             self.manager.count_day_credits(past_more, "256-8181"))
+
+    def test_get_unmatchable_replys(self):
+        um = self.mkobj_unmatchable_reply(
+            to="256-8181", participant_phone="+2567777")
+        self.manager.save_document(um)
+
+        um = self.mkobj_unmatchable_reply(
+            to="256-8282")
+        self.manager.save_document(um)
+
+        c = self.manager.get_unmatchable_replys()
+        self.assertEqual(c.count(), 2)
+        for item in c:
+            self.assertTrue(isinstance(item, UnmatchableReply))

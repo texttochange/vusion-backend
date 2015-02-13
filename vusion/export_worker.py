@@ -13,7 +13,8 @@ from vumi import log
 
 from vusion.connectors import ReceiveExportWorkerControlConnector
 from vusion.message import ExportWorkerControl
-from vusion.persist import ParticipantManager, HistoryManager, ScheduleManager
+from vusion.persist import (ParticipantManager, HistoryManager,
+                            ScheduleManager, UnmatchableReplyManager)
 
 
 class ExportWorkerConfig(BaseWorker.CONFIG_CLASS):
@@ -82,6 +83,8 @@ class ExportWorker(BaseWorker):
                 yield self.export_participants(msg)
             elif msg['message_type'] == 'export_history':
                 self.export_history(msg)
+            elif msg['message_type'] == 'export_unmatchable_reply':
+                self.export_unmatchable_reply(msg)
             yield self.redis.decr(msg['redis_key'])
         except Exception as e:
             self.redis.decr(msg['redis_key'])
@@ -149,7 +152,6 @@ class ExportWorker(BaseWorker):
                 for header in headers:
                     ordered_row.append(row[header])
                 csvfile.write("%s\n" % ','.join(ordered_row))
-            csvfile.close()
 
     def export_history(self, msg):
         config = self.get_static_config()
@@ -178,4 +180,29 @@ class ExportWorker(BaseWorker):
                 for header in headers:
                     ordered_row.append(row[header])
                 csvfile.write("%s\n" % ','.join(ordered_row))
-            csvfile.close()
+
+    def export_unmatchable_reply(self, msg):
+        config = self.get_static_config()
+        mongo = MongoClient(config.mongodb_host, config.mongodb_port)
+        db = mongo[msg['database']]
+        manager = UnmatchableReplyManager(db, msg['collection'])
+        headers = ['from',
+                   'to',
+                   'message-content',
+                   'timestamp']
+        with open(msg['file_full_name'], 'wb') as csv_file:
+            csv_file.write("%s\n" % ','.join(headers))
+            cursor = manager.get_unmatchable_replys(msg['conditions'])
+            row_template = dict((header, "") for header in headers)
+            for unmatchable in cursor:
+                if unmatchable is None:
+                    continue
+                row = row_template.copy()
+                row['from'] = '"%s"' % unmatchable['participant-phone']
+                row['to'] = '"%s"' % unmatchable['to']
+                row['message-content'] = '"%s"' % unmatchable['message-content']
+                row['timestamp'] = '"%s"' % unmatchable['timestamp']
+                ordered_row = []
+                for header in headers:
+                    ordered_row.append(row[header])
+                csv_file.write("%s\n" % ','.join(ordered_row))
