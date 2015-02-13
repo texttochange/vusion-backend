@@ -1,0 +1,4 @@
+application_name: export
+
+mongodb_host: localhost
+mongodb_port: 27017

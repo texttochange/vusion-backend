@@ -302,3 +302,23 @@ class TestScheduleManager(TestCase, ObjectMaker):
         yield self.manager.unattach_schedule(participant, unattach)
 
         self.assertEqual(1, self.manager.count())
+
+    @inlineCallbacks
+    def test_get_unique_participant_phone(self):
+        schedule = schedule_generator(**self.mkobj_schedule_unattach(
+            participant_phone='06'))
+        self.manager.save_schedule(schedule)
+
+        schedule = schedule_generator(**self.mkobj_schedule_unattach(
+            participant_phone='06'))
+        self.manager.save_schedule(schedule)
+
+        schedule = schedule_generator(**self.mkobj_schedule_unattach(
+            participant_phone='07'))
+        self.manager.save_schedule(schedule)
+
+        c = yield self.manager.get_unique_participant_phones()
+
+        self.assertEqual((c.next())['_id'], '07')
+        self.assertEqual((c.next())['_id'], '06')
+        self.assertRaises(StopIteration, c.next())
