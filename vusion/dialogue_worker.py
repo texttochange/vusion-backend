@@ -649,17 +649,34 @@ class DialogueWorker(ApplicationWorker):
             for interaction in dialogue.interactions:
                 self.log("Scheduling %s interaction %s for %s" % 
                          (dialogue['name'], interaction['content'], participant['phone'],))
-                history = self.collections['history'].get_history_of_interaction(
-                    participant, dialogue["dialogue-id"], interaction["interaction-id"])
 
-                #The iteraction has aleardy been sent.
-                if history is not None:
-                    previous_sending_date_time = time_from_vusion_format(history["timestamp"])
-                    self.schedule_participant_reminders(
-                        participant, dialogue, interaction, previous_sending_date_time, True)
-                    previous_sending_day = previous_sending_date_time.date()
+                ##If we have any marker associate with this interaction,
+                ##no schedule is done.
+                has_marker = self.collections['history'].has_marker(
+                    participant,
+                    dialogue["dialogue-id"],
+                    interaction["interaction-id"])
+                if has_marker:
                     continue
-                
+
+                ##The iteraction has aleardy been sent,
+                ##the reminders might need to be updated.
+                history = self.collections['history'].get_history_of_interaction(
+                    participant,
+                    dialogue["dialogue-id"],
+                    interaction["interaction-id"])
+                if history is not None:
+                    previous_sending_date_time = history.get_timestamp()
+                    self.schedule_participant_reminders(
+                        participant,
+                        dialogue,
+                        interaction,
+                        previous_sending_date_time,
+                        True)
+                    #previous_sending_day = previous_sending_date_time.date()
+                    continue
+
+                ##Compute the sending date time for the interaction
                 if (interaction['type-schedule'] == 'offset-days'):
                     enrolled_time = participant.get_enrolled_time(dialogue['dialogue-id'])
                     sending_date_time = get_offset_date_time(
@@ -675,24 +692,14 @@ class DialogueWorker(ApplicationWorker):
                     previous = self.collections['history'].get_history_of_offset_condition_answer(
                         participant,
                         dialogue["dialogue-id"],
-                        interaction["offset-condition-interaction-id"])      
+                        interaction["offset-condition-interaction-id"])
                     if  previous is None:
                         continue
                     sending_date_time = self.get_local_time() + timedelta(minutes=int(interaction['offset-condition-delay']))
 
+                ##Retrived a schedule associate with the interaction
                 schedule = self.collections['schedules'].get_participant_interaction(
                     participant['phone'], dialogue["dialogue-id"], interaction["interaction-id"])
-
-                #Scheduling a date already in the past is forbidden.
-                if (sending_date_time + timedelta(minutes=5) < self.get_local_time()):
-                    self.collections['history'].add_datepassed_marker_for_interaction(
-                        participant,
-                        dialogue['dialogue-id'],
-                        interaction['interaction-id'])
-                    if (schedule):
-                        self.collections['schedules'].remove_schedule(schedule)
-                    continue
-
                 if (not schedule):
                     self.collections['schedules'].add_dialogue(
                         participant, sending_date_time,

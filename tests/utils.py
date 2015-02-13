@@ -1036,6 +1036,16 @@ class ObjectMaker:
             'interaction-id': interaction_id,
             'timestamp': timestamp}).get_as_dict()
 
+    def mkobj_history_datepassed_marker(self, dialogue_id, interaction_id, timestamp,
+                                         participant_phone='06', participant_session_id='1'):
+            return history_generator(**{
+                'object-type': 'datepassed-marker-history',
+                'participant-phone': participant_phone,
+                'participant-session-id':participant_session_id,
+                'dialogue-id': dialogue_id,
+                'interaction-id': interaction_id,
+                'timestamp': timestamp}).get_as_dict()
+
     def mkobj_history_dialogue_open_question(self, dialogue_id, interaction_id,
                                timestamp, participant_phone='06',
                                participant_session_id="1", direction='outgoing'):
