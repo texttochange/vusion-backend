@@ -761,7 +761,24 @@ class ObjectMaker:
                 ],
             "interaction-id": "script.dialogues[0].interactions[0]"
         }).get_as_dict()
-    
+
+
+    def mkobj_interaction_question_answer_open(self):
+            return Interaction(**{
+                'activated': 1,
+                'type-schedule': 'offset-time',
+                'minutes': '2',
+                "type-interaction": "question-answer",
+                "type-question": "open-question",
+                "content": "How are you [participant.name]?",
+                "keyword": "Feel",
+                "set-use-template": "use-template",
+                "type-reminder": "no-reminder",
+                "interaction-id": "script.dialogues[0].interactions[0]"
+            }).get_as_dict()
+
+
+
     def mkobj_dialogue_question_answer(self):
         return Dialogue(**deepcopy(self.dialogue_question_answer)).get_as_dict()
 

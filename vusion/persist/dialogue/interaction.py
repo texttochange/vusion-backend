@@ -2,10 +2,7 @@ import re
 from copy import copy
 from datetime import timedelta, datetime, time
 
-from vumi.utils import get_first_word
-
-from vusion.utils import clean_keyword
-
+from vusion.utils import clean_keyword, get_first_msg_word, clean_msg
 from vusion.persist import Model
 from vusion.error import InvalidField, MissingField
 from vusion.persist.action import (action_generator, FeedbackAction,
@@ -325,6 +322,11 @@ class Interaction(Model):
             return True
         return False
 
+    def is_closed_question(self):
+        if 'type-question' in self.payload and self['type-question'] == 'closed-question':
+            return True
+        return False
+
     def generate_reminder_times(self, interaction_date_time):
         if not self.has_reminder:
             return None
@@ -364,6 +366,8 @@ class Interaction(Model):
         if self.payload['type-unmatching-feedback'] == 'interaction-unmatching-feedback':
             actions.append(FeedbackAction(**{'content': self.payload['unmatching-feedback-content']}))
         elif self.payload['type-unmatching-feedback'] == 'program-unmatching-feedback':
+            if answer is None:
+                answer = ''
             actions.append(UnMatchingAnswerAction(**{'answer': answer}))
 
     def get_max_unmatching_action(self, dialogue_id, actions):
@@ -394,6 +398,8 @@ class Interaction(Model):
         return [clean_keyword("%s%s" % (keyword, answer['choice'].replace(" ",""))) for keyword in keywords]
 
     def get_actions_from_matching_answer(self, dialogue_id, matching_answer, matching_value, actions):
+        if self.is_open_question():
+            return actions
         for feedback in matching_answer['feedbacks']:
             action = FeedbackAction(**{'content': feedback['content']})
             actions.append(action)
@@ -441,64 +447,57 @@ class Interaction(Model):
     def has_matching_answer_actions(self):
         return self['set-matching-answer-actions'] == 'matching-answer-actions'
 
-    def get_actions(self, dialogue_id, msg, msg_keyword, msg_reply, reference_metadata, actions):
+    def get_reply(self, content, delimiter=' '):
+        content = clean_msg(content)
+        return content.partition(delimiter)[2]
+
+    def get_actions(self, dialogue_id, msg, msg_keyword, reference_metadata, actions):
         actions.append(RemoveQuestionAction(**{
             'dialogue-id': dialogue_id,
             'interaction-id': self.payload['interaction-id']}))
-        if 'answer-keywords' in self.payload:
-            # Multi keyword question
-            matching_answer_keyword = self.get_matching_answer_keyword(self.payload['answer-keywords'], msg_keyword)
-            if matching_answer_keyword is None:
-                self.get_unmatching_action(msg, actions)
-            else:
-                reference_metadata['matching-answer'] = matching_answer_keyword['keyword']
-                self.get_actions_from_interaction(
-                    dialogue_id,
-                    reference_metadata['matching-answer'],
-                    actions)
-                self.get_actions_from_matching_answer(
-                    dialogue_id,
-                    matching_answer_keyword,
-                    reference_metadata['matching-answer'],
-                    actions)
-                return reference_metadata, actions
-        elif 'answers' in self.payload:
-            # Closed questions
-            matching_answer = self.get_matching_answer(msg_keyword, msg_reply)
-            if matching_answer is None:
-                self.get_unmatching_action(msg, actions)
-            else:
-                reference_metadata['matching-answer'] = matching_answer['choice']
-                self.get_actions_from_interaction(
-                    dialogue_id,
-                    reference_metadata['matching-answer'],
-                    actions)
-                self.get_actions_from_matching_answer(
-                    dialogue_id,
-                    matching_answer, 
-                    reference_metadata['matching-answer'], 
-                    actions)
-                return reference_metadata, actions
+        string_answer, answer = self.get_matching_answer(msg_keyword, msg)
+        if answer is None:
+            self.get_unmatching_action(string_answer, actions)
         else:
-            # Open questions
-            msg_reply_raw = self.get_open_answer(msg)
-            if msg_reply_raw == '':
-                self.get_unmatching_action(msg_reply, actions)
-            else:
-                reference_metadata['matching-answer'] = msg_reply_raw
-                self.get_actions_from_interaction(
-                    dialogue_id,
-                    reference_metadata['matching-answer'],
-                    actions)
-                return reference_metadata, actions
+            reference_metadata['matching-answer'] = string_answer
+            self.get_actions_from_interaction(
+                dialogue_id,
+                reference_metadata['matching-answer'],
+                actions)
+            self.get_actions_from_matching_answer(
+                dialogue_id,
+                answer,
+                reference_metadata['matching-answer'],
+                actions)
+        return reference_metadata, actions
 
-    def get_matching_answer_keyword(self, answer_keywords, msg_keyword):
+    def get_matching_answer(self, keyword, msg):
+        ## multikeyword question
+        if 'answer-keywords' in self.payload:
+            multikeyword_answer = self.get_matching_answer_multikeyword(
+                self.payload['answer-keywords'], keyword)
+            if multikeyword_answer is not None:
+                return multikeyword_answer['keyword'], multikeyword_answer
+        ## close question
+        elif 'answers' in self.payload:
+            msg_reply = clean_keyword(self.get_reply(msg))
+            answer = self.get_matching_answer_closed_question(keyword, msg_reply)
+            if answer is not None:
+                return answer['choice'], answer
+        ## open question
+        else:
+            msg_reply = self.get_reply(msg)
+            if msg_reply != '':
+                return msg_reply, True
+        return msg, None
+
+    def get_matching_answer_multikeyword(self, answer_keywords, msg_keyword):
         for answer_keyword in answer_keywords:
             if msg_keyword in self.split_keywords(answer_keyword['keyword']):
                 return answer_keyword
         return None
-    
-    def get_matching_answer(self, keyword, reply):
+
+    def get_matching_answer_closed_question(self, keyword, reply):
         answers = self.payload['answers']
         if self.payload['set-answer-accept-no-space'] is not None:
             keywords = self.split_keywords(self.payload['keyword'])
@@ -512,17 +511,13 @@ class Interaction(Model):
             if re.match(regex_CHOICE, reply) is not None:
                 return answer
         try:
-            probable_index = get_first_word(reply)
+            probable_index = get_first_msg_word(reply)
             index = int(probable_index) - 1
             if index < 0 or index > len(answers):
                 return None
             return answers[index]
         except:
             return None
-    
-    def get_open_answer(self, message):
-        words = (message or '').split(' ')
-        return " ".join(words[1:])
 
     def _get_keywords(self):
         keywords = []

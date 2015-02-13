@@ -69,6 +69,7 @@ class TestRequest(TestCase, ObjectMaker):
         request = Request(**self.mkobj_request_response(
             "kÉyword1 something, keyword1 somethingelse"))
         self.assertTrue(request.is_matching("keyWord1 something"))
+        self.assertTrue(request.is_matching("keyWord1\nsomething"))
         self.assertFalse(request.is_matching("keyWord1 otherstuff"))
         self.assertFalse(request.is_matching("keyWord1 otherstuff", False))
 
@@ -76,5 +77,6 @@ class TestRequest(TestCase, ObjectMaker):
         request = Request(**self.mkobj_request_reponse_lazy_matching(
             "kÉyword1 something, keyword1 somethingelse"))
         self.assertTrue(request.is_matching("keyWord1 something"))
+        self.assertTrue(request.is_matching("keyWord1\nsomething"))
         self.assertFalse(request.is_matching("keyWord1 otherstuff"))
         self.assertTrue(request.is_matching("keyWord1 otherstuff", False))

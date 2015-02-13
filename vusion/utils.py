@@ -5,6 +5,8 @@ import iso8601
 import re
 from unidecode import unidecode
 
+from vumi.utils import get_first_word
+
 from vusion.const import PLUS_REGEX, ZEROS_REGEX
 
 
@@ -17,10 +19,17 @@ def get_local_code(from_addr):
 
 
 def clean_keyword(keyword):
+    keyword = keyword.replace('\n', ' ').strip()
     if isinstance(keyword, str):
         keyword = keyword.decode('utf-8')
     return unidecode(keyword).lower()
 
+
+def clean_msg(content):
+    if content is None:
+        return ''
+    content = content.replace('\n', ' ')
+    return content
 
 def time_to_vusion_format(timestamp):
     return timestamp.strftime('%Y-%m-%dT%H:%M:%S')
@@ -117,6 +126,14 @@ def is_int(s):
         return True
     except ValueError:
         return False
+
+
+def get_keyword(msg):
+    return clean_keyword(get_first_msg_word(msg))
+
+
+def get_first_msg_word(content):
+    return get_first_word(clean_msg(content))
 
 
 def get_word(content, position=0, delimiter=' '):

@@ -62,7 +62,7 @@ class TestInteraction(TestCase, ObjectMaker):
         interaction = Interaction(**dialogue['interactions'][0])
 
         actions = Actions()
-        matching_answer = interaction.get_matching_answer_keyword(
+        matching_answer = interaction.get_matching_answer_multikeyword(
             interaction['answer-keywords'], "male")
         interaction.get_actions_from_interaction(
             dialogue['dialogue-id'],
@@ -81,7 +81,7 @@ class TestInteraction(TestCase, ObjectMaker):
         interaction = Interaction(**interaction)
 
         actions = Actions()
-        matching_answer = interaction.get_matching_answer("feel", "bad")
+        matching_answer = interaction.get_matching_answer_closed_question("feel", "bad")
         interaction.get_actions_from_matching_answer(
             'dialogue-id',
             matching_answer,
@@ -95,82 +95,99 @@ class TestInteraction(TestCase, ObjectMaker):
         interaction['answers'] = []
         for i in range(0, 16):
             interaction['answers'].append({'choice': '%s' % i, 'answer-actions':[], 'feedbacks':[]})
-        interaction = Interaction(**interaction)        
+        interaction = Interaction(**interaction)
 
-        matching_answer = interaction.get_matching_answer("feel", "10") 
+        matching_answer = interaction.get_matching_answer_closed_question(
+            "feel", "10")
         self.assertEqual(matching_answer['choice'], '10')
 
-        matching_answer = interaction.get_matching_answer("feel", "1") 
+        matching_answer = interaction.get_matching_answer_closed_question(
+            "feel", "1")
         self.assertEqual(matching_answer['choice'], '1')
 
-        matching_answer = interaction.get_matching_answer("feel", "20") 
+        matching_answer = interaction.get_matching_answer_closed_question(
+            "feel", "20")
         self.assertEqual(matching_answer, None)
 
     def test_get_matching_answer_closed_question_unsensitive(self):
         interaction = Interaction(**self.mkobj_interaction_question_answer())
 
-        matching_answer = interaction.get_matching_answer("feel", "good") 
+        matching_answer = interaction.get_matching_answer_closed_question(
+            "feel", "good")
         self.assertEqual(matching_answer['choice'], 'Good')
 
-        matching_answer = interaction.get_matching_answer("feel", "bad") 
+        matching_answer = interaction.get_matching_answer_closed_question(
+            "feel", "bad")
         self.assertEqual(matching_answer['choice'], 'Bâd')
 
-        matching_answer = interaction.get_matching_answer("feel", "bad headarch") 
+        matching_answer = interaction.get_matching_answer_closed_question(
+            "feel", "bad headarch")
         self.assertEqual(matching_answer['choice'], 'Bâd')
-        
+
         ## choice can have multiple words
         interaction['answers'][1]['choice'] = "Bâd heâdarch"
-        
-        matching_answer = interaction.get_matching_answer("feel", "bad") 
+
+        matching_answer = interaction.get_matching_answer_closed_question(
+            "feel", "bad") 
         self.assertEqual(matching_answer, None)
-        
-        matching_answer = interaction.get_matching_answer("feel", "bad headarch") 
+
+        matching_answer = interaction.get_matching_answer_closed_question(
+            "feel", "bad headarch") 
         self.assertEqual(matching_answer['choice'], "Bâd heâdarch")
-        
-        matching_answer = interaction.get_matching_answer("feel", "bad headarch this morning") 
+
+        matching_answer = interaction.get_matching_answer_closed_question(
+            "feel", "bad headarch this morning")
         self.assertEqual(matching_answer['choice'], "Bâd heâdarch")
 
     def test_get_matching_answer_closed_question_unsensitive_no_space(self):
         interaction = self.mkobj_interaction_question_answer()
         interaction['set-answer-accept-no-space'] = 'answer-accept-no-space'
         interaction = Interaction(**interaction)
-        
-        matching_answer = interaction.get_matching_answer("feel", "good") 
+
+        matching_answer = interaction.get_matching_answer_closed_question(
+            "feel", "good")
         self.assertEqual(matching_answer['choice'], 'Good')
 
-        matching_answer = interaction.get_matching_answer("feelgood", None) 
-        self.assertEqual(matching_answer['choice'], 'Good')        
-        
-        matching_answer = interaction.get_matching_answer("feel", "bad") 
-        self.assertEqual(matching_answer['choice'], 'Bâd')
-        
-        matching_answer = interaction.get_matching_answer("feelbad", None) 
-        self.assertEqual(matching_answer['choice'], 'Bâd')
-    
-        matching_answer = interaction.get_matching_answer("feel", "bad headarch") 
+        matching_answer = interaction.get_matching_answer_closed_question(
+            "feelgood", None)
+        self.assertEqual(matching_answer['choice'], 'Good')
+
+        matching_answer = interaction.get_matching_answer_closed_question(
+            "feel", "bad")
         self.assertEqual(matching_answer['choice'], 'Bâd')
 
-        ## Cannot append on production as 
+        matching_answer = interaction.get_matching_answer_closed_question(
+            "feelbad", None)
+        self.assertEqual(matching_answer['choice'], 'Bâd')
+
+        matching_answer = interaction.get_matching_answer_closed_question(
+            "feel", "bad headarch")
+        self.assertEqual(matching_answer['choice'], 'Bâd')
+
+        ## Cannot append on production as
         ## this keyword would not be registered on the dispatcher
-        matching_answer = interaction.get_matching_answer("feelbadheadarch", None) 
+        matching_answer = interaction.get_matching_answer_closed_question(
+            "feelbadheadarch", None)
         self.assertEqual(matching_answer, None)
-        
+
         ## choice can have multiple words
         interaction['answers'][1]['choice'] = "Bâd heâdarch"
-        
-        matching_answer = interaction.get_matching_answer("feelbad", None) 
+
+        matching_answer = interaction.get_matching_answer_closed_question(
+            "feelbad", None)
         self.assertEqual(matching_answer, None)
-        
-        matching_answer = interaction.get_matching_answer("feelbadheadarch", None) 
+
+        matching_answer = interaction.get_matching_answer_closed_question(
+            "feelbadheadarch", None)
         self.assertEqual(matching_answer['choice'], "Bâd heâdarch")
 
-        ## Cannot append on production as 
-        ## this keyword would not be registered on the dispatcher            
-        matching_answer = interaction.get_matching_answer("feelbadheadarchthismorning", None) 
+        ## Cannot append on production as
+        ## this keyword would not be registered on the dispatcher
+        matching_answer = interaction.get_matching_answer_closed_question(
+            "feelbadheadarchthismorning", None)
         self.assertEqual(matching_answer, None)
 
-
-    def test_get_actions_from_matching_answer_open_question(self):                
+    def test_get_actions_from_matching_answer_open_question(self):
         dialogue = self.mkobj_dialogue_open_question()
         interaction = Interaction(**dialogue['interactions'][0])
 
@@ -185,7 +202,7 @@ class TestInteraction(TestCase, ObjectMaker):
     def test_get_offset_time_delta(self):
         dialogue = self.mkobj_dialogue_announcement_offset_time()
         interaction = Interaction(**dialogue['interactions'][0])
-        
+
         self.assertEqual(
             timedelta(seconds=10),
             interaction.get_offset_time_delta())
