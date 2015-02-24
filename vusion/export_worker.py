@@ -1,20 +1,23 @@
+import os
 import sys
 import traceback
-import csv
+import codecs
 
 from pymongo import MongoClient
 
 from twisted.internet.defer import inlineCallbacks, maybeDeferred, returnValue
 
 from vumi.persist.txredis_manager import TxRedisManager
-from vumi.config import ConfigText, ConfigInt
+from vumi.config import ConfigText, ConfigInt, ConfigFloat
 from vumi.worker import BaseWorker
 from vumi import log
 
 from vusion.connectors import ReceiveExportWorkerControlConnector
 from vusion.message import ExportWorkerControl
 from vusion.persist import (ParticipantManager, HistoryManager,
-                            ScheduleManager, UnmatchableReplyManager)
+                            ScheduleManager, UnmatchableReplyManager,
+                            ExportManager)
+from vusion.component import BasicLogger
 
 
 class ExportWorkerConfig(BaseWorker.CONFIG_CLASS):
@@ -26,6 +29,12 @@ class ExportWorkerConfig(BaseWorker.CONFIG_CLASS):
     application_name = ConfigText(
         "The name this application instance will use to create its queues.",
         required=True, static=True)
+    database = ConfigText(
+        "The database to retrieve the exports collection.",
+        required=True, static=True)
+    max_total_export_megabytes = ConfigFloat(
+        "The maximum number of Mo which could be used for exported files.",
+        default=1000, static=True)
     mongodb_host = ConfigText(
         "The host machine address for mongodb",
         default='localhost', static=True)
@@ -61,37 +70,59 @@ class ExportWorker(BaseWorker):
             d.addCallback(lambda r: self.unpause_connectors())
         return d
 
-    @inlineCallbacks
     def setup_application(self):
-        r_config = self.config.get('redis_manager', {})
-        self.redis = yield TxRedisManager.from_config(r_config)
+        self.mongo = MongoClient(
+            self.config['mongodb_host'],
+            self.config['mongodb_port'])
+        db = self.mongo[self.config['database']]
+        self.exports = ExportManager(db, 'exports')
+        self.exports.set_log_helper(BasicLogger())
 
     def teardown_worker(self):
         d = self.pause_connectors()
         d.addCallback(lambda r: self.teardown_application())
         return d
 
-    @inlineCallbacks
     def teardown_application(self):
-        yield self.redis._close()
+        pass
+
+    def get_file_size(self, file_full_name):
+        return os.path.getsize(file_full_name)
+
+    def megabytes2bytes(self, megabytes):
+        return long(megabytes * 1024 * 1024)
+
+    def has_reach_space_limit(self):
+        limit = self.megabytes2bytes(self.config['max_total_export_megabytes'])
+        return self.exports.has_export_space(limit)
 
     @inlineCallbacks
     def dispatch_control(self, msg):
         try:
             log.debug("Exporting %r" % msg)
-            if msg['message_type'] == 'export_participants':
-                yield self.export_participants(msg)
-            elif msg['message_type'] == 'export_history':
-                self.export_history(msg)
-            elif msg['message_type'] == 'export_unmatchable_reply':
-                self.export_unmatchable_reply(msg)
-            yield self.redis.decr(msg['redis_key'])
+            export = self.exports.get_export(msg['export_id'])
+            if export is None:
+                raise Exception('Cannot retrieve export %s' % msg['export_id'])
+            if self.has_reach_space_limit():
+                self.exports.no_space(export['_id'])
+                return
+            self.exports.processing(export['_id'])
+            if export.is_participants_export():
+                yield self.export_participants(export)
+            elif export.is_history_export():
+                self.export_history(export)
+            elif export.is_unmatchable_reply_export():
+                self.export_unmatchable_reply(export)
+            self.exports.success(
+                export['_id'], self.get_file_size(export['file-full-name']))
         except Exception as e:
-            self.redis.decr(msg['redis_key'])
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            log.error(
-                "Exception: %r" %
-                traceback.format_exception(exc_type, exc_value, exc_traceback))
+            error = "Exception: %r" % traceback.format_exception(
+                exc_type,
+                exc_value,
+                exc_traceback)
+            log.error(error)
+            self.exports.failed(msg['export_id'], e.message)
 
     @inlineCallbacks
     def replace_join(self, conditions, schedule_mgr):
@@ -119,18 +150,16 @@ class ExportWorker(BaseWorker):
             returnValue(result_conditions)
 
     @inlineCallbacks
-    def export_participants(self, msg):
-        config = self.get_static_config()
-        mongo = MongoClient(config.mongodb_host, config.mongodb_port)
-        db = mongo[msg['database']]
+    def export_participants(self, export):
+        db = self.mongo[export['database']]
         schedule_mgr = ScheduleManager(db, 'schedules')
-        conditions = yield self.replace_join(msg['conditions'], schedule_mgr)
+        conditions = yield self.replace_join(export['conditions'], schedule_mgr)
         log.debug("running conditions %r" % conditions) 
-        participant_mgr = ParticipantManager(db, msg['collection'])
+        participant_mgr = ParticipantManager(db, export['collection'])
         headers = ['phone', 'tags'] 
         label_headers = yield participant_mgr.get_labels(conditions)
         headers += label_headers
-        with open(msg['file_full_name'], 'wb') as csvfile:
+        with codecs.open(export['file-full-name'], 'wb', 'utf-8') as csvfile:
             csvfile.write("%s\n" % ','.join(headers))
             cursor = participant_mgr.get_participants(conditions)
             row_template = dict((header, "") for header in headers)
@@ -146,26 +175,24 @@ class ExportWorker(BaseWorker):
                             'One label %s of %s was missed on %s'% (
                                 label['label'],
                                 participant['phone'],
-                                msg['conditions']))
+                                export['conditions']))
                     row[label['label']] = '"%s"' % label['value']
                 ordered_row = []
                 for header in headers:
                     ordered_row.append(row[header])
                 csvfile.write("%s\n" % ','.join(ordered_row))
 
-    def export_history(self, msg):
-        config = self.get_static_config()
-        mongo = MongoClient(config.mongodb_host, config.mongodb_port)
-        db = mongo[msg['database']]
-        manager = HistoryManager(db, msg['collection'], None, None)
+    def export_history(self, export):
+        db = self.mongo[export['database']]
+        manager = HistoryManager(db, export['collection'], None, None)
         headers = ['participant-phone',
                    'message-direction',
                    'message-status',
                    'message-content',
                    'timestamp'] 
-        with open(msg['file_full_name'], 'wb') as csvfile:
+        with codecs.open(export['file-full-name'], 'wb', 'utf-8') as csvfile:
             csvfile.write("%s\n" % ','.join(headers))
-            cursor = manager.get_historys(msg['conditions'])
+            cursor = manager.get_historys(export['conditions'])
             row_template = dict((header, "") for header in headers)
             for history in cursor:
                 if history is None:
@@ -181,18 +208,16 @@ class ExportWorker(BaseWorker):
                     ordered_row.append(row[header])
                 csvfile.write("%s\n" % ','.join(ordered_row))
 
-    def export_unmatchable_reply(self, msg):
-        config = self.get_static_config()
-        mongo = MongoClient(config.mongodb_host, config.mongodb_port)
-        db = mongo[msg['database']]
-        manager = UnmatchableReplyManager(db, msg['collection'])
+    def export_unmatchable_reply(self, export):
+        db = self.mongo[export['database']]
+        manager = UnmatchableReplyManager(db, export['collection'])
         headers = ['from',
                    'to',
                    'message-content',
                    'timestamp']
-        with open(msg['file_full_name'], 'wb') as csv_file:
+        with codecs.open(export['file-full-name'], 'wb', 'utf-8') as csv_file:
             csv_file.write("%s\n" % ','.join(headers))
-            cursor = manager.get_unmatchable_replys(msg['conditions'])
+            cursor = manager.get_unmatchable_replys(export['conditions'])
             row_template = dict((header, "") for header in headers)
             for unmatchable in cursor:
                 if unmatchable is None:

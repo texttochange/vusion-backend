@@ -203,18 +203,10 @@ class MessageMaker:
             worker_class=worker_class,
             config=config)
 
-    def mkmsg_exportworker_control(self, message_type,
-                                   file_full_name, conditions=[],
-                                   collection='participants',
-                                   database='localhost',
-                                   redis_key='unittest'):
+    def mkmsg_exportworker_control(self, export_id):
         return ExportWorkerControl(
-            message_type=message_type,
-            database=database,
-            collection=collection,
-            conditions=conditions,
-            file_full_name=file_full_name,
-            redis_key=redis_key)
+            message_type='export',
+            export_id=export_id)
 
     def mkmsg_dialogueworker_control(self, **kwargs):
         return WorkerControl(**kwargs)
@@ -1195,3 +1187,21 @@ class ObjectMaker:
             }
         }
         return WorkerConfig(**worker_config)
+
+    #def mkobj_export(self, **kwargs):
+        #return Export(**self.mkdoc_export(**kwargs))
+
+    def mkdoc_export(self, database='test', collection='history', 
+                     file_full_name='file.csv', 
+                     conditions={}, filters={}, order={}, status='queued',
+                     timestamp="2014-01-01T10:10:00", size=134L):
+        return {'object-type': 'export',
+                'timestamp': timestamp,
+                'database': database,
+                'collection': collection,
+                'filters': filters,
+                'conditions': conditions,
+                'order': order,
+                'status': status,
+                'size': size,
+                'file-full-name': file_full_name}
