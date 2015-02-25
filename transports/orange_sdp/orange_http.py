@@ -34,6 +34,7 @@ class OrangeSdpHttpTransport(Transport):
 
     @inlineCallbacks
     def setup_transport(self):
+        self.subscription_ids = []
         log.msg("Setup Orange SDP Transport %s" % self.config)
         ## Make sure there is not tailing / in the url
         self.config['url'] = re.sub('/$','', self.config['url'])
@@ -43,12 +44,16 @@ class OrangeSdpHttpTransport(Transport):
                        self.publish_message,
                        self.publish_delivery_report)
         ]
+        for active_subscription in self.config['active_subscriptions']:
+            direction, sub_id = active_subscription.split("|")
+            self.subscription_ids.append((direction, sub_id))
         self.web_resources = yield self.start_web_resources(
             resources, self.config['receive_port'])
         yield self.set_callbacks()
 
     @inlineCallbacks
     def set_callbacks(self):
+        yield self.stop_callbacks()
         yield self.set_mo_callback()
         for prefix, codes in self.config['shortcodes'].iteritems():
             for code in codes:
@@ -133,10 +138,10 @@ class OrangeSdpHttpTransport(Transport):
             reason = "TRANSPORT FAILD SET MO CALLBACK %s - %s" % (
                 response.code, (response_body or ''))
             log.error(reason)
-            self.teardown_transport()
+            return
         sub_id = self.from_sub_mo_response_2_sub_id(response_body)
         self.subscription_ids.append(('inbound', sub_id))
-        log.msg("Callback Mo Registered!")
+        log.msg("Callback Mo Registered with sub_id %s!" % sub_id)
 
     @inlineCallbacks
     def set_dlr_callback(self, shortcode):
@@ -169,7 +174,7 @@ class OrangeSdpHttpTransport(Transport):
 
     @inlineCallbacks
     def stop_subscription(self, direction, subscription_id):
-        log.msg("Stopping subscription %s..." % subscription_id)
+        log.msg("Stopping subscription %s | %s..." % (direction, subscription_id))
         response = yield http_request_full(
         "%s/1/smsmessaging/%s/subscriptions/%s" % (
             self.config['url'], direction, str(subscription_id)),
@@ -178,6 +183,12 @@ class OrangeSdpHttpTransport(Transport):
             'Content-Type': ['application/json;charset=UTF-8'],
             'Authorization': ['AUTH %s' % self.get_auth_header()]},
         method='DELETE')
+        if response.code == http.NO_CONTENT:
+            log.msg("Unsubscribe succeed %s %s" % (direction, subscription_id))
+            return
+        response_body = self.get_req_content(response)
+        log.msg("Unsubscribe FAILED %s - %s" (
+            response.code, (response_body or '')))
 
     @inlineCallbacks
     def handle_outbound_message(self, message):
