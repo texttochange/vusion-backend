@@ -14,7 +14,20 @@ class ParticipantManager(ModelManager):
         super(ParticipantManager, self).__init__(db, collection_name, **kwargs)
         self.collection.ensure_index('phone', background=True)
 
-    def opting_in(self, participant_phone, safe=True):
+    ## return False if the participant is already optin
+    def opting_in(self, participant_phone):
+        participant = self.get_participant(participant_phone)
+        if not participant:
+            ## The participant is opting in for the first time
+            self.opting_in_first(participant_phone, True)
+            return True
+        elif participant['session-id'] is None:
+            ## The participant is optout and opting in again
+            self.opting_in_again(participant_phone)
+            return True
+        return False
+
+    def opting_in_first(self, participant_phone, safe=True):
         participant = Participant(**{
             'phone': participant_phone,
             'session-id': uuid4().get_hex(), 
