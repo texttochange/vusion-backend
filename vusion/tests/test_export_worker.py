@@ -210,13 +210,13 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
     @inlineCallbacks
     def test_export_unmatchable_reply(self):
         manager = UnmatchableReplyManager(
-            self.mongo['test_vusion'], 'unmatchable-reply')
+            self.mongo['test_vusion'], 'unmatchable_reply')
         unmatchable = self.mkobj_unmatchable_reply()
         manager.save_document(unmatchable)
 
         export = Export(**self.mkdoc_export(
                             database='test_vusion',
-                            collection='unmatchable-reply',
+                            collection='unmatchable_reply',
                             file_full_name='testing_export.csv',
                             conditions={}))
         export_id = self.exports.save_object(export)
