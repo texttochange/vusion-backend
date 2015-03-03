@@ -954,3 +954,29 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(messages[0]['to_addr'], '+1545')
         self.assertRegexpMatches(messages[0]['content'], '\+5987 is already in the program')
 
+
+    @inlineCallbacks
+    def test_run_action_sms_invite_invitee_phone_empty(self):
+        self.initialize_properties()
+
+        sender = self.mkobj_participant(
+            participant_phone='+1545',
+            profile=[{'label': 'name',
+                      'value': 'max'},
+                     {'label': 'address',
+                      'value': 'kampala'}],
+            tags=['my tag'])
+        self.collections['participants'].save(sender)
+
+        sms_invite = SmsInviteAction(**{
+            'invite-content': 'invites you',
+            'invitee-tag': 'invited',
+            'feedback-already-optin': '[context.message.2] is already in the program'})
+        context = Context(**{'message': 'Join ',
+                             'request-id': '1'})
+        yield self.worker.run_action(sender['phone'], sms_invite, context)
+
+        messages = yield self.app_helper.get_dispatched_outbound()
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0]['to_addr'], '+1545')
+        self.assertRegexpMatches(messages[0]['content'], 'empty phone number sent')

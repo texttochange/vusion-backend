@@ -501,12 +501,6 @@ class SmsInviteAction(Action):
             'invitee-tag',
             'feedback-already-optin')
 
-    def get_sender_message_invitee_phone(self, context):
-            second_word = context.get_message_second_word()
-            if second_word is None:
-                return {'phone': ''}
-            return {'phone': clean_phone(second_word)}
-
 
 def action_generator(**kwargs):
     # Condition to be removed when Dialogue structure freezed
