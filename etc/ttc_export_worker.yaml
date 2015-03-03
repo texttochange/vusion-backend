@@ -2,3 +2,6 @@ application_name: export
 
 mongodb_host: localhost
 mongodb_port: 27017
+
+database: vusion
+max_total_export_megabytes: 1000

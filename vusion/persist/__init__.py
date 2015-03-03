@@ -46,6 +46,9 @@ from unattached_message.unattached_message_manager import UnattachedMessageManag
 
 from cursor_instanciator import CursorInstanciator
 
+from export.export import Export
+from export.export_manager import ExportManager
+
 __all__ = ["Model", "ModelManager",
            "Dialogue", "DialogueManager", 
            "Interaction",
@@ -66,4 +69,5 @@ __all__ = ["Model", "ModelManager",
            "UnmatchableReply", "UnmatchableReplyManager",
            "Template", "TemplateManager",
            "ContentVariable", "ContentVariableManager",
-           "CursorInstanciator"]
+           "CursorInstanciator",
+           "Export", "ExportManager"]

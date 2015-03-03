@@ -78,31 +78,9 @@ class MultiWorkerControl(Message):
 class ExportWorkerControl(Message):
 
     CONTROL_TYPES = {
-        'export_participants': {
-            'file_full_name': lambda v: v is not None,
-            'conditions': lambda v: isinstance(v, dict),
-            'database': lambda v: v is not None,
-            'collection': lambda v: v is not None,
-            'redis_key': lambda v: v is not None},
-        'export_history': {
-            'file_full_name': lambda v: v is not None,
-            'conditions': lambda v: isinstance(v, dict),
-            'database': lambda v: v is not None,
-            'collection': lambda v: v is not None,
-            'redis_key': lambda v: v is not None},
-        'export_unmatchable_reply': {
-            'file_full_name': lambda v: v is not None,
-            'conditions': lambda v: isinstance(v, dict),
-            'database': lambda v: v is not None,
-            'collection': lambda v: v is not None,
-            'redis_key': lambda v: v is not None}}
-
-    ## emtpy dictionary might be converted to list
-    def process_fields(self, fields):
-        log.debug("process fields!!!")
-        if 'conditions' in fields and (fields['conditions'] is None or fields['conditions'] == []):
-            fields['conditions'] = {}
-        return fields
+        'export': {
+            'export_id': lambda v: v is not None,
+        }}
 
     def validate_fields(self):
         self.assert_field_present('message_type')
