@@ -433,7 +433,7 @@ class DialogueWorker(ApplicationWorker):
         sender = self.collections['participants'].get_participant(participant_phone)
         invitee_phone = clean_phone(context.get_message_second_word())
 
-        if (invitee_phone == '+'):
+        if (invitee_phone is None):
             schedule = FeedbackSchedule(**{
                 'participant-phone': sender['phone'],
                 'participant-session-id': sender['session-id'],
@@ -441,32 +441,33 @@ class DialogueWorker(ApplicationWorker):
                 'content': 'empty phone number sent',
                 'context': context.payload})
             yield self.send_schedule(schedule)
+            return
+        if self.collections['participants'].opting_in(invitee_phone):
+            ## The participant is opting
+            invitee = self.collections['participants'].get_participant(invitee_phone)
+            self.collections['participants'].tagging(
+                invitee['phone'], action['invitee-tag'])
+            content = self.customize_message(
+                action['invite-content'],
+                participant_phone,
+                context)
+            schedule = FeedbackSchedule(**{
+                'participant-phone': invitee['phone'],
+                'participant-session-id': invitee['session-id'],
+                'date-time': self.get_local_time('vusion'),
+                'content': content,
+                'context': context.payload})
+            yield self.send_schedule(schedule)
+            return
         else:
-            if self.collections['participants'].opting_in(invitee_phone):
-                ## The participant is opting
-                invitee = self.collections['participants'].get_participant(invitee_phone)
-                self.collections['participants'].tagging(
-                    invitee['phone'], action['invitee-tag'])
-                content = self.customize_message(
-                    action['invite-content'],
-                    participant_phone,
-                    context)
-                schedule = FeedbackSchedule(**{
-                    'participant-phone': invitee['phone'],
-                    'participant-session-id': invitee['session-id'],
-                    'date-time': self.get_local_time('vusion'),
-                    'content': content,
-                    'context': context.payload})
-                yield self.send_schedule(schedule)
-            else:
-                schedule = FeedbackSchedule(**{
-                    'participant-phone': sender['phone'],
+            schedule = FeedbackSchedule(**{
+            'participant-phone': sender['phone'],
                     'participant-session-id': sender['session-id'],
                     'date-time': self.get_local_time('vusion'),
                     'content': action['feedback-already-optin'],
-                    'context': context.payload})
-                yield self.send_schedule(schedule)
-
+                'context': context.payload})
+        yield self.send_schedule(schedule)
+    
     def consume_user_message(self, message):
         self.log("User message received from %s '%s'" % (message['from_addr'],
                                                          message['content']))
