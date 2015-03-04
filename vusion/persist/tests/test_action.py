@@ -470,6 +470,6 @@ class TestSmsInviteAction(TestCase, ObjectMaker):
             'type-action': 'sms-invite',
             'invite-content': 'iam inviting you',
             'invitee-tag': 'invited',
-            'feedback-already-optin': 'already in the program'}
+            'feedback-inviter': 'already in the program'}
         a = action_generator(**action)
         self.assertTrue(isinstance(a, SmsInviteAction))

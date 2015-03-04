@@ -438,7 +438,7 @@ class DialogueWorker(ApplicationWorker):
                 'participant-phone': sender['phone'],
                 'participant-session-id': sender['session-id'],
                 'date-time': self.get_local_time('vusion'),
-                'content': 'empty phone number sent',
+                'content': action['feedback-inviter'],
                 'context': context.payload})
             yield self.send_schedule(schedule)
             return
@@ -464,7 +464,7 @@ class DialogueWorker(ApplicationWorker):
             'participant-phone': sender['phone'],
                     'participant-session-id': sender['session-id'],
                     'date-time': self.get_local_time('vusion'),
-                    'content': action['feedback-already-optin'],
+                    'content': action['feedback-inviter'],
                 'context': context.payload})
         yield self.send_schedule(schedule)
     

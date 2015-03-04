@@ -499,7 +499,7 @@ class SmsInviteAction(Action):
         self.assert_field_present(
             'invite-content',
             'invitee-tag',
-            'feedback-already-optin')
+            'feedback-inviter')
 
 
 def action_generator(**kwargs):

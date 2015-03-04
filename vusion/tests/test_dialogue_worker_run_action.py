@@ -879,7 +879,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         sms_invite = SmsInviteAction(**{
             'invite-content': '[participant.name]([participant.phone]) invites you',
             'invitee-tag': 'invited',
-            'feedback-already-optin': 'already in the program'})
+            'feedback-inviter': 'already in the program'})
         context = Context(**{'message': 'Join +569',
                                      'request-id': '1'})        
         yield self.worker.run_action(sender['phone'], sms_invite, context)
@@ -912,7 +912,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         sms_invite = SmsInviteAction(**{
             'invite-content': 'invites you',
             'invitee-tag': 'invited',
-            'feedback-already-optin': 'already in the program'})
+            'feedback-inviter': 'already in the program'})
         context = Context(**{'message': 'Join +598',
                                      'request-id': '1'})        
         yield self.worker.run_action(sender['phone'], sms_invite, context)
@@ -944,7 +944,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         sms_invite = SmsInviteAction(**{
             'invite-content': 'invites you',
             'invitee-tag': 'invited',
-            'feedback-already-optin': '[context.message.2] is already in the program'})
+            'feedback-inviter': '[context.message.2] is already in the program'})
         context = Context(**{'message': 'Join +5987',
                                      'request-id': '1'})        
         yield self.worker.run_action(sender['phone'], sms_invite, context)
@@ -971,7 +971,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         sms_invite = SmsInviteAction(**{
             'invite-content': 'invites you',
             'invitee-tag': 'invited',
-            'feedback-already-optin': '[context.message.2] is already in the program'})
+            'feedback-inviter': 'empty phone number sent'})
         context = Context(**{'message': 'Join ',
                              'request-id': '1'})
         yield self.worker.run_action(sender['phone'], sms_invite, context)
