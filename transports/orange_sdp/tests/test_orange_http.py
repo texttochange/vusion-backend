@@ -83,6 +83,9 @@ class OrangeSdpHttpTransportTestCase(VumiTestCase, OrangeSdpMessageMaker):
             'receive_domain': 'http://localhost',
             'receive_port': 9998,
             'receive_path': '/orangeSdp',
+            'active_subscriptions': [
+                'inbound|X'
+                ],
             'shortcodes': {
                 '256': ['8181'],    #as shortcode: internation-prefix
                 '254': ['8181', '21222']}
@@ -118,6 +121,8 @@ class OrangeSdpHttpTransportTestCase(VumiTestCase, OrangeSdpMessageMaker):
     @inlineCallbacks
     def setUp_transport_callback_done(self):
         self.mock_orange_server_response.append((
+                    http.NO_CONTENT,''))
+        self.mock_orange_server_response.append((
             http.CREATED,
             json.dumps(self.mk_start_sms_notification_response('Z'))))
         ##dlr subscriptions
@@ -141,6 +146,9 @@ class OrangeSdpHttpTransportTestCase(VumiTestCase, OrangeSdpMessageMaker):
 
     @inlineCallbacks
     def test_dlr_set_callbacks(self):
+        ##remove previous subscriptions:
+        self.mock_orange_server_response.append((
+            http.NO_CONTENT,''))
         ##mo subscription
         self.mock_orange_server_response.append((
             http.CREATED, 
@@ -157,6 +165,12 @@ class OrangeSdpHttpTransportTestCase(VumiTestCase, OrangeSdpMessageMaker):
             json.dumps(self.mk_start_delivery_receipt_response('25421222','X'))))
 
         self.transport = yield self.tx_helper.get_transport(self.config)
+
+        req = yield self.orange_calls.get()
+        self.assert_auth(req)
+        self.assertEqual(
+            req.uri, '/1/smsmessaging/inbound/subscriptions/X')
+        self.orange_content_calls.pop(0)
 
         req = yield self.orange_calls.get()
         self.assert_auth(req)
@@ -239,7 +253,7 @@ class OrangeSdpHttpTransportTestCase(VumiTestCase, OrangeSdpMessageMaker):
         self.mock_orange_server_response.append((
             http.CREATED, json.dumps(self.mk_mt_response())))
         yield self.tx_helper.make_dispatch_outbound(
-            "hello world", message_id='1', from_addr='8181', to_addr='254111')
+            "hello world", message_id='1', from_addr='8181', to_addr='+254111')
 
         req = yield self.orange_calls.get()
         self.assert_auth(req)
@@ -259,7 +273,7 @@ class OrangeSdpHttpTransportTestCase(VumiTestCase, OrangeSdpMessageMaker):
         self.mock_orange_server_response.append(
             (http.BAD_REQUEST, json.dumps(self.mk_policy_error_response())))
         yield self.tx_helper.make_dispatch_outbound(
-            "hello world", message_id='1', from_addr="8181", to_addr="254111")
+            "hello world", message_id='1', from_addr="8181", to_addr="+254111")
 
         req = yield self.orange_calls.get()
 
@@ -279,7 +293,7 @@ class OrangeSdpHttpTransportTestCase(VumiTestCase, OrangeSdpMessageMaker):
         self.mock_orange_server.stop()
 
         yield self.tx_helper.make_dispatch_outbound(
-            "hello world", message_id='1', from_addr='8181', to_addr='254111')
+            "hello world", message_id='1', from_addr='8181', to_addr='+254111')
 
         [event] = yield self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'nack')

@@ -1,6 +1,4 @@
-from vumi.utils import get_first_word
-
-from vusion.utils import clean_keyword
+from vusion.utils import clean_keyword, get_first_msg_word
 from vusion.persist import Model
 from vusion.persist.action import Actions, action_generator, FeedbackAction
 
@@ -85,7 +83,7 @@ class Request(Model):
             if clean_msg in self.matching_keyphrases:
                 return True
         else:
-            msg_keyword = get_first_word(msg)
+            msg_keyword = get_first_msg_word(msg)
             clean_msg_keyword = clean_keyword(msg_keyword)
             if self.is_lazy_matching() and clean_msg_keyword in self.matching_keywords:
                 return True

@@ -126,7 +126,25 @@ class ParticipantManager(ModelManager):
         def log(exception, item=None):
             self.log("Exception %r while instanciating a participant %r" % (exception, item))
         return CursorInstanciator(self.collection.find(query), Participant, [log])
-    
+
+    @inlineCallbacks
+    def get_labels(self, query=None):
+        d = deferToThread(self._get_labels_async, query)
+        yield d
+
+    def _get_labels_async(self, query):
+        pipeline = []
+        if query != None and query != []:
+            pipeline.append({'$match': query})
+        pipeline.append({'$project': {'_id': 0, 'profile': 1}})
+        pipeline.append({'$unwind': '$profile'})
+        pipeline.append({'$group': {'_id': '$profile.label'}})
+        cursor = self.aggregate(pipeline, cursor={})
+        results = []
+        for label in cursor:
+            results.append(label['_id'])
+        returnValue(results)
+
     def is_tagged(self, participant_phone, tags):
         query = {'phone': participant_phone,
                  'tags': {'$in': tags}}

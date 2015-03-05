@@ -241,3 +241,20 @@ class TestParticipantManager(TestCase, ObjectMaker):
         count = yield self.manager.count_label_async({'label': 'age', 'value': '31'})
         self.assertEqual(count, 0)
 
+    @inlineCallbacks
+    def test_get_labels(self):
+        participant = self.mkobj_participant(
+            '1',
+            profile=[{'label': 'name', 'value': 'olivier'}])
+        self.manager.save(participant)
+        participant = self.mkobj_participant(
+                    '2',
+                    profile=[{'label': 'name', 'value': 'mark'},
+                             {'label': 'age', 'value': '32'}])
+        self.manager.save(participant)
+
+        results = []
+        labels = yield self.manager.get_labels()
+        for result in labels:
+            results.append(result)
+        self.assertEqual(results, ['age', 'name'])

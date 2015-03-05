@@ -191,4 +191,15 @@ class ScheduleManager(ModelManager):
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id})
         return self.save_schedule(schedule)
-        
+    
+    @inlineCallbacks
+    def get_unique_participant_phones(self):
+        d = deferToThread(self._get_unique_participant_phones)
+        yield d
+
+    def _get_unique_participant_phones(self):
+        pipeline = [
+            {'$project': {'_id': 0, 'participant-phone': 1}},
+            {'$group': {'_id': '$participant-phone'}}]
+        cursor = self.aggregate(pipeline, cursor={})
+        returnValue(cursor)

@@ -11,12 +11,13 @@ from vumi.message import (TransportEvent, TransportMessage,
 from vumi.transports.failures import FailureMessage
 from vumi.tests.utils import RegexMatcher, UTCNearNow
 
-from vusion.message import DispatcherControl, WorkerControl
+from vusion.message import (
+    DispatcherControl, WorkerControl, MultiWorkerControl, ExportWorkerControl)
 
-from vusion.persist import (Dialogue, DialogueHistory, UnattachHistory,
-                            history_generator, schedule_generator, Participant,
-                            UnattachedMessage, Request, Interaction, ProgramCreditLog,
-                            WorkerConfig, UnmatchableReply)
+from vusion.persist import (
+    Dialogue, DialogueHistory, UnattachHistory, history_generator,
+    schedule_generator, Participant, UnattachedMessage,
+    Request, Interaction, ProgramCreditLog, WorkerConfig, UnmatchableReply)
 
 from vusion.utils import time_to_vusion_format_date
 
@@ -196,11 +197,24 @@ class MessageMaker:
                                   config=None):
         if config is None:
             config = []
-        return Message(
+        return MultiWorkerControl(
             message_type=message_type,
             worker_name=worker_name,
             worker_class=worker_class,
             config=config)
+
+    def mkmsg_exportworker_control(self, message_type,
+                                   file_full_name, conditions=[],
+                                   collection='participants',
+                                   database='localhost',
+                                   redis_key='unittest'):
+        return ExportWorkerControl(
+            message_type=message_type,
+            database=database,
+            collection=collection,
+            conditions=conditions,
+            file_full_name=file_full_name,
+            redis_key=redis_key)
 
     def mkmsg_dialogueworker_control(self, **kwargs):
         return WorkerControl(**kwargs)
@@ -761,7 +775,24 @@ class ObjectMaker:
                 ],
             "interaction-id": "script.dialogues[0].interactions[0]"
         }).get_as_dict()
-    
+
+
+    def mkobj_interaction_question_answer_open(self):
+            return Interaction(**{
+                'activated': 1,
+                'type-schedule': 'offset-time',
+                'minutes': '2',
+                "type-interaction": "question-answer",
+                "type-question": "open-question",
+                "content": "How are you [participant.name]?",
+                "keyword": "Feel",
+                "set-use-template": "use-template",
+                "type-reminder": "no-reminder",
+                "interaction-id": "script.dialogues[0].interactions[0]"
+            }).get_as_dict()
+
+
+
     def mkobj_dialogue_question_answer(self):
         return Dialogue(**deepcopy(self.dialogue_question_answer)).get_as_dict()
 
@@ -1018,6 +1049,16 @@ class ObjectMaker:
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id,
             'timestamp': timestamp}).get_as_dict()
+
+    def mkobj_history_datepassed_marker(self, dialogue_id, interaction_id, timestamp,
+                                         participant_phone='06', participant_session_id='1'):
+            return history_generator(**{
+                'object-type': 'datepassed-marker-history',
+                'participant-phone': participant_phone,
+                'participant-session-id':participant_session_id,
+                'dialogue-id': dialogue_id,
+                'interaction-id': interaction_id,
+                'timestamp': timestamp}).get_as_dict()
 
     def mkobj_history_dialogue_open_question(self, dialogue_id, interaction_id,
                                timestamp, participant_phone='06',

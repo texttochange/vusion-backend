@@ -111,3 +111,19 @@ class VusionAddressAddInternationalPrefix(VumiTestCase, MessageMaker):
         msg_1 = self.mkmsg_in(from_addr="888")
         msg_1 = self.mw.handle_inbound(msg_1 , 'dummy_endpoint')
         self.assertEqual(msg_1['from_addr'], '+254888')
+
+
+class VusionAddressOverwriteFromAddr(VumiTestCase, MessageMaker):
+
+    def setUp(self):
+        dummy_worker = object()
+        self.mw = VusionAddressMiddleware(
+            'mw1',
+            {'overwrite_from_addr': 'ttccp'},
+            dummy_worker)
+        self.mw.setup_middleware()
+
+    def test_handle_inbound(self):
+        msg_1 = self.mkmsg_out(from_addr="474")
+        msg_1 = self.mw.handle_outbound(msg_1 , 'dummy_endpoint')
+        self.assertEqual(msg_1['from_addr'], 'ttccp')

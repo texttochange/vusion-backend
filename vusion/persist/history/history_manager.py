@@ -10,6 +10,7 @@ from vusion.persist.model_manager import ModelManager
 from vusion.utils import (time_to_vusion_format, time_to_vusion_format_date, 
                           date_from_vusion_format)
 from vusion.component.flying_messsage_manager import FlyingMessageManager
+from vusion.persist.cursor_instanciator import CursorInstanciator
 from history import history_generator
 
 
@@ -39,6 +40,11 @@ class HistoryManager(ModelManager):
         if result is None:
             return None
         return history_generator(**result)
+
+    def get_historys(self, query=None):
+        def log(exception, item=None):
+            self.log("Exception %r while instanciating an history %r" % (exception, item))
+        return CursorInstanciator(self.collection.find(query), history_generator, [log])
 
     def save_history(self, **kwargs):
         if 'timestamp' in kwargs and not isinstance(kwargs['timestamp'], str):
@@ -92,7 +98,6 @@ class HistoryManager(ModelManager):
             credits,
             new_status)
         return new_status, old_status, credits
-
 
     def update_status(self, history_id, status):
         message_status = None
@@ -238,7 +243,6 @@ class HistoryManager(ModelManager):
             return None
         return history_generator(**result)
 
-
     def get_history_of_offset_condition_answer(self, participant, dialogue_id,
                                                interaction_id):
         result = self.collection.find_one(
@@ -253,24 +257,6 @@ class HistoryManager(ModelManager):
             return None
         return history_generator(**result)
 
-    def add_oneway_marker(self, participant_phone, participant_session_id,
-                          context):
-        if self.has_oneway_marker(participant_phone, participant_session_id, 
-                                  context['dialogue-id'], context['interaction-id']):
-            return
-        history = {
-            'object-type': 'oneway-marker-history',
-            'participant-phone': participant_phone,
-            'participant-session-id':participant_session_id,
-            'dialogue-id': context['dialogue-id'],
-            'interaction-id': context['interaction-id']}
-        self.save_history(**history)
-
-    #def has_oneway_marker(self, participant, dialogue_id, interaction_id):
-        #return self.has_oneway_marker(
-            #participant['phone'], participant['session-id'],
-            #dialogue_id, interaction_id)
-
     def has_oneway_marker(self, participant_phone, participant_session_id,
                           dialogue_id, interaction_id):
         return self.collection.find_one({
@@ -278,7 +264,27 @@ class HistoryManager(ModelManager):
             'participant-phone': participant_phone,
             'participant-session-id':participant_session_id,
             'dialogue-id': dialogue_id,
-            'interaction-id': interaction_id}) is not None
+            'interaction-id': interaction_id
+        }) is not None
+
+    def has_marker(self, participant, dialogue_id, interaction_id):
+        return self.collection.find_one(
+            {'participant-phone': participant['phone'],
+             'participant-session-id': participant['session-id'],
+             'dialogue-id': dialogue_id,
+             'interaction-id': interaction_id,
+             '$or': [{'object-type': 'oneway-marker-history'},
+                     {'object-type': 'datepassed-marker-history'}]
+             }) is not None
+
+    def has_datepassed_marker(self, participant, dialogue_id, interaction_id):
+        return self.collection.find_one(
+            {'participant-phone': participant['phone'],
+             'participant-session-id': participant['session-id'],
+             'dialogue-id': dialogue_id,
+             'interaction-id': interaction_id,
+             'object-type': 'datepassed-marker-history'
+            }) is not None
 
     def participant_has_max_unmatching_answers(self, participant, dialogue_id, interaction):
         if (not interaction.has_max_unmatching_answers()):
@@ -359,6 +365,19 @@ class HistoryManager(ModelManager):
         history.update(context.get_dict_for_history(schedule))
         self.save_history(**history)
 
+    def add_oneway_marker(self, participant_phone, participant_session_id,
+                          context):
+        if self.has_oneway_marker(participant_phone, participant_session_id, 
+                                  context['dialogue-id'], context['interaction-id']):
+            return
+        history = {
+            'object-type': 'oneway-marker-history',
+            'participant-phone': participant_phone,
+            'participant-session-id':participant_session_id,
+            'dialogue-id': context['dialogue-id'],
+            'interaction-id': context['interaction-id']}
+        self.save_history(**history)
+
     def add_datepassed_action_marker(self, action, schedule):
         self.log("ADD DATEPASSED ACTION: action '%s' has been added for %s" % (
                    action.get_type(), schedule['participant-phone']))
@@ -370,20 +389,9 @@ class HistoryManager(ModelManager):
             'scheduled-date-time': schedule['date-time']}
         self.save_history(**history)
 
-    def add_datepassed_marker_for_interaction(self, participant, dialogue_id, interaction_id):
-        self.log("ADD DATEPASSED: the message dialogue %s and interaction %s hasn't been send to %s" % (
-                   dialogue_id, interaction_id, participant['phone']))
-        history = {
-            'object-type': 'datepassed-marker-history',
-            'participant-phone': participant['phone'],
-            'participant-session-id': participant['session-id'],
-            'dialogue-id': dialogue_id,
-            'interaction-id': interaction_id}
-        return self.save_history(**history)
-
     def add_datepassed_marker(self, schedule, context):
         self.log("ADD DATEPASSED: the schedule %r from context %r hasn't been send" % (
-            schedule, context))        
+            schedule, context))
         history = {
             'object-type': 'datepassed-marker-history',
             'participant-phone': schedule['participant-phone'],
@@ -400,4 +408,3 @@ class HistoryManager(ModelManager):
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id}).count()
         return count - 1 if count > 0 else 0
-        

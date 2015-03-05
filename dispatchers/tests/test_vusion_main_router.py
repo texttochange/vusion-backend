@@ -93,3 +93,12 @@ class TestVusionMainRouter(VumiTestCase):
             to_addr='8181',
             from_addr='+256453')   
         self.assert_dispatched_inbound('app1', [msg])
+
+    @inlineCallbacks
+    def test_inbound_message_eol(self):
+        msg = yield self.send_inbound(
+            'transport1',
+            u'espanol\njoin',
+            to_addr='8181',
+            from_addr='+256453')
+        self.assert_dispatched_inbound('app1', [msg])

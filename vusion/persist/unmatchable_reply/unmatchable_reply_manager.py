@@ -4,7 +4,7 @@ from vusion.utils import (time_to_vusion_format, date_from_vusion_format,
                           time_to_vusion_format_date, get_shortcode_value,
                           get_shortcode_international_prefix)
 from vusion.persist import ModelManager, UnmatchableReply
-
+from vusion.persist.cursor_instanciator import CursorInstanciator
 
 class UnmatchableReplyManager(ModelManager):
     
@@ -62,3 +62,8 @@ class UnmatchableReplyManager(ModelManager):
             return counters
         counters = result[0]
         return {k : int(float(counters[k])) for k in counters.iterkeys()}
+
+    def get_unmatchable_replys(self, query=None):
+        def log(exception, item=None):
+            self.log("Exception %r while instanciating an unmatchable reply %r" % (exception, item))
+        return CursorInstanciator(self.collection.find(query), UnmatchableReply, [log])
