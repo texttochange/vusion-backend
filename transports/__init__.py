@@ -7,10 +7,10 @@ from ttc_burkinafaso.ttc_burkinafaso_http import TtcBurkinafasoHttpTransport
 from yo_uganda.yo_http import YoHttpTransport
 from transports.airtel_sierra_leone.mahindra_conviva_http import (
     MahindraConvivaHttpTransport)
-
 from smsgh_ghana.smsgh_smpp import SmsghSmppTransport
 from orange_mali.orange_mali_smpp import OrangeMaliSmppTransport
 from orange_sdp.orange_http import OrangeSdpHttpTransport
+from iconcept_nigeria.iconcept_http import IConceptHttpTransport
 
 from http_forward.forward_http import ForwardHttp
 from http_forward.cioec_http import CioecHttp
@@ -26,5 +26,6 @@ __all__ = [
     "YoHttpTransport",
     "SmsghSmppTransport",
     "OrangeSdpHttpTransport",
+    "IConceptHttpTransport",
     "ForwardHttp",
     "CioecHttp"]
