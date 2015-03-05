@@ -113,7 +113,7 @@ class IConceptHttpTransport(Transport):
         config = self.get_static_config()
         try:
             transaction_id = yield self.has_transaction_id(message['to_addr'])
-            if not transaction_id is None:
+            if not transaction_id is None and len(message['content']) <= 160:
                 api = 'shortcode'
                 url = "%soutbound/sms" % config.shortcode_url.geturl()
                 data = {
@@ -132,6 +132,8 @@ class IConceptHttpTransport(Transport):
                     'sender': message['from_addr'],
                     'SMSText': message['content'],
                     'GSM': message['to_addr']}
+                if len(message['content']) > 160:
+                    data.update({'type': 'longSMS'})
 
             data_encoded = urllib.urlencode(data)
             log.msg("Hitting %s with data %s" % (url, data_encoded))

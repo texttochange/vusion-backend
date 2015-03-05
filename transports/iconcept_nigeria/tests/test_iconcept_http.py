@@ -8,10 +8,12 @@ from vumi.transports.tests.helpers import TransportHelper
 from vumi.tests.utils import VumiTestCase, MockHttpServer
 from vumi.utils import http_request_full
 
+from tests.utils import ObjectMaker
+
 from transports.iconcept_nigeria.iconcept_http import IConceptHttpTransport
 
 
-class IConceptHttpTransportTestCase(VumiTestCase):
+class IConceptHttpTransportTestCase(VumiTestCase, ObjectMaker):
 
     @inlineCallbacks
     def setUp(self):
@@ -78,7 +80,6 @@ class IConceptHttpTransportTestCase(VumiTestCase):
         self.assertEqual(event['user_message_id'], '1')
         self.assertEqual(event['sent_message_id'], '1')
 
-
     @inlineCallbacks
     def test_outbound_bulk_fail(self):
         self.mock_iconcept_bulk_server_response.append(
@@ -141,6 +142,37 @@ class IConceptHttpTransportTestCase(VumiTestCase):
         self.assertEqual('1234', req.args['transaction_id'][0])
         self.assertEqual('ttc_shortcode_login', req.args['cid'][0])
         self.assertEqual('ttc_shortcode_pwd', req.args['password'][0])
+
+        [event] = yield self.tx_helper.get_dispatched_events()
+        self.assertEqual(event['event_type'], 'ack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['sent_message_id'], '1')
+
+    @inlineCallbacks
+    def test_long_message_always_use_bulk_ok(self):
+        self.mock_iconcept_bulk_server_response.append(
+            (http.OK, 'ALL_RECIPIENTS_PROCESSED'))
+
+        response = yield http_request_full(
+            self.get_mo_url(transaction_id='1234'), method='GET')
+        self.assertEqual(response.code, http.OK)
+
+        [user_msg] = yield self.tx_helper.get_dispatched_inbound()
+        self.assertEqual('hello world', user_msg['content'])
+        self.assertEqual('2561111', user_msg['from_addr'])
+        self.assertEqual('8181', user_msg['to_addr'])
+
+        yield self.tx_helper.make_dispatch_outbound(
+            self.mk_content(161), message_id='1',
+            to_addr='2561111', from_addr='8181')
+
+        req = yield self.iconcept_bulk_calls.get()
+        self.assertEqual(161, len(req.args['SMSText'][0]))
+        self.assertEqual('2561111', req.args['GSM'][0])
+        self.assertEqual('8181', req.args['sender'][0])
+        self.assertEqual('ttc_bulk_login', req.args['user'][0])
+        self.assertEqual('ttc_bulk_pwd', req.args['password'][0])
+        self.assertEqual('longSMS', req.args['type'][0])
 
         [event] = yield self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'ack')
