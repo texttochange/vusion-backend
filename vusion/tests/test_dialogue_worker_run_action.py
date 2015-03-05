@@ -853,7 +853,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         context = Context(**{
             'message': 'ANSWER this is my message',
             'request-id': '1'})
-        yield self.worker.run_action(sender['phone'], sms_forwarding, context) 
+        yield self.worker.run_action(sender['phone'], sms_forwarding, context)
 
         messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 2)
@@ -887,7 +887,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['to_addr'], '+569')
-        self.assertRegexpMatches(messages[0]['content'], 'max\(\+154\) invites you')
+        self.assertEqual(messages[0]['content'], 'max(+154) invites you')
 
 
     @inlineCallbacks
@@ -920,7 +920,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['to_addr'], '+598')
-        self.assertRegexpMatches(messages[0]['content'], 'invites you')
+        self.assertEqual(messages[0]['content'], 'invites you')
 
 
     @inlineCallbacks
@@ -952,7 +952,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['to_addr'], '+1545')
-        self.assertRegexpMatches(messages[0]['content'], '\+5987 is already in the program')
+        self.assertEqual(messages[0]['content'], '+5987 is already in the program')
 
 
     @inlineCallbacks
@@ -979,4 +979,4 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['to_addr'], '+1545')
-        self.assertRegexpMatches(messages[0]['content'], 'empty phone number sent')
+        self.assertEqual(messages[0]['content'], 'empty phone number sent')
