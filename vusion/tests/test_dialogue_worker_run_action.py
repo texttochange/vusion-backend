@@ -880,8 +880,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             'invite-content': '[participant.name]([participant.phone]) invites you',
             'invitee-tag': 'invited',
             'feedback-inviter': 'already in the program'})
-        context = Context(**{'message': 'Join +569',
-                                     'request-id': '1'})        
+        context = Context(**{'message': 'Join +569', 'request-id': '1'})
         yield self.worker.run_action(sender['phone'], sms_invite, context)
 
         messages = yield self.app_helper.get_dispatched_outbound()
@@ -945,8 +944,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             'invite-content': 'invites you',
             'invitee-tag': 'invited',
             'feedback-inviter': '[context.message.2] is already in the program'})
-        context = Context(**{'message': 'Join +5987',
-                                     'request-id': '1'})        
+        context = Context(**{'message': 'Join +5987', 'request-id': '1'})
         yield self.worker.run_action(sender['phone'], sms_invite, context)
 
         messages = yield self.app_helper.get_dispatched_outbound()
