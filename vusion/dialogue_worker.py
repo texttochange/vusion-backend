@@ -442,7 +442,16 @@ class DialogueWorker(ApplicationWorker):
                 'context': context.payload})
             yield self.send_schedule(schedule)
             return
-        if self.collections['participants'].opting_in(invitee_phone):
+        if not self.collections['participants'].opting_in(invitee_phone):
+            schedule = FeedbackSchedule(**{
+                'participant-phone': sender['phone'],
+                'participant-session-id': sender['session-id'],
+                'date-time': self.get_local_time('vusion'),
+                'content': action['feedback-inviter'],
+                'context': context.payload})
+            yield self.send_schedule(schedule)
+            return
+        else:
             ## The participant is opting
             invitee = self.collections['participants'].get_participant(invitee_phone)
             self.collections['participants'].tagging(
@@ -458,16 +467,7 @@ class DialogueWorker(ApplicationWorker):
                 'content': content,
                 'context': context.payload})
             yield self.send_schedule(schedule)
-            return
-        else:
-            schedule = FeedbackSchedule(**{
-            'participant-phone': sender['phone'],
-                    'participant-session-id': sender['session-id'],
-                    'date-time': self.get_local_time('vusion'),
-                    'content': action['feedback-inviter'],
-                'context': context.payload})
-        yield self.send_schedule(schedule)
-    
+
     def consume_user_message(self, message):
         self.log("User message received from %s '%s'" % (message['from_addr'],
                                                          message['content']))
