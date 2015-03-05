@@ -452,7 +452,6 @@ class SmsForwarding(Action):
         custom_regexp = re.compile(r'\[participant.(?P<key1>[^\.\]]+)\]')
         matches = re.finditer(custom_regexp, customized_selector)
         for match in matches:
-            print(match)
             match = match.groupdict() if match is not None else None
             if match is None:
                 continue
