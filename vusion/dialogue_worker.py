@@ -432,16 +432,7 @@ class DialogueWorker(ApplicationWorker):
         sender = self.collections['participants'].get_participant(participant_phone)
         invitee_phone = clean_phone(context.get_message_second_word())
 
-        if (invitee_phone is None):
-            schedule = FeedbackSchedule(**{
-                'participant-phone': sender['phone'],
-                'participant-session-id': sender['session-id'],
-                'date-time': self.get_local_time('vusion'),
-                'content': action['feedback-inviter'],
-                'context': context.payload})
-            yield self.send_schedule(schedule)
-            return
-        if not self.collections['participants'].opting_in(invitee_phone):
+        if invitee_phone is None or not self.collections['participants'].opting_in(invitee_phone):
             schedule = FeedbackSchedule(**{
                 'participant-phone': sender['phone'],
                 'participant-session-id': sender['session-id'],
