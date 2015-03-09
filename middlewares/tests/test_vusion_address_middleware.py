@@ -123,7 +123,14 @@ class VusionAddressOverwriteFromAddr(VumiTestCase, MessageMaker):
             dummy_worker)
         self.mw.setup_middleware()
 
-    def test_handle_inbound(self):
+    def test_handle_outbound(self):
         msg_1 = self.mkmsg_out(from_addr="474")
         msg_1 = self.mw.handle_outbound(msg_1 , 'dummy_endpoint')
         self.assertEqual(msg_1['from_addr'], 'ttccp')
+
+    def test_handle_outbound_cusomized_id(self):
+        msg_1 = self.mkmsg_out(
+            from_addr="474",
+            transport_metadata={'customized_id': 'mystuff'})
+        msg_1 = self.mw.handle_outbound(msg_1 , 'dummy_endpoint')
+        self.assertEqual(msg_1['from_addr'], 'mystuff')
