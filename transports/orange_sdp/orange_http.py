@@ -220,8 +220,8 @@ class OrangeSdpHttpTransport(Transport):
                 return
 
             yield self.publish_ack(
-                           user_message_id=message['message_id'],
-                           sent_message_id=message['message_id'])
+                user_message_id=message['message_id'],
+                sent_message_id=message['message_id'])
 
         except Exception as ex:
             exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -291,9 +291,8 @@ class OrangeSdpMoResource(Resource):
             log.msg(reason)
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            log.error(
-                "Error during consume user message: %r" %
-                traceback.format_exception(exc_type, exc_value, exc_traceback))
+            log.error("%r" % traceback.format_exception(
+                exc_type, exc_value, exc_traceback))
         request.finish()
 
     def render(self, request):
