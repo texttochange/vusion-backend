@@ -43,6 +43,7 @@ class TestCleanKeyword(TestCase):
         self.assertEqual(clean_phone('256111'), '+256111')
         self.assertEqual(clean_phone('0256111'), '+256111')
         self.assertEqual(clean_phone('00256111'), '+256111')
+        self.assertEqual(clean_phone(''), None)
 
 
 class TestGetKeyword(TestCase):

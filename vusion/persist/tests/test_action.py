@@ -4,7 +4,7 @@ from twisted.internet.defer import inlineCallbacks
 from vusion.persist.action import (
     Action, action_generator, ProportionalTagging, TaggingAction, 
     Participant, ProportionalLabelling, ProfilingAction, ResetAction,
-    EnrollingAction, FeedbackAction, Actions)
+    EnrollingAction, FeedbackAction, Actions, SmsInviteAction)
 from vusion.error import MissingField, InvalidField, MissingData
 
 from vusion.context import Context
@@ -461,3 +461,15 @@ class testActions(TestCase, ObjectMaker):
         self.assertEqual(actions[1].get_type(), 'reset')
         self.assertEqual(actions[2].get_type(), 'enrolling')
         self.assertEqual(actions[3].get_type(), 'feedback')
+
+
+class TestSmsInviteAction(TestCase, ObjectMaker):
+
+    def test_generate_action(self):
+        action = {
+            'type-action': 'sms-invite',
+            'invite-content': 'iam inviting you',
+            'invitee-tag': 'invited',
+            'feedback-inviter': 'already in the program'}
+        a = action_generator(**action)
+        self.assertTrue(isinstance(a, SmsInviteAction))

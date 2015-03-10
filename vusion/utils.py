@@ -156,12 +156,13 @@ def get_words(content, start, end, delimiter=' '):
 
 
 def clean_phone(phone):
+    if phone in [None,'']:
+        return None
     if (re.match(ZEROS_REGEX, phone)):
-        return re.sub(ZEROS_REGEX, "+", phone)    
+        return re.sub(ZEROS_REGEX, "+", phone)
     if (not re.match(PLUS_REGEX, phone)):
         return '+%s' % phone
     return phone
-
 
 def dynamic_content_notation_to_string(domain, keys):
     tmp = domain

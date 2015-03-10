@@ -22,7 +22,7 @@ from vusion.persist.action import (UnMatchingAnswerAction, EnrollingAction,
                                    ResetAction, RemoveDeadlineAction,
                                    DelayedEnrollingAction,
                                    ProportionalTagging, ProportionalLabelling,
-                                   action_generator, Actions, UrlForwarding, SmsForwarding)
+                                   action_generator, Actions, UrlForwarding, SmsForwarding, SmsInviteAction)
 from vusion.context import Context
 from vusion.persist import Dialogue, DialogueHistory
 
@@ -853,7 +853,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         context = Context(**{
             'message': 'ANSWER this is my message',
             'request-id': '1'})
-        yield self.worker.run_action(sender['phone'], sms_forwarding, context) 
+        yield self.worker.run_action(sender['phone'], sms_forwarding, context)
 
         messages = yield self.app_helper.get_dispatched_outbound()
         self.assertEqual(len(messages), 2)
@@ -861,3 +861,119 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(messages[0]['content'], 'No patient is matching the phone number \'this\'.')
         self.assertEqual(messages[1]['to_addr'], sender['phone'])
         self.assertEqual(messages[1]['content'], 'No patient is matching the phone number \'this\'.')
+
+
+    @inlineCallbacks
+    def test_run_action_sms_invite_new_participant(self):
+        self.initialize_properties()
+
+        sender = self.mkobj_participant(
+            participant_phone='+154',
+            profile=[{'label': 'name',
+                      'value': 'max'},
+                     {'label': 'address',
+                      'value': 'kampala'}],
+            tags=['my tag'])
+        self.collections['participants'].save(sender)
+
+        sms_invite = SmsInviteAction(**{
+            'invite-content': '[participant.name]([participant.phone]) invites you',
+            'invitee-tag': 'invited',
+            'feedback-inviter': 'already in the program'})
+        context = Context(**{'message': 'Join +569', 'request-id': '1'})
+        yield self.worker.run_action(sender['phone'], sms_invite, context)
+
+        messages = yield self.app_helper.get_dispatched_outbound()
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0]['to_addr'], '+569')
+        self.assertEqual(messages[0]['content'], 'max(+154) invites you')
+
+
+    @inlineCallbacks
+    def test_run_action_sms_invite_optout_participant(self):
+        self.initialize_properties()
+
+        sender = self.mkobj_participant(
+            participant_phone='+1545',
+            profile=[{'label': 'name',
+                      'value': 'max'},
+                     {'label': 'address',
+                      'value': 'kampala'}],
+            tags=['my tag'])
+        self.collections['participants'].save(sender)
+
+        invitee_optout = self.mkobj_participant(
+            participant_phone='+598',
+            tags=['my tag'],
+            session_id=None)
+        self.collections['participants'].save(invitee_optout)
+
+        sms_invite = SmsInviteAction(**{
+            'invite-content': 'invites you',
+            'invitee-tag': 'invited',
+            'feedback-inviter': 'already in the program'})
+        context = Context(**{'message': 'Join +598', 'request-id': '1'})
+        yield self.worker.run_action(sender['phone'], sms_invite, context)
+
+        messages = yield self.app_helper.get_dispatched_outbound()
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0]['to_addr'], '+598')
+        self.assertEqual(messages[0]['content'], 'invites you')
+
+
+    @inlineCallbacks
+    def test_run_action_sms_invite_optin_participant(self):
+        self.initialize_properties()
+
+        sender = self.mkobj_participant(
+            participant_phone='+1545',
+            profile=[{'label': 'name',
+                      'value': 'max'},
+                     {'label': 'address',
+                      'value': 'kampala'}],
+            tags=['my tag'])
+        self.collections['participants'].save(sender)
+
+        invitee_optin = self.mkobj_participant(
+            participant_phone='+5987',
+            tags=['my tag'])
+        self.collections['participants'].save(invitee_optin)
+
+        sms_invite = SmsInviteAction(**{
+            'invite-content': 'invites you',
+            'invitee-tag': 'invited',
+            'feedback-inviter': '[context.message.2] is already in the program'})
+        context = Context(**{'message': 'Join +5987', 'request-id': '1'})
+        yield self.worker.run_action(sender['phone'], sms_invite, context)
+
+        messages = yield self.app_helper.get_dispatched_outbound()
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0]['to_addr'], '+1545')
+        self.assertEqual(messages[0]['content'], '+5987 is already in the program')
+
+
+    @inlineCallbacks
+    def test_run_action_sms_invite_invitee_phone_empty(self):
+        self.initialize_properties()
+
+        sender = self.mkobj_participant(
+            participant_phone='+1545',
+            profile=[{'label': 'name',
+                      'value': 'max'},
+                     {'label': 'address',
+                      'value': 'kampala'}],
+            tags=['my tag'])
+        self.collections['participants'].save(sender)
+
+        sms_invite = SmsInviteAction(**{
+            'invite-content': 'invites you',
+            'invitee-tag': 'invited',
+            'feedback-inviter': 'empty phone number sent'})
+        context = Context(**{'message': 'Join ',
+                             'request-id': '1'})
+        yield self.worker.run_action(sender['phone'], sms_invite, context)
+
+        messages = yield self.app_helper.get_dispatched_outbound()
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0]['to_addr'], '+1545')
+        self.assertEqual(messages[0]['content'], 'empty phone number sent')
