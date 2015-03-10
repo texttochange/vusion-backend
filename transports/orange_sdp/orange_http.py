@@ -187,7 +187,7 @@ class OrangeSdpHttpTransport(Transport):
             log.msg("Unsubscribe succeed %s %s" % (direction, subscription_id))
             return
         response_body = self.get_req_content(response)
-        log.msg("Unsubscribe FAILED %s - %s" (
+        log.msg("Unsubscribe FAILED %s - %s" % (
             response.code, (response_body or '')))
 
     @inlineCallbacks
