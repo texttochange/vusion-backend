@@ -53,7 +53,8 @@ class Action(Model):
                 'offset-conditioning',
                 'message-forwarding',
                 'url-forwarding',
-                'sms-forwarding']},
+                'sms-forwarding',
+                'sms-invite']},
         }
 
     subcondition_fields = {
@@ -487,6 +488,19 @@ class SmsForwarding(Action):
             else:
                 query[key] = value
 
+
+class SmsInviteAction(Action):
+
+    ACTION_TYPE = 'sms-invite'
+
+    def validate_fields(self):
+        super(SmsInviteAction, self).validate_fields()
+        self.assert_field_present(
+            'invite-content',
+            'invitee-tag',
+            'feedback-inviter')
+
+
 def action_generator(**kwargs):
     # Condition to be removed when Dialogue structure freezed
     if 'type-action' not in kwargs:
@@ -523,6 +537,8 @@ def action_generator(**kwargs):
         return UrlForwarding(**kwargs)
     elif kwargs['type-action'] == 'sms-forwarding':
         return SmsForwarding(**kwargs)
+    elif kwargs['type-action'] == 'sms-invite':
+        return SmsInviteAction(**kwargs)
     raise VusionError("%r not supported" % kwargs)
 
 

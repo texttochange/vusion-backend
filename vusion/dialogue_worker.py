@@ -23,7 +23,8 @@ from vumi.errors import VumiError
 from vusion.utils import (
     time_to_vusion_format, get_local_time, get_local_time_as_timestamp,
     time_from_vusion_format, get_shortcode_value, get_offset_date_time,
-    split_keywords, add_char_to_pattern, dynamic_content_notation_to_string)
+    split_keywords, add_char_to_pattern, dynamic_content_notation_to_string,
+    clean_phone)
 from vusion.error import (
     MissingData, SendingDatePassed, VusionError, MissingTemplate,
     MissingProperty)
@@ -253,13 +254,8 @@ class DialogueWorker(ApplicationWorker):
                 return
         self.log(("Run action for %s action %s" % (participant_phone, action,)))
         if (action.get_type() == 'optin'):
-            participant = self.collections['participants'].get_participant(participant_phone)
-            if not participant:                            
-                ## The participant is opting in for the first time
-                self.collections['participants'].opting_in(participant_phone, True)
-            elif participant['session-id'] is None:
-                ## The participant is optout and opting in again
-                self.collections['participants'].opting_in_again(participant_phone)
+            if self.collections['participants'].opting_in(participant_phone):
+                self.schedule_participant(participant_phone)
             else:
                 ## The participant is still optin and opting in again
                 if self.properties['double-optin-error-feedback'] is not None:
@@ -268,8 +264,6 @@ class DialogueWorker(ApplicationWorker):
                         FeedbackAction(**{'content': self.properties['double-optin-error-feedback']}),
                         context,
                         participant_session_id)
-                    return   #participant should not be resheduled
-            self.schedule_participant(participant_phone)
         elif (action.get_type() == 'optout'):
             self.collections['participants'].opting_out(participant_phone)
             self.collections['schedules'].remove_participant_schedules(participant_phone)
@@ -359,6 +353,8 @@ class DialogueWorker(ApplicationWorker):
             yield self.run_action_url_forwarding(participant_phone, action, context, participant_session_id)
         elif (action.get_type() == 'sms-forwarding'):
             yield self.run_action_sms_forwarding(participant_phone, action, context)
+        elif (action.get_type() == 'sms-invite'):
+            yield self.run_action_sms_invite(participant_phone, action, context)
         else:
             self.log("The action is not supported %s" % action.get_type())
 
@@ -426,6 +422,37 @@ class DialogueWorker(ApplicationWorker):
             schedule = FeedbackSchedule(**{
                 'participant-phone': participant['phone'],
                 'participant-session-id': participant['session-id'],
+                'date-time': self.get_local_time('vusion'),
+                'content': content,
+                'context': context.payload})
+            yield self.send_schedule(schedule)
+
+    @inlineCallbacks
+    def run_action_sms_invite(self, participant_phone, action, context):
+        sender = self.collections['participants'].get_participant(participant_phone)
+        invitee_phone = clean_phone(context.get_message_second_word())
+
+        if invitee_phone is None or not self.collections['participants'].opting_in(invitee_phone):
+            schedule = FeedbackSchedule(**{
+                'participant-phone': sender['phone'],
+                'participant-session-id': sender['session-id'],
+                'date-time': self.get_local_time('vusion'),
+                'content': action['feedback-inviter'],
+                'context': context.payload})
+            yield self.send_schedule(schedule)
+            return
+        else:
+            ## The participant is opting
+            invitee = self.collections['participants'].get_participant(invitee_phone)
+            self.collections['participants'].tagging(
+                invitee['phone'], action['invitee-tag'])
+            content = self.customize_message(
+                action['invite-content'],
+                participant_phone,
+                context)
+            schedule = FeedbackSchedule(**{
+                'participant-phone': invitee['phone'],
+                'participant-session-id': invitee['session-id'],
                 'date-time': self.get_local_time('vusion'),
                 'content': content,
                 'context': context.payload})

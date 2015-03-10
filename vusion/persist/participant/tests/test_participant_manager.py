@@ -33,15 +33,14 @@ class TestParticipantManager(TestCase, ObjectMaker):
     def clearData(self):
         self.manager.drop()
 
-    def test_opting_in(self):
-        participant_id = self.manager.opting_in('1')
-        self.assertTrue(isinstance(participant_id, ObjectId))
+    def test_opting_in_ok(self):
+        self.assertTrue(self.manager.opting_in('1'))
         participant = self.manager.get_participant('1')
         self.assertEqual(
             participant['model-version'],
             Participant.MODEL_VERSION)
 
-    def test_opting_in_again(self):
+    def test_opting_in_ok_again(self):
         participant = self.mkobj_participant(
             '1', 
             session_id=None,
@@ -50,12 +49,19 @@ class TestParticipantManager(TestCase, ObjectMaker):
                       'value': 'Olivier'}],
             enrolled=[{'dialogue-id': '1', 'date-time': '2014-02-21T00:00:00'}])
         self.manager.save(participant)
-        self.manager.opting_in_again('1')
+        self.manager.opting_in('1')
         participant = self.manager.get_participant('1')
         self.assertTrue(participant['session-id'] is not None)
         self.assertEqual(participant['tags'], [])
         self.assertEqual(participant['profile'], [])
         self.assertEqual(participant['enrolled'], [])
+
+    def test_opting_in_fail(self):
+        participant = self.mkobj_participant(
+            '1', 
+            session_id='1')
+        self.manager.save(participant)
+        self.assertFalse(self.manager.opting_in('1'))
 
     def test_opting_out(self):
         self.manager.opting_in('1')
