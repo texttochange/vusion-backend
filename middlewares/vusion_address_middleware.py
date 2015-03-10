@@ -40,4 +40,6 @@ class VusionAddressMiddleware(BaseMiddleware):
             msg['to_addr'] = re.sub(self.regex_internation_prefix, '', msg['to_addr'])        
         if self.trim_plus_outbound:
             msg['to_addr'] = re.sub(self.regex_plus, '', msg['to_addr'])
+        if 'customized_id' in msg['transport_metadata']:
+            msg['from_addr'] = msg['transport_metadata']['customized_id']
         return msg
