@@ -1,3 +1,4 @@
+# encoding:utf-8
 import os.path
 from pymongo import MongoClient
 from twisted.internet.defer import inlineCallbacks
@@ -8,19 +9,20 @@ from tests.utils import MessageMaker, ObjectMaker
 
 from vusion.persist import (
     ParticipantManager, HistoryManager, history_generator, ScheduleManager,
-    UnmatchableReplyManager)
+    UnmatchableReplyManager, ExportManager, Export)
 from vusion.export_worker import ExportWorker
 
 
 class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
-    timeout = 100
-    
+
     base_config = {
         'application_name': 'export',
+        'database': 'test_vusion',
         'mongodb_host': 'localhost',
         'mongodb_port': 27017,
-        'redis_manager': {'host': 'localhost', 'port': 6379}}
-    
+        'max_total_export_megabytes': 1.0
+    }
+
     @inlineCallbacks
     def setUp(self):
         self.application_name = self.base_config['application_name']
@@ -29,6 +31,8 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
         self.worker = yield self.worker_helper.get_worker(
             ExportWorker, self.base_config)
         self.mongo = MongoClient(w=1)
+        self.exports = ExportManager(
+            self.mongo[self.base_config['database']], 'exports')
 
     @inlineCallbacks
     def tearDown(self):
@@ -36,7 +40,8 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
         self.cleanData()
 
     def cleanData(self):
-        self.mongo.drop_database('test')
+        self.mongo.drop_database('test_vusion')
+        self.mongo.drop_database('test_program')
         if os.path.isfile('testing_export.csv'):
             os.remove('testing_export.csv')
 
@@ -45,7 +50,9 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
 
     @inlineCallbacks
     def test_export_participants_with_conditions(self):
-        manager = ParticipantManager(self.mongo['test'], 'participants')
+        manager = ParticipantManager(
+            self.mongo['test_program'],
+            'participants')
         manager.save_participant(self.mkobj_participant(
             tags=['geek', 'mombasa'],
             profile=[{'label': 'name',
@@ -54,13 +61,15 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
             tags=['nogeek'],
             profile=[{'label': 'name',
                       'value': 'steve'}]))
-        
-        control = self.mkmsg_exportworker_control(
-            message_type='export_participants',
+
+        export = Export(**self.mkdoc_export(
+            database='test_program',
+            collection='participants',
             file_full_name='testing_export.csv',
-            database='test',
-            conditions={'tags': 'mombasa'},
-            redis_key='unittest:myprogramUrl:participants')
+            conditions={'tags': 'mombasa'}))
+        export_id = self.exports.save_object(export)
+
+        control = self.mkmsg_exportworker_control(export_id=str(export_id))
         yield self.dispatch_control(control)
 
         self.assertTrue(os.path.isfile('testing_export.csv'))
@@ -69,9 +78,14 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
             self.assertEqual('"06","geek,mombasa","olivier"\n', csvfile.readline())
             self.assertEqual('', csvfile.readline())
 
+        export = self.exports.get_export(export_id)
+        self.assertEqual(export['status'], 'success')
+
     @inlineCallbacks
     def test_export_participants_no_conditions(self):
-        manager = ParticipantManager(self.mongo['test'], 'participants')
+        manager = ParticipantManager(
+            self.mongo['test_program'],
+            'participants')
         manager.save_participant(self.mkobj_participant(
             tags=['geek', 'mombasa'],
             profile=[{'label': 'name',
@@ -82,13 +96,15 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
                       'value': 'steve'},
                      {'label': 'age',
                       'value': '20'}]))
-        
-        control = self.mkmsg_exportworker_control(
-            message_type='export_participants',
-            file_full_name='testing_export.csv',
-            database='test',
-            conditions=[],
-            redis_key='unittest:myprogramUrl:participants')
+
+        export = Export(**self.mkdoc_export(
+                    database='test_program',
+                    collection='participants',
+                    file_full_name='testing_export.csv',
+                    conditions={}))
+        export_id = self.exports.save_object(export)
+
+        control = self.mkmsg_exportworker_control(export_id=str(export_id))
         yield self.dispatch_control(control)
 
         self.assertTrue(os.path.isfile('testing_export.csv'))
@@ -101,9 +117,14 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
                 '"06","nogeek","20","steve"\n', csvfile.readline())
             self.assertEqual('', csvfile.readline())
 
+        export = self.exports.get_export(export_id)
+        self.assertEqual(export['status'], 'success')
+
     @inlineCallbacks
     def test_export_participant_with_fakejoin(self):
-        manager = ParticipantManager(self.mongo['test'], 'participants')
+        manager = ParticipantManager(
+            self.mongo['test_program'],
+            'participants')
         participant = self.mkobj_participant(
             participant_phone='06',
             session_id='1',
@@ -117,7 +138,9 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
             profile=[{'label': 'name',
                       'value': 'steve'}]))
 
-        schedule_mgr = ScheduleManager(self.mongo['test'], 'schedules')
+        schedule_mgr = ScheduleManager(
+            self.mongo['test_program'],
+            'schedules')
         schedule_mgr.add_reminder(
             participant,
             '2100-01-01T10:10:10',
@@ -136,13 +159,14 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
                 ,{
                 'phone': '06'}]}
 
-        control = self.mkmsg_exportworker_control(
-                    message_type='export_participants',
-                    file_full_name='testing_export.csv',
-                    database='test',
-                    conditions=conditions,
-                    redis_key='unittest:myprogramUrl:participants')
+        export = Export(**self.mkdoc_export(
+                            database='test_program',
+                            collection='participants',
+                            file_full_name='testing_export.csv',
+                            conditions=conditions))
+        export_id = self.exports.save_object(export)
 
+        control = self.mkmsg_exportworker_control(export_id=str(export_id))
         yield self.dispatch_control(control)
 
         self.assertTrue(os.path.isfile('testing_export.csv'))
@@ -151,21 +175,25 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
             self.assertEqual('"06","geek,mombasa","olivier"\n', csvfile.readline())
             self.assertEqual('', csvfile.readline())
 
+        export = self.exports.get_export(export_id)
+        self.assertEqual(export['status'], 'success')
+
     @inlineCallbacks
     def test_export_history(self):
-        manager = HistoryManager(self.mongo['test'], 'history', None, None)
+        manager = HistoryManager(
+            self.mongo['test_program'], 'history', None, None)
         h1 = self.mkobj_history_dialogue(
-            '1', '1', '2015-01-20T10:10:10', message_content='hello')
+            '1', '1', '2015-01-20T10:10:10', message_content='hello ±')
         manager.save_document(history_generator(**h1))
 
-        control = self.mkmsg_exportworker_control(
-            message_type='export_history', 
-            file_full_name='testing_export.csv', 
-            conditions=None, 
-            collection='history', 
-            database='test',
-            redis_key='unittest:myprogramUrl:history')
+        export = Export(**self.mkdoc_export(
+                            database='test_program',
+                            collection='history',
+                            file_full_name='testing_export.csv',
+                            conditions={}))
+        export_id = self.exports.save_object(export)
 
+        control = self.mkmsg_exportworker_control(export_id=str(export_id))
         yield self.dispatch_control(control)
 
         self.assertTrue(os.path.isfile('testing_export.csv'))
@@ -173,24 +201,31 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
             self.assertEqual(
                 'participant-phone,message-direction,message-status,message-content,timestamp\n', csvfile.readline())
             self.assertEqual(
-                '"06","outgoing","delivered","hello","2015-01-20T10:10:10"\n', csvfile.readline())
+                '"06","outgoing","delivered","hello ±","2015-01-20T10:10:10"\n', csvfile.readline())
             self.assertEqual('', csvfile.readline())
+
+        export = self.exports.get_export(export_id)
+        self.assertEqual(export['status'], 'success')
 
     @inlineCallbacks
     def test_export_unmatchable_reply(self):
-        manager = UnmatchableReplyManager(self.mongo['test'], 'unmatchable-reply')
+        manager = UnmatchableReplyManager(
+            self.mongo['test_vusion'], 'unmatchable_reply')
         unmatchable = self.mkobj_unmatchable_reply()
         manager.save_document(unmatchable)
 
-        control = self.mkmsg_exportworker_control(
-            message_type='export_unmatchable_reply',
-            file_full_name='testing_export.csv',
-            conditions=None,
-            collection='unmatchable-reply',
-            database='test',
-            redis_key='unittest:myprogramUrl:unmatchable-reply')
+        export = Export(**self.mkdoc_export(
+                            database='test_vusion',
+                            collection='unmatchable_reply',
+                            file_full_name='testing_export.csv',
+                            conditions={}))
+        export_id = self.exports.save_object(export)
 
+        control = self.mkmsg_exportworker_control(export_id=str(export_id))
         yield self.dispatch_control(control)
+
+        export = self.exports.get_export(export_id)
+        self.assertEqual(export['status'], 'success')
 
         self.assertTrue(os.path.isfile('testing_export.csv'))
         with open('testing_export.csv', 'rb') as csvfile:
@@ -199,3 +234,28 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
             self.assertEqual(
                 '"+25611111","256-8181","Hello","2014-01-01T10:10:00"\n', csvfile.readline())
             self.assertEqual('', csvfile.readline())
+
+    @inlineCallbacks
+    def test_export_failed_max_total_export_size(self):
+        export_old = Export(**self.mkdoc_export(
+            database='test_program',
+            collection='history',
+            file_full_name='testing_export_old.csv',
+            conditions={},
+            status='success',
+            size=1048577L))  #1Mo + 1byte
+        self.exports.save_object(export_old)
+
+        export = Export(**self.mkdoc_export(
+            database='test_program',
+            collection='history',
+            file_full_name='testing_export.csv',
+            conditions={}))
+        export_id = self.exports.save_object(export)
+
+        control = self.mkmsg_exportworker_control(export_id=str(export_id))
+        yield self.dispatch_control(control)
+
+        export = self.exports.get_export(export_id)
+        self.assertEqual(export['status'], 'no-space')
+        self.assertFalse(os.path.isfile('testing_export.csv'))

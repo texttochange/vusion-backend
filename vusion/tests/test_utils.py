@@ -1,7 +1,8 @@
 #encoding: utf-8
 from twisted.trial.unittest import TestCase
 from vusion import clean_keyword
-from vusion.utils import clean_phone, get_keyword
+from vusion.utils import (
+    clean_phone, get_keyword, escape_nested, unescape_nested)
 
 
 class TestCleanKeyword(TestCase):
@@ -56,3 +57,63 @@ class TestGetKeyword(TestCase):
         self.assertEqual(
             get_keyword('feel fine'),
             'feel')
+
+
+class TestEscapeNested(TestCase):
+
+    def test_mongo_query(self):
+        mongo_query = {
+            '$and': [{
+                'phone': {
+                    '$join': {
+                        'function': 'getUniqueParticipantPhone',
+                        'field': 'phone',
+                        'model': 'Schedule',
+                        'parameters': {
+                            'cursor': True}}}}
+                     ,{'phone': '06'}]}
+
+        expected = {
+            '\\$and': [{
+                'phone': {
+                    '\\$join': {
+                        'function': 'getUniqueParticipantPhone',
+                        'field': 'phone',
+                        'model': 'Schedule',
+                        'parameters': {
+                            'cursor': True}}}}
+                     ,{'phone': '06'}]}
+
+        result = escape_nested(mongo_query, '\$')
+
+        self.assertEqual(expected, result)
+
+
+class TestUnescapeNested(TestCase):
+
+    def test_mongo_query(self):
+        escapted_mongo_query = {
+            '\\$and': [{
+                'phone': {
+                    '\$join': {
+                        'function': 'getUniqueParticipantPhone',
+                        'field': 'phone',
+                        'model': 'Schedule',
+                        'parameters': {
+                            'cursor': True}}}}
+                     ,{'phone': '06'}]}
+
+        expected = {
+            '$and': [{
+                'phone': {
+                    '$join': {
+                        'function': 'getUniqueParticipantPhone',
+                        'field': 'phone',
+                        'model': 'Schedule',
+                        'parameters': {
+                            'cursor': True}}}}
+                     ,{'phone': '06'}]}
+
+        result = unescape_nested(escapted_mongo_query, '$')
+
+        self.assertEqual(expected, result)

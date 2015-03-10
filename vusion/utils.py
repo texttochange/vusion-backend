@@ -171,6 +171,33 @@ def dynamic_content_notation_to_string(domain, keys):
     return '[%s]' % tmp
 
 
+def escape_nested(instance, to_escape):
+    if isinstance(instance, dict):
+        result = {}
+        for key, value in instance.iteritems():
+            result[escape_nested(key, to_escape)] = escape_nested(value, to_escape)
+        return result
+    elif isinstance(instance, list):
+        return [escape_nested(value, to_escape) for value in instance]
+    elif isinstance(instance, basestring) or isinstance(instance, unicode):
+        return re.sub(to_escape, '\\%s' % to_escape, instance)
+    else:
+        return instance
+
+def unescape_nested(instance, to_unescape):
+    if isinstance(instance, dict):
+        result = {}
+        for key, value in instance.iteritems():
+            result[unescape_nested(key, to_unescape)] = unescape_nested(value, to_unescape)
+        return result
+    elif isinstance(instance, list):
+        return [unescape_nested(value, to_unescape) for value in instance]
+    elif isinstance(instance, basestring) or isinstance(instance, unicode):
+        return re.sub('\\\\\%s' % to_unescape, to_unescape, instance)
+    else:
+        return instance
+
+
 #TODO remove DataLayerUtils in tests package
 class DataLayerUtils:
 
