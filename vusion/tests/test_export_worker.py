@@ -259,3 +259,19 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
         export = self.exports.get_export(export_id)
         self.assertEqual(export['status'], 'no-space')
         self.assertFalse(os.path.isfile('testing_export.csv'))
+
+    @inlineCallbacks
+    def test_export_failed_exception(self):
+        export = Export(**self.mkdoc_export(
+            database='test_program',
+            collection='history',
+            file_full_name='missingdir/testing_export.csv',
+            conditions={}))
+        export_id = self.exports.save_object(export)
+
+        control = self.mkmsg_exportworker_control(export_id=str(export_id))
+        yield self.dispatch_control(control)
+
+        export = self.exports.get_export(export_id)
+        self.assertEqual(export['status'], 'failed')
+        self.assertEqual(export['failure-reason'], 'No such file or directory')
