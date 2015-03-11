@@ -122,7 +122,11 @@ class ExportWorker(BaseWorker):
                 exc_value,
                 exc_traceback)
             log.error(error)
-            self.exports.failed(msg['export_id'], e.strerror)
+            if hasattr(e, 'strerror'):
+                failure_reason = e.strerror
+            else:
+                failure_reason = e.message
+            self.exports.failed(msg['export_id'], failure_reason)
 
     @inlineCallbacks
     def replace_join(self, conditions, schedule_mgr):
