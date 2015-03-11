@@ -21,12 +21,13 @@ class VusionAddressMiddleware(BaseMiddleware):
     
     def handle_inbound(self, msg, endpoint):
         msg['from_addr'] = re.sub(self.regex_trim, "", msg['from_addr'])
-        msg['to_addr'] = re.sub(self.regex_trim, "", msg['to_addr'])        
+        msg['to_addr'] = re.sub(self.regex_trim, "", msg['to_addr'])
+        msg['to_addr'] = re.sub(self.regex_plus, "", msg['to_addr'])
         msg['from_addr'] = re.sub(self.regex_zeros, "", msg['from_addr'])
         if (not re.match(self.regex_plus, msg['from_addr'])):
             msg['from_addr'] = '+%s' % msg['from_addr']
         if (re.match(self.regex_zeros, msg['to_addr'])):
-            msg['to_addr'] = re.sub(self.regex_zeros, "+", msg['to_addr'])
+            msg['to_addr'] = re.sub(self.regex_zeros, "", msg['to_addr'])
         if self.international_prefix and not re.match(self.regex_internation_prefix, msg['from_addr']):
             msg['from_addr'] = re.sub(self.regex_plus, '', msg['from_addr'])
             msg['from_addr'] = '+%s%s' % (self.international_prefix, msg['from_addr'])
