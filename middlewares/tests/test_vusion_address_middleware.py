@@ -55,7 +55,27 @@ class VusionAddressMiddlewareTestCase(VumiTestCase, MessageMaker):
         self.assertEqual(msg_2['from_addr'], '+318888')
 
 
-class VusionAddressRemovePlusTestCase(VumiTestCase, MessageMaker):
+class VusionAddressInboundEnsurePlusTestCase(VumiTestCase, MessageMaker):
+
+    def setUp(self):
+        dummy_worker = object()
+        self.mw = VusionAddressMiddleware(
+            'mw1',
+            {'ensure_plus_inbound': True},
+            dummy_worker)
+        self.mw.setup_middleware()
+
+    def test_handle_outbound(self):
+        msg_1 = self.mkmsg_in(to_addr="256")
+        msg_1 = self.mw.handle_inbound(msg_1 , 'dummy_endpoint')
+        self.assertEqual(msg_1['to_addr'], '+256')
+
+        msg_2 = self.mkmsg_in(to_addr="+256")
+        msg_2 = self.mw.handle_inbound(msg_2 , 'dummy_endpoint')
+        self.assertEqual(msg_2['to_addr'], '+256')
+
+
+class VusionAddressOutboundRemovePlusTestCase(VumiTestCase, MessageMaker):
     
     def setUp(self):
         dummy_worker = object()
@@ -75,7 +95,7 @@ class VusionAddressRemovePlusTestCase(VumiTestCase, MessageMaker):
         self.assertEqual(msg_2['to_addr'], '256')
 
 
-class VusionAddressRemoveInternationalPrefixTestCase(VumiTestCase, MessageMaker):
+class VusionAddressOutboundRemoveInternationalPrefixTestCase(VumiTestCase, MessageMaker):
     
     def setUp(self):
         dummy_worker = object()
@@ -97,7 +117,7 @@ class VusionAddressRemoveInternationalPrefixTestCase(VumiTestCase, MessageMaker)
     
 
 
-class VusionAddressAddInternationalPrefix(VumiTestCase, MessageMaker):
+class VusionAddressInboundAddInternationalPrefix(VumiTestCase, MessageMaker):
     
     def setUp(self):
         dummy_worker = object()
