@@ -252,6 +252,7 @@ class OrangeSdpMoResource(Resource):
         for prefix in self.config['shortcodes'].iterkeys():
             if re.match(r'^%s' % prefix, to_addr):
                 to_addr = re.sub(r'^%s' % prefix, '', to_addr)
+                continue
         return to_addr
 
     def from_mo_data_2_content(self, data):
