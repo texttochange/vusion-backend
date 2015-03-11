@@ -19,8 +19,8 @@ class OrangeSdpMessageMaker:
         return {
             "inboundSMSMessageNotification": {
                 "inboundSMSMessage": {
-                    "senderAddress": "tel:+22507099573",
-                    "destinationAddress": "+2257839",
+                    "senderAddress": "tel:+2547099573",
+                    "destinationAddress": "+2548181",
                     "message": "Burrito test",
                     "dateTime": "2012-10-10T11:17:27+02:00"}}}
 
@@ -318,7 +318,8 @@ class OrangeSdpHttpTransportTestCase(VumiTestCase, OrangeSdpMessageMaker):
 
         [user_msg] = yield self.tx_helper.get_dispatched_inbound()
         self.assertEqual('Burrito test', user_msg['content'])
-        self.assertEqual('+22507099573', user_msg['from_addr'])
+        self.assertEqual('+2547099573', user_msg['from_addr'])
+        self.assertEqual('8181', user_msg['to_addr'])
 
     @inlineCallbacks
     def test_dlr_delivered(self):

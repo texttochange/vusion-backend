@@ -248,7 +248,12 @@ class OrangeSdpMoResource(Resource):
 
     def from_mo_data_2_to_addr(self, data):
         to_addr = data['inboundSMSMessageNotification']['inboundSMSMessage']['destinationAddress']
-        return re.sub(r'\+', '', to_addr)
+        to_addr = re.sub(r'\+', '', to_addr)
+        for prefix in self.config['shortcodes'].iterkeys():
+            if re.match(r'^%s' % prefix, to_addr):
+                to_addr = re.sub(r'^%s' % prefix, '', to_addr)
+                continue
+        return to_addr
 
     def from_mo_data_2_content(self, data):
         return data['inboundSMSMessageNotification']['inboundSMSMessage']['message']
