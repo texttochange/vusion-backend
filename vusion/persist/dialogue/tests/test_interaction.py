@@ -7,7 +7,7 @@ from datetime import timedelta
 
 from vusion.error import FailingModelUpgrade
 from vusion.persist import Interaction
-from vusion.persist.action import Actions
+from vusion.persist.action import Actions, ResetAction, EnrollingAction
 from vusion.utils import time_from_vusion_format
 
 from tests.utils import ObjectMaker
@@ -16,10 +16,9 @@ from tests.utils import ObjectMaker
 class TestInteraction(TestCase, ObjectMaker):
 
     def test_validation_announcement(self):
-        dialogue = self.mkobj_dialogue_annoucement()
+        dialogue = self.mkobj_dialogue_announcement()
         interaction = Interaction(**dialogue['interactions'][0])
         self.assertTrue(interaction is not None)
-
 
     def test_validation_open_question(self):
         dialogue = self.mkobj_dialogue_open_question()
@@ -274,3 +273,13 @@ class TestInteraction(TestCase, ObjectMaker):
         self.assertEqual(
             interaction.get_keywords(),
             ['feel'])
+
+    def test_get_sending_actions(self):
+        expectedActions = Actions()
+        expectedActions.append(ResetAction())
+        expectedActions.append(EnrollingAction(**{'enroll': '01'}))
+
+        interaction = Interaction(**self.mkobj_interaction_announcement())
+        actions = interaction.get_sending_actions()
+        self.assertEqual(
+            expectedActions, actions)
