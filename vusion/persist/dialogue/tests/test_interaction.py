@@ -170,7 +170,7 @@ class TestInteraction(TestCase, ObjectMaker):
             "feelbadheadarch", None)
         self.assertEqual(matching_answer, None)
 
-        ## choice can have multiple words
+        ##choice can have multiple words
         interaction['answers'][1]['choice'] = "Bâd heâdarch"
 
         matching_answer = interaction.get_matching_answer_closed_question(
@@ -186,6 +186,10 @@ class TestInteraction(TestCase, ObjectMaker):
         matching_answer = interaction.get_matching_answer_closed_question(
             "feelbadheadarchthismorning", None)
         self.assertEqual(matching_answer, None)
+
+        matching_answer = interaction.get_matching_answer_closed_question(
+            "feel1", None)
+        self.assertEqual(matching_answer['choice'], 'Good')
 
     def test_get_actions_from_matching_answer_open_question(self):
         dialogue = self.mkobj_dialogue_open_question()
@@ -261,7 +265,7 @@ class TestInteraction(TestCase, ObjectMaker):
         interaction = Interaction(**self.mkobj_interaction_question_answer_nospace('GÉN'))
         self.assertEqual(
             interaction.get_keywords(),
-            ['gen', 'genmale','genbad'])
+            ['gen', 'genmale', 'gen0', 'genbad', 'gen0'])
 
     def test_get_keywords_question_multikeyword(self):
         interaction = Interaction(**self.mkobj_interaction_question_multikeyword())
@@ -274,3 +278,10 @@ class TestInteraction(TestCase, ObjectMaker):
         self.assertEqual(
             interaction.get_keywords(),
             ['feel'])
+    def test_get_answer_keywords(self):
+        interaction = Interaction(**self.mkobj_interaction_question_answer())
+        answer_keywords = interaction.get_answer_keywords(
+            ['feel'],
+            {'choice': 'Good'},
+            1)
+        self.assertEqual(answer_keywords, ['feelgood', 'feel1'])

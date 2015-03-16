@@ -394,8 +394,12 @@ class Interaction(Model):
     def split_keywords(self, keywords):
         return [clean_keyword(k) for k in (keywords or '').split(', ')]
 
-    def get_answer_keywords(self, keywords, answer):
-        return [clean_keyword("%s%s" % (keyword, answer['choice'].replace(" ",""))) for keyword in keywords]
+    def get_answer_keywords(self, keywords, answer, answer_index=0):
+        for keyword in keywords:
+            answer_keyword_choice = clean_keyword("%s%s" % (keyword, answer['choice'].replace(" ","")))
+            answer_keyword_index = clean_keyword("%s%s" % (keyword, answer_index))
+        return [answer_keyword_choice, answer_keyword_index]
+        ##return [clean_keyword("%s%s" % (keyword, answer['choice'].replace(" ",""))) for keyword in keywords]
 
     def get_actions_from_matching_answer(self, dialogue_id, matching_answer, matching_value, actions):
         if self.is_open_question():
@@ -501,8 +505,10 @@ class Interaction(Model):
         answers = self.payload['answers']
         if self.payload['set-answer-accept-no-space'] is not None:
             keywords = self.split_keywords(self.payload['keyword'])
+            ans_index_count = 0
             for answer in answers:
-                if keyword in self.get_answer_keywords(keywords, answer):
+                ans_index_count +=1
+                if keyword in self.get_answer_keywords(keywords, answer, ans_index_count):
                     return answer
         if reply is None:
             return None
