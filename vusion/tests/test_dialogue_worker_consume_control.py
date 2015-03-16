@@ -153,7 +153,7 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
     def test_consume_control_test_send_all_messages(self):
         self.initialize_properties()
         dialogue_id = self.collections['dialogues'].save(
-            self.mkobj_dialogue_annoucement())
+            self.mkobj_dialogue_announcement())
         self.collections['participants'].save(self.mkobj_participant('08'))
     
         control = self.mkmsg_dialogueworker_control(**{
