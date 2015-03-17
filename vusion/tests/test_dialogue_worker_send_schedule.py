@@ -3,6 +3,7 @@ from datetime import datetime, time, date, timedelta
 from twisted.internet.defer import inlineCallbacks
 
 from vusion.persist import Dialogue, schedule_generator
+from vusion.persist.action import TaggingAction
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
 
 from test_dialogue_worker import DialogueWorkerTestCase
@@ -89,7 +90,7 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
         for history in histories:
             self.assertTrue(history['participant-session-id'] is not None)
 
-    @inlineCallbacks       
+    @inlineCallbacks
     def test_send_scheduled_messages_with_priority(self):
         self.initialize_properties()
 
@@ -398,3 +399,36 @@ class DialogueWorkerTestCase_sendSchedule(DialogueWorkerTestCase):
             histories[0]['missing-data'],
             ['Participant 06 doesn\'t have a label firstname'])
         self.assertEqual(histories[0]['unattach-id'], str(unattached_message_id))
+
+    @inlineCallbacks
+    def test_send_scheduled_sending_actions(self):
+        self.initialize_properties()
+
+        dNow = self.worker.get_local_time()
+        dNow = dNow - timedelta(minutes=2)
+
+        TaggingAction
+        dialogue = self.mkobj_dialogue_announcement_sending_action(
+            [{'type-action': 'tagging', 'tag': 'geek'}])
+        self.collections['dialogues'].save(dialogue)
+
+        participant = self.mkobj_participant('09')
+        self.collections['participants'].save(participant)
+
+        self.collections['schedules'].save(
+            self.mkobj_schedule(
+                date_time=time_to_vusion_format(dNow),
+                dialogue_id='2',
+                interaction_id='0',
+                participant_phone='09'))
+
+        self.worker.send_scheduled()
+
+        messages = yield self.app_helper.wait_for_dispatched_outbound(1)
+        self.assertEqual(0, self.collections['schedules'].count())
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0]['content'], 'Hello')
+
+        participant = self.collections['participants'].get_participant(
+            participant['phone'])
+        self.assertEqual(['geek'], participant['tags'])
