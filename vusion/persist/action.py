@@ -195,9 +195,17 @@ class OptoutAction(Action):
 class ResetAction(Action):
 
     ACTION_TYPE = 'reset'
+    
+    def before_validate(self):
+        if not 'keep-tags' in self.payload:
+            self['keep-tags'] = None
+        if not 'keep-labels' in self.payload:
+            self['keep-labels'] = None        
+        super(ResetAction, self).before_validate()    
 
     def validate_fields(self):
-        super(ResetAction, self).validate_fields()        
+        super(ResetAction, self).validate_fields()
+        self.assert_field_present('keep-tags', 'keep-labels')
 
 
 class FeedbackAction(Action):
@@ -599,3 +607,4 @@ class Actions():
                     action.get_type() != 'remove-deadline' and
                     action.get_type() != 'remove-question'):
                 self.actions.remove(action)
+                

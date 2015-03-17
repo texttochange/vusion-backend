@@ -516,7 +516,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
                                                            'interaction-id': interaction['interaction-id']}))        
         self.assertEqual(self.collections['schedules'].count(), 0) 
 
-    def test_run_action_reset(self):
+    def test_run_action_reset_no_exceptions(self):
         self.initialize_properties()
 
         dNow = self.worker.get_local_time()
@@ -533,6 +533,83 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         reset_participant = self.collections['participants'].find_one({'phone':'06'})
 
         self.assertEqual(reset_participant['profile'], [])
+        
+    def test_run_action_reset_keep_labels(self):
+        self.initialize_properties()
+
+        dNow = self.worker.get_local_time()
+        
+        participant = self.mkobj_participant(
+            '06',
+            last_optin_date=time_to_vusion_format(dNow),
+            profile=[{'label': 'name',
+                     'value': 'Oliv'}])
+        self.collections['participants'].save(participant)
+
+        self.worker.run_action("06", ResetAction(**{'keep-labels': 'name'}))
+
+        reset_participant = self.collections['participants'].find_one({'phone':'06'})
+
+        self.assertEqual(reset_participant['profile'], [{'label': 'name', 'value': 'Oliv', 'raw': ''}])
+        
+    def test_run_action_reset_keep_labels_only_original_labels(self):
+        self.initialize_properties()
+
+        dNow = self.worker.get_local_time()
+        
+        participant = self.mkobj_participant(
+            '06',
+            last_optin_date=time_to_vusion_format(dNow),
+            profile=[{'label': 'name',
+                     'value': 'Oliv'}, 
+                     {'label': 'age',
+                      'value': '33'}])
+        self.collections['participants'].save(participant)
+
+        self.worker.run_action("06", ResetAction(**{'keep-labels': 'name, gender'}))
+
+        reset_participant = self.collections['participants'].find_one({'phone':'06'})
+
+        self.assertEqual(reset_participant['profile'], [{'label': 'name', 'value': 'Oliv', 'raw': ''}])        
+            
+    def test_run_action_reset_keep_tags(self):
+        self.initialize_properties()
+
+        dNow = self.worker.get_local_time()
+        
+        participant = self.mkobj_participant(
+            '06',
+            last_optin_date=time_to_vusion_format(dNow),
+            tags=['geek', 'meek'],
+            profile=[{'label': 'name',
+                     'value': 'Oliv'}])
+        self.collections['participants'].save(participant)
+
+        self.worker.run_action("06", ResetAction(**{'keep-tags': 'geek, meek'}))
+
+        reset_participant = self.collections['participants'].find_one({'phone':'06'})
+
+        self.assertEqual(reset_participant['tags'], ['geek', 'meek']) 
+        
+    def test_run_action_reset_keep_tags_only_original_tags(self):
+        self.initialize_properties()
+
+        dNow = self.worker.get_local_time()
+        
+        participant = self.mkobj_participant(
+            '06',
+            last_optin_date=time_to_vusion_format(dNow),
+            tags=['geek', 'meek'],
+            profile=[{'label': 'name',
+                     'value': 'Oliv'}])
+        self.collections['participants'].save(participant)
+
+        self.worker.run_action("06", ResetAction(**{'keep-tags': 'geek, fee'}))
+
+        reset_participant = self.collections['participants'].find_one({'phone':'06'})
+
+        self.assertEqual(reset_participant['tags'], ['geek'])    
+   
 
     def test_run_conditional_action(self):
         self.initialize_properties()
