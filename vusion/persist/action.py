@@ -598,6 +598,16 @@ class Actions():
     def __len__(self):
         return len(self.actions)
 
+    def __eq__(self, other):
+        if not isinstance(other, Actions):
+            return False
+        if len(self.actions) != len(other.actions):
+            return False
+        for i in range(0, len(self)): 
+            if not self.actions[i] == other.actions[i]:
+                return False
+        return True
+
     def clear_all(self):
         self.actions = []
 

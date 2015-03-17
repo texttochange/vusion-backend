@@ -3,8 +3,12 @@ class VusionError(Exception):
 
 
 class MissingData(VusionError):
-    pass
 
+    failed_content = None
+
+    def __init__(self, error, failed_content=None):
+        super(MissingData, self).__init__(error)
+        self.failed_content = failed_content
 
 class SendingDatePassed(VusionError):
     pass

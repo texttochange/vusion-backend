@@ -203,7 +203,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
     def test_run_action_enroll_auto_enroll(self):
         self.initialize_properties()
 
-        dialogue = self.mkobj_dialogue_annoucement()        
+        dialogue = self.mkobj_dialogue_announcement()        
         self.collections['dialogues'].save(dialogue)
 
         self.worker.run_action("04", OptinAction())

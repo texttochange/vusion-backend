@@ -39,7 +39,8 @@ from vusion.persist.action import (
 from vusion.persist import (
     FeedbackSchedule, HistoryManager, ContentVariableManager, DialogueManager,
     RequestManager, ParticipantManager, ScheduleManager,
-    ProgramCreditLogManager, ShortcodeManager, UnattachedMessageManager)
+    ProgramCreditLogManager, ShortcodeManager, UnattachedMessageManager,
+    Interaction)
 
 from vusion.connectors import (
     ReceiveWorkerControlConnector, SendControlConnector)
@@ -284,7 +285,7 @@ class DialogueWorker(ApplicationWorker):
                 '_id': ObjectId(setting['value'])})
             if template is None:
                 return
-            regex_ANSWER = re.compile('ANSWER')    
+            regex_ANSWER = re.compile('ANSWER')
             error_message = re.sub(regex_ANSWER,
                                    action['answer'],
                                    template['template'])
@@ -859,106 +860,126 @@ class DialogueWorker(ApplicationWorker):
             self.log("Error send_scheduled: %r" %
                      traceback.format_exception(exc_type, exc_value, exc_traceback))     
 
+    def run_deadline(self, schedule, interaction, context):
+        actions = Actions()
+        if interaction.has_reminder():
+            for action in interaction['reminder-actions']:
+                actions.append(action_generator(**action))
+            self.collections['history'].add_oneway_marker(
+                schedule['participant-phone'],
+                schedule['participant-session-id'],
+                context.get_dict_for_history())
+        for action in actions.items():
+            self.run_action(
+                schedule['participant-phone'],
+                action,
+                context,
+                schedule['participant-session-id'])
+
+    def run_schedule_action(self, schedule):
+        local_time = self.get_local_time()
+        action = action_generator(**schedule['action'])
+        if schedule.is_expired(local_time):
+            self.collections['history'].add_datepassed_action_marker(action, schedule)
+            return
+        self.run_action(
+            schedule['participant-phone'], 
+            action,
+            schedule.get_context(),
+            schedule['participant-session-id'])
+
+    @inlineCallbacks
+    def send_message(self, schedule, interaction, context):
+        ## Reaching this line can only be message to be send
+        message_content = self.generate_message(interaction)
+        message_content = self.customize_message(
+            message_content,
+            schedule['participant-phone'],
+            context)
+
+        options = {
+            'from_addr': self.properties['shortcode'],
+            'transport_name': self.transport_name,
+            'transport_type': 'sms',
+            'transport_metadata': {}}
+
+        ## Apply program settings
+        if (self.properties['customized-id'] is not None):
+            options['transport_metadata']['customized_id'] = self.properties['customized-id']
+
+        ## Check for program properties
+        if (schedule.get_type() == 'feedback-schedule'
+            and self.properties['request-and-feedback-prioritized'] is not None):
+            options['transport_metadata']['priority'] = self.properties['request-and-feedback-prioritized']
+        elif ('prioritized' in interaction 
+              and interaction['prioritized'] is not None):
+            options['transport_metadata']['priority'] = interaction['prioritized']
+
+        ## Necessary for some transport that require tocken to be reuse for MT message
+        #TODO only fetch when participant has transport metadata...
+        participant = self.collections['participants'].get_participant(schedule['participant-phone'])
+        if (participant['transport_metadata'] is not {}):
+            options['transport_metadata'].update(participant['transport_metadata'])
+
+        message_credits = self.properties.use_credits(message_content)
+        if self.credit_manager.is_allowed(message_credits, schedule):
+            message = yield self.send_to(schedule['participant-phone'], message_content, **options)
+            self.collections['history'].add_outgoing(
+                message, message_credits, context, schedule)
+        elif self.credit_manager.is_timeframed():
+            self.collections['history'].add_nocredit(
+                message_content, context, schedule)
+        else:
+            self.collections['history'].add_nocredittimeframe(
+                message_content, context, schedule)
+
     @inlineCallbacks
     def send_schedule(self, schedule):
-        try:            
+        try:
             local_time = self.get_local_time()
 
             ## Delayed action are always run even if there original interaction has been deleted
             if schedule.get_type() == 'action-schedule':
-                action = action_generator(**schedule['action'])
-                if schedule.is_expired(local_time):
-                    self.collections['history'].add_datepassed_action_marker(action, schedule)
-                    return
-                self.run_action(
-                    schedule['participant-phone'], 
-                    action,
-                    schedule.get_context(),
-                    schedule['participant-session-id'])
+                self.run_schedule_action(schedule)
                 return
 
             ## Get source unattached, interaction or request
             interaction, context = self.from_schedule_to_message(schedule)
-            
+
             if not interaction:
-                self.log("Sender failure, cannot build process %r" % schedule)
+                self.log("Sender failure, no interaction  %r" % schedule)
                 return
 
             ## Run the Deadline
             if schedule.get_type() == 'deadline-schedule':
-                actions = Actions()
-                if interaction.has_reminder():
-                    for action in interaction['reminder-actions']:
-                        actions.append(action_generator(**action))
-                    self.collections['history'].add_oneway_marker(
-                        schedule['participant-phone'],
-                        schedule['participant-session-id'],
-                        context.get_dict_for_history())
+                self.run_deadline(schedule, interaction, context)
+                return
+
+            ## Do not run expired schedule
+            if schedule.is_expired(local_time):
+                self.collections['history'].add_datepassed_marker(
+                    schedule, context)
+            else:
+                yield self.send_message(schedule, interaction, context)
+
+            if isinstance(interaction, Interaction):
+                actions = interaction.get_sending_actions()
                 for action in actions.items():
                     self.run_action(
                         schedule['participant-phone'],
                         action,
                         context,
                         schedule['participant-session-id'])
-                return
 
-            ## Reaching this line can only be message to be send
-            message_content = self.generate_message(interaction)
-            message_content = self.customize_message(
-                message_content,
-                schedule['participant-phone'],
-                context)
-
-            ## Do not run expired schedule
-            if schedule.is_expired(local_time):
-                self.collections['history'].add_datepassed_marker(schedule, context)
-                return
-                 
-            options = {
-                'from_addr': self.properties['shortcode'],
-                'transport_name': self.transport_name,
-                'transport_type': 'sms',
-                'transport_metadata': {}}
-
-            ## Apply program settings
-            if (self.properties['customized-id'] is not None):
-                options['transport_metadata']['customized_id'] = self.properties['customized-id']
-
-            ## Check for program properties
-            if (schedule.get_type() == 'feedback-schedule'
-                and self.properties['request-and-feedback-prioritized'] is not None):
-                options['transport_metadata']['priority'] = self.properties['request-and-feedback-prioritized']
-            elif ('prioritized' in interaction 
-                  and interaction['prioritized'] is not None):
-                options['transport_metadata']['priority'] = interaction['prioritized']
-
-            ## Necessary for some transport that require tocken to be reuse for MT message
-            #TODO only fetch when participant has transport metadata...
-            participant = self.collections['participants'].get_participant(schedule['participant-phone'])
-            if (participant['transport_metadata'] is not {}):
-                options['transport_metadata'].update(participant['transport_metadata'])
-            
-            message_credits = self.properties.use_credits(message_content)
-            if self.credit_manager.is_allowed(message_credits, schedule):
-                message = yield self.send_to(schedule['participant-phone'], message_content, **options)
-                self.collections['history'].add_outgoing(
-                    message, message_credits, context, schedule)
-                return
-            if self.credit_manager.is_timeframed():
-                self.collections['history'].add_nocredit(
-                    message_content, context, schedule)
-            else:
-                self.collections['history'].add_nocredittimeframe(
-                    message_content, context, schedule) 
         except MissingData as e:
             self.collections['history'].add_missingdata(
-                message_content, e.message, context, schedule)
+                e.failed_content, e.message, context, schedule)
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            self.log("Error send schedule: %r" %
-                     traceback.format_exception(exc_type, exc_value, exc_traceback))
-            
-    #@inlineCallbacks
+            error = traceback.format_exception(
+                exc_type, exc_value, exc_traceback)
+            self.log("Error send schedule: %r" % error)
+
     def send_all_messages(self, dialogue, phone_number):
         self.log("Sending all dialogue %s messages to %s"
                  % (dialogue['name'], phone_number,))
@@ -1060,7 +1081,7 @@ class DialogueWorker(ApplicationWorker):
             message = re.sub(regex_Breakline, '\n', message)
         return message
 
-    def customize_message(self, message, participant_phone=None, context=None, fail=True):        
+    def customize_message(self, message, participant_phone=None, context=None, fail=True):
         participant = None
         custom_regexp = re.compile(r'\[(?P<domain>[^\.\]]+)\.(?P<key1>[^\.\]]+)(\.(?P<key2>[^\.\]]+))?(\.(?P<key3>[^\.\]]+))?(\.(?P<otherkey>[^\.\]]+))?\]')
         matches = re.finditer(custom_regexp, message)
@@ -1074,25 +1095,34 @@ class DialogueWorker(ApplicationWorker):
                 replace_match = dynamic_content_notation_to_string(domain, keys)
                 if domain.lower() in ['participant', 'participants']:
                     if participant_phone is None:
-                        raise MissingData('No participant supplied for this message.')
+                        raise MissingData(
+                            'No participant supplied for this message.',
+                            message)
                     if participant is None:
                         participant = self.collections['participants'].get_participant(participant_phone)
                     participant_label_value = participant.get_data(match['key1'])
                     if not participant_label_value:
-                        raise MissingData("Participant %s doesn't have a label %s" % 
-                                          (participant_phone, match['key1']))
+                        raise MissingData(
+                            "Participant %s doesn't have a label %s" % (participant_phone, match['key1']),
+                            message)
                     message = message.replace(replace_match, participant_label_value) 
                 elif domain == 'contentVariable':
                     content_variable = self.collections['content_variables'].get_content_variable_from_match(match)
                     if content_variable is None:
-                        raise MissingData("The program doesn't have a content variable %s" % replace_match)                    
+                        raise MissingData(
+                            "The program doesn't have a content variable %s" % replace_match,
+                            message)
                     message = message.replace(replace_match, content_variable['value'])
                 elif domain == 'context':
                     if context is None:
-                        raise MissingData("No context for customization")
+                        raise MissingData(
+                            "No context for customization",
+                            message)
                     context_data = context.get_data_from_notation(**keys)
                     if context_data is None:
-                        raise MissingData("No context data for %s" % replace_match)
+                        raise MissingData(
+                            "No context data for %s" % replace_match,
+                            message)
                     message = message.replace(replace_match, context_data)
                 elif domain == 'time':
                     local_time = self.get_local_time()

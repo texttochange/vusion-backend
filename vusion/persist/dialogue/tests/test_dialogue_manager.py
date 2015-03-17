@@ -113,13 +113,13 @@ class TestDialogueManager(TestCase, ObjectMaker):
     
     def test_get_current_dialogue(self):
         #Save a first dialogue that is no more activated
-        dialogue_not_active = self.mkobj_dialogue_annoucement()
+        dialogue_not_active = self.mkobj_dialogue_announcement()
         dialogue_not_active['dialogue-id'] = '0'
         dialogue_not_active['activated'] = 2
         self.dialogue_manager.save(dialogue_not_active)
 
         #Save a second dialogue that is activated
-        dialogue_active = self.mkobj_dialogue_annoucement()
+        dialogue_active = self.mkobj_dialogue_announcement()
         dialogue_active['dialogue-id'] = '0'
         dialogue_active['activated'] = 1
         dialogue_active_id = self.dialogue_manager.save(dialogue_active)
