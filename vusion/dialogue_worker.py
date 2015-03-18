@@ -349,28 +349,13 @@ class DialogueWorker(ApplicationWorker):
             participant_tags = participant['tags']
             self.run_action(participant_phone, OptoutAction())
             self.run_action(participant_phone, OptinAction())
-            if len(participant_tags) > 0:
-                tags_string = ','.join(participant_tags)
-                if action['keep-tags'] is not None and len(action['keep-tags']) > 0:
-                    for tag in action['keep-tags'].split(","):
-                        if not tag.strip() in tags_string:
-                            return
-                        else:
-                            self.collections['participants'].tagging(
-                                participant_phone, tag.strip())
-            if len(participant_labels) > 0:
-                labels_array = []
-                for participant_label in participant_labels:
-                    labels_array.append(participant_label['label'])
-                labels_string = ','.join(labels_array)
-                if action['keep-labels'] is not None and len(action['keep-labels']) > 0:
-                    for label in action['keep-labels'].split(","):
-                        if not label.strip() in labels_string:
-                            return
-                        else:
-                            label_value = participant.get_data(label)
-                            self.collections['participants'].labelling(
-                                participant_phone, label, label_value, '')                
+            labels = action.get_keep_labels(participant['profile'])
+            tags = action.get_keep_tags(participant['tags'])
+            for tag in tags:
+                self.collections['participants'].tagging(participant_phone, tag)
+            for label in labels:
+                self.collections['participants'].labelling(participant_phone, label['label'], label['value'], '')
+            yield self.schedule_participant(participant_phone)
         elif (action.get_type() == 'proportional-tagging'):
             yield self.run_action_proportional_tagging(participant_phone, action)
         elif (action.get_type() == 'proportional-labelling'):
