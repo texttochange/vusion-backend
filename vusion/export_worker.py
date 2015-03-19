@@ -101,6 +101,7 @@ class ExportWorker(BaseWorker):
         try:
             log.debug("Exporting %r" % msg)
             export = self.exports.get_export(msg['export_id'])
+            log.debug("Export details %r" % export)
             if export is None:
                 raise Exception('Cannot retrieve export %s' % msg['export_id'])
             if self.has_reach_space_limit():
@@ -165,7 +166,8 @@ class ExportWorker(BaseWorker):
         headers += label_headers
         with codecs.open(export['file-full-name'], 'wb', 'utf-8') as csvfile:
             csvfile.write("%s\n" % ','.join(headers))
-            cursor = participant_mgr.get_participants(conditions)
+            sort = export.get_order_pymongo()
+            cursor = participant_mgr.get_participants(conditions, sort)
             row_template = dict((header, "") for header in headers)
             for participant in cursor:
                 if participant is None:
@@ -196,7 +198,8 @@ class ExportWorker(BaseWorker):
                    'timestamp'] 
         with codecs.open(export['file-full-name'], 'wb', 'utf-8') as csvfile:
             csvfile.write("%s\n" % ','.join(headers))
-            cursor = manager.get_historys(export['conditions'])
+            sort = export.get_order_pymongo()
+            cursor = manager.get_historys(export['conditions'], sort=sort)
             row_template = dict((header, "") for header in headers)
             for history in cursor:
                 if history is None:
@@ -221,7 +224,9 @@ class ExportWorker(BaseWorker):
                    'timestamp']
         with codecs.open(export['file-full-name'], 'wb', 'utf-8') as csv_file:
             csv_file.write("%s\n" % ','.join(headers))
-            cursor = manager.get_unmatchable_replys(export['conditions'])
+            sort = export.get_order_pymongo()
+            cursor = manager.get_unmatchable_replys(
+                export['conditions'], sort=sort)
             row_template = dict((header, "") for header in headers)
             for unmatchable in cursor:
                 if unmatchable is None:

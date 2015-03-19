@@ -41,10 +41,11 @@ class HistoryManager(ModelManager):
             return None
         return history_generator(**result)
 
-    def get_historys(self, query=None):
+    def get_historys(self, query=None, sort=None):
         def log(exception, item=None):
             self.log("Exception %r while instanciating an history %r" % (exception, item))
-        return CursorInstanciator(self.collection.find(query), history_generator, [log])
+        return CursorInstanciator(
+            self.collection.find(query, sort=sort), history_generator, [log])
 
     def save_history(self, **kwargs):
         if 'timestamp' in kwargs and not isinstance(kwargs['timestamp'], str):

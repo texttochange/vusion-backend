@@ -81,3 +81,14 @@ class Export(Model):
         if (self.payload['conditions'] == []):
             self.payload['conditions'] = {}
         self.payload['conditions'] = unescape_nested(self.payload['conditions'], '$')
+
+    def get_order_pymongo(self):
+        if self['order'] in ['', None, []]:
+            return None
+        sort = []
+        for key, value in self['order'].iteritems():
+            if value == 'asc':
+                sort.append((key, 1))
+            else:
+                sort.append((key, -1))
+        return sort

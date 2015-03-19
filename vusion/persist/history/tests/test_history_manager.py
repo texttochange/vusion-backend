@@ -1,6 +1,6 @@
 """Tests for vusion.persist.HistoryManager"""
 from datetime import timedelta, datetime
-from pymongo import Connection
+from pymongo import MongoClient, ASCENDING, DESCENDING
 from redis import Redis
 
 from twisted.trial.unittest import TestCase
@@ -20,8 +20,7 @@ class TestHistoryManager(TestCase, ObjectMaker, MessageMaker):
         self.database_name = 'test_program_db'
         self.redis_key = 'unittest:testprogram'
         self.redis = Redis()
-        c = Connection()
-        c.safe = True
+        c = MongoClient(w=1)
         db = c.test_program_db
         self.history_manager = HistoryManager(db, 'history', self.redis_key, self.redis)
         self.clearData()
@@ -460,11 +459,25 @@ class TestHistoryManager(TestCase, ObjectMaker, MessageMaker):
                 '1'))
 
     def test_get_historys(self):
+        dPast = datetime.now() - timedelta(hours=2)
+        dMorePast = datetime.now() - timedelta(hours=4)
         history = self.mkobj_history_unattach(
             unattach_id='2',
-            timestamp='2014-01-01T10:10:00')
-        self.history_manager.save_history(**history)
+            timestamp=time_to_vusion_format(dMorePast))
+        self.history_manager.save(history)
 
-        cursor = self.history_manager.get_historys()
+        history = self.mkobj_history_unattach(
+            unattach_id='3',
+            timestamp=time_to_vusion_format(dPast))
+        self.history_manager.save(history)
+
+        cursor = self.history_manager.get_historys(sort=[('timestamp', ASCENDING)])
         for history in cursor:
             self.assertEqual(history['unattach-id'], '2')
+            break
+        del cursor
+
+        cursor = self.history_manager.get_historys(sort=[('timestamp', DESCENDING)])
+        for history in cursor:
+            self.assertEqual(history['unattach-id'], '3')
+            break

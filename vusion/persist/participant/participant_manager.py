@@ -122,10 +122,11 @@ class ParticipantManager(ModelManager):
                  traceback.format_exception(exc_type, exc_value, exc_traceback)))
             return None
 
-    def get_participants(self, query=None):
+    def get_participants(self, query=None, sort=None):
         def log(exception, item=None):
             self.log("Exception %r while instanciating a participant %r" % (exception, item))
-        return CursorInstanciator(self.collection.find(query), Participant, [log])
+        return CursorInstanciator(
+            self.collection.find(query, sort=sort), Participant, [log])
 
     @inlineCallbacks
     def get_labels(self, query=None):

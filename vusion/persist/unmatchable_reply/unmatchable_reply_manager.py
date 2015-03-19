@@ -63,7 +63,8 @@ class UnmatchableReplyManager(ModelManager):
         counters = result[0]
         return {k : int(float(counters[k])) for k in counters.iterkeys()}
 
-    def get_unmatchable_replys(self, query=None):
+    def get_unmatchable_replys(self, query=None, sort=None):
         def log(exception, item=None):
             self.log("Exception %r while instanciating an unmatchable reply %r" % (exception, item))
-        return CursorInstanciator(self.collection.find(query), UnmatchableReply, [log])
+        return CursorInstanciator(
+            self.collection.find(query, sort=sort), UnmatchableReply, [log])

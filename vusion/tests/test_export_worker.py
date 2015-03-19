@@ -87,10 +87,12 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
             self.mongo['test_program'],
             'participants')
         manager.save_participant(self.mkobj_participant(
+            '07',
             tags=['geek', 'mombasa'],
             profile=[{'label': 'name',
                       'value': 'olivier'}]))
         manager.save_participant(self.mkobj_participant(
+            '06',
             tags=['nogeek'],
             profile=[{'label': 'name',
                       'value': 'steve'},
@@ -101,7 +103,8 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
                     database='test_program',
                     collection='participants',
                     file_full_name='testing_export.csv',
-                    conditions={}))
+                    conditions={},
+                    order={'phone': 'asc'}))
         export_id = self.exports.save_object(export)
 
         control = self.mkmsg_exportworker_control(export_id=str(export_id))
@@ -112,9 +115,9 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
             self.assertEqual(
                 'phone,tags,age,name\n', csvfile.readline())
             self.assertEqual(
-                '"06","geek,mombasa",,"olivier"\n', csvfile.readline())
-            self.assertEqual(
                 '"06","nogeek","20","steve"\n', csvfile.readline())
+            self.assertEqual(
+                '"07","geek,mombasa",,"olivier"\n', csvfile.readline())
             self.assertEqual('', csvfile.readline())
 
         export = self.exports.get_export(export_id)
@@ -186,11 +189,16 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
             '1', '1', '2015-01-20T10:10:10', message_content='hello ±')
         manager.save_document(history_generator(**h1))
 
+        h2 = self.mkobj_history_dialogue(
+            '1', '1', '2014-01-20T10:10:10', message_content='hello 2 ±')
+        manager.save_document(history_generator(**h2))
+
         export = Export(**self.mkdoc_export(
                             database='test_program',
                             collection='history',
                             file_full_name='testing_export.csv',
-                            conditions={}))
+                            conditions={},
+                            order={'timestamp': 'asc'}))
         export_id = self.exports.save_object(export)
 
         control = self.mkmsg_exportworker_control(export_id=str(export_id))
@@ -199,9 +207,14 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
         self.assertTrue(os.path.isfile('testing_export.csv'))
         with open('testing_export.csv', 'rb') as csvfile:
             self.assertEqual(
-                'participant-phone,message-direction,message-status,message-content,timestamp\n', csvfile.readline())
+                'participant-phone,message-direction,message-status,message-content,timestamp\n',
+                csvfile.readline())
             self.assertEqual(
-                '"06","outgoing","delivered","hello ±","2015-01-20T10:10:10"\n', csvfile.readline())
+                '"06","outgoing","delivered","hello 2 ±","2014-01-20T10:10:10"\n',
+                csvfile.readline())
+            self.assertEqual(
+                '"06","outgoing","delivered","hello ±","2015-01-20T10:10:10"\n',
+                csvfile.readline())
             self.assertEqual('', csvfile.readline())
 
         export = self.exports.get_export(export_id)
@@ -211,14 +224,19 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
     def test_export_unmatchable_reply(self):
         manager = UnmatchableReplyManager(
             self.mongo['test_vusion'], 'unmatchable_reply')
-        unmatchable = self.mkobj_unmatchable_reply()
+        unmatchable = self.mkobj_unmatchable_reply(
+            timestamp="2015-01-02T10:10:00")
+        manager.save_document(unmatchable)
+        unmatchable = self.mkobj_unmatchable_reply(
+            timestamp="2015-01-01T10:10:00")
         manager.save_document(unmatchable)
 
         export = Export(**self.mkdoc_export(
                             database='test_vusion',
                             collection='unmatchable_reply',
                             file_full_name='testing_export.csv',
-                            conditions={}))
+                            conditions={},
+                            order={'timestamp': 'asc'}))
         export_id = self.exports.save_object(export)
 
         control = self.mkmsg_exportworker_control(export_id=str(export_id))
@@ -232,7 +250,11 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
             self.assertEqual(
                 'from,to,message-content,timestamp\n', csvfile.readline())
             self.assertEqual(
-                '"+25611111","256-8181","Hello","2014-01-01T10:10:00"\n', csvfile.readline())
+                '"+25611111","256-8181","Hello","2015-01-01T10:10:00"\n',
+                csvfile.readline())
+            self.assertEqual(
+                '"+25611111","256-8181","Hello","2015-01-02T10:10:00"\n',
+                csvfile.readline())
             self.assertEqual('', csvfile.readline())
 
     @inlineCallbacks
