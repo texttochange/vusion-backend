@@ -345,7 +345,7 @@ class ObjectMaker:
             'type-interaction': 'announcement',
             'content': 'How are you?',
             'type-schedule': 'offset-time',
-            'minutes': '00:10'}        
+            'minutes': '00:10'}
         dialogue['interactions'][1] = {
             'activated': 1,
             'interaction-id': '2',
@@ -362,7 +362,7 @@ class ObjectMaker:
             'minutes': '50'})
         return Dialogue(**dialogue).get_as_dict()
 
-    def mkobj_dialogue_annoucement(self, dialogue_id='0'):
+    def mkobj_dialogue_announcement(self, dialogue_id='0'):
         return deepcopy({
             'activated': 1,
             'auto-enrollment': 'all',
@@ -409,7 +409,12 @@ class ObjectMaker:
 
     def mkobj_dialogue_announcement_2(self):
         return Dialogue(**self.dialogue_annoucement_2).get_as_dict()
-    
+
+    def mkobj_dialogue_announcement_sending_action(self, action):
+        dialogue = deepcopy(self.dialogue_annoucement_2)
+        dialogue['interactions'][0]['announcement-actions'] = action
+        return Dialogue(**dialogue).get_as_dict()
+
     def mkobj_dialogue_announcement_prioritized(self):
         dialogue = deepcopy(self.dialogue_annoucement_2)
         dialogue['interactions'][0]['prioritized'] = '1'
@@ -457,14 +462,14 @@ class ObjectMaker:
                  'type-schedule': 'offset-days',
                  'set-use-template': 'use-template',
                  'days': '1',
-                 'at-time': '22:30',            
+                 'at-time': '22:30',
                  'answers': [
                      {'choice': '0',
                       'feedbacks': None,
                       'answer-actions': None},
                      {'choice': '1',
                       'feedbacks': None,
-                      'answer-actions': None}]}]}        
+                      'answer-actions': None}]}]}
     
     def mkobj_dialogue_question_max_unmatching(self):
         dialogue = deepcopy(self.dialogue_question)
@@ -732,6 +737,20 @@ class ObjectMaker:
              "interaction-id": "script.dialogues[0].interactions[2]"
              }).get_as_dict()
 
+    def mkobj_interaction_announcement(self):
+            return Interaction(**{
+                'activated': 1,
+                'interaction-id': '05',
+                'type-interaction': 'announcement',
+                'content': 'Hello world',
+                'type-schedule': 'offset-time',
+                'minutes': '15',
+                'announcement-actions': [
+                    {'type-action': 'reset'},
+                    {'type-action': 'enrolling',
+                     'enroll': '01'}]
+                }).get_as_dict()
+
     def mkobj_interaction_question_multikeyword(self):
         return Interaction(**{
             'activated': 1,
@@ -782,8 +801,6 @@ class ObjectMaker:
                 "type-reminder": "no-reminder",
                 "interaction-id": "script.dialogues[0].interactions[0]"
             }).get_as_dict()
-
-
 
     def mkobj_dialogue_question_answer(self):
         return Dialogue(**deepcopy(self.dialogue_question_answer)).get_as_dict()

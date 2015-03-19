@@ -8,7 +8,7 @@ from vusion.error import InvalidField, MissingField
 from vusion.persist.action import (action_generator, FeedbackAction,
                                    UnMatchingAnswerAction, ProfilingAction,
                                    RemoveDeadlineAction, RemoveQuestionAction,
-                                   RemoveRemindersAction)
+                                   RemoveRemindersAction, Actions)
 from vusion.utils import (time_from_vusion_format, time_to_vusion_format,
                           get_default)
 
@@ -16,7 +16,7 @@ from vusion.utils import (time_from_vusion_format, time_to_vusion_format,
 class Interaction(Model):
     
     MODEL_TYPE = 'interaction'
-    MODEL_VERSION = '5'
+    MODEL_VERSION = '6'
     
     fields = {
         'interaction-id': {
@@ -45,7 +45,8 @@ class Interaction(Model):
                 'question-answer-keyword'],
             'required_subfield': lambda v: getattr(v, 'required_subfields') (
                 v['type-interaction'],
-                {'announcement': ['content'],
+                {'announcement': ['content',
+                                  'announcement-actions'],
                  'question-answer': ['content',
                                      'keyword',
                                      'set-use-template',
@@ -174,7 +175,11 @@ class Interaction(Model):
         'reminder-actions': {
             'required': False,
             'valid_actions': lambda v: Interaction.validate_actions(v['reminder-actions'])
-            }
+            },
+        'announcement-actions': {
+            'required': False,
+            'valid_actions': lambda v: Interaction.validate_actions(v['announcement-actions'])
+        }
     }
 
     answer_fields = {
@@ -297,6 +302,12 @@ class Interaction(Model):
             if kwargs['type-schedule'] == 'offset-condition':
                 kwargs['offset-condition-delay'] = get_default(kwargs, 'offset-condition-delay', 0)
             kwargs['model-version'] = '5'
+            return self.upgrade(**kwargs)
+        elif kwargs['model-version'] == '5':
+            if kwargs['type-interaction'] == 'announcement':
+                kwargs['announcement-actions'] = get_default(
+                    kwargs, 'announcement-actions', [])
+            kwargs['model-version'] = '6'
         return kwargs
 
     def has_reminder(self):
@@ -395,10 +406,9 @@ class Interaction(Model):
         return [clean_keyword(k) for k in (keywords or '').split(', ')]
 
     def get_answer_keywords(self, keywords, answer, answer_index=0):
-        for keyword in keywords:
-            answer_keyword_choice = clean_keyword("%s%s" % (keyword, answer['choice'].replace(" ","")))
-            answer_keyword_index = clean_keyword("%s%s" % (keyword, answer_index))
-        return [answer_keyword_choice, answer_keyword_index]
+        answer_keyword_choice = [clean_keyword("%s%s" % (keyword, answer['choice'].replace(" ",""))) for keyword in keywords]
+        answer_keyword_index = [clean_keyword("%s%s" % (keyword, answer_index)) for keyword in keywords]
+        return answer_keyword_choice + answer_keyword_index
         ##return [clean_keyword("%s%s" % (keyword, answer['choice'].replace(" ",""))) for keyword in keywords]
 
     def get_actions_from_matching_answer(self, dialogue_id, matching_answer, matching_value, actions):
@@ -505,10 +515,10 @@ class Interaction(Model):
         answers = self.payload['answers']
         if self.payload['set-answer-accept-no-space'] is not None:
             keywords = self.split_keywords(self.payload['keyword'])
-            ans_index_count = 0
+            answer_index_count = 0
             for answer in answers:
-                ans_index_count +=1
-                if keyword in self.get_answer_keywords(keywords, answer, ans_index_count):
+                answer_index_count +=1
+                if keyword in self.get_answer_keywords(keywords, answer, answer_index_count):
                     return answer
         if reply is None:
             return None
@@ -538,8 +548,10 @@ class Interaction(Model):
                 or self.payload['set-answer-accept-no-space'] is None):
             return keywords
         generated_answer = copy(keywords)
+        answer_index_count = 0
         for answer in self.payload['answers']:
-            generated_answer += self.get_answer_keywords(keywords, answer)
+            answer_index_count +=1
+            generated_answer += self.get_answer_keywords(keywords, answer, answer_index_count)
         return generated_answer    
 
     def get_keywords(self):
@@ -551,3 +563,18 @@ class Interaction(Model):
         regex_MinutesSeconds = re.compile(r'(?P<minutes>\d{1,4}):?(?P<seconds>\d{2})?')
         for minutes, seconds in re.findall(regex_MinutesSeconds, self['minutes']):
             return timedelta(minutes=int(minutes), seconds=int(seconds) if seconds!='' else 0)
+
+    def has_sending_actions(self):
+        if self['type-interaction'] != 'announcement':
+            return False
+        if self['announcement-actions'] in [None, []]:
+            return False
+        return True
+
+    def get_sending_actions(self):
+        actions = Actions()
+        if not self.has_sending_actions():
+            return actions
+        for action in self['announcement-actions']:
+            actions.append(action_generator(**action))
+        return actions;
