@@ -473,3 +473,39 @@ class TestSmsInviteAction(TestCase, ObjectMaker):
             'feedback-inviter': 'already in the program'}
         a = action_generator(**action)
         self.assertTrue(isinstance(a, SmsInviteAction))
+        
+class TestResetAction(TestCase, ObjectMaker):
+    
+    def test_get_keep_tags(self):
+        action ={
+            'type-action': 'reset',
+            'keep-tags':'geek, meek',
+            'keep-labels': None}
+        reset_action = action_generator(**action)
+        participant = Participant(**self.mkobj_participant(
+            participant_phone='06',
+            tags=['geek', 'meek'],
+            profile=[{
+                'label': 'name',
+                'value': 'olivier'}]))
+        self.assertEqual(['geek', 'meek'], 
+                         reset_action.get_keep_tags(participant['tags']))
+    
+    def test_get_keep_labels(self):
+        action ={
+            'type-action': 'reset',
+            'keep-tags': None,
+            'keep-labels': 'name'}
+        reset_action = action_generator(**action)
+        participant = Participant(**self.mkobj_participant(
+            participant_phone='06',
+            tags=['geek', 'meek'],
+            profile=[{
+                'label': 'name',
+                'value': 'olivier'}]))
+        self.assertEqual([{
+                'label': 'name',
+                'value': 'olivier',
+                'raw': None}], 
+                         reset_action.get_keep_labels(participant['profile']))
+    
