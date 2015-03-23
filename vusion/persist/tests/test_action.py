@@ -508,4 +508,3 @@ class TestResetAction(TestCase, ObjectMaker):
                 'value': 'olivier',
                 'raw': None}], 
                          reset_action.get_keep_labels(participant['profile']))
-    
