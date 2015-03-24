@@ -279,7 +279,7 @@ class TestInteraction(TestCase, ObjectMaker):
             ['feel'])
     def test_get_answer_keywords(self):
         interaction = Interaction(**self.mkobj_interaction_question_answer())
-        answer_keywords = interaction.get_answer_keywords(
+        answer_keywords = interaction.get_answer_keywords_accept_no_space(
             ['feel'],
             {'choice': 'Good'},
             1)
@@ -287,7 +287,7 @@ class TestInteraction(TestCase, ObjectMaker):
         
     def test_get_answer_two_keywords(self):
         interaction = Interaction(**self.mkobj_interaction_question_answer())
-        answer_keywords = interaction.get_answer_keywords(
+        answer_keywords = interaction.get_answer_keywords_accept_no_space(
             ['gen', 'gender'],
             {'choice': 'male'},
             1)

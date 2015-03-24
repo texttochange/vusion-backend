@@ -399,13 +399,13 @@ class Interaction(Model):
             return keywords
         generated_answer = copy(keywords)
         for answer in self.payload['answers']:
-            generated_answer += self.get_answer_keywords(keywords, answer)
+            generated_answer += self.get_answer_keywords_accept_no_space(keywords, answer)
         return generated_answer
 
     def split_keywords(self, keywords):
         return [clean_keyword(k) for k in (keywords or '').split(', ')]
 
-    def get_answer_keywords(self, keywords, answer, answer_index=0):
+    def get_answer_keywords_accept_no_space(self, keywords, answer, answer_index=0):
         answer_keyword_choice = [clean_keyword("%s%s" % (keyword, answer['choice'].replace(" ",""))) for keyword in keywords]
         answer_keyword_index = [clean_keyword("%s%s" % (keyword, answer_index)) for keyword in keywords]
         return answer_keyword_choice + answer_keyword_index
@@ -518,7 +518,7 @@ class Interaction(Model):
             answer_index_count = 0
             for answer in answers:
                 answer_index_count +=1
-                if keyword in self.get_answer_keywords(keywords, answer, answer_index_count):
+                if keyword in self.get_answer_keywords_accept_no_space(keywords, answer, answer_index_count):
                     return answer
         if reply is None:
             return None
@@ -551,7 +551,7 @@ class Interaction(Model):
         answer_index_count = 0
         for answer in self.payload['answers']:
             answer_index_count +=1
-            generated_answer += self.get_answer_keywords(keywords, answer, answer_index_count)
+            generated_answer += self.get_answer_keywords_accept_no_space(keywords, answer, answer_index_count)
         return generated_answer    
 
     def get_keywords(self):
