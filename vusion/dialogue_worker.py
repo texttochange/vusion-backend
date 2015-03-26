@@ -344,8 +344,18 @@ class DialogueWorker(ApplicationWorker):
             self.collections['schedules'].remove_participant_deadline(
                 participant_phone, action['dialogue-id'], action['interaction-id'])
         elif (action.get_type() == 'reset'):
+            participant = self.collections['participants'].get_participant(participant_phone)
+            participant_labels = participant['profile']
+            participant_tags = participant['tags']
             self.run_action(participant_phone, OptoutAction())
             self.run_action(participant_phone, OptinAction())
+            labels = action.get_keep_labels(participant['profile'])
+            tags = action.get_keep_tags(participant['tags'])
+            for tag in tags:
+                self.collections['participants'].tagging(participant_phone, tag)
+            for label in labels:
+                self.collections['participants'].labelling(participant_phone, label['label'], label['value'], '')
+            yield self.schedule_participant(participant_phone)
         elif (action.get_type() == 'proportional-tagging'):
             yield self.run_action_proportional_tagging(participant_phone, action)
         elif (action.get_type() == 'proportional-labelling'):
