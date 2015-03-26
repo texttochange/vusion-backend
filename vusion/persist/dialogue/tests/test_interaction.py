@@ -277,6 +277,7 @@ class TestInteraction(TestCase, ObjectMaker):
         self.assertEqual(
             interaction.get_keywords(),
             ['feel'])
+
     def test_get_answer_keywords(self):
         interaction = Interaction(**self.mkobj_interaction_question_answer())
         answer_keywords = interaction.get_answer_keywords_accept_no_space(
