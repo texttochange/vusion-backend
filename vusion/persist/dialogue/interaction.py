@@ -371,7 +371,7 @@ class Interaction(Model):
         return self.payload['set-max-unmatching-answers'] == 'max-unmatching-answers'
 
     def get_unmatching_action(self, answer, actions):
-        # case of question-answer-keyword
+        ## case of question-answer-keyword
         if 'type-unmatching-feedback' not in self.payload:
             return
         if self.payload['type-unmatching-feedback'] == 'interaction-unmatching-feedback':
@@ -409,7 +409,6 @@ class Interaction(Model):
         answer_keyword_choice = [clean_keyword("%s%s" % (keyword, answer['choice'].replace(" ",""))) for keyword in keywords]
         answer_keyword_index = [clean_keyword("%s%s" % (keyword, answer_index)) for keyword in keywords]
         return answer_keyword_choice + answer_keyword_index
-        ##return [clean_keyword("%s%s" % (keyword, answer['choice'].replace(" ",""))) for keyword in keywords]
 
     def get_actions_from_matching_answer(self, dialogue_id, matching_answer, matching_value, actions):
         if self.is_open_question():
@@ -552,7 +551,7 @@ class Interaction(Model):
         for answer in self.payload['answers']:
             answer_index_count +=1
             generated_answer += self.get_answer_keywords_accept_no_space(keywords, answer, answer_index_count)
-        return generated_answer    
+        return generated_answer
 
     def get_keywords(self):
         return self.keywords
