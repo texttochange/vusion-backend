@@ -360,7 +360,7 @@ class TestDialogue(TestCase, ObjectMaker):
         dialogue = Dialogue(**self.mkobj_dialogue_answer_not_space_supported())
         self.assertEqual(
             dialogue.get_all_keywords(),
-            ['fool', 'gen', 'genmale', 'genbad'])
+            ['fool', 'gen', 'genmale', 'gen1', 'genbad', 'gen2'])
 
     def test_get_all_keywords_question_multi_keyword(self):
         dialogue = Dialogue(**self.mkobj_dialogue_question_multi_keyword())

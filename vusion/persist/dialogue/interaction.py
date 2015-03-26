@@ -371,7 +371,7 @@ class Interaction(Model):
         return self.payload['set-max-unmatching-answers'] == 'max-unmatching-answers'
 
     def get_unmatching_action(self, answer, actions):
-        # case of question-answer-keyword
+        ## case of question-answer-keyword
         if 'type-unmatching-feedback' not in self.payload:
             return
         if self.payload['type-unmatching-feedback'] == 'interaction-unmatching-feedback':
@@ -399,14 +399,16 @@ class Interaction(Model):
             return keywords
         generated_answer = copy(keywords)
         for answer in self.payload['answers']:
-            generated_answer += self.get_answer_keywords(keywords, answer)
+            generated_answer += self.get_answer_keywords_accept_no_space(keywords, answer)
         return generated_answer
 
     def split_keywords(self, keywords):
         return [clean_keyword(k) for k in (keywords or '').split(', ')]
 
-    def get_answer_keywords(self, keywords, answer):
-        return [clean_keyword("%s%s" % (keyword, answer['choice'].replace(" ",""))) for keyword in keywords]
+    def get_answer_keywords_accept_no_space(self, keywords, answer, answer_index=0):
+        answer_keyword_choice = [clean_keyword("%s%s" % (keyword, answer['choice'].replace(" ",""))) for keyword in keywords]
+        answer_keyword_index = [clean_keyword("%s%s" % (keyword, answer_index)) for keyword in keywords]
+        return answer_keyword_choice + answer_keyword_index
 
     def get_actions_from_matching_answer(self, dialogue_id, matching_answer, matching_value, actions):
         if self.is_open_question():
@@ -512,8 +514,10 @@ class Interaction(Model):
         answers = self.payload['answers']
         if self.payload['set-answer-accept-no-space'] is not None:
             keywords = self.split_keywords(self.payload['keyword'])
+            answer_index_count = 0
             for answer in answers:
-                if keyword in self.get_answer_keywords(keywords, answer):
+                answer_index_count +=1
+                if keyword in self.get_answer_keywords_accept_no_space(keywords, answer, answer_index_count):
                     return answer
         if reply is None:
             return None
@@ -543,9 +547,11 @@ class Interaction(Model):
                 or self.payload['set-answer-accept-no-space'] is None):
             return keywords
         generated_answer = copy(keywords)
+        answer_index_count = 0
         for answer in self.payload['answers']:
-            generated_answer += self.get_answer_keywords(keywords, answer)
-        return generated_answer    
+            answer_index_count +=1
+            generated_answer += self.get_answer_keywords_accept_no_space(keywords, answer, answer_index_count)
+        return generated_answer
 
     def get_keywords(self):
         return self.keywords
