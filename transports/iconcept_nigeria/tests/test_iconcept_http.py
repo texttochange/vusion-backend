@@ -47,6 +47,16 @@ class IConceptHttpTransportTestCase(VumiTestCase, ObjectMaker):
         yield self.mock_iconcept_shortcode_server.stop()
         yield super(IConceptHttpTransportTestCase, self).tearDown()
 
+    def mk_bulk_response(self, response_id, phone_number):
+        return """<?xml version="1.0" encoding="UTF-8"?>\n
+                     <results>\r\n
+                        <result>
+                           <status>%s</status>
+                           <messageid>205042215022232190</messageid>
+                           <destination>%s</destination>
+                        </result>\r\n
+                    </results>""" % (response_id, phone_number)
+
     def handle_bulk_request(self, request):
         self.iconcept_bulk_calls.put(request)
         (resp_code, resp_content) = self.mock_iconcept_bulk_server_response.pop(0)
@@ -61,8 +71,9 @@ class IConceptHttpTransportTestCase(VumiTestCase, ObjectMaker):
 
     @inlineCallbacks
     def test_outbound_bulk_ok(self):
+        response = self.mk_bulk_response('0', '2561111')
         self.mock_iconcept_bulk_server_response.append(
-            (http.OK, 'ALL_RECIPIENTS_PROCESSED'))
+            (http.OK, response))
 
         yield self.tx_helper.make_dispatch_outbound(
             "hello world", message_id='1',
@@ -82,6 +93,9 @@ class IConceptHttpTransportTestCase(VumiTestCase, ObjectMaker):
 
     @inlineCallbacks
     def test_outbound_bulk_fail(self):
+        self.mock_iconcept_bulk_server_response.append(
+            (http.OK, self.mk_bulk_response('-3', '2561111')))
+
         self.mock_iconcept_bulk_server_response.append(
             (http.OK, 'NETWORK_NOTCOVERED'))
 
@@ -150,8 +164,9 @@ class IConceptHttpTransportTestCase(VumiTestCase, ObjectMaker):
 
     @inlineCallbacks
     def test_long_message_always_use_bulk_ok(self):
+        response = self.mk_bulk_response('0', '2561111')
         self.mock_iconcept_bulk_server_response.append(
-            (http.OK, 'ALL_RECIPIENTS_PROCESSED'))
+            (http.OK, response))
 
         response = yield http_request_full(
             self.get_mo_url(transaction_id='1234'), method='GET')

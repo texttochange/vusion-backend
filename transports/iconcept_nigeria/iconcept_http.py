@@ -1,6 +1,7 @@
 import sys
 import traceback
 import urllib
+import xml.etree.ElementTree as ET
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.web import http
@@ -50,9 +51,35 @@ class IConceptHttpTransport(Transport):
 
     transport_type = 'sms'
     successfull_bodies = [
-        'ALL_RECIPIENTS_PROCESSED', ## for the bulk api
+        '0',           ##'ALL_RECIPIENTS_PROCESSED' for the bulk api
         'Response message has been sent successfully' ## for the shortcode api
     ]
+
+    bulk_api_errors = {
+        '-1': 'SEND_ERROR',
+        '-2': 'NOT_ENOUGH_CREDITS',
+        '-3': 'NETWORK_NOTCOVERED',
+        '-5': 'INVALID_USER_OR_PASS',
+        '-6': 'MISSING_DESTINATION_ADDRESS',
+        '-10': 'MISSING_USERNAME',
+        '-11': 'MISSING_PASSWORD',
+        '-13': 'INVALID_DESTINATION_ADDRESS',
+        '-22': 'SYNTAX_ERROR',
+        '-23': 'ERROR_PROCESSING',
+        '-26': 'COMMUNICATION_ERROR',
+        '-27': 'INVALID_SENDDATETIME',
+        '-28': 'INVALID_DELIVERY_REPORT_PUSH_URL',
+        '-30': 'INVALID_CLIENT_APPID',
+        '-33': 'DUPLICATE_MESSAGEID',
+        '-34': 'SENDER_NOT_ALLOWED',
+        '-99': 'GENERAL_ERROR'}
+
+    def from_status_to_error_message(self, status, api):
+        if api == 'shotcode':
+            return status
+        if status in self.bulk_api_errors:
+            return self.bulk_api_errors[status]
+        return status
 
     def mkres(self, cls, publish_mo_func, path_key = None):
         config = self.get_static_config()
@@ -89,6 +116,7 @@ class IConceptHttpTransport(Transport):
     @inlineCallbacks
     def has_transaction_id(self, phone):
         transaction_id = yield self.redis.get(phone)
+        yield self.redis.delete(phone)
         returnValue(transaction_id)
 
     @inlineCallbacks
@@ -115,7 +143,7 @@ class IConceptHttpTransport(Transport):
             transaction_id = yield self.has_transaction_id(message['to_addr'])
             if not transaction_id is None and len(message['content']) <= 160:
                 api = 'shortcode'
-                url = "%soutbound/sms" % config.shortcode_url.geturl()
+                url = "%s" % config.shortcode_url.geturl()
                 data = {
                     'cid': config.shortcode_cid,
                     'password': config.shortcode_password,
@@ -125,7 +153,7 @@ class IConceptHttpTransport(Transport):
                     'transaction_id': transaction_id}
             else:
                 api = 'bulk'
-                url = "%sapi/v3/sendsms/plain" % config.bulk_url.geturl()
+                url = "%s" % config.bulk_url.geturl()
                 data = {
                     'user': config.bulk_user,
                     'password': config.bulk_password,
@@ -152,9 +180,16 @@ class IConceptHttpTransport(Transport):
                 return
 
             body = response.delivered_body.strip()
-            if not response.delivered_body in self.successfull_bodies:
+            if api == 'bulk':
+                tree = ET.fromstring(body)
+                status = tree.find('result').find('status').text
+            else:
+                status = body
+
+            if not status in self.successfull_bodies:
+                error = self.from_status_to_error_message(status, api)
                 reason = "SERVICE ERROR on api %s - %s" % (
-                    api, response.delivered_body)
+                    api, error)
                 log.error(reason)
                 yield self.publish_nack(message['message_id'], reason)
                 return
