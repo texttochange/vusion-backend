@@ -54,7 +54,8 @@ class Action(Model):
                 'message-forwarding',
                 'url-forwarding',
                 'sms-forwarding',
-                'sms-invite']},
+                'sms-invite',
+                'save-content-variable']},
         }
 
     subcondition_fields = {
@@ -528,6 +529,44 @@ class SmsInviteAction(Action):
             'feedback-inviter')
 
 
+class SaveContentVariable(Action):
+
+    ACTION_TYPE = 'save-content-variable'
+
+    def validate_fields(self):
+        super(SaveContentVariable, self).validate_fields()
+        self.assert_field_present(
+            'scv-attached-table',
+            'scv-row-keys',
+            'scv-col-key',
+            'scv-extra-cvs')
+
+    def get_match(self):
+        i = 1
+        match = {}
+        for key in self['scv-row-keys']:
+            match.update({'key%s' % i: key['value']})
+            i = i + 1
+        match.update({'key%s' % i: self['scv-col-key']})
+        return match
+
+    def get_extra_matchs(self):
+        i = 1
+        row_match = {}
+        for key in self['scv-row-keys']:
+            row_match.update({'key%s' % i: key['value']})
+            i = i + 1
+        matchs = []
+        for extra_cv in self['scv-extra-cvs']:
+            j = i
+            match = row_match.copy()
+            match.update({'key%s' % i: extra_cv['name']})
+            matchs.append((match, extra_cv['value']))
+        return matchs
+
+    def get_table_id(self):
+        return self['scv-attached-table']
+
 def action_generator(**kwargs):
     # Condition to be removed when Dialogue structure freezed
     if 'type-action' not in kwargs:
@@ -566,6 +605,8 @@ def action_generator(**kwargs):
         return SmsForwarding(**kwargs)
     elif kwargs['type-action'] == 'sms-invite':
         return SmsInviteAction(**kwargs)
+    elif kwargs['type-action'] == 'save-content-variable':
+        return SaveContentVariable(**kwargs)
     raise VusionError("%r not supported" % kwargs)
 
 

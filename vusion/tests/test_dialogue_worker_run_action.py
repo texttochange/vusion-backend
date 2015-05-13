@@ -15,14 +15,16 @@ from vumi.tests.utils import get_stubbed_worker, UTCNearNow, RegexMatcher
 from vusion.dialogue_worker import DialogueWorker
 from vusion.utils import time_to_vusion_format, time_from_vusion_format
 from vusion.error import MissingData, MissingTemplate
-from vusion.persist.action import (UnMatchingAnswerAction, EnrollingAction,
-                                   FeedbackAction, OptinAction, OptoutAction,
-                                   TaggingAction, ProfilingAction,
-                                   OffsetConditionAction, RemoveRemindersAction,
-                                   ResetAction, RemoveDeadlineAction,
-                                   DelayedEnrollingAction,
-                                   ProportionalTagging, ProportionalLabelling,
-                                   action_generator, Actions, UrlForwarding, SmsForwarding, SmsInviteAction)
+from vusion.persist.action import (
+    UnMatchingAnswerAction, EnrollingAction,
+    FeedbackAction, OptinAction, OptoutAction,
+    TaggingAction, ProfilingAction,
+    OffsetConditionAction, RemoveRemindersAction,
+    ResetAction, RemoveDeadlineAction,
+    DelayedEnrollingAction,
+    ProportionalTagging, ProportionalLabelling,
+    action_generator, Actions, UrlForwarding, SmsForwarding, SmsInviteAction,
+    SaveContentVariable)
 from vusion.context import Context
 from vusion.persist import Dialogue, DialogueHistory
 
@@ -1028,7 +1030,6 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(messages[0]['to_addr'], '+1545')
         self.assertEqual(messages[0]['content'], '+5987 is already in the program')
 
-
     @inlineCallbacks
     def test_run_action_sms_invite_invitee_phone_empty(self):
         self.initialize_properties()
@@ -1054,3 +1055,49 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0]['to_addr'], '+1545')
         self.assertEqual(messages[0]['content'], 'empty phone number sent')
+
+    @inlineCallbacks
+    def test_run_action_save_content_variable(self):
+        self.initialize_properties()
+
+        sender = self.mkobj_participant(
+            participant_phone='+1545',
+            profile=[{'label': 'name',
+                      'value': 'max'},
+                     {'label': 'address',
+                      'value': 'kampala'}],
+            tags=['my tag'])
+        self.collections['participants'].save(sender)
+
+        cvt = self.mkobj_content_variable_two_key_table_wallet()
+        saved_cvt = self.collections['content_variables'].save_object(cvt)
+
+        save_content_variable = SaveContentVariable(**{
+            'scv-attached-table': str(saved_cvt),
+            'scv-row-keys': [
+                {'name': 'date',
+                 'value': '[time.Y]/[time.m]/[time.d]'},
+                {'name': 'phone',
+                 'value': '[participant.phone]'}],
+            'scv-col-key': 'gain',
+            'scv-extra-cvs': [
+                {'name': 'name',
+                 'value': '[participant.name]'}]})
+        context = Context(**{'message': 'gain 100 KES',
+                             'request-id': '1',
+                             'matching-answer': '100 KES'})
+
+        yield self.worker.run_action(
+            sender['phone'], save_content_variable, context)
+
+        t = self.worker.get_local_time()
+        cv = self.collections['content_variables'].get_content_variable_from_match(
+            {'key1': t.strftime('%Y/%m/%d'),
+             'key2': '+1545',
+             'key3': 'gain'})
+        self.assertEqual(cv.get_value(), '100 KES')
+        cv = self.collections['content_variables'].get_content_variable_from_match(
+            {'key1': t.strftime('%Y/%m/%d'),
+             'key2': '+1545',
+             'key3': 'name'})
+        self.assertEqual(cv.get_value(), 'max')

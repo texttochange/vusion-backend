@@ -37,6 +37,19 @@ class Context(object):
         return ('matching-answer' in self.payload
                 and self.payload['matching-answer'] is not None)
 
+    def get_matching_answer(self):
+        if self.is_matching_dialogue():
+            return self.payload['matching-answer']
+        elif self.is_matching_request():
+            return self.get_message_no_keyword()
+        return None
+
+    def is_matching_dialogue(self):
+        return 'dialogue-id' in self.payload
+
+    def is_matching_request(self):
+        return 'request-id' in self.payload
+
     def is_matching(self):
         return ('dialogue-id' in self.payload or
                 'request-id' in self.payload)
@@ -46,9 +59,12 @@ class Context(object):
 
     def get_message_keyword(self):
         return get_word(self.get_message(), position=0)
-    
+
     def get_message_second_word(self):
         return get_word(self.get_message(), position=1)
+
+    def get_message_no_keyword(self):
+        return get_words(self.get_message(), 2, 'end')
 
     def get_data_from_notation(self, key1, key2=None, key3=None):
         if key2 is not None:

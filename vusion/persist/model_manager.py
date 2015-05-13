@@ -11,7 +11,7 @@ class ModelManager(object):
         if collection_name in db.collection_names():
             self.collection = db[collection_name]
         else:
-            self.collection = db.create_collection(collection_name)        
+            self.collection = db.create_collection(collection_name)
 
     def save_object(self, instance, safe=False):
         instance.validate_fields()
