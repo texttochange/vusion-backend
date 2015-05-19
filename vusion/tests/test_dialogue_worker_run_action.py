@@ -24,7 +24,7 @@ from vusion.persist.action import (
     DelayedEnrollingAction,
     ProportionalTagging, ProportionalLabelling,
     action_generator, Actions, UrlForwarding, SmsForwarding, SmsInviteAction,
-    SaveContentVariable)
+    SaveContentVariableTable)
 from vusion.context import Context
 from vusion.persist import Dialogue, DialogueHistory
 
@@ -1072,17 +1072,17 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         cvt = self.mkobj_content_variable_two_key_table_wallet()
         saved_cvt = self.collections['content_variables'].save_object(cvt)
 
-        save_content_variable = SaveContentVariable(**{
+        save_content_variable = SaveContentVariableTable(**{
             'scv-attached-table': str(saved_cvt),
             'scv-row-keys': [
-                {'name': 'date',
-                 'value': '[time.Y]/[time.m]/[time.d]'},
-                {'name': 'phone',
-                 'value': '[participant.phone]'}],
-            'scv-col-key': 'gain',
-            'scv-extra-cvs': [
-                {'name': 'name',
-                 'value': '[participant.name]'}]})
+                {'scv-row-header': 'date',
+                 'scv-row-value': '[time.Y]/[time.m]/[time.d]'},
+                {'scv-row-header': 'phone',
+                 'scv-row-value': '[participant.phone]'}],
+            'scv-col-key-header': 'gain',
+            'scv-col-extras': [
+                {'scv-col-extra-header': 'name',
+                 'scv-col-extra-value': '[participant.name]'}]})
         context = Context(**{'message': 'gain 100 KES',
                              'request-id': '1',
                              'matching-answer': '100 KES'})

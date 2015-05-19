@@ -55,7 +55,7 @@ class Action(Model):
                 'url-forwarding',
                 'sms-forwarding',
                 'sms-invite',
-                'save-content-variable']},
+                'save-content-variable-table']},
         }
 
     subcondition_fields = {
@@ -269,7 +269,7 @@ class DelayedEnrollingAction(Action):
     ACTION_TYPE = 'delayed-enrolling'
 
     def validate_fields(self):
-        super(DelayedEnrollingAction, self).validate_fields()        
+        super(DelayedEnrollingAction, self).validate_fields()
         self.assert_field_present(
             'enroll',
             'offset-days')
@@ -284,7 +284,7 @@ class ProfilingAction(Action):
     ACTION_TYPE = 'profiling'
 
     def validate_fields(self):
-        super(ProfilingAction, self).validate_fields()        
+        super(ProfilingAction, self).validate_fields()
         self.assert_field_present('label', 'value')
     
 
@@ -293,7 +293,7 @@ class RemoveQuestionAction(Action):
     ACTION_TYPE = 'remove-question'
 
     def validate_fields(self):
-        super(RemoveQuestionAction, self).validate_fields()        
+        super(RemoveQuestionAction, self).validate_fields()
         self.assert_field_present('dialogue-id', 'interaction-id')
 
 
@@ -302,7 +302,7 @@ class RemoveRemindersAction(Action):
     ACTION_TYPE = 'remove-reminders'
 
     def validate_fields(self):
-        super(RemoveRemindersAction, self).validate_fields()        
+        super(RemoveRemindersAction, self).validate_fields()
         self.assert_field_present('dialogue-id', 'interaction-id')
 
 
@@ -529,39 +529,43 @@ class SmsInviteAction(Action):
             'feedback-inviter')
 
 
-class SaveContentVariable(Action):
+class SaveContentVariableTable(Action):
 
-    ACTION_TYPE = 'save-content-variable'
+    ACTION_TYPE = 'save-content-variable-table'
 
     def validate_fields(self):
-        super(SaveContentVariable, self).validate_fields()
+        super(SaveContentVariableTable, self).validate_fields()
         self.assert_field_present(
             'scv-attached-table',
             'scv-row-keys',
-            'scv-col-key',
-            'scv-extra-cvs')
+            'scv-col-key-header',
+            'scv-col-extras')
+        self.assert_list_field_present(
+            self['scv-row-keys'], *['scv-row-header', 'scv-row-value'])
+        self.assert_list_field_present(
+            self['scv-col-extras'], *['scv-col-extra-header', 'scv-col-extra-value'])
 
     def get_match(self):
         i = 1
         match = {}
         for key in self['scv-row-keys']:
-            match.update({'key%s' % i: key['value']})
+            match.update({'key%s' % i: key['scv-row-value']})
             i = i + 1
-        match.update({'key%s' % i: self['scv-col-key']})
+        match.update({'key%s' % i: self['scv-col-key-header']})
         return match
 
     def get_extra_matchs(self):
         i = 1
         row_match = {}
         for key in self['scv-row-keys']:
-            row_match.update({'key%s' % i: key['value']})
+            row_match.update({'key%s' % i: key['scv-row-value']})
             i = i + 1
         matchs = []
-        for extra_cv in self['scv-extra-cvs']:
+        for extra_cv in self['scv-col-extras']:
             j = i
             match = row_match.copy()
-            match.update({'key%s' % i: extra_cv['name']})
-            matchs.append((match, extra_cv['value']))
+            match.update({'key%s' % i: extra_cv['scv-col-extra-header']})
+            matchs.append((match, extra_cv['scv-col-extra-value']))
         return matchs
 
     def get_table_id(self):
@@ -605,8 +609,8 @@ def action_generator(**kwargs):
         return SmsForwarding(**kwargs)
     elif kwargs['type-action'] == 'sms-invite':
         return SmsInviteAction(**kwargs)
-    elif kwargs['type-action'] == 'save-content-variable':
-        return SaveContentVariable(**kwargs)
+    elif kwargs['type-action'] == 'save-content-variable-table':
+        return SaveContentVariableTable(**kwargs)
     raise VusionError("%r not supported" % kwargs)
 
 

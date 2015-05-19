@@ -4,7 +4,8 @@ from twisted.internet.defer import inlineCallbacks
 from vusion.persist.action import (
     Action, action_generator, ProportionalTagging, TaggingAction, 
     Participant, ProportionalLabelling, ProfilingAction, ResetAction,
-    EnrollingAction, FeedbackAction, Actions, SmsInviteAction)
+    EnrollingAction, FeedbackAction, Actions, SmsInviteAction,
+    SaveContentVariableTable)
 from vusion.error import MissingField, InvalidField, MissingData
 
 from vusion.context import Context
@@ -473,9 +474,10 @@ class TestSmsInviteAction(TestCase, ObjectMaker):
             'feedback-inviter': 'already in the program'}
         a = action_generator(**action)
         self.assertTrue(isinstance(a, SmsInviteAction))
-        
+
+
 class TestResetAction(TestCase, ObjectMaker):
-    
+
     def test_get_keep_tags(self):
         action ={
             'type-action': 'reset',
@@ -490,7 +492,7 @@ class TestResetAction(TestCase, ObjectMaker):
                 'value': 'olivier'}]))
         self.assertEqual(['geek', 'meek'], 
                          reset_action.get_keep_tags(participant['tags']))
-    
+
     def test_get_keep_labels(self):
         action ={
             'type-action': 'reset',
@@ -508,3 +510,55 @@ class TestResetAction(TestCase, ObjectMaker):
                 'value': 'olivier',
                 'raw': None}], 
                          reset_action.get_keep_labels(participant['profile']))
+
+
+class TestSaveContentVariableTable(TestCase):
+
+    def test_get_match(self):
+        expected = {
+            'key1': '[time.Y]/[time.m]/[time.d]',
+            'key2': '[participant.phone]',
+            'key3': 'gain'}
+
+        scv = SaveContentVariableTable(**{
+            'scv-attached-table': '1',
+            'scv-row-keys': [
+                {'scv-row-header': 'date',
+                 'scv-row-value': '[time.Y]/[time.m]/[time.d]'},
+                {'scv-row-header': 'phone',
+                 'scv-row-value': '[participant.phone]'}],
+            'scv-col-key-header': 'gain',
+            'scv-col-extras': [
+                {'scv-col-extra-header': 'name',
+                 'scv-col-extra-value': '[participant.name]'}]})
+        match = scv.get_match()
+        self.assertEqual(match, expected)
+
+    def test_get_extra_matchs(self):
+        expected = [
+            ({
+                'key1': '[time.Y]/[time.m]/[time.d]',
+                'key2': '[participant.phone]',
+                'key3': 'name'},
+             '[participant.name]'),
+            ({
+                'key1': '[time.Y]/[time.m]/[time.d]',
+                'key2': '[participant.phone]',
+                'key3': 'location'},
+             '[participant.location]')]
+
+        scv = SaveContentVariableTable(**{
+            'scv-attached-table': '1',
+            'scv-row-keys': [
+                {'scv-row-header': 'date',
+                 'scv-row-value': '[time.Y]/[time.m]/[time.d]'},
+                {'scv-row-header': 'phone',
+                 'scv-row-value': '[participant.phone]'}],
+            'scv-col-key-header': 'gain',
+            'scv-col-extras': [
+                {'scv-col-extra-header': 'name',
+                 'scv-col-extra-value': '[participant.name]'},
+                {'scv-col-extra-header': 'location',
+                 'scv-col-extra-value': '[participant.location]'}]})
+        matchs = scv.get_extra_matchs()
+        self.assertEqual(matchs, expected)

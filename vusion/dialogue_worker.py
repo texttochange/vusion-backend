@@ -373,7 +373,7 @@ class DialogueWorker(ApplicationWorker):
             yield self.run_action_sms_forwarding(participant_phone, action, context)
         elif (action.get_type() == 'sms-invite'):
             yield self.run_action_sms_invite(participant_phone, action, context)
-        elif (action.get_type() == 'save-content-variable'):
+        elif (action.get_type() == 'save-content-variable-table'):
             yield self.run_action_save_content_variable(
                 participant_phone, action, context)
         else:
