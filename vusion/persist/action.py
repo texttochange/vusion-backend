@@ -144,6 +144,8 @@ class Action(Model):
                 raise MissingField(subfield)
 
     def assert_list_field_present(self, elements, *fields):
+        if elements is None:
+            return
         for element in elements:
             for field in fields:
                 if field not in element:
