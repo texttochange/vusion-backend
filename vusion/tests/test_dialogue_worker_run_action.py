@@ -1073,16 +1073,16 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         saved_cvt = self.collections['content_variables'].save_object(cvt)
 
         save_content_variable = SaveContentVariableTable(**{
-            'scv-attached-table': str(saved_cvt),
-            'scv-row-keys': [
-                {'scv-row-header': 'date',
-                 'scv-row-value': '[time.Y]/[time.m]/[time.d]'},
-                {'scv-row-header': 'phone',
-                 'scv-row-value': '[participant.phone]'}],
-            'scv-col-key-header': 'gain',
-            'scv-col-extras': [
-                {'scv-col-extra-header': 'name',
-                 'scv-col-extra-value': '[participant.name]'}]})
+            'scvt-attached-table': str(saved_cvt),
+            'scvt-row-keys': [
+                {'scvt-row-header': 'date',
+                 'scvt-row-value': '[time.Y]/[time.m]/[time.d]'},
+                {'scvt-row-header': 'phone',
+                 'scvt-row-value': '[participant.phone]'}],
+            'scvt-col-key-header': 'gain',
+            'scvt-col-extras': [
+                {'scvt-col-extra-header': 'name',
+                 'scvt-col-extra-value': '[participant.name]'}]})
         context = Context(**{'message': 'gain 100 KES',
                              'request-id': '1',
                              'matching-answer': '100 KES'})

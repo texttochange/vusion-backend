@@ -521,16 +521,16 @@ class TestSaveContentVariableTable(TestCase):
             'key3': 'gain'}
 
         scv = SaveContentVariableTable(**{
-            'scv-attached-table': '1',
-            'scv-row-keys': [
-                {'scv-row-header': 'date',
-                 'scv-row-value': '[time.Y]/[time.m]/[time.d]'},
-                {'scv-row-header': 'phone',
-                 'scv-row-value': '[participant.phone]'}],
-            'scv-col-key-header': 'gain',
-            'scv-col-extras': [
-                {'scv-col-extra-header': 'name',
-                 'scv-col-extra-value': '[participant.name]'}]})
+            'scvt-attached-table': '1',
+            'scvt-row-keys': [
+                {'scvt-row-header': 'date',
+                 'scvt-row-value': '[time.Y]/[time.m]/[time.d]'},
+                {'scvt-row-header': 'phone',
+                 'scvt-row-value': '[participant.phone]'}],
+            'scvt-col-key-header': 'gain',
+            'scvt-col-extras': [
+                {'scvt-col-extra-header': 'name',
+                 'scvt-col-extra-value': '[participant.name]'}]})
         match = scv.get_match()
         self.assertEqual(match, expected)
 
@@ -548,17 +548,17 @@ class TestSaveContentVariableTable(TestCase):
              '[participant.location]')]
 
         scv = SaveContentVariableTable(**{
-            'scv-attached-table': '1',
-            'scv-row-keys': [
-                {'scv-row-header': 'date',
-                 'scv-row-value': '[time.Y]/[time.m]/[time.d]'},
-                {'scv-row-header': 'phone',
-                 'scv-row-value': '[participant.phone]'}],
-            'scv-col-key-header': 'gain',
-            'scv-col-extras': [
-                {'scv-col-extra-header': 'name',
-                 'scv-col-extra-value': '[participant.name]'},
-                {'scv-col-extra-header': 'location',
-                 'scv-col-extra-value': '[participant.location]'}]})
+            'scvt-attached-table': '1',
+            'scvt-row-keys': [
+                {'scvt-row-header': 'date',
+                 'scvt-row-value': '[time.Y]/[time.m]/[time.d]'},
+                {'scvt-row-header': 'phone',
+                 'scvt-row-value': '[participant.phone]'}],
+            'scvt-col-key-header': 'gain',
+            'scvt-col-extras': [
+                {'scvt-col-extra-header': 'name',
+                 'scvt-col-extra-value': '[participant.name]'},
+                {'scvt-col-extra-header': 'location',
+                 'scvt-col-extra-value': '[participant.location]'}]})
         matchs = scv.get_extra_matchs()
         self.assertEqual(matchs, expected)

@@ -536,40 +536,40 @@ class SaveContentVariableTable(Action):
     def validate_fields(self):
         super(SaveContentVariableTable, self).validate_fields()
         self.assert_field_present(
-            'scv-attached-table',
-            'scv-row-keys',
-            'scv-col-key-header',
-            'scv-col-extras')
+            'scvt-attached-table',
+            'scvt-row-keys',
+            'scvt-col-key-header',
+            'scvt-col-extras')
         self.assert_list_field_present(
-            self['scv-row-keys'], *['scv-row-header', 'scv-row-value'])
+            self['scvt-row-keys'], *['scvt-row-header', 'scvt-row-value'])
         self.assert_list_field_present(
-            self['scv-col-extras'], *['scv-col-extra-header', 'scv-col-extra-value'])
+            self['scvt-col-extras'], *['scvt-col-extra-header', 'scvt-col-extra-value'])
 
     def get_match(self):
         i = 1
         match = {}
-        for key in self['scv-row-keys']:
-            match.update({'key%s' % i: key['scv-row-value']})
+        for key in self['scvt-row-keys']:
+            match.update({'key%s' % i: key['scvt-row-value']})
             i = i + 1
-        match.update({'key%s' % i: self['scv-col-key-header']})
+        match.update({'key%s' % i: self['scvt-col-key-header']})
         return match
 
     def get_extra_matchs(self):
         i = 1
         row_match = {}
-        for key in self['scv-row-keys']:
-            row_match.update({'key%s' % i: key['scv-row-value']})
+        for key in self['scvt-row-keys']:
+            row_match.update({'key%s' % i: key['scvt-row-value']})
             i = i + 1
         matchs = []
-        for extra_cv in self['scv-col-extras']:
+        for extra_cv in self['scvt-col-extras']:
             j = i
             match = row_match.copy()
-            match.update({'key%s' % i: extra_cv['scv-col-extra-header']})
-            matchs.append((match, extra_cv['scv-col-extra-value']))
+            match.update({'key%s' % i: extra_cv['scvt-col-extra-header']})
+            matchs.append((match, extra_cv['scvt-col-extra-value']))
         return matchs
 
     def get_table_id(self):
-        return self['scv-attached-table']
+        return self['scvt-attached-table']
 
 def action_generator(**kwargs):
     # Condition to be removed when Dialogue structure freezed
