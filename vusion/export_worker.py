@@ -16,7 +16,7 @@ from vusion.connectors import ReceiveExportWorkerControlConnector
 from vusion.message import ExportWorkerControl
 from vusion.persist import (ParticipantManager, HistoryManager,
                             ScheduleManager, UnmatchableReplyManager,
-                            ExportManager)
+                            ExportManager, DialogueManager)
 from vusion.component import BasicLogger
 
 
@@ -158,12 +158,14 @@ class ExportWorker(BaseWorker):
     def export_participants(self, export):
         db = self.mongo[export['database']]
         schedule_mgr = ScheduleManager(db, 'schedules')
+        dialogue_mgr = DialogueManager(db, 'dialogues')
         conditions = yield self.replace_join(export['conditions'], schedule_mgr)
         log.debug("running conditions %r" % conditions) 
         participant_mgr = ParticipantManager(db, export['collection'])
         headers = ['phone', 'tags'] 
         label_headers = yield participant_mgr.get_labels(conditions)
-        headers += label_headers
+        ordered_label_headers = dialogue_mgr.get_labels_order_from_dialogues(label_headers)
+        headers += ordered_label_headers
         with codecs.open(export['file-full-name'], 'wb', 'utf-8') as csvfile:
             csvfile.write("%s\n" % ','.join(headers))
             sort = export.get_order_pymongo()
