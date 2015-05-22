@@ -3,7 +3,7 @@ from vusion.persist import Model
 class ContentVariableTable(Model):
 
     MODEL_TYPE = 'content_variable_table'
-    MODEL_VERSION = '1'
+    MODEL_VERSION = '2'
 
     fields= {
          'name': {
