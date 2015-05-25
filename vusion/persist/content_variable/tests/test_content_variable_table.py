@@ -2,7 +2,7 @@ from twisted.trial.unittest import TestCase
 
 from tests.utils import ObjectMaker
 
-from vusion.persist import ContentVariable
+from vusion.persist import ContentVariable, ContentVariableTable
 
 
 class TestContentVariableTable(TestCase, ObjectMaker):
@@ -82,4 +82,6 @@ class TestContentVariableTable(TestCase, ObjectMaker):
         self.assertEqual('10mm', cvt.get_value(match))
 
     def test_validation(self):
-        pass
+        cvt = self.mkobj_content_variable_two_key_table()
+        self.assertEqual('auto', cvt['column-key-selection'])
+        self.assertEqual(ContentVariableTable.MODEL_VERSION, '2')

@@ -11,8 +11,17 @@ class ContentVariableTable(Model):
               },
          'columns': {
              'required': True
-             }
+             },
+         'column-key-selection': {
+              'required': True
+          }
          }
+
+    def upgrade(self, **kwargs):
+            if kwargs['model-version'] == '1':
+                kwargs['column-key-selection'] = 'auto'
+                kwargs['model-version'] = '2'
+            return kwargs
 
     def validate_fields(self):
         self._validate(self, self.fields)
