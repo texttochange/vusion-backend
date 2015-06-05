@@ -9,7 +9,7 @@ from tests.utils import MessageMaker, ObjectMaker
 
 from vusion.persist import (
     ParticipantManager, HistoryManager, history_generator, ScheduleManager,
-    UnmatchableReplyManager, ExportManager, Export)
+    UnmatchableReplyManager, ExportManager, Export, DialogueManager)
 from vusion.export_worker import ExportWorker
 
 
@@ -122,7 +122,59 @@ class ExportWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
 
         export = self.exports.get_export(export_id)
         self.assertEqual(export['status'], 'success')
+        
+    @inlineCallbacks
+    def test_export_participant_ordered_columns(self):        
+        particpant_manager = ParticipantManager(
+            self.mongo['test_program'],
+            'participants')
+        particpant_manager.save_participant(self.mkobj_participant(
+            '07',
+            enrolled=[{'dialogue-id': '01',
+                       'date-time': '12/04/2060'}],
+            tags=['geek', 'mombasa'],
+            profile=[{'label': 'name',
+                      'value': 'olivier'},
+                     {'label': 'status',
+                      'value': 'ok'}]))
+        particpant_manager.save_participant(self.mkobj_participant(
+            '06',
+            enrolled=[{'dialogue-id': '01',
+                       'date-time': '19/04/2060'}],
+            tags=['nogeek'],
+            profile=[{'label': 'status',
+                      'value': 'fine'},
+                     {'label': 'name',
+                      'value': 'steve'}]))        
+        dialogue_manager = DialogueManager(
+            self.mongo['test_program'],
+            'dialogues')
+        saved_dialogue = dialogue_manager.save(self.mkobj_dialogue_question_answer())
+        
+        export = Export(**self.mkdoc_export(
+                    database='test_program',
+                    collection='participants',
+                    file_full_name='testing_export.csv',
+                    conditions={},
+                    order={'phone': 'asc'}))
+        export_id = self.exports.save_object(export)
 
+        control = self.mkmsg_exportworker_control(export_id=str(export_id))
+        yield self.dispatch_control(control)
+
+        self.assertTrue(os.path.isfile('testing_export.csv'))
+        with open('testing_export.csv', 'rb') as csvfile:
+            self.assertEqual(
+                'phone,tags,status,name\n', csvfile.readline())
+            self.assertEqual(
+                '"06","nogeek","fine","steve"\n', csvfile.readline())
+            self.assertEqual(
+                '"07","geek,mombasa","ok","olivier"\n', csvfile.readline())            
+            self.assertEqual('', csvfile.readline())
+
+        export = self.exports.get_export(export_id)
+        self.assertEqual(export['status'], 'success')        
+        
     @inlineCallbacks
     def test_export_participant_with_fakejoin(self):
         manager = ParticipantManager(

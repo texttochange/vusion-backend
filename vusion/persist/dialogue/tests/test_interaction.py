@@ -303,3 +303,23 @@ class TestInteraction(TestCase, ObjectMaker):
         actions = interaction.get_sending_actions()
         self.assertEqual(
             expectedActions, actions)
+        
+    def test_get_label_closed_question(self):
+        interaction_closed_qn = self.mkobj_interaction_question_answer()
+        interaction_closed_qn['label-for-participant-profiling'] = 'feels'
+        interaction = Interaction(**interaction_closed_qn)
+        label = interaction.get_label()        
+        self.assertEqual(label, 'feels')
+        
+    def test_get_label_open_question(self):
+        interaction_open_qn = self.mkobj_interaction_question_answer_open()
+        interaction_open_qn['answer-label'] = 'greeting'
+        interaction = Interaction(**interaction_open_qn)
+        label = interaction.get_label()
+        self.assertEqual(label, 'greeting')
+        
+    def test_get_label_question_multikeyword(self):
+        interaction_qn_multi_keyword = self.mkobj_interaction_question_multikeyword()
+        interaction = Interaction(**interaction_qn_multi_keyword)
+        label = interaction.get_label()
+        self.assertEqual(label, 'gender')        

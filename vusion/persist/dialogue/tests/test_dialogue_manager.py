@@ -141,3 +141,14 @@ class TestDialogueManager(TestCase, ObjectMaker):
             'Olivier')
 
         self.assertTrue(actions.contains('profiling'))
+
+    def test_get_labels_order_from_dialogues(self):
+        dialogue = self.mkobj_dialogue_question_answer()
+        self.dialogue_manager.save(dialogue)
+        dialogue2 = self.mkobj_dialogue_question_multi_keyword()
+        self.dialogue_manager.save(dialogue2)
+
+        labels = self.dialogue_manager.get_labels_order_from_dialogues(['gender', 'name', 'status'])
+
+        self.assertEqual(labels, ['status','name', 'gender'])
+

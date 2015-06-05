@@ -139,6 +139,9 @@ class Dialogue(Model):
                 return interaction
         return None
 
+    def get_interactions(self):
+        return self.interactions   
+    
     def get_auto_enrollment_as_query(self):
         query = None
         if self['auto-enrollment'] == 'all':

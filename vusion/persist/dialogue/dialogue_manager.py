@@ -98,3 +98,13 @@ class DialogueManager(ModelManager):
         if returned_interaction.has_max_unmatching_answers():
             return returned_interaction
         return None
+
+    def get_labels_order_from_dialogues(self, labels):
+        ordered_labels = []
+        for dialogue in self.get_active_dialogues():
+            for interaction in dialogue.get_interactions():
+                ordered_labels.append(interaction.get_label())
+        for label in labels:
+            if label not in ordered_labels:
+                ordered_labels.append(label)
+        return ordered_labels
