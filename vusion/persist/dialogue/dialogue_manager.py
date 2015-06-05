@@ -101,11 +101,9 @@ class DialogueManager(ModelManager):
 
     def get_labels_order_from_dialogues(self, labels):
         ordered_labels = []
-        x = []
         for dialogue in self.get_active_dialogues():
-            for interaction in dialogue['interactions']:
-                retrieved_interaction = dialogue.get_interaction(interaction['interaction-id'])
-                ordered_labels.append(retrieved_interaction.get_label())
+            for interaction in dialogue.get_interactions():
+                ordered_labels.append(interaction.get_label())
         for label in labels:
             if label not in ordered_labels:
                 ordered_labels.append(label)

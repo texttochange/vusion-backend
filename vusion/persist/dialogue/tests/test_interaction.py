@@ -303,3 +303,11 @@ class TestInteraction(TestCase, ObjectMaker):
         actions = interaction.get_sending_actions()
         self.assertEqual(
             expectedActions, actions)
+        
+    def test_get_label(self):
+        interaction = self.mkobj_interaction_question_answer()
+        interaction['label-for-participant-profiling'] = 'feels'
+        interaction = Interaction(**interaction)
+        label = interaction.get_label()
+        
+        self.assertEqual(label, ['status'])
