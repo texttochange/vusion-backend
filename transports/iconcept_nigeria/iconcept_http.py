@@ -7,6 +7,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.web import http
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
+from twisted.web.http import _DataLoss
 
 from vumi.transports.base import Transport
 from vumi.utils import http_request_full
@@ -198,6 +199,14 @@ class IConceptHttpTransport(Transport):
                 user_message_id=message['message_id'],
                 sent_message_id=message['message_id'])
 
+        except _DataLoss as dt:
+            ## strangly the response from iConcept throw a dataloss error
+            ## looking at the tcp trace didn't help
+            log.error("DATALOSS ERROR: %s" % dt.message)
+            ## Ugly way but the MT are going though
+            yield self.publish_ack(
+                user_message_id=message['message_id'],
+                sent_message_id=message['message_id'])
         except Exception as ex:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             log.error(

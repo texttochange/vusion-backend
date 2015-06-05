@@ -17,7 +17,8 @@ from vusion.message import (
 from vusion.persist import (
     Dialogue, DialogueHistory, UnattachHistory, history_generator,
     schedule_generator, Participant, UnattachedMessage,
-    Request, Interaction, ProgramCreditLog, WorkerConfig, UnmatchableReply)
+    Request, Interaction, ProgramCreditLog, WorkerConfig, UnmatchableReply,
+    ContentVariable, ContentVariableTable)
 
 from vusion.utils import time_to_vusion_format_date
 
@@ -1159,22 +1160,89 @@ class ObjectMaker:
             'content': content,
             'context': context}
         return schedule_generator(**schedule).get_as_dict()
-    
-    def mkobj_content_variables_three_keys(self, key1='mombasa', key2='chicken',
-                                           key3='price', value='30 C'):
-            return {'keys':[{'key' : key1},
-                            {'key' : key2},
-                            {'key': key3}],
-                    'value' : value}    
-    
-    def mkobj_content_variables_two_keys(self, key1='program', key2='weather', value='30 C'):
-        return {'keys':[{'key' : key1},
-                        {'key' : key2}],
-                'value' : value}
-    
-    def mkobj_content_variables_one_key(self, key1='temperature', value='100 C'):
-        return {'keys':[{'key' : key1}],
-                'value' : value}
+
+    def mkobj_content_variables_three_keys(self, key1='mombasa',
+                                           key2='chicken', key3='price',
+                                           value='30 C', table_id=None):
+        raw = {'keys':[{'key' : key1},
+                       {'key' : key2},
+                       {'key': key3}],
+               'value' : value}
+        if not table_id is None:
+            raw.update({'table': table_id})
+        return ContentVariable(**raw)
+
+    def mkobj_content_variables_two_keys(self, key1='program', key2='weather',
+                                         value='30 C', table_id='1'):
+        return ContentVariable(**{'keys':[{'key' : key1},
+                                          {'key' : key2}],
+                                  'table': table_id,
+                                  'value' : value})
+
+    def mkobj_content_variables_one_key(self, key1='temperature',
+                                        value='100 C'):
+        return ContentVariable(**{'keys':[{'key' : key1}],
+                                  'value' : value})
+
+    def mkobj_content_variable_two_key_table_wallet(self):
+            return ContentVariableTable(
+                **{'name': 'Waller',
+                   'columns': [{
+                        'header': 'date',
+                        'values': ['2015/01/01', '2015/01/01'],
+                        'validation': None,
+                        'type': 'key'
+                    },{
+                       'header': 'phone',
+                       'values': ['+256111', '+256222'],
+                       'validation': None,
+                       'type': 'key'
+                    },{
+                        'header': 'spent',
+                        'values': ['100 KES', '10KES'],
+                        'validation': None,
+                        'type': 'contentvariable'
+                    }]})
+
+    def mkobj_content_variable_two_key_table(self, name='Temperature'):
+        return ContentVariableTable(
+            **{'name': name,
+               'columns': [{
+                   'header': 'city',
+                   'values': ['Nairobi', 'Mombasa'],
+                   'validation': None,
+                   'type': 'key'
+                },{
+                    'header': 'date',
+                    'values': ['2015/01/01', '2015/01/01'],
+                    'validation': None,
+                    'type': 'key'
+                },{
+                    'header': 'temperature',
+                    'values': ['12 C', '23 C'],
+                    'validation': None,
+                    'type': 'contentvariable'
+                }]})
+
+    def mkobj_content_variable_one_key_table(self, name='Temperature'):
+        return ContentVariableTable(
+            **{'name': name,
+               'columns': [{
+                   'header': 'city',
+                   'values': ['Nairobi', 'Mombasa'],
+                   'validation': None,
+                   'type': 'key'
+                },{
+                    'header': 'precipitation',
+                    'values': ['10mm', '40mm'],
+                    'validation': None,
+                    'type': 'contentvariable'
+                },{
+                    'header': 'temperature',
+                    'values': ['12 C', '23 C'],
+                    'validation': None,
+                    'type': 'contentvariable'
+                }]})
 
     def mk_content(self, length=160, keyword=None):
         content = keyword if keyword is not None else ""

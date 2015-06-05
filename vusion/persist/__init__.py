@@ -2,6 +2,7 @@ from model import Model
 from model_manager import ModelManager
 
 from content_variable.content_variable import ContentVariable
+from content_variable.content_variable_table import ContentVariableTable
 from content_variable.content_variable_manager import ContentVariableManager
 
 from dialogue.interaction import Interaction
@@ -69,5 +70,6 @@ __all__ = ["Model", "ModelManager",
            "UnmatchableReply", "UnmatchableReplyManager",
            "Template", "TemplateManager",
            "ContentVariable", "ContentVariableManager",
+           "ContentVariableTable",
            "CursorInstanciator",
            "Export", "ExportManager"]

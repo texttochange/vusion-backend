@@ -54,7 +54,8 @@ class Action(Model):
                 'message-forwarding',
                 'url-forwarding',
                 'sms-forwarding',
-                'sms-invite']},
+                'sms-invite',
+                'save-content-variable-table']},
         }
 
     subcondition_fields = {
@@ -143,6 +144,8 @@ class Action(Model):
                 raise MissingField(subfield)
 
     def assert_list_field_present(self, elements, *fields):
+        if elements is None:
+            return
         for element in elements:
             for field in fields:
                 if field not in element:
@@ -268,7 +271,7 @@ class DelayedEnrollingAction(Action):
     ACTION_TYPE = 'delayed-enrolling'
 
     def validate_fields(self):
-        super(DelayedEnrollingAction, self).validate_fields()        
+        super(DelayedEnrollingAction, self).validate_fields()
         self.assert_field_present(
             'enroll',
             'offset-days')
@@ -283,7 +286,7 @@ class ProfilingAction(Action):
     ACTION_TYPE = 'profiling'
 
     def validate_fields(self):
-        super(ProfilingAction, self).validate_fields()        
+        super(ProfilingAction, self).validate_fields()
         self.assert_field_present('label', 'value')
     
 
@@ -292,7 +295,7 @@ class RemoveQuestionAction(Action):
     ACTION_TYPE = 'remove-question'
 
     def validate_fields(self):
-        super(RemoveQuestionAction, self).validate_fields()        
+        super(RemoveQuestionAction, self).validate_fields()
         self.assert_field_present('dialogue-id', 'interaction-id')
 
 
@@ -301,7 +304,7 @@ class RemoveRemindersAction(Action):
     ACTION_TYPE = 'remove-reminders'
 
     def validate_fields(self):
-        super(RemoveRemindersAction, self).validate_fields()        
+        super(RemoveRemindersAction, self).validate_fields()
         self.assert_field_present('dialogue-id', 'interaction-id')
 
 
@@ -528,6 +531,48 @@ class SmsInviteAction(Action):
             'feedback-inviter')
 
 
+class SaveContentVariableTable(Action):
+
+    ACTION_TYPE = 'save-content-variable-table'
+
+    def validate_fields(self):
+        super(SaveContentVariableTable, self).validate_fields()
+        self.assert_field_present(
+            'scvt-attached-table',
+            'scvt-row-keys',
+            'scvt-col-key-header',
+            'scvt-col-extras')
+        self.assert_list_field_present(
+            self['scvt-row-keys'], *['scvt-row-header', 'scvt-row-value'])
+        self.assert_list_field_present(
+            self['scvt-col-extras'], *['scvt-col-extra-header', 'scvt-col-extra-value'])
+
+    def get_match(self):
+        i = 1
+        match = {}
+        for key in self['scvt-row-keys']:
+            match.update({'key%s' % i: key['scvt-row-value']})
+            i = i + 1
+        match.update({'key%s' % i: self['scvt-col-key-header']})
+        return match
+
+    def get_extra_matchs(self):
+        i = 1
+        row_match = {}
+        for key in self['scvt-row-keys']:
+            row_match.update({'key%s' % i: key['scvt-row-value']})
+            i = i + 1
+        matchs = []
+        for extra_cv in self['scvt-col-extras']:
+            j = i
+            match = row_match.copy()
+            match.update({'key%s' % i: extra_cv['scvt-col-extra-header']})
+            matchs.append((match, extra_cv['scvt-col-extra-value']))
+        return matchs
+
+    def get_table_id(self):
+        return self['scvt-attached-table']
+
 def action_generator(**kwargs):
     # Condition to be removed when Dialogue structure freezed
     if 'type-action' not in kwargs:
@@ -566,6 +611,8 @@ def action_generator(**kwargs):
         return SmsForwarding(**kwargs)
     elif kwargs['type-action'] == 'sms-invite':
         return SmsInviteAction(**kwargs)
+    elif kwargs['type-action'] == 'save-content-variable-table':
+        return SaveContentVariableTable(**kwargs)
     raise VusionError("%r not supported" % kwargs)
 
 

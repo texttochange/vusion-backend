@@ -155,13 +155,20 @@ class DialogueWorker(ApplicationWorker):
         program_db = mongo_client[self.database_name]
         self.setup_collections(program_db, {'program_settings': None,
                                             'unattached_messages': None})
-        self.collections['history'] = HistoryManager(program_db, 'history', self.r_prefix, self.r_server)
-        self.collections['content_variables'] = ContentVariableManager(program_db, 'content_variables')
-        self.collections['dialogues'] = DialogueManager(program_db, 'dialogues')
-        self.collections['requests'] = RequestManager(program_db, 'requests')
-        self.collections['participants'] = ParticipantManager(program_db, 'participants')
-        self.collections['schedules'] = ScheduleManager(program_db, 'schedules')
-        self.collections['unattached_messages'] = UnattachedMessageManager(program_db, 'unattached_messages')
+        self.collections['history'] = HistoryManager(
+            program_db, 'history', self.r_prefix, self.r_server)
+        self.collections['content_variables'] = ContentVariableManager(
+            program_db, 'content_variables', 'content_variable_tables')
+        self.collections['dialogues'] = DialogueManager(
+            program_db, 'dialogues')
+        self.collections['requests'] = RequestManager(
+            program_db, 'requests')
+        self.collections['participants'] = ParticipantManager(
+            program_db, 'participants')
+        self.collections['schedules'] = ScheduleManager(
+            program_db, 'schedules')
+        self.collections['unattached_messages'] = UnattachedMessageManager(
+            program_db, 'unattached_messages')
 
         ## Vusion 
         vusion_db = mongo_client[self.vusion_database_name]
@@ -366,6 +373,9 @@ class DialogueWorker(ApplicationWorker):
             yield self.run_action_sms_forwarding(participant_phone, action, context)
         elif (action.get_type() == 'sms-invite'):
             yield self.run_action_sms_invite(participant_phone, action, context)
+        elif (action.get_type() == 'save-content-variable-table'):
+            yield self.run_action_save_content_variable(
+                participant_phone, action, context)
         else:
             self.log("The action is not supported %s" % action.get_type())
 
@@ -468,6 +478,23 @@ class DialogueWorker(ApplicationWorker):
                 'content': content,
                 'context': context.payload})
             yield self.send_schedule(schedule)
+
+    def run_action_save_content_variable(self, participant_phone, action, context):
+        match = action.get_match()
+        self._run_action_save_content_variable(
+            participant_phone, action, context, match, context.get_matching_answer())
+        extra_matchs = action.get_extra_matchs()
+        for (match, value) in extra_matchs:
+            self._run_action_save_content_variable(
+                participant_phone, action, context, match, value)
+
+    def _run_action_save_content_variable(self, participant_phone, action,
+                                          context, match, value):
+        for i, key in match.iteritems():
+            match[i] = self.customize_message(key, participant_phone, context)
+        value = self.customize_message(value, participant_phone, context)
+        self.collections['content_variables'].save_content_variable(
+            match, value, action.get_table_id())
 
     def consume_user_message(self, message):
         self.log("User message received from %s '%s'" % (message['from_addr'],

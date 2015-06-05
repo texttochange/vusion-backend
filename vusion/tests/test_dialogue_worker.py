@@ -180,15 +180,15 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
 
         content_one_key = self.mkobj_content_variables_one_key(
                     key1='temperature', value='100 C')
-        self.collections['content_variables'].save(content_one_key)        
+        self.collections['content_variables'].save_object(content_one_key)
 
         content_two_keys = self.mkobj_content_variables_two_keys(
             key1='program', key2='weather', value='30 C')
-        self.collections['content_variables'].save(content_two_keys)
+        self.collections['content_variables'].save_object(content_two_keys)
 
         content_three_key = self.mkobj_content_variables_three_keys(
             key1='mombasa', key2='chicken', key3='price', value='600')
-        self.collections['content_variables'].save(content_three_key)
+        self.collections['content_variables'].save_object(content_three_key)
         
         message_two_keys = self.worker.customize_message('Today the temperature is [contentVariable.program.weather]')
         self.assertEqual(message_two_keys, 'Today the temperature is 30 C')
