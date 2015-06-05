@@ -310,4 +310,4 @@ class TestInteraction(TestCase, ObjectMaker):
         interaction = Interaction(**interaction)
         label = interaction.get_label()
         
-        self.assertEqual(label, ['status'])
+        self.assertEqual(label, 'feels')
