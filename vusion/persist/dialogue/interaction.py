@@ -577,3 +577,11 @@ class Interaction(Model):
         for action in self['announcement-actions']:
             actions.append(action_generator(**action))
         return actions;
+
+    def get_label(self):
+        label = None
+        if self.has_closed_question_profiling():
+            label = self['label-for-participant-profiling']
+        elif self.has_open_question_profiling():
+            label = self['answer-label']
+        return label
