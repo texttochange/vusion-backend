@@ -134,7 +134,7 @@ class IConceptHttpTransportTestCase(VumiTestCase, ObjectMaker):
     @inlineCallbacks
     def test_shortcode_ok(self):
         self.mock_iconcept_shortcode_server_response.append(
-            (http.OK, 'Response message has been sent successfully'))
+            (http.OK, 'status:200;description:Your request has been processed.'))
 
         response = yield http_request_full(
             self.get_mo_url(transaction_id='1234'), method='GET')
@@ -197,7 +197,7 @@ class IConceptHttpTransportTestCase(VumiTestCase, ObjectMaker):
     @inlineCallbacks
     def test_shortcode_fail(self):
         self.mock_iconcept_shortcode_server_response.append(
-            (http.OK, 'NETWORK_NOTCOVERED'))
+            (http.OK, 'status:101;description:The credentials you supplied are incorrect.'))
 
         response = yield http_request_full(
             self.get_mo_url(transaction_id='1234'), method='GET')
@@ -219,4 +219,31 @@ class IConceptHttpTransportTestCase(VumiTestCase, ObjectMaker):
         self.assertEqual(event['user_message_id'], '1')
         self.assertEqual(
             event['nack_reason'],
-            "SERVICE ERROR on api shortcode - NETWORK_NOTCOVERED")
+            "SERVICE ERROR on api shortcode - The credentials you supplied are incorrect.")
+
+    @inlineCallbacks
+    def test_shortcode_fail_no_description(self):
+        self.mock_iconcept_shortcode_server_response.append(
+            (http.OK, 'status:101'))
+
+        response = yield http_request_full(
+            self.get_mo_url(transaction_id='1234'), method='GET')
+
+        yield self.tx_helper.make_dispatch_outbound(
+            "hello world", message_id='1',
+            to_addr='2561111', from_addr='8181')
+
+        req = yield self.iconcept_shortcode_calls.get()
+        self.assertEqual('hello world', req.args['content'][0])
+        self.assertEqual('2561111', req.args['to'][0])
+        self.assertEqual('8181', req.args['from'][0])
+        self.assertEqual('1234', req.args['transaction_id'][0])
+        self.assertEqual('ttc_shortcode_login', req.args['cid'][0])
+        self.assertEqual('ttc_shortcode_pwd', req.args['password'][0])
+
+        [event] = yield self.tx_helper.get_dispatched_events()
+        self.assertEqual(event['event_type'], 'nack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(
+            event['nack_reason'],
+            "SERVICE ERROR on api shortcode - None")

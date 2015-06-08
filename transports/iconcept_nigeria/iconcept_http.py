@@ -51,12 +51,16 @@ class IConceptHttpTransport(Transport):
     CONFIG_CLASS = IConceptHttpTransportConfig
 
     transport_type = 'sms'
-    successfull_bodies = [
-        '0',           ##'ALL_RECIPIENTS_PROCESSED' for the bulk api
-        'Response message has been sent successfully' ## for the shortcode api
-    ]
 
-    bulk_api_errors = {
+    BULK_API = 'bulk'
+    SHORTCODE_API = 'shortcode'
+
+    successfull_bodies = {
+        'bulk': ['0'],
+        'shortcode': ['200']
+    }
+
+    bulk_status_to_messages = {
         '-1': 'SEND_ERROR',
         '-2': 'NOT_ENOUGH_CREDITS',
         '-3': 'NETWORK_NOTCOVERED',
@@ -75,12 +79,20 @@ class IConceptHttpTransport(Transport):
         '-34': 'SENDER_NOT_ALLOWED',
         '-99': 'GENERAL_ERROR'}
 
-    def from_status_to_error_message(self, status, api):
-        if api == 'shotcode':
-            return status
-        if status in self.bulk_api_errors:
-            return self.bulk_api_errors[status]
-        return status
+    def extract_status_code_and_message(self, body, api):
+        status_code = None
+        message = None
+        try:
+            if api == self.BULK_API:
+                tree = ET.fromstring(body)
+                status_code = tree.find('result').find('status').text
+                message = self.bulk_status_to_messages[status_code]
+            elif api == self.SHORTCODE_API:
+                status_code = body.split(';')[0].split(':')[1]
+                message = body.split(';')[1].split(':')[1]
+        except:
+            pass
+        return status_code, message
 
     def mkres(self, cls, publish_mo_func, path_key = None):
         config = self.get_static_config()
@@ -140,10 +152,11 @@ class IConceptHttpTransport(Transport):
     def handle_outbound_message(self, message):
         log.msg("Outbound message %r" % message)
         config = self.get_static_config()
+        mt_succeed = False
         try:
             transaction_id = yield self.has_transaction_id(message['to_addr'])
             if not transaction_id is None and len(message['content']) <= 160:
-                api = 'shortcode'
+                api = self.SHORTCODE_API
                 url = "%s" % config.shortcode_url.geturl()
                 data = {
                     'cid': config.shortcode_cid,
@@ -153,7 +166,7 @@ class IConceptHttpTransport(Transport):
                     'to': message['to_addr'],
                     'transaction_id': transaction_id}
             else:
-                api = 'bulk'
+                api = self.BULK_API
                 url = "%s" % config.bulk_url.geturl()
                 data = {
                     'user': config.bulk_user,
@@ -181,16 +194,14 @@ class IConceptHttpTransport(Transport):
                 return
 
             body = response.delivered_body.strip()
-            if api == 'bulk':
-                tree = ET.fromstring(body)
-                status = tree.find('result').find('status').text
-            else:
-                status = body
+            status_code, description = self.extract_status_code_and_message(
+                body, api)
 
-            if not status in self.successfull_bodies:
-                error = self.from_status_to_error_message(status, api)
-                reason = "SERVICE ERROR on api %s - %s" % (
-                    api, error)
+            if status_code in self.successfull_bodies[api]:
+                mt_succeed = True
+
+            if not mt_succeed:
+                reason = "SERVICE ERROR on api %s - %s" % (api, description)
                 log.error(reason)
                 yield self.publish_nack(message['message_id'], reason)
                 return
@@ -199,14 +210,6 @@ class IConceptHttpTransport(Transport):
                 user_message_id=message['message_id'],
                 sent_message_id=message['message_id'])
 
-        except _DataLoss as dt:
-            ## strangly the response from iConcept throw a dataloss error
-            ## looking at the tcp trace didn't help
-            log.error("DATALOSS ERROR: %s" % dt.message)
-            ## Ugly way but the MT are going though
-            yield self.publish_ack(
-                user_message_id=message['message_id'],
-                sent_message_id=message['message_id'])
         except Exception as ex:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             log.error(
