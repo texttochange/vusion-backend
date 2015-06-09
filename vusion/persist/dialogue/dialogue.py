@@ -124,7 +124,6 @@ class Dialogue(Model):
             fake_msg, keyword = answer, answer
         interaction.get_actions(self['dialogue-id'], fake_msg, keyword, {}, actions)
 
-
     def get_all_keywords(self):
         keywords = []
         if self.payload['interactions'] is None:
@@ -157,3 +156,9 @@ class Dialogue(Model):
         elif self['auto-enrollment'] == 'match':
             return participant.is_matching_conditions(self['condition-operator'], self['subconditions'])
         return False
+
+    def get_labels(self):
+        labels = []
+        for interaction in self.get_interactions():
+            labels.append(interaction.get_label())
+        return labels

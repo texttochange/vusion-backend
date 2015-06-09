@@ -147,6 +147,8 @@ class TestDialogueManager(TestCase, ObjectMaker):
         self.dialogue_manager.save(dialogue)
         dialogue2 = self.mkobj_dialogue_question_multi_keyword()
         self.dialogue_manager.save(dialogue2)
+        dialogue_no_label = self.mkobj_dialogue_announcement()
+        self.dialogue_manager.save(dialogue_no_label)
 
         labels = self.dialogue_manager.get_labels_order_from_dialogues(['gender', 'name', 'status'])
 

@@ -455,7 +455,7 @@ class TestDialogue(TestCase, ObjectMaker):
 
     def test_is_enrollable(self):
         participant = self.mkobj_participant()
-        dialogue = Dialogue(**self.mkobj_dialogue_open_question())        
+        dialogue = Dialogue(**self.mkobj_dialogue_open_question())
         self.assertTrue(dialogue.is_enrollable(participant))
 
     def test_is_enrollable_match_tag_label(self):
@@ -468,7 +468,6 @@ class TestDialogue(TestCase, ObjectMaker):
                                     'subcondition-parameter': 'geek'},
                                    {'subcondition-field': 'labelled',
                                     'subcondition-operator': 'not-with',
-                                    'subcondition-parameter': 'city:kampala'},                           
+                                    'subcondition-parameter': 'city:kampala'},
                                    ])
         self.assertTrue(dialogue.is_enrollable(participant))
-        

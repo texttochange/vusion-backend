@@ -167,6 +167,7 @@ class ExportWorker(BaseWorker):
         ordered_label_headers = dialogue_mgr.get_labels_order_from_dialogues(label_headers)
         headers += ordered_label_headers
         with codecs.open(export['file-full-name'], 'wb', 'utf-8') as csvfile:
+            log.debug("header of the export %r" % headers)
             csvfile.write("%s\n" % ','.join(headers))
             sort = export.get_order_pymongo()
             cursor = participant_mgr.get_participants(conditions, sort)
