@@ -36,6 +36,9 @@ class IConceptHttpTransportConfig(Transport.CONFIG_CLASS):
     shortcode_password = ConfigText(
         'The password used to connect to the shortcode API.',
         required=True, static=True)
+    shortcode_mo_mt_ratio = ConfigInt(
+        'The number of MT which can be send on the shortcode API after a MO.',
+        required=False, static=True, default=1)
     receive_port = ConfigInt(
         'The port to listen to receive MO.',
         required=True, static=True)
@@ -112,12 +115,16 @@ class IConceptHttpTransport(Transport):
         redis_prefix = '%s@%s' % (config.bulk_user, config.transport_name)
         self.redis = (yield TxRedisManager.from_config(
             config.redis_manager)).sub_manager(redis_prefix)
-
+        self.shortcode_mo_tm_ratio = config.shortcode_mo_mt_ratio
+        
         resources = [
             self.mkres(IConceptMoResource, self.handle_inbound_message)
         ]
         self.web_resources = self.start_web_resources(
             resources, self.config['receive_port'])
+
+    def get_counter_key(self, phone, transaction_id):
+        return "%s.%s" % (phone, transaction_id)
 
     @inlineCallbacks
     def teardown_transport(self):
@@ -129,12 +136,24 @@ class IConceptHttpTransport(Transport):
     @inlineCallbacks
     def has_transaction_id(self, phone):
         transaction_id = yield self.redis.get(phone)
-        yield self.redis.delete(phone)
+        if transaction_id == None:
+            returnValue(None)
+        credits = yield self.redis.get(
+            self.get_counter_key(phone, transaction_id))
+        if credits == '0':
+            yield self.redis.delete(phone)
+            returnValue(None)
+        else:
+            yield self.redis.decr(
+                self.get_counter_key(phone, transaction_id))
         returnValue(transaction_id)
 
     @inlineCallbacks
     def save_transaction_id(self, phone, transaction_id):
         yield self.redis.set(phone, transaction_id)
+        yield self.redis.incr(
+            self.get_counter_key(phone, transaction_id),
+            self.shortcode_mo_tm_ratio)
 
     @inlineCallbacks
     def handle_inbound_message(self, request):

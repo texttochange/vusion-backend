@@ -34,6 +34,7 @@ class IConceptHttpTransportTestCase(VumiTestCase, ObjectMaker):
             'shortcode_url': self.mock_iconcept_shortcode_server.url,
             'shortcode_cid': 'ttc_shortcode_login',
             'shortcode_password': 'ttc_shortcode_pwd',
+            'shortcode_mo_mt_ratio': 1,
             'receive_port': 9998,
             'receive_path': '/iconcept'}
 
@@ -128,7 +129,7 @@ class IConceptHttpTransportTestCase(VumiTestCase, ObjectMaker):
             'transaction_id': transaction_id}
         url = ("http://localhost:%s%s"
                % (self.config['receive_port'], self.config['receive_path']))
-        url_full = "%s?%s" % (url, urllib.urlencode(data))        
+        url_full = "%s?%s" % (url, urllib.urlencode(data))
         return url_full 
 
     @inlineCallbacks
@@ -136,6 +137,7 @@ class IConceptHttpTransportTestCase(VumiTestCase, ObjectMaker):
         self.mock_iconcept_shortcode_server_response.append(
             (http.OK, 'status:200;description:Your request has been processed.'))
 
+        ## first get the a MO to initiate the shortcode api flow
         response = yield http_request_full(
             self.get_mo_url(transaction_id='1234'), method='GET')
         self.assertEqual(response.code, http.OK)
@@ -145,6 +147,7 @@ class IConceptHttpTransportTestCase(VumiTestCase, ObjectMaker):
         self.assertEqual('2561111', user_msg['from_addr'])
         self.assertEqual('8181', user_msg['to_addr'])
 
+        ## second get the a MT via the shortcode api flow
         yield self.tx_helper.make_dispatch_outbound(
             "hello world", message_id='1',
             to_addr='2561111', from_addr='8181')
@@ -161,6 +164,17 @@ class IConceptHttpTransportTestCase(VumiTestCase, ObjectMaker):
         self.assertEqual(event['event_type'], 'ack')
         self.assertEqual(event['user_message_id'], '1')
         self.assertEqual(event['sent_message_id'], '1')
+
+        ## third get the a second MT via the bulk api flow
+        response = self.mk_bulk_response('0', '2561111')
+        self.mock_iconcept_bulk_server_response.append(
+            (http.OK, response))
+        yield self.tx_helper.make_dispatch_outbound(
+            "second message", message_id='1',
+            to_addr='2561111', from_addr='8181')
+
+        req = yield self.iconcept_bulk_calls.get()
+        self.assertEqual("second message", req.args['SMSText'][0])
 
     @inlineCallbacks
     def test_long_message_always_use_bulk_ok(self):
