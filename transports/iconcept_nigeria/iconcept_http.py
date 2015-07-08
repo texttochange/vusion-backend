@@ -49,6 +49,10 @@ class IConceptHttpTransportConfig(Transport.CONFIG_CLASS):
         'How to connect to Redis.', default={}, static=True)
 
 
+class MissingOperatorId(Exception):
+    pass
+
+
 class IConceptHttpTransport(Transport):
 
     CONFIG_CLASS = IConceptHttpTransportConfig
@@ -157,15 +161,16 @@ class IConceptHttpTransport(Transport):
 
     @inlineCallbacks
     def handle_inbound_message(self, request):
-        yield self.save_transaction_id(
-            request.args['msisdn'][0],
-            request.args['transaction_id'][0])
+        #yield self.save_transaction_id(
+            #request.args['msisdn'][0],
+            #request.args['transaction_id'][0])
         yield self.publish_message(
             transport_name=self.transport_name,
             transport_type=self.transport_type,
             to_addr=request.args['shortcode'][0],
             from_addr=request.args['msisdn'][0],
-            content=request.args['content'][0])
+            content=request.args['content'][0],
+            transport_metadata={'operator_id': request.args['operatorID'][0]})
 
     @inlineCallbacks
     def handle_outbound_message(self, message):
@@ -173,28 +178,42 @@ class IConceptHttpTransport(Transport):
         config = self.get_static_config()
         mt_succeed = False
         try:
-            transaction_id = yield self.has_transaction_id(message['to_addr'])
-            if not transaction_id is None and len(message['content']) <= 160:
-                api = self.SHORTCODE_API
-                url = "%s" % config.shortcode_url.geturl()
-                data = {
-                    'cid': config.shortcode_cid,
-                    'password': config.shortcode_password,
-                    'from': message['from_addr'],
-                    'content': message['content'],
-                    'to': message['to_addr'],
-                    'transaction_id': transaction_id}
-            else:
-                api = self.BULK_API
-                url = "%s" % config.bulk_url.geturl()
-                data = {
-                    'user': config.bulk_user,
-                    'password': config.bulk_password,
-                    'sender': message['from_addr'],
-                    'SMSText': message['content'],
-                    'GSM': message['to_addr']}
-                if len(message['content']) > 160:
-                    data.update({'type': 'longSMS'})
+            #transaction_id = yield self.has_transaction_id(message['to_addr'])
+            #if not transaction_id is None and len(message['content']) <= 160:
+                #api = self.SHORTCODE_API
+                #url = "%s" % config.shortcode_url.geturl()
+                #data = {
+                    #'cid': config.shortcode_cid,
+                    #'password': config.shortcode_password,
+                    #'from': message['from_addr'],
+                    #'content': message['content'],
+                    #'to': message['to_addr'],
+                    #'transaction_id': transaction_id}
+            #else:
+                #api = self.BULK_API
+                #url = "%s" % config.bulk_url.geturl()
+                #data = {
+                    #'user': config.bulk_user,
+                    #'password': config.bulk_password,
+                    #'sender': message['from_addr'],
+                    #'SMSText': message['content'],
+                    #'GSM': message['to_addr']}
+                #if len(message['content']) > 160:
+                    #data.update({'type': 'longSMS'})
+    
+            api = self.SHORTCODE_API
+            url = "%s" % config.shortcode_url.geturl()
+            operator_id = message['transport_metadata'].get('operator_id', None)
+            if operator_id is None:
+                raise MissingOperatorId('Missing Operator Id')
+
+            data = {
+                'cid': config.shortcode_cid,
+                'password': config.shortcode_password,
+                'from': message['from_addr'],
+                'content': message['content'],
+                'to': message['to_addr'],
+                'OperatorID': operator_id}
 
             data_encoded = urllib.urlencode(data)
             log.msg("Hitting %s with data %s" % (url, data_encoded))
