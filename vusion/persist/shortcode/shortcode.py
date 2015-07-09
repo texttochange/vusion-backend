@@ -6,7 +6,7 @@ from vusion.persist import Model
 class Shortcode(Model):
     
     MODEL_TYPE = 'shortcode'
-    MODEL_VERSION = '2'
+    MODEL_VERSION = '3'
     
     fields = {
         'shortcode': {
@@ -32,13 +32,21 @@ class Shortcode(Model):
         'supported-internationally': {
             'required': True,
             'valid_value': lambda v: v['supported-internationally'] in [0, 1]
+            },
+        'status': {
+            'required': True,
+            'valid_value': lambda v: v['status'] in ['running', 'archived']
             }
         }
-    
+
     def upgrade(self, **kwargs):
         if kwargs['model-version'] == '1':
             kwargs['max-character-per-sms'] = kwargs['max-character-per-sms'] if 'max-character-per-sms' in kwargs else 160
             kwargs['model-version'] = '2'
+            return self.upgrade(**kwargs)
+        elif kwargs['model-version'] in '2':
+            kwargs['status'] = 'running'
+            kwargs['model-version'] = '3'
         return kwargs
 
     def validate_fields(self):
