@@ -9,7 +9,7 @@ from vusion.utils import time_to_vusion_format
 class Participant(Model):
 
     MODEL_TYPE = 'participant'
-    MODEL_VERSION = '4'
+    MODEL_VERSION = '5'
 
     REGEX_RAW = re.compile('.*_raw$')
 
