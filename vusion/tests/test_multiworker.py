@@ -46,7 +46,13 @@ class ToyDialogueWorker(DialogueWorker):
     
     def setup_application(self):
         super(ToyDialogueWorker, self).setup_application()
-        self._d.callback(None)        
+        self._d.callback(None)
+
+    def teardown_application(self):
+        super(ToyDialogueWorker, self).teardown_application()
+
+    def before_teardown_application(self):
+        super(ToyDialogueWorker, self).before_teardown_application()
 
 
 class StubbedVusionMultiWorker(VusionMultiWorker):
@@ -158,7 +164,7 @@ class VusionMultiWorkerTestCase(VumiTestCase, MessageMaker):
 
         control = self.mkmsg_multiworker_control(
             message_type='remove_worker',
-            worker_name='worker2')        
+            worker_name='worker2')
         yield self.dispatch_control(control)
 
         #yield self.worker.wait_for_workers()

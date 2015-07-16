@@ -46,7 +46,7 @@ class VusionMultiWorker(BaseWorker):
         def cb(connector):
             connector.set_control_handler(self.dispatch_control)
             return connector
-        
+
         return d.addCallback(cb)
 
     def setup_worker(self):
@@ -54,7 +54,7 @@ class VusionMultiWorker(BaseWorker):
         if self.UNPAUSE_CONNECTORS:
             d.addCallback(lambda r: self.unpause_connectors())        
         return d
-    
+
     def setup_application(self):
         log.debug('Starting Multiworker %s' % (self.config,))
         
@@ -81,8 +81,9 @@ class VusionMultiWorker(BaseWorker):
     def teardown_application(self):
         for worker in self.workers.itervalues():
             #in the unit test the worker.running is at 0 so the worker is not stopped
+            if "before_teardown_application" in dir(worker):
+                worker.before_teardown_application()
             yield worker.stopWorker()
-            yield worker.stopService()
             worker.disownServiceParent()
 
     def construct_worker_config(self, worker_config={}):
@@ -132,13 +133,15 @@ class VusionMultiWorker(BaseWorker):
         if not worker_name in self.workers:
             log.error('Cannot remove worker, name unknown: %s' % (worker_name))
             return
+        if "before_teardown_application" in dir(self.workers[worker_name]):
+            self.workers[worker_name].before_teardown_application()
         yield self.workers[worker_name].stopWorker()
-        yield self.workers[worker_name].stopService()
         self.workers[worker_name].disownServiceParent()
         #TODO needed due to parent class, remove the storage into the config
         #self.config.pop(worker_name)
         self.collections['worker_config'].remove_worker_config(worker_name)
         self.workers.pop(worker_name)
+        log.msg('Worker has been removed %s' % worker_name)
 
     @inlineCallbacks
     def dispatch_control(self, msg):
