@@ -1,6 +1,7 @@
 from vusion.persist import ModelManager, WorkerConfig
 from vusion.persist.cursor_instanciator import CursorInstanciator
 
+
 class WorkerConfigManager(ModelManager):
     
     def __init__(self, db, collection_name, **kwargs):
@@ -10,6 +11,13 @@ class WorkerConfigManager(ModelManager):
         def log(exception, item):
             self.log("Exception %s while instanciating a WorkerConfig %r" % (exception, item))
         return CursorInstanciator(self.collection.find(), WorkerConfig, [log])
+
+    def get_worker_config(self, name):
+        try:
+            return WorkerConfig(**self.collection.find_one({'name': name}))
+        except:
+            self.log("Worker Config for %s cannot be found." % name)
+            return None
 
     def save_worker_config(self, worker_config):
         if worker_config.is_already_saved():

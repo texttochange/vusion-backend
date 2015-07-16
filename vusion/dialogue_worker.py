@@ -106,14 +106,16 @@ class DialogueWorker(ApplicationWorker):
         #Will need to register the keywords
         self.load_properties(if_needed_register_keywords=True)
         self.sender = reactor.callLater(2, self.daemon_process)
-        
-    def teardown_application(self):
-        self.log("Worker is stopped.")
-        self.logger.stop()
+
+    def before_teardown_application(self):
         if self.is_ready():
             self.unregister_from_dispatcher()
+
+    def teardown_application(self):
+        self.logger.stop()
         if (self.sender.active()):
             self.sender.cancel()
+        self.log("Worker is stopped.")
 
     def setup_connectors(self):
         d = super(DialogueWorker, self).setup_connectors()
