@@ -13,6 +13,9 @@ class ModelManager(object):
         else:
             self.collection = db.create_collection(collection_name)
 
+    def close_connection(self):
+        pass
+
     def save_object(self, instance, safe=False):
         instance.validate_fields()
         return self.collection.save(instance.get_as_dict(), safe=safe)
