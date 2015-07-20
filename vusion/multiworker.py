@@ -154,7 +154,8 @@ class VusionMultiWorker(BaseWorker):
         for worker in self.collections['worker'].get_running_workers():
             worker_config = self.collections['worker_config'].get_worker_config(worker)
             if worker_config is None:
-                log.msg("Skip %s worker as config is missing" % name)
+                log.error("ERROR SKIP START of %s worker as config is missing" % worker)
+                continue
             self.add_worker(worker_config)
 
     def add_worker(self, worker_config):
