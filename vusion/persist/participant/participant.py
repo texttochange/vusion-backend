@@ -90,8 +90,8 @@ class Participant(Model):
             kwargs['model-version'] = '4'
             return self.upgrade(**kwargs)
         elif kwargs['model-version'] in '4':
-                kwargs['simulate'] = kwargs['simulate'] if 'simulate' in kwargs else None
-                kwargs['model-version'] = '5'            
+            kwargs['simulate'] = kwargs['simulate'] if 'simulate' in kwargs else None
+            kwargs['model-version'] = '5'            
         return kwargs
 
     def modify_field_that_should_be_array(self, field):

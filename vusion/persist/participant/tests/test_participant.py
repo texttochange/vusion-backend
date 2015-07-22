@@ -110,6 +110,22 @@ class TestParticipant(TestCase, ObjectMaker):
         self.assertEqual('', p['simulate'])
     
 
+    def test_transport_metadata_sent_as_list(self):
+        participant_cake = {
+            "model-version": "2", 
+            "object-type": "participant", 
+            "phone": "+255654033486", 
+            "session-id": "ee29e5a2321f426cb52f19e1371cb32e", 
+            "last-optin-date": "2012-11-20T13:30:56",
+            "last-optout-date": "2012-11-20T14:00:00",
+            "enrolled": [ ],
+            "tags": [ ],
+            "profile": [ ],
+            "transport_metadata": []}
+        p = Participant(**participant_cake)
+        self.assertEqual(Participant.MODEL_VERSION, p['model-version'])
+        self.assertEqual({}, p['transport_metadata'])
+      
     def test_validation_fail(self):
         participant= Participant(
             **self.mkobj_participant(
