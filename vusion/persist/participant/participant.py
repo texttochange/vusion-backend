@@ -85,7 +85,7 @@ class Participant(Model):
             return self.upgrade(**kwargs)
         elif kwargs['model-version'] in '3':
             kwargs['transport_metadata'] = kwargs['transport_metadata'] if 'transport_metadata' in kwargs else {}
-            kwargs['model-version'] = '4'            
+            kwargs['model-version'] = '5'            
         return kwargs
 
     def modify_field_that_should_be_array(self, field):
