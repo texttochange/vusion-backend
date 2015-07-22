@@ -22,7 +22,8 @@ class Participant(Model):
         'tags',
         'enrolled',
         'profile',
-        'transport_metadata']
+        'transport_metadata',
+        'simulate']
 
     PARTICIPANT_FIELDS = {
         'phone': lambda v: v is not None,
@@ -32,7 +33,8 @@ class Participant(Model):
         'tags': lambda v: isinstance(v, list),
         'enrolled': lambda v: isinstance(v, list),
         'profile': lambda v: isinstance(v, list),
-        'transport_metadata': lambda v: isinstance(v, dict)}
+        'transport_metadata': lambda v: isinstance(v, dict),
+        'simulate': lambda v: True}
 
     ENROLLED_FIELDS = {
         'dialogue-id': lambda v: v is not None,
@@ -85,7 +87,11 @@ class Participant(Model):
             return self.upgrade(**kwargs)
         elif kwargs['model-version'] in '3':
             kwargs['transport_metadata'] = kwargs['transport_metadata'] if 'transport_metadata' in kwargs else {}
-            kwargs['model-version'] = '5'            
+            kwargs['model-version'] = '4'
+            return self.upgrade(**kwargs)
+        elif kwargs['model-version'] in '4':
+                kwargs['simulate'] = kwargs['simulate'] if 'simulate' in kwargs else None
+                kwargs['model-version'] = '5'            
         return kwargs
 
     def modify_field_that_should_be_array(self, field):
