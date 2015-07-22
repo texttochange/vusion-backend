@@ -93,7 +93,7 @@ class Model(object):
 
     def before_validate(self):
         if self.payload['transport_metadata'] == []:
-            self.payload['transport_metadata'] = dict(self.payload['transport_metadata'])
+            self.payload['transport_metadata'] = {}
         pass    
 
     def _validate(self, data, field_rules):
