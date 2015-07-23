@@ -112,7 +112,7 @@ class TestParticipant(TestCase, ObjectMaker):
 
     def test_transport_metadata_sent_as_list(self):
         participant_cake = {
-            "model-version": "2", 
+            "model-version": "5", 
             "object-type": "participant", 
             "phone": "+255654033486", 
             "session-id": "ee29e5a2321f426cb52f19e1371cb32e", 
@@ -121,7 +121,8 @@ class TestParticipant(TestCase, ObjectMaker):
             "enrolled": [ ],
             "tags": [ ],
             "profile": [ ],
-            "transport_metadata": []}
+            "transport_metadata": [],
+            "simulate": False}
         p = Participant(**participant_cake)
         self.assertEqual(Participant.MODEL_VERSION, p['model-version'])
         self.assertEqual({}, p['transport_metadata'])
