@@ -150,16 +150,16 @@ class IConceptHttpTransportTestCase(VumiTestCase, ObjectMaker):
             (http.OK, 'status:200;description:Your request has been processed.'))
 
         ### first get the a MO to initiate the shortcode api flow
-        #response = yield http_request_full(
-            #self.get_mo_url(transaction_id='1234'), method='GET')
-        #self.assertEqual(response.code, http.OK)
+        response = yield http_request_full(
+            self.get_mo_url(transaction_id='1234'), method='GET')
+        self.assertEqual(response.code, http.OK)
 
-        #[user_msg] = yield self.tx_helper.get_dispatched_inbound()
-        #self.assertEqual('hello world', user_msg['content'])
-        #self.assertEqual('2561111', user_msg['from_addr'])
-        #self.assertEqual('8181', user_msg['to_addr'])
+        [user_msg] = yield self.tx_helper.get_dispatched_inbound()
+        self.assertEqual('hello world', user_msg['content'])
+        self.assertEqual('2561111', user_msg['from_addr'])
+        self.assertEqual('8181', user_msg['to_addr'])
 
-        ## second get the a MT via the shortcode api flow
+        ## second use the transaction id to reply
         yield self.tx_helper.make_dispatch_outbound(
             "hello world", message_id='1',
             to_addr='2561111', from_addr='8181',
@@ -169,8 +169,7 @@ class IConceptHttpTransportTestCase(VumiTestCase, ObjectMaker):
         self.assertEqual('hello world', req.args['content'][0])
         self.assertEqual('2561111', req.args['to'][0])
         self.assertEqual('8181', req.args['from'][0])
-        #self.assertEqual('1234', req.args['transaction_id'][0])
-        self.assertEqual('MTN', req.args['OperatorID'][0])
+        self.assertEqual('1234', req.args['transaction_id'][0])
         self.assertEqual('ttc_shortcode_login', req.args['cid'][0])
         self.assertEqual('ttc_shortcode_pwd', req.args['password'][0])
 
@@ -178,6 +177,28 @@ class IConceptHttpTransportTestCase(VumiTestCase, ObjectMaker):
         self.assertEqual(event['event_type'], 'ack')
         self.assertEqual(event['user_message_id'], '1')
         self.assertEqual(event['sent_message_id'], '1')
+
+        ## third get the a MT via the shortcode api flow
+        self.mock_iconcept_shortcode_server_response.append(
+            (http.OK, 'status:200;description:Your request has been processed.'))
+
+        yield self.tx_helper.make_dispatch_outbound(
+            "hello world", message_id='2',
+            to_addr='2561111', from_addr='8181',
+            transport_metadata={'operator_id': 'MTN'})
+
+        req = yield self.iconcept_shortcode_calls.get()
+        self.assertEqual('hello world', req.args['content'][0])
+        self.assertEqual('2561111', req.args['to'][0])
+        self.assertEqual('8181', req.args['from'][0])
+        self.assertEqual('MTN', req.args['OperatorID'][0])
+        self.assertEqual('ttc_shortcode_login', req.args['cid'][0])
+        self.assertEqual('ttc_shortcode_pwd', req.args['password'][0])
+
+        [event1, event2] = yield self.tx_helper.get_dispatched_events()
+        self.assertEqual(event2['event_type'], 'ack')
+        self.assertEqual(event2['user_message_id'], '2')
+        self.assertEqual(event2['sent_message_id'], '2')
 
         ### third get the a second MT via the bulk api flow
         #response = self.mk_bulk_response('0', '2561111')

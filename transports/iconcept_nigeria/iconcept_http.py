@@ -161,9 +161,9 @@ class IConceptHttpTransport(Transport):
 
     @inlineCallbacks
     def handle_inbound_message(self, request):
-        #yield self.save_transaction_id(
-            #request.args['msisdn'][0],
-            #request.args['transaction_id'][0])
+        yield self.save_transaction_id(
+            request.args['msisdn'][0],
+            request.args['transaction_id'][0])
         yield self.publish_message(
             transport_name=self.transport_name,
             transport_type=self.transport_type,
@@ -200,20 +200,24 @@ class IConceptHttpTransport(Transport):
                     #'GSM': message['to_addr']}
                 #if len(message['content']) > 160:
                     #data.update({'type': 'longSMS'})
-    
-            api = self.SHORTCODE_API
-            url = "%s" % config.shortcode_url.geturl()
-            operator_id = message['transport_metadata'].get('operator_id', None)
-            if operator_id is None:
-                raise MissingOperatorId('Missing Operator Id')
 
             data = {
                 'cid': config.shortcode_cid,
                 'password': config.shortcode_password,
                 'from': message['from_addr'],
                 'content': message['content'],
-                'to': message['to_addr'],
-                'OperatorID': operator_id}
+                'to': message['to_addr']}
+
+            transaction_id = yield self.has_transaction_id(message['to_addr'])
+            api = self.SHORTCODE_API
+            url = "%s" % config.shortcode_url.geturl()
+            if not transaction_id is None:
+                data['transaction_id'] = transaction_id
+            else:
+                operator_id = message['transport_metadata'].get('operator_id', None)
+                if operator_id is None:
+                    raise MissingOperatorId('Missing Operator Id')
+                data['OperatorID'] = operator_id
 
             data_encoded = urllib.urlencode(data)
             log.msg("Hitting %s with data %s" % (url, data_encoded))
