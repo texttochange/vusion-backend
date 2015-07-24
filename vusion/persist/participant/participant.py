@@ -90,12 +90,17 @@ class Participant(Model):
             kwargs['model-version'] = '4'
             return self.upgrade(**kwargs)
         elif kwargs['model-version'] in '4':
-            kwargs['simulate'] = kwargs['simulate'] if 'simulate' in kwargs else None
+            kwargs['simulate'] = kwargs['simulate'] if 'simulate' in kwargs else False
+            kwargs['model-version'] = '5'
+            return self.upgrade(**kwargs)
+        elif kwargs['model-version'] in '5':
             kwargs['model-version'] = '5'            
         return kwargs
 
     def modify_field_that_should_be_array(self, field):
-        if field in self.FIELDS_THAT_SHOULD_BE_ARRAY and self[field] is None:
+        if field in 'transport_metadata' and self[field] is {}:
+            self[field] = {}
+        elif field in self.FIELDS_THAT_SHOULD_BE_ARRAY and self[field] is None:
             self[field] = []
 
     def process_field(self, key, value):
