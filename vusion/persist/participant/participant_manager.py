@@ -95,10 +95,11 @@ class ParticipantManager(ModelManager):
             safe=safe)
 
     def save_transport_metadata(self, participant_phone, transport_metadata, safe=True):
-        self.collection.update(
-            {'phone': participant_phone},
-            {'$set': {'transport_metadata': transport_metadata}},
-            safe=safe)
+        if isinstance(transport_metadata, dict):
+            self.collection.update(
+                {'phone': participant_phone},
+                {'$set': {'transport_metadata': transport_metadata}},
+                safe=safe)
 
     def save_participant(self, participant, safe=False):
         if not isinstance(participant, Participant):

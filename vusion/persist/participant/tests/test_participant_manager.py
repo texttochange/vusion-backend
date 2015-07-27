@@ -149,6 +149,15 @@ class TestParticipantManager(TestCase, ObjectMaker):
             {'token': '11'},
             participant['transport_metadata'])
 
+    def test_save_transport_metadata_with_string(self):
+        participant = self.mkobj_participant('1')
+        self.manager.save(participant)
+        self.manager.save_transport_metadata('1', '')
+        participant = self.manager.get_participant('1')
+        self.assertEqual(
+            {},
+            participant['transport_metadata'])
+
     def test_get_participant(self):
         self.manager.save(self.mkobj_participant('1'))
         self.assertTrue(isinstance(self.manager.get_participant('1'), Participant))
