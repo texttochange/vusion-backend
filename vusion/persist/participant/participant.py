@@ -98,9 +98,7 @@ class Participant(Model):
         return kwargs
 
     def modify_field_that_should_be_array(self, field):
-        if field in 'transport_metadata' and self[field] is {}:
-            self[field] = {}
-        elif field in self.FIELDS_THAT_SHOULD_BE_ARRAY and self[field] is None:
+        if field in self.FIELDS_THAT_SHOULD_BE_ARRAY and self[field] is None:
             self[field] = []
 
     def process_field(self, key, value):
@@ -217,3 +215,8 @@ class Participant(Model):
                 if not self.has_profile(profile[0], profile[1]):
                     return True
         return False
+    
+    def before_validate(self):
+        if self.payload['transport_metadata'] == [] or self.payload['transport_metadata'] == "" :
+            self.payload['transport_metadata'] = {}
+     
