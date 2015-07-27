@@ -247,11 +247,6 @@ class DialogueWorker(ApplicationWorker):
             return
         self.collections['credit_logs'].increment_event_counter(old_status, new_status, credits)
 
-    def update_participant_transport_metadata(self, message):
-        if message['transport_metadata'] is not {}:
-            self.collections['participants'].save_transport_metadata(
-                message['from_addr'], message['transport_metadata'])
-
     @inlineCallbacks
     def run_action(self, participant_phone, action, context=Context(),
                    participant_session_id=None):
@@ -528,7 +523,8 @@ class DialogueWorker(ApplicationWorker):
             history_id = self.save_history(**history)
             context['history_id'] = str(history_id)
             self.credit_manager.received_message(message_credits)
-            self.update_participant_transport_metadata(message)
+            self.collections['participants'].save_transport_metadata(
+                message['from_addr'], message['transport_metadata'])
             if (context.is_matching() and participant is not None):
                 if ('interaction' in context):
                     if self.collections['history'].has_oneway_marker(
