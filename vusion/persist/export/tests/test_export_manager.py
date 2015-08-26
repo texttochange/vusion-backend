@@ -11,7 +11,7 @@ class TestExportManager(TestCase, ObjectMaker):
 
     def setUp(self):
         self.database_name = 'test_vusion'
-        c = MongoClient()
+        c = MongoClient(w=1)
         db = c[self.database_name]
         self.manager = ExportManager(db, 'exports')
         self.clearData()

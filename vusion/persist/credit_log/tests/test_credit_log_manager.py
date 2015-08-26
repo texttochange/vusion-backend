@@ -1,4 +1,4 @@
-import pymongo
+from pymongo import MongoClient
 from datetime import datetime, timedelta
 
 from twisted.trial.unittest import TestCase
@@ -15,8 +15,7 @@ class TestProgramCreditLogManager(TestCase, ObjectMaker):
     def setUp(self):
         self.program_database_name = 'test_program_db'
         self.database_name = 'test_vusion_db'
-        c = pymongo.Connection()
-        c.safe = True
+        c = MongoClient(w=1)
         db = c[self.database_name]
         self.clm = ProgramCreditLogManager(
             db,
@@ -113,11 +112,10 @@ class TestProgramCreditLogManager(TestCase, ObjectMaker):
 
 
 class TestGarbageCreditLogManager(TestCase, ObjectMaker):
-    
+
     def setUp(self):
         self.database_name = 'test_vusion_db'
-        c = pymongo.Connection()
-        c.safe = True
+        c = MongoClient(w=1)
         db = c[self.database_name]
         self.clm = GarbageCreditLogManager(
             db,

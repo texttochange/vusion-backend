@@ -150,6 +150,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(history['participant-session-id'], '1')
         self.assertEqual(history['participant-phone'], '06')
 
+    @inlineCallbacks
     def test_run_action_enroll(self):
         self.initialize_properties()
 
@@ -160,7 +161,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             self.mkobj_dialogue_question_offset_days())
         dBegin = self.worker.get_local_time()
      
-        self.worker.run_action("08", EnrollingAction(**{'enroll': '01'}))
+        yield self.worker.run_action("08", EnrollingAction(**{'enroll': '01'}))
         participant = self.collections['participants'].find_one({'enrolled.dialogue-id': '01'})
         self.assertTrue(participant)
         self.assertEqual(1, self.collections['schedules'].count())
@@ -169,7 +170,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertTrue(dEnrolled - dBegin < timedelta(seconds=1))
 
         #Enrolling again should keep the old date
-        self.worker.run_action("08", EnrollingAction(**{'enroll': '01'}))
+        yield self.worker.run_action("08", EnrollingAction(**{'enroll': '01'}))
         participant = self.collections['participants'].find_one({'phone': '08'})
         self.assertEqual(1, len(participant['enrolled']))
         self.assertEqual(
@@ -202,13 +203,14 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             time_to_vusion_format(dPast),
             participant['enrolled'][0]['date-time'])
 
+    @inlineCallbacks
     def test_run_action_enroll_auto_enroll(self):
         self.initialize_properties()
 
         dialogue = self.mkobj_dialogue_announcement()        
         self.collections['dialogues'].save(dialogue)
 
-        self.worker.run_action("04", OptinAction())
+        yield self.worker.run_action("04", OptinAction())
 
         self.assertTrue(self.collections['participants'].find_one({'enrolled.dialogue-id':'0'}) is not None)
         self.assertEqual(1, self.collections['schedules'].count())
@@ -238,6 +240,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertTrue(
             dNow - time_from_vusion_format(participant['enrolled'][0]['date-time']) < timedelta(seconds=1))
 
+    @inlineCallbacks
     def test_run_action_delayed_enrolling(self):
         self.initialize_properties()
 
@@ -247,7 +250,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             "08", last_optin_date=time_to_vusion_format(dNow)))
         self.collections['dialogues'].save(dialogue)
 
-        self.worker.run_action(
+        yield self.worker.run_action(
             "08",
             DelayedEnrollingAction(**{
                 'enroll': '01',
@@ -454,7 +457,8 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(
             self.collections['schedules'].count(),
             3)
-    
+
+    @inlineCallbacks
     def test_run_action_offset_condition_delayed(self):
         self.initialize_properties()    
         dNow = self.worker.get_local_time()
@@ -464,7 +468,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.collections['dialogues'].save(dialogue)
 
         self.collections['participants'].save(self.mkobj_participant('06'))
-        
+
         #save the first question send
         self.save_history(
             timestamp=dNow - timedelta(minutes=10),
@@ -480,8 +484,9 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             message_direction='incoming',
             metadata={'dialogue-id': '04',
                       'interaction-id': '01-01'})
+
         #then run the action that should schedule the next question in 5 minutes
-        self.worker.run_action('06', OffsetConditionAction(**{
+        yield self.worker.run_action('06', OffsetConditionAction(**{
             'dialogue-id': '04',
             'interaction-id': '01-02'}))
         self.assertEqual(1, self.collections['schedules'].count())
@@ -489,7 +494,8 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertTrue(
             (dNow + timedelta(minutes=10)) - time_from_vusion_format(schedule['date-time']) 
             < timedelta(seconds=10))
-        
+
+    @inlineCallbacks
     def test_run_action_remove_reminders(self):
         self.initialize_properties()
 
@@ -501,20 +507,20 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
 
         interaction = dialogue.interactions[0]
         interaction['date-time'] = time_to_vusion_format(dPast)
-        self.worker.schedule_participant_reminders(
+        yield self.worker.schedule_participant_reminders(
             participant, dialogue, interaction, time_from_vusion_format(interaction['date-time']))
 
         schedules_count = self.collections['schedules'].count()
         self.assertEqual(schedules_count, 3)
 
-        self.worker.run_action("06", RemoveRemindersAction(**{
+        yield self.worker.run_action("06", RemoveRemindersAction(**{
             'dialogue-id': dialogue['dialogue-id'],
             'interaction-id': interaction['interaction-id']}))        
         self.assertEqual(self.collections['schedules'].count(), 1)
         self.assertEqual(self.collections['schedules'].find_one({'object-type':'reminder-schedule'}), None)
         self.assertTrue(self.collections['schedules'].find_one({'object-type':'deadline-schedule'}) is not None)
 
-        self.worker.run_action('06', RemoveDeadlineAction(**{'dialogue-id': dialogue['dialogue-id'],
+        yield self.worker.run_action('06', RemoveDeadlineAction(**{'dialogue-id': dialogue['dialogue-id'],
                                                            'interaction-id': interaction['interaction-id']}))        
         self.assertEqual(self.collections['schedules'].count(), 0) 
 

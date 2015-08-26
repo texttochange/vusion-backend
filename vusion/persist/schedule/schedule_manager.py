@@ -12,17 +12,22 @@ from vusion.persist.schedule.schedule import (
 
 
 class ScheduleManager(ModelManager):
-    
+
     def __init__(self, db, collection_name, **kwargs):
         super(ScheduleManager, self).__init__(db, collection_name, **kwargs)
         self.collection.ensure_index('date-time', background=True)
         self.collection.ensure_index([
             ('participant-phone',1), ('interaction-id', 1)], background=True)
 
+    @inlineCallbacks
     def save_schedule(self, schedule):
+        d = deferToThread(self._save_schedule, schedule)
+        yield d
+
+    def _save_schedule(self, schedule):
         if not isinstance(schedule, Schedule):
             schedule = schedule_generator(**schedule)
-        self.save_document(schedule)
+        returnValue(self.save_document(schedule))
 
     def remove_schedule(self, schedule):
         self.collection.remove(schedule['_id'])
@@ -133,10 +138,6 @@ class ScheduleManager(ModelManager):
 
     @inlineCallbacks
     def save_unattach_schedule(self, participant, unattach):
-        d = deferToThread(self._save_unattach_schedule, participant, unattach)
-        yield d
-
-    def _save_unattach_schedule(self, participant, unattach):
         schedule = self.get_participant_unattach(
             participant['phone'], unattach['_id'])
         if schedule is None:
@@ -147,7 +148,7 @@ class ScheduleManager(ModelManager):
                     'date-time': unattach['fixed-time']})
         else:
             schedule.set_time(unattach['fixed-time'])
-        self.save_schedule(schedule)
+        yield self.save_schedule(schedule)
 
     @inlineCallbacks
     def unattach_schedule(self, participant, unattach):
@@ -156,6 +157,7 @@ class ScheduleManager(ModelManager):
         else:
             yield self.remove_unattach_schedule(participant, unattach)
 
+    @inlineCallbacks
     def add_reminder(self, participant, reminder_time, dialogue_id, interaction_id):
         reminder = ReminderSchedule(**{
             'participant-phone': participant['phone'],
@@ -163,8 +165,9 @@ class ScheduleManager(ModelManager):
             'date-time': reminder_time,
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id})
-        return self.save_schedule(reminder)
+        yield self.save_schedule(reminder)
 
+    @inlineCallbacks
     def add_deadline(self, participant, deadline_time, dialogue_id, interaction_id):
         deadline = DeadlineSchedule(**{
             'participant-phone': participant['phone'],
@@ -172,8 +175,9 @@ class ScheduleManager(ModelManager):
             'date-time': deadline_time,
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id})
-        return self.save_schedule(deadline)
+        yield  self.save_schedule(deadline)
 
+    @inlineCallbacks
     def add_action(self, participant_phone, participant_session_id, schedule_time, action, context):
         schedule = ActionSchedule(**{
             'participant-phone': participant_phone,
@@ -181,8 +185,9 @@ class ScheduleManager(ModelManager):
             'date-time': schedule_time,
             'action': action.get_as_dict(),
             'context': context.get_dict_for_history()})
-        return self.save_schedule(schedule)
+        yield self.save_schedule(schedule)
 
+    @inlineCallbacks
     def add_dialogue(self, participant, schedule_time, dialogue_id, interaction_id):
         schedule = DialogueSchedule(**{
             'date-time': schedule_time,
@@ -190,7 +195,7 @@ class ScheduleManager(ModelManager):
             'participant-session-id': participant['session-id'],
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id})
-        return self.save_schedule(schedule)
+        yield self.save_schedule(schedule)
     
     @inlineCallbacks
     def get_unique_participant_phones(self):

@@ -2,7 +2,6 @@ from datetime import datetime, time, date, timedelta
 import pytz
 
 import json
-import pymongo
 from bson.objectid import ObjectId
 from bson.timestamp import Timestamp
 
@@ -21,6 +20,7 @@ from vusion.persist import (Dialogue, Participant, schedule_generator,
 
 class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
 
+    @inlineCallbacks
     def test_schedule_participant_dialogue_offset_days(self):
         self.initialize_properties()
 
@@ -33,7 +33,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
             last_optin_date=time_to_vusion_format(dPast - timedelta(days=1)),
             enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dPast)}]))
 
-        self.worker.schedule_participant_dialogue(participant, dialogue)
+        yield self.worker.schedule_participant_dialogue(participant, dialogue)
 
         self.assertEqual(self.collections['schedules'].count(), 2)
 
@@ -54,6 +54,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         self.assertEqual(schedules[0]['interaction-id'], '0')
         self.assertEqual(schedules[1]['interaction-id'], '1')
 
+    @inlineCallbacks
     def test_schedule_participant_dialogue_offset_time(self):
         self.initialize_properties()
 
@@ -68,7 +69,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
             enrolled=[{'dialogue-id': '0',
                        'date-time': time_to_vusion_format(dPast)}]))
 
-        self.worker.schedule_participant_dialogue(
+        yield self.worker.schedule_participant_dialogue(
             participant, dialogue)
 
         self.assertEqual(self.collections['schedules'].count(), 3)
@@ -85,6 +86,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
             time_to_vusion_format(time_from_vusion_format(schedules[2]['date-time'])),
             time_to_vusion_format(dPast + timedelta(minutes=50)))
 
+    @inlineCallbacks
     def test_schedule_interaction_while_interaction_in_history(self):
         self.initialize_properties()
 
@@ -103,14 +105,15 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
             participant_session_id=participant['session-id'],
             metadata={'interaction-id': '0',
                       'dialogue-id': '0'})
+
         #Starting the test
-        schedules = self.worker.schedule_participant_dialogue(
+        yield self.worker.schedule_participant_dialogue(
             participant, dialogue)
 
         self.assertEqual(self.collections['history'].count(), 1)
         self.assertEqual(self.collections['schedules'].count(), 1)
 
-
+    @inlineCallbacks
     def test_schedule_interaction_while_marker_in_history(self):
             self.initialize_properties()
 
@@ -130,7 +133,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
             self.collections['history'].save_history(**marker)
 
             #Starting the test
-            schedules = self.worker.schedule_participant_dialogue(
+            yield self.worker.schedule_participant_dialogue(
                 participant, dialogue)
 
             self.assertEqual(self.collections['history'].count(), 1)
@@ -178,6 +181,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         schedule = schedule_generator(**self.collections['schedules'].find_one())
         self.assertTrue(schedule.get_schedule_time() - dLaterFuture < timedelta(seconds=1))
 
+    @inlineCallbacks
     def test_schedule_interaction_fixed_time_passed(self):
         self.initialize_properties()
 
@@ -190,12 +194,13 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         dialogue['interactions'][0]['date-time'] = time_to_vusion_format(dPast)
         dialogue = Dialogue(**dialogue)
 
-        self.worker.schedule_participant_dialogue(
+        yield self.worker.schedule_participant_dialogue(
             participant, dialogue)
 
         self.assertEqual(self.collections['schedules'].count(), 1)
         self.assertEqual(self.collections['history'].count(), 0)
 
+    @inlineCallbacks
     def test_schedule_interaction_offset_days_passed(self):
         self.initialize_properties()
 
@@ -206,12 +211,13 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         participant = Participant(**self.mkobj_participant(
             enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dPast)}]))
 
-        self.worker.schedule_participant_dialogue(
+        yield self.worker.schedule_participant_dialogue(
             participant, dialogue)
 
         self.assertEqual(self.collections['schedules'].count(), 1)
         self.assertEqual(self.collections['history'].count(), 0)
 
+    @inlineCallbacks
     def test_schedule_interaction_offset_time_passed(self):
         self.initialize_properties()
 
@@ -222,12 +228,13 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         participant = Participant(**self.mkobj_participant(
             enrolled=[{'dialogue-id': '0', 'date-time': time_to_vusion_format(dPast)}]))
 
-        self.worker.schedule_participant_dialogue(
+        yield self.worker.schedule_participant_dialogue(
             participant, dialogue)
 
         self.assertEqual(self.collections['schedules'].count(), 3)
         self.assertEqual(self.collections['history'].count(), 0)
 
+    @inlineCallbacks
     def test_schedule_at_fixed_time(self):
         self.initialize_properties()
         dNow = self.worker.get_local_time()
@@ -239,7 +246,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
 
         participant = self.mkobj_participant('06')
         #action
-        self.worker.schedule_participant_dialogue(
+        yield self.worker.schedule_participant_dialogue(
             participant, dialogue)
 
         #asserting
@@ -251,6 +258,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         self.assertEquals(schedule_datetime.hour, dFuture.hour)
         self.assertEquals(schedule_datetime.minute, dFuture.minute)
 
+    @inlineCallbacks
     def test_schedule_participant_reminders(self):
         self.initialize_properties()
 
@@ -264,8 +272,9 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         interaction = dialogue.interactions[0]
         # change the date-time of the interaction to match dPast
         interaction['date-time'] = time_to_vusion_format(dPast)
-        self.worker.schedule_participant_reminders(
-            participant, dialogue, interaction, time_from_vusion_format(interaction['date-time']))
+        yield self.worker.schedule_participant_reminders(
+            participant, dialogue, interaction,
+            time_from_vusion_format(interaction['date-time']))
 
         schedules_count = self.collections['schedules'].count()
         self.assertEqual(schedules_count, 3)
@@ -299,6 +308,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         #assert last reminder is deadline-schedule
         self.assertEqual(schedules[2]['object-type'], 'deadline-schedule')
 
+    @inlineCallbacks
     def test_reschedule_reminder_after_interaction_in_history(self):
         self.initialize_properties()
         
@@ -333,9 +343,9 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
             interaction_id=interaction_id,
             date_time=time_to_vusion_format(dFuture),
             object_type='deadline-schedule')
-        self.collections['schedules'].save(deadline_schedule)        
+        self.collections['schedules'].save(deadline_schedule)
 
-        self.worker.schedule_participant_dialogue(participant, dialogue)
+        yield self.worker.schedule_participant_dialogue(participant, dialogue)
 
         self.assertEqual(3, self.collections['schedules'].count())
         self.assertEqual(1, self.collections['history'].count())
@@ -358,6 +368,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         #assert last reminder is deadline-schedule
         self.assertEqual(schedules[2]['object-type'], 'deadline-schedule')
 
+    @inlineCallbacks
     def test_reschedule_reminder_after_interaction_and_reminder_in_history(self):
         self.initialize_properties()
 
@@ -394,8 +405,8 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
             object_type='deadline-schedule')
         self.collections['schedules'].save(deadline_schedule)
 
-        self.worker.schedule_participant_dialogue(participant, dialogue)
-        
+        yield self.worker.schedule_participant_dialogue(participant, dialogue)
+
         self.assertEqual(2, self.collections['schedules'].count())
         self.assertEqual(2, self.collections['history'].count())
         
@@ -403,6 +414,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         self.assertEqual('reminder-schedule', schedules[0]['object-type'])        
         self.assertEqual('deadline-schedule', schedules[1]['object-type'])
 
+    @inlineCallbacks
     def test_reschedule_reminder_after_reminder_in_history_and_reducing_reminder(self):
         self.initialize_properties()
 
@@ -421,7 +433,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
             participant_phone='06',
             enrolled=[{'dialogue-id': dialogue['dialogue-id'],
                        'date-time': time_to_vusion_format(d_enrolled)}])
-        
+
         history_send = self.mkobj_history_dialogue(
             dialogue_id=dialogue['dialogue-id'],
             interaction_id=interaction['interaction-id'],
@@ -445,9 +457,9 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
             interaction_id=interaction['interaction-id'],
             date_time=time_to_vusion_format(d_interaction_deadline),
             object_type='deadline-schedule')
-        self.collections['schedules'].save(deadline_schedule)    
+        self.collections['schedules'].save(deadline_schedule)
 
-        self.worker.schedule_participant_dialogue(participant, dialogue)
+        yield self.worker.schedule_participant_dialogue(participant, dialogue)
 
         self.assertEqual(1, self.collections['schedules'].count())
         self.assertEqual(3, self.collections['history'].count())
@@ -532,6 +544,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         self.assertEqual(0, self.collections['schedules'].count())
         self.assertEqual(3, self.collections['history'].count())
 
+    @inlineCallbacks
     def test_reschedule_reminder_at_correct_time_after_reminder_in_history(self):
         self.initialize_properties()
 
@@ -576,25 +589,26 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
                     date_time=time_to_vusion_format(d_interaction_deadline),
                     object_type='deadline-schedule')
         self.collections['schedules'].save(reminder_schedule)
-        
-        self.worker.schedule_participant_dialogue(participant, dialogue)
-        
+
+        yield self.worker.schedule_participant_dialogue(participant, dialogue)
+
         #The interaction has one reminder more
         self.assertEqual(2, self.collections['schedules'].count())
         self.assertEqual(2, self.collections['history'].count())
-        
+
         schedules = self.collections['schedules'].find()
-        
+
         self.assertEqual(schedules[0]['date-time'],
                          time_to_vusion_format(d_interaction_reminder_2_send + timedelta(minutes=60)))
         self.assertEqual(schedules[1]['date-time'],
                          time_to_vusion_format(d_interaction_deadline + timedelta(minutes=90)))
-        
+
         self.assertEqual(schedules[0]['object-type'], 'reminder-schedule')
         self.assertEqual(schedules[1]['object-type'], 'deadline-schedule')
 
+    @inlineCallbacks
     def test_reschedule_interaction_as_dialogue_updated(self):
-        self.initialize_properties()        
+        self.initialize_properties()
 
         now = self.worker.get_local_time()
         
@@ -603,13 +617,13 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         participant = self.mkobj_participant(
             '01', last_optin_date=time_to_vusion_format(now))
         self.collections['participants'].save(participant)
-        self.worker.schedule_participant('01')
+        yield self.worker.schedule_participant('01')
         self.assertEqual(2, self.collections['schedules'].count())
         
         dialogue['interactions'][0]['at-time'] = '23:30'
         self.collections['dialogues'].save(dialogue.get_as_dict())
         self.worker.collections['dialogues'].load_dialogues()
-        self.worker.schedule_participant('01')
+        yield self.worker.schedule_participant('01')
         self.assertEqual(2, self.collections['schedules'].count())
         schedule = schedule_generator(
             **self.collections['schedules'].find_one({'interaction-id': '0'}))
@@ -666,6 +680,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         self.assertEqual(0, self.collections['schedules'].count())
         self.assertEqual(2, self.collections['history'].count())
 
+    @inlineCallbacks
     def test_reschedule_reminder_interaction_in_schedule_adding_reminder(self):
         self.initialize_properties()
 
@@ -687,9 +702,9 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
             interaction_id=interaction['interaction-id'],
             date_time=time_to_vusion_format(d_interaction),
             object_type='dialogue-schedule')
-        
-        self.worker.schedule_participant_dialogue(participant, dialogue)
-        
+
+        yield self.worker.schedule_participant_dialogue(participant, dialogue)
+
         self.assertEqual(4, self.collections['schedules'].count())
         self.assertEqual(0, self.collections['history'].count())
 
@@ -883,6 +898,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         self.assertEqual(self.collections['schedules'].count(), 1)
         self.assertEqual(self.collections['schedules'].find({'dialogue-id': '04'}).count(), 1)
 
+    @inlineCallbacks
     def test_reschedule_participant_after_edit_enrolled(self):
         self.initialize_properties()
 
@@ -898,7 +914,8 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
             enrolled=[{'dialogue-id': '0',
                        'date-time': time_to_vusion_format(dPast)}])
         self.collections['participants'].save(participant)
-        self.worker.schedule_participant('06')
+
+        yield self.worker.schedule_participant('06')
         self.assertEqual(self.collections['schedules'].count(), 3)
 
         participant['enrolled'] = [{'dialogue-id': '0',
@@ -906,9 +923,11 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
                                    {'dialogue-id': '2',
                                     'date-time': time_to_vusion_format(dNow)}]
         self.collections['participants'].save(participant)
-        self.worker.schedule_participant('06')
+
+        yield self.worker.schedule_participant('06')
         self.assertEqual(self.collections['schedules'].count(), 6)
 
+    @inlineCallbacks
     def test_schedule_dialogue(self):
         self.initialize_properties()
         
@@ -955,7 +974,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
                 participant_phone='03',
                 session_id=None))
 
-        self.worker.schedule_dialogue('0')
+        yield self.worker.schedule_dialogue('0')
 
         self.assertEqual(3, self.collections['schedules'].count())
         self.assertEqual(

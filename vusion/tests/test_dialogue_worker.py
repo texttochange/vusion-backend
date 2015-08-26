@@ -102,7 +102,6 @@ class DialogueWorkerTestCase(VumiTestCase, DataLayerUtils, ObjectMaker, MessageM
 
 class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
 
-    
 
     def test06_get_program_actions(self):
         self.initialize_properties()
