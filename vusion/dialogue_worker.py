@@ -213,10 +213,8 @@ class DialogueWorker(ApplicationWorker):
                     yield self.schedule_unattach(message['object_id'])
                 elif message['schedule_type'] == 'participant':
                     yield self.schedule_participant(message['object_id'])
-                self.update_time_next_daemon_iteration()
             elif message['action'] == 'mass_tag':
                 yield self.schedule_mass_tag(message['tag'], message['selector'])
-                self.update_time_next_daemon_iteration()
             elif message['action'] == 'mass_untag':
                 yield self.schedule_mass_untag(message['tag'])
             elif message['action'] == 'reload_request':
@@ -234,6 +232,7 @@ class DialogueWorker(ApplicationWorker):
                     message['answer'])
                 for action in actions.items():
                     yield self.run_action(message['participant_phone'], action)
+            self.update_time_next_daemon_iteration()
         except (VusionError, VumiError) as e:
             self.log('ERROR: %s(%s)' % (e.__class__.__name__, e.message), level='error')
         except:
@@ -498,6 +497,7 @@ class DialogueWorker(ApplicationWorker):
         self.collections['content_variables'].save_content_variable(
             match, value, action.get_table_id())
 
+    @inlineCallbacks
     def consume_user_message(self, message):
         self.log("User message received from %s '%s'" % (message['from_addr'],
                                                          message['content']))
@@ -517,7 +517,7 @@ class DialogueWorker(ApplicationWorker):
             # High priority to run an optin or enrolling action to get sessionId 
             if (not self.collections['participants'].is_optin(message['from_addr']) 
                     and (actions.contains('optin') or actions.contains('enrolling'))):
-                self.run_action(message['from_addr'], actions.get_priority_action(), context)
+                yield self.run_action(message['from_addr'], actions.get_priority_action(), context)
             participant = self.collections['participants'].get_participant(message['from_addr'], only_optin=True)
             message_credits = self.properties.use_credits(message['content'])
             history.update({
@@ -544,21 +544,23 @@ class DialogueWorker(ApplicationWorker):
                                 participant['phone'], participant['session-id'], context)
                             context['interaction'].get_max_unmatching_action(context['dialogue-id'], actions)
                 elif ('request-id' in context):
-                    self.get_program_actions(participant, context, actions)                    
-                self.run_actions(participant, context, actions)
+                    self.get_program_actions(participant, context, actions)
+                yield self.run_actions(participant, context, actions)
+            self.update_time_next_daemon_iteration()
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.log(
                 "Error during consume user message: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
 
+    @inlineCallbacks
     def run_actions(self, participant, context, actions):
         if ((not 'request-id' in context)
             and (participant['session-id'] is None
                  or not participant.is_enrolled(context['dialogue-id']))):
             return
         for action in actions.items():
-            self.run_action(participant['phone'],
+            yield self.run_action(participant['phone'],
                             action,
                             context,
                             participant['session-id'])
@@ -666,7 +668,7 @@ class DialogueWorker(ApplicationWorker):
             # participant could be manually enrolled
             if participant.is_enrolled(dialogue['dialogue-id']):
                 yield self.schedule_participant_dialogue(participant, dialogue)
-        ## schedule unattach message s       
+        ## schedule unattach messages
         unattacheds = self.collections['unattached_messages'].get_unattached_messages()
         for unattached in unattacheds:
             yield self.collections['schedules'].unattach_schedule(
@@ -743,7 +745,6 @@ class DialogueWorker(ApplicationWorker):
                         interaction,
                         previous_sending_date_time,
                         True)
-                    #previous_sending_day = previous_sending_date_time.date()
                     continue
 
                 ##Compute the sending date time for the interaction
@@ -778,7 +779,6 @@ class DialogueWorker(ApplicationWorker):
                     schedule.set_time(sending_date_time)
                     yield self.collections['schedules'].save_schedule(schedule)
                 yield self.schedule_participant_reminders(participant, dialogue, interaction, sending_date_time)
-                self.update_time_next_daemon_iteration()
         except:
             self.log("Scheduling dialogue exception: %s" % dialogue['dialogue-id'])
             exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -808,7 +808,7 @@ class DialogueWorker(ApplicationWorker):
         for reminder_schedule_to_be_deleted in schedules:
             has_active_reminders = True
             self.collections['schedules'].remove_schedule(reminder_schedule_to_be_deleted)
-            
+
         if not interaction.has_reminder():
             return
         if  not has_active_reminders and is_interaction_history:
@@ -824,7 +824,7 @@ class DialogueWorker(ApplicationWorker):
             yield self.collections['schedules'].add_reminder(
                 participant, reminder_time,
                 dialogue['dialogue-id'], interaction['interaction-id'])
-        
+
         #adding deadline
         deadline_time = interaction.get_deadline_time(interaction_date_time)
         #We don't schedule deadline in the past

@@ -433,11 +433,11 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(
             self.collections['schedules'].count(),
             2)
-        
+
         # Do not reschedule
         yield self.worker.run_action("06", OffsetConditionAction(**{
             'dialogue-id': '01',
-            'interaction-id':'01-02'}))        
+            'interaction-id':'01-02'}))
         self.assertEqual(
             self.collections['schedules'].count(),
             2)
@@ -456,7 +456,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             'interaction-id': '01-01'}))
         self.assertEqual(
             self.collections['schedules'].count(),
-            3)
+            5)
 
     @inlineCallbacks
     def test_run_action_offset_condition_delayed(self):
@@ -489,7 +489,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         yield self.worker.run_action('06', OffsetConditionAction(**{
             'dialogue-id': '04',
             'interaction-id': '01-02'}))
-        self.assertEqual(1, self.collections['schedules'].count())
+        self.assertEqual(3, self.collections['schedules'].count())
         schedule = self.collections['schedules'].find_one()
         self.assertTrue(
             (dNow + timedelta(minutes=10)) - time_from_vusion_format(schedule['date-time']) 

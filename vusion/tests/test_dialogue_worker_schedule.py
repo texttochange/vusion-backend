@@ -409,7 +409,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
 
         self.assertEqual(2, self.collections['schedules'].count())
         self.assertEqual(2, self.collections['history'].count())
-        
+
         schedules = self.collections['schedules'].find()
         self.assertEqual('reminder-schedule', schedules[0]['object-type'])        
         self.assertEqual('deadline-schedule', schedules[1]['object-type'])
@@ -611,7 +611,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         self.initialize_properties()
 
         now = self.worker.get_local_time()
-        
+
         dialogue = Dialogue(**self.mkobj_dialogue_announcement_offset_days())
         self.collections['dialogues'].save(dialogue.get_as_dict())
         participant = self.mkobj_participant(
@@ -631,6 +631,7 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
         new_time = get_offset_date_time(now, '1', '23:30')
         self.assertTrue(schedule['date-time'], time_to_vusion_format(new_time))
 
+    @inlineCallbacks
     def test_reschedule_reminder_removing_reminder(self):
         self.initialize_properties()
 
@@ -674,8 +675,8 @@ class DialogueWorkerTestCase_schedule(DialogueWorkerTestCase):
             date_time=time_to_vusion_format(d_interaction_deadline),
             object_type='deadline-schedule')
         self.collections['schedules'].save(deadline_schedule)    
-        
-        self.worker.schedule_participant_dialogue(participant, dialogue)
+
+        yield self.worker.schedule_participant_dialogue(participant, dialogue)
 
         self.assertEqual(0, self.collections['schedules'].count())
         self.assertEqual(2, self.collections['history'].count())

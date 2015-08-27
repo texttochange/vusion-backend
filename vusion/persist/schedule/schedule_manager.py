@@ -2,7 +2,7 @@ import sys, traceback
 from bson import ObjectId
 
 from twisted.internet.threads import deferToThread
-from twisted.internet.defer import returnValue, inlineCallbacks
+from twisted.internet.defer import returnValue, inlineCallbacks, Deferred
 
 from vusion.persist.cursor_instanciator import CursorInstanciator
 from vusion.persist import ModelManager, schedule_generator
@@ -21,13 +21,12 @@ class ScheduleManager(ModelManager):
 
     @inlineCallbacks
     def save_schedule(self, schedule):
-        d = deferToThread(self._save_schedule, schedule)
-        yield d
+        yield deferToThread(self._save_schedule, schedule)
 
     def _save_schedule(self, schedule):
         if not isinstance(schedule, Schedule):
             schedule = schedule_generator(**schedule)
-        returnValue(self.save_document(schedule))
+        returnValue(self.save_object(schedule))
 
     def remove_schedule(self, schedule):
         self.collection.remove(schedule['_id'])
@@ -54,7 +53,7 @@ class ScheduleManager(ModelManager):
     def _wrap_cursor_schedules(self, cursor):
         def log(exception, item):
             self.log("Exception %s while intanciating a schedule %r" % (exception, item))        
-        return CursorInstanciator(cursor, schedule_generator, log)        
+        return CursorInstanciator(cursor, schedule_generator, log)
 
     def get_participant_reminder_tail(self, participant_phone, dialogue_id, interaction_id):
         cursor = self.collection.find({
@@ -175,7 +174,7 @@ class ScheduleManager(ModelManager):
             'date-time': deadline_time,
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id})
-        yield  self.save_schedule(deadline)
+        yield self.save_schedule(deadline)
 
     @inlineCallbacks
     def add_action(self, participant_phone, participant_session_id, schedule_time, action, context):
@@ -196,7 +195,7 @@ class ScheduleManager(ModelManager):
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id})
         yield self.save_schedule(schedule)
-    
+
     @inlineCallbacks
     def get_unique_participant_phones(self):
         d = deferToThread(self._get_unique_participant_phones)

@@ -2,7 +2,6 @@ from datetime import datetime, time, date, timedelta
 import pytz
 
 import json
-import pymongo
 from bson.objectid import ObjectId
 from bson.timestamp import Timestamp
 
@@ -87,9 +86,10 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
         inbound_msg_matching = self.mkmsg_in(
             from_addr='06',
             content='name olivier')
+
         yield self.app_helper.dispatch_inbound(inbound_msg_matching)
 
-        self.assertEqual(1, self.collections['schedules'].count())
+        self.assertEqual(3, self.collections['schedules'].count())
 
     @inlineCallbacks
     def test_inbound_message_matching_dialogue_with_reminder(self):

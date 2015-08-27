@@ -19,7 +19,7 @@ class ParticipantManager(ModelManager):
         participant = self.get_participant(participant_phone)
         if not participant:
             ## The participant is opting in for the first time
-            self.opting_in_first(participant_phone, True)
+            self.opting_in_first(participant_phone)
             return True
         elif participant['session-id'] is None:
             ## The participant is optout and opting in again
@@ -27,7 +27,7 @@ class ParticipantManager(ModelManager):
             return True
         return False
 
-    def opting_in_first(self, participant_phone, safe=True):
+    def opting_in_first(self, participant_phone):
         participant = Participant(**{
             'phone': participant_phone,
             'session-id': uuid4().get_hex(), 
@@ -36,9 +36,9 @@ class ParticipantManager(ModelManager):
             'tags': [],
             'enrolled':[],
             'profile':[]})
-        return self.save_participant(participant, safe=safe)
+        return self.save_participant(participant)
 
-    def opting_in_again(self, participant_phone, safe=True):
+    def opting_in_again(self, participant_phone):
         self.collection.update(
             {'phone': participant_phone},
             {'$set': {'session-id': uuid4().get_hex(), 
@@ -46,29 +46,26 @@ class ParticipantManager(ModelManager):
                       'last-optout-date': None,
                       'tags': [],
                       'enrolled': [],
-                      'profile': [] }},
-            safe=safe)
+                      'profile': [] }})
 
-    def opting_out(self, participant_phone, safe=True):
+    def opting_out(self, participant_phone):
         self.collection.update(
             {'phone': participant_phone},
             {'$set': {'session-id': None,
-                      'last-optout-date': time_to_vusion_format(self.get_local_time())}},
-            safe=safe)
+                      'last-optout-date': time_to_vusion_format(self.get_local_time())}})
 
-    def tagging(self, participant_phone, tag, safe=True):
+    def tagging(self, participant_phone, tag):
         self.collection.update(
             {'phone': participant_phone,
              'session-id': {'$ne': None},
              'tags': {'$ne': tag}},
-            {'$push': {'tags': tag}},
-            safe=safe)
+            {'$push': {'tags': tag}})
 
-    def enrolling(self, participant_phone, dialogue_id, safe=True):
+    def enrolling(self, participant_phone, dialogue_id):
         self.enrolling_participants(
-            {'phone': participant_phone}, dialogue_id, safe)
+            {'phone': participant_phone}, dialogue_id)
 
-    def enrolling_participants(self, query, dialogue_id, safe=True, multi=True):
+    def enrolling_participants(self, query, dialogue_id, multi=True):
         ##unenroll participants that are no more auto
         query.update({'enrolled.dialogue-id': {'$ne': dialogue_id},
                       'session-id':{'$ne': None}})
@@ -77,33 +74,29 @@ class ParticipantManager(ModelManager):
             {'$push': {'enrolled': {
                 'dialogue-id': dialogue_id,
                 'date-time': self.get_local_time("vusion")}}},
-            safe=safe,
             multi=multi)
     
-    def labelling(self, participant_phone, label, value, raw, safe=True):
+    def labelling(self, participant_phone, label, value, raw):
         self.collection.update(
                     {'phone': participant_phone,
                      'session-id': {'$ne': None}},
-                    {'$pull': {'profile': {'label': label}}},
-                    safe=safe)
+                    {'$pull': {'profile': {'label': label}}})
         self.collection.update(
             {'phone': participant_phone,
              'session-id': {'$ne': None}},
             {'$push': {'profile': {'label': label,
                                    'value': value,
-                                   'raw': raw}}},
-            safe=safe)
+                                   'raw': raw}}})
 
-    def save_transport_metadata(self, participant_phone, transport_metadata, safe=True):
+    def save_transport_metadata(self, participant_phone, transport_metadata):
         self.collection.update(
             {'phone': participant_phone},
-            {'$set': {'transport_metadata': transport_metadata}},
-            safe=safe)
+            {'$set': {'transport_metadata': transport_metadata}})
 
-    def save_participant(self, participant, safe=False):
+    def save_participant(self, participant):
         if not isinstance(participant, Participant):
             participant = Participant(**participant)
-        return self.save_document(participant, safe=safe)
+        return self.save_document(participant)
 
     def get_participant(self, participant_phone, only_optin=False):
         try:

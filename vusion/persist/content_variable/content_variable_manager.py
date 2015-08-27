@@ -64,13 +64,13 @@ class ContentVariableManager(ModelManager):
         table = ContentVariableTable(**table)
         return table
 
-    def save_object(self, instance, safe=False):
+    def save_object(self, instance):
         instance.validate_fields()
         if isinstance(instance, ContentVariableTable):
             c = self.collection_table
         elif isinstance(instance, ContentVariable):
             c = self.collection
-        return c.save(instance.get_as_dict(), safe=safe)
+        return c.save(instance.get_as_dict())
 
     def _update_content_variable(self, match, value):
         condition = self._from_match_to_condition(match)

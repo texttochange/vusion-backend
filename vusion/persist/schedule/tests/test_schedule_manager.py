@@ -129,8 +129,8 @@ class TestScheduleManager(TestCase, ObjectMaker):
             participant_phone='1', object_type='reminder-schedule', dialogue_id='1',interaction_id='3'))
         yield self.manager.save_schedule(schedule_1)
         yield self.manager.save_schedule(schedule_2)
-        
-        reminders = self.manager.get_participant_reminder_tail('1', '1', '2')
+
+        reminders = yield self.manager.get_participant_reminder_tail('1', '1', '2')
         self.assertEqual(1, reminders.count())
         reminder = reminders.next()
         self.assertIsInstance(reminder, ReminderSchedule)
