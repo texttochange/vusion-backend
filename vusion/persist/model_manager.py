@@ -16,14 +16,14 @@ class ModelManager(object):
     def close_connection(self):
         pass
 
-    def save_object(self, instance, safe=False):
+    def save_object(self, instance):
         instance.validate_fields()
-        return self.collection.save(instance.get_as_dict(), safe=safe)
+        return self.collection.save(instance.get_as_dict())
 
     #deprecated: name is confusing
-    def save_document(self, document, safe=False):
+    def save_document(self, document):
         document.validate_fields()
-        return self.collection.save(document.get_as_dict(), safe=safe)
+        return self.collection.save(document.get_as_dict())
     
     def set_property_helper(self, property_helper):
         self.property_helper = property_helper

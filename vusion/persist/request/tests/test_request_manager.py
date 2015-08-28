@@ -1,4 +1,4 @@
-import pymongo
+from pymongo import MongoClient
 from bson.objectid import ObjectId
 
 from twisted.trial.unittest import TestCase
@@ -15,8 +15,7 @@ class TestRequestManager(TestCase, ObjectMaker):
     
     def setUp(self):
         self.database_name = 'test_program_db'
-        c = pymongo.Connection()
-        c.safe = True
+        c = MongoClient(w=1)
         db = c[self.database_name]
         self.request_manager = RequestManager(db, 'requests')
         

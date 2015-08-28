@@ -41,7 +41,7 @@ class CreditLogManager(ModelManager):
         if self._has_today_credit_log(**kwargs):
             return
         credit_log = self._create_today_credit_log(**kwargs)
-        self.save_document(credit_log, safe=True)        
+        self.save_document(credit_log)
 
     def _set_counters(self, counters, **kwargs):
         self._create_no_exist_day_credit_log(**kwargs)

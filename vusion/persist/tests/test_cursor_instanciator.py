@@ -1,4 +1,4 @@
-import pymongo
+from pymongo import MongoClient
 from twisted.trial.unittest import TestCase
 
 from tests.utils import ObjectMaker
@@ -10,7 +10,7 @@ class TestCursorInstanciator(TestCase, ObjectMaker):
 
     def setUp(self):
         self.database_name = 'test_program_db'
-        c = pymongo.Connection()
+        c = MongoClient(w=1)
         db = c.test_program_db
         self.test_collection = db.test_collection
         self.clearData()

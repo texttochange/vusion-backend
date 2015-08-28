@@ -1,4 +1,4 @@
-import pymongo
+from pymongo import MongoClient
 from bson.objectid import ObjectId
 from bson.timestamp import Timestamp
 
@@ -18,8 +18,7 @@ class TestDialogueManager(TestCase, ObjectMaker):
     
     def setUp(self):
         self.database_name = 'test_program_db'
-        c = pymongo.Connection()
-        c.safe = True
+        c = MongoClient(w=1)
         db = c.test_program_db
         self.dialogue_manager = DialogueManager(db, 'dialogues')        
         self.clearData()
