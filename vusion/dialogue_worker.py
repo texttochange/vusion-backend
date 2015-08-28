@@ -4,6 +4,7 @@ import traceback
 import re
 
 from twisted.internet.defer import inlineCallbacks, Deferred, returnValue
+from twisted.internet.threads import deferToThread
 from twisted.internet import task, reactor
 
 from pymongo import MongoClient
@@ -205,14 +206,8 @@ class DialogueWorker(ApplicationWorker):
                 self.log("Worker is not ready, cannot performe the action.")
                 return
             if message['action'] == 'update_schedule':
-                if message['schedule_type'] == 'dialogue':
-                    self.collections['dialogues'].load_dialogue(message['object_id'])
-                    yield self.schedule_dialogue(message['object_id'])
-                    self.register_keywords_in_dispatcher()
-                elif message['schedule_type'] == 'unattach':
-                    yield self.schedule_unattach(message['object_id'])
-                elif message['schedule_type'] == 'participant':
-                    yield self.schedule_participant(message['object_id'])
+                ## workaround to schedule_dialogue blocking behavior
+                yield deferToThread(self._update_schedule, message)
             elif message['action'] == 'mass_tag':
                 yield self.schedule_mass_tag(message['tag'], message['selector'])
             elif message['action'] == 'mass_untag':
@@ -240,6 +235,16 @@ class DialogueWorker(ApplicationWorker):
             self.log(
                 "UNKNOWN ERROR during consume control message: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
+
+    def _update_schedule(self, message):
+        if message['schedule_type'] == 'dialogue':
+            self.collections['dialogues'].load_dialogue(message['object_id'])
+            self.schedule_dialogue(message['object_id'])
+            self.register_keywords_in_dispatcher()
+        elif message['schedule_type'] == 'unattach':
+            self.schedule_unattach(message['object_id'])
+        elif message['schedule_type'] == 'participant':
+            self.schedule_participant(message['object_id'])
 
     def dispatch_event(self, message):
         self.log("Event message received %s" % (message,))
