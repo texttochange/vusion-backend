@@ -96,8 +96,6 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
         dNow = self.worker.get_local_time()
 
         self.collections['participants'].save(
-            self.mkobj_participant(participant_phone='10', tags=['mombasa']))
-        self.collections['participants'].save(
             self.mkobj_participant(participant_phone='11', tags=['mombasa']))
         unattach = self.mkobj_unattach_message(
             send_to_type='match',
@@ -110,7 +108,7 @@ class DialogueWorkerTestCase_consumeControlMessage(DialogueWorkerTestCase):
             'tag': 'mombasa',
             'selector': None})
         yield self.dispatch_control(control)
-        self.assertEqual(2, self.collections['schedules'].count())
+        self.assertEqual(1, self.collections['schedules'].count())
 
     @inlineCallbacks
     def test_consume_control_mass_untag(self):

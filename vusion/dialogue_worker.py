@@ -205,28 +205,8 @@ class DialogueWorker(ApplicationWorker):
             if (not self.is_ready()):
                 self.log("Worker is not ready, cannot performe the action.")
                 return
-            if message['action'] == 'update_schedule':
-                ## workaround to schedule_dialogue blocking behavior
-                yield deferToThread(self._update_schedule, message)
-            elif message['action'] == 'mass_tag':
-                yield self.schedule_mass_tag(message['tag'], message['selector'])
-            elif message['action'] == 'mass_untag':
-                yield self.schedule_mass_untag(message['tag'])
-            elif message['action'] == 'reload_request':
-                self.collections['requests'].load_request(message['object_id'])
-                self.register_keywords_in_dispatcher()
-            elif message['action'] == 'test_send_all_messages':
-                dialogue = self.collections['dialogues'].get_dialogue_obj(message['dialogue_obj_id'])
-                self.send_all_messages(dialogue, message['phone_number'])
-            elif message['action'] == 'update_registered_keywords':
-                self.register_keywords_in_dispatcher()
-            elif message['action'] == 'run_actions':
-                actions = self.collections['dialogues'].get_actions(
-                    message['dialogue_id'],
-                    message['interaction_id'],
-                    message['answer'])
-                for action in actions.items():
-                    yield self.run_action(message['participant_phone'], action)
+            ## workaround to schedule_dialogue blocking behavior
+            yield deferToThread(self.run_control, message)
             self.update_time_next_daemon_iteration()
         except (VusionError, VumiError) as e:
             self.log('ERROR: %s(%s)' % (e.__class__.__name__, e.message), level='error')
@@ -236,15 +216,35 @@ class DialogueWorker(ApplicationWorker):
                 "UNKNOWN ERROR during consume control message: %r" %
                 traceback.format_exception(exc_type, exc_value, exc_traceback))
 
-    def _update_schedule(self, message):
-        if message['schedule_type'] == 'dialogue':
-            self.collections['dialogues'].load_dialogue(message['object_id'])
-            self.schedule_dialogue(message['object_id'])
+    def run_control(self, message):
+        if message['action'] == 'update_schedule':
+            if message['schedule_type'] == 'dialogue':
+                self.collections['dialogues'].load_dialogue(message['object_id'])
+                self.schedule_dialogue(message['object_id'])
+                self.register_keywords_in_dispatcher()
+            elif message['schedule_type'] == 'unattach':
+                self.schedule_unattach(message['object_id'])
+            elif message['schedule_type'] == 'participant':
+                self.schedule_participant(message['object_id'])
+        elif message['action'] == 'mass_tag':
+            self.schedule_mass_tag(message['tag'], message['selector'])
+        elif message['action'] == 'mass_untag':
+            self.schedule_mass_untag(message['tag'])
+        elif message['action'] == 'reload_request':
+            self.collections['requests'].load_request(message['object_id'])
             self.register_keywords_in_dispatcher()
-        elif message['schedule_type'] == 'unattach':
-            self.schedule_unattach(message['object_id'])
-        elif message['schedule_type'] == 'participant':
-            self.schedule_participant(message['object_id'])
+        elif message['action'] == 'test_send_all_messages':
+            dialogue = self.collections['dialogues'].get_dialogue_obj(message['dialogue_obj_id'])
+            self.send_all_messages(dialogue, message['phone_number'])
+        elif message['action'] == 'update_registered_keywords':
+            self.register_keywords_in_dispatcher()
+        elif message['action'] == 'run_actions':
+            actions = self.collections['dialogues'].get_actions(
+                message['dialogue_id'],
+                message['interaction_id'],
+                message['answer'])
+            for action in actions.items():
+                self.run_action(message['participant_phone'], action)
 
     def dispatch_event(self, message):
         self.log("Event message received %s" % (message,))
