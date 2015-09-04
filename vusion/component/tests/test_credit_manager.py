@@ -354,3 +354,32 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         status = self.cm.check_status()
         self.assertEqual(status['status'], 'no-credit-timeframe')
         self.assertEqual(status['since'], time_to_vusion_format(now))
+
+    def test_simulated_participant_no_credit_count(self):        
+        test_participant = {
+            "model-version": "5", 
+            "object-type": "participant", 
+            "phone": "+255654033486", 
+            "session-id": "ee29e5a2321f426cb52f19e1371cb32e", 
+            "last-optin-date": "2012-11-20T13:30:56",
+            "last-optout-date": "2012-11-20T14:00:00",
+            "enrolled": [ ],
+            "tags": [ ],
+            "profile": [ ],
+            "transport_metadata": [],
+            "simulate": True} 
+        now = datetime.now()
+        past = now - timedelta(days=1)
+        more_past = past - timedelta(days=1)
+        future = now + timedelta(days=1)
+        more_future = future + timedelta(days=1)
+
+        self.property_helper['credit-type'] = 'outgoing-only'
+        self.property_helper['credit-number'] = '4'
+        self.property_helper['credit-from-date'] = time_to_vusion_format(past)
+        self.property_helper['credit-to-date'] = time_to_vusion_format(future)
+        self.cm.set_limit()
+        self.assertTrue(
+            self.cm.is_allowed(message_credits=1, schedule=None, participant=test_participant))
+        # Event without limit the credit logs should be increased
+        self.assertEqual(0, self.collections['credit_logs'].count())
