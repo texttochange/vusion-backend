@@ -306,3 +306,35 @@ class TestParticipant(TestCase, ObjectMaker):
                   'subcondition-operator': 'not-with',
                   'subcondition-parameter': 'name:Olivier'},                           
                  ]))
+
+    def test_participant_simulated(self):
+        participant_cake = {
+            "model-version": "5", 
+            "object-type": "participant", 
+            "phone": "+255654033486", 
+            "session-id": "ee29e5a2321f426cb52f19e1371cb32e", 
+            "last-optin-date": "2012-11-20T13:30:56",
+            "last-optout-date": "2012-11-20T14:00:00",
+            "enrolled": [ ],
+            "tags": [ 'tom' ],
+            "profile": [ ],
+            "transport_metadata": [],
+            "simulate": False}
+        p = Participant(**participant_cake)
+        self.assertFalse(p.is_simulated()) 
+        
+    def test_participant_simulated(self):
+        participant_cake = {
+            "model-version": "5", 
+            "object-type": "participant", 
+            "phone": "+255654033486", 
+            "session-id": "ee29e5a2321f426cb52f19e1371cb32e", 
+            "last-optin-date": "2012-11-20T13:30:56",
+            "last-optout-date": "2012-11-20T14:00:00",
+            "enrolled": [ ],
+            "tags": [ 'tom' ],
+            "profile": [ ],
+            "transport_metadata": [],
+            "simulate": True}
+        p = Participant(**participant_cake)
+        self.assertTrue(p.is_simulated())         

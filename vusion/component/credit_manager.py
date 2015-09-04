@@ -101,9 +101,9 @@ class CreditManager(object):
         if self.credit_type == 'outgoing-incoming':
             self.redis.incr(self.used_credit_counter_key(), message_credits)
 
-    def is_allowed(self, message_credits, schedule=None, participant={}):
+    def is_allowed(self, message_credits, participant, schedule=None):
         #log.msg('[credit manager] is allowed %r' % schedule)
-        if self.participant_is_simulated(participant):
+        if :
             return False        
         if not self.has_limit():
             self.credit_log_collection.increment_outgoing(message_credits)
@@ -123,11 +123,6 @@ class CreditManager(object):
         if self.credit_type in ['outgoing-only', 'outgoing-incoming']:
             return True
         return False
-
-    def participant_is_simulated(self, participant):
-        if participant['simulate']:
-            return True
-        return False  
 
     def increase_used_credit_counter(self, message_credits):
         if message_credits == 0:

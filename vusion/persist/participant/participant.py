@@ -219,3 +219,6 @@ class Participant(Model):
     def before_validate(self):
         if self.payload['transport_metadata'] == [] or self.payload['transport_metadata'] == "" :
             self.payload['transport_metadata'] = {}
+            
+    def is_simulated(self):
+        return self.payload['simulate']           
