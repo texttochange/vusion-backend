@@ -9,7 +9,7 @@ from tests.utils import ObjectMaker, DumbLogManager
 from vusion.utils import (time_to_vusion_format, time_from_vusion_format,
                           time_to_vusion_format_date)
 from vusion.persist import (HistoryManager, ScheduleManager, UnattachSchedule,
-                            ProgramCreditLogManager)
+                            ProgramCreditLogManager, Participant)
 from vusion.component import (CreditManager, CreditStatus, 
                               DialogueWorkerPropertyHelper)
 
@@ -368,6 +368,7 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
             "profile": [ ],
             "transport_metadata": [],
             "simulate": True} 
+        p = Participant(**test_participant)
         now = datetime.now()
         past = now - timedelta(days=1)
         more_past = past - timedelta(days=1)
@@ -380,6 +381,6 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.property_helper['credit-to-date'] = time_to_vusion_format(future)
         self.cm.set_limit()
         self.assertTrue(
-            self.cm.is_allowed(message_credits=1, schedule=None, participant=test_participant))
+            self.cm.is_allowed(message_credits=1,participant=p, schedule=None))
         # Event without limit the credit logs should be increased
         self.assertEqual(0, self.collections['credit_logs'].count())

@@ -337,4 +337,4 @@ class TestParticipant(TestCase, ObjectMaker):
             "transport_metadata": [],
             "simulate": True}
         p = Participant(**participant_cake)
-        self.assertTrue(p.is_simulated())         
+        self.assertTrue(p.is_simulated())
