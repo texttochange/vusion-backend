@@ -263,7 +263,7 @@ class DialogueWorker(ApplicationWorker):
                 return
         self.log(("Run action for %s action %s" % (participant_phone, action,)))
         if (action.get_type() == 'optin'):
-            if self.collections['participants'].opting_in(participant_phone):
+            if self.collections['participants'].opting_in(participant_phone, simulated=context.is_simulated()):
                 yield self.schedule_participant(participant_phone)
             else:
                 ## The participant is still optin and opting in again
@@ -503,7 +503,7 @@ class DialogueWorker(ApplicationWorker):
                                                          message['content']))
         try:
             history = {'object-type': 'unmatching-history'}
-            context = Context(**{'message': message['content']})
+            context = Context(message)
             actions = Actions()
             self.collections['requests'].get_matching_request_actions(
                 message['content'], actions, context)

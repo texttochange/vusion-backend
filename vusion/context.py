@@ -4,8 +4,14 @@ from vusion.error import MissingData
 
 class Context(object):
 
-    def __init__(self, **kwargs):
-        self.payload = kwargs
+    def __init__(self, user_message=None, **kwargs):
+        if user_message is None:
+            self.payload = kwargs
+            return
+        self.payload = {'message': user_message['content']}
+        if 'simulated' in user_message['transport_metadata']:
+            self.payload['simulated'] = user_message['transport_metadata']['simulated']
+        return
 
     def __eq__(self, other):
         if isinstance(other, Context):
@@ -36,6 +42,10 @@ class Context(object):
     def is_matching_answer(self):
         return ('matching-answer' in self.payload
                 and self.payload['matching-answer'] is not None)
+
+    def is_simulated(self):
+        return ('simulated' in self.payload
+                and self.payload['simulated'] is True)
 
     def get_matching_answer(self):
         if self.is_matching_dialogue():
