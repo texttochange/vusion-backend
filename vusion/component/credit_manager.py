@@ -96,10 +96,11 @@ class CreditManager(object):
     def notification_key(self):
         return ':'.join([self.credit_manager_key(), self.NOTIFICATION_KEY])
 
-    def received_message(self, message_credits):
-        self.credit_log_collection.increment_incoming(message_credits)
-        if self.credit_type == 'outgoing-incoming':
-            self.redis.incr(self.used_credit_counter_key(), message_credits)
+    def received_message(self, message_credits, participant):
+        if not participant.is_simulated():
+            self.credit_log_collection.increment_incoming(message_credits)
+            if self.credit_type == 'outgoing-incoming':
+                self.redis.incr(self.used_credit_counter_key(), message_credits)
 
     def is_allowed(self, message_credits, participant, schedule=None):
         #log.msg('[credit manager] is allowed %r' % schedule)

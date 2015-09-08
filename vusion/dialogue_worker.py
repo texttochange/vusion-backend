@@ -522,7 +522,7 @@ class DialogueWorker(ApplicationWorker):
             history.update(context.get_dict_for_history())
             history_id = self.save_history(**history)
             context['history_id'] = str(history_id)
-            self.credit_manager.received_message(message_credits)
+            self.credit_manager.received_message(message_credits, participant)
             self.collections['participants'].save_transport_metadata(
                 message['from_addr'], message['transport_metadata'])
             if (context.is_matching() and participant is not None):
