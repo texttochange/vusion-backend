@@ -103,7 +103,7 @@ class CreditManager(object):
 
     def is_allowed(self, message_credits, participant, schedule=None):
         #log.msg('[credit manager] is allowed %r' % schedule)
-        if participant.is_simulated:
+        if participant.is_simulated():
             return True        
         if not self.has_limit():
             self.credit_log_collection.increment_outgoing(message_credits)

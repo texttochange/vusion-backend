@@ -928,9 +928,9 @@ class DialogueWorker(ApplicationWorker):
         participant = self.collections['participants'].get_participant(schedule['participant-phone'])
         if (participant['transport_metadata'] is not {}):
             options['transport_metadata'].update(participant['transport_metadata'])
-
+        
         message_credits = self.properties.use_credits(message_content)
-        if self.credit_manager.is_allowed(message_credits, schedule):
+        if self.credit_manager.is_allowed(message_credits, participant, schedule):
             message = yield self.send_to(schedule['participant-phone'], message_content, **options)
             self.collections['history'].add_outgoing(
                 message, message_credits, context, schedule)

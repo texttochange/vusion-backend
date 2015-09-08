@@ -323,7 +323,7 @@ class TestParticipant(TestCase, ObjectMaker):
         p = Participant(**participant_cake)
         self.assertFalse(p.is_simulated()) 
         
-    def test_participant_simulated(self):
+    def test_participant_normal(self):
         participant_cake = {
             "model-version": "5", 
             "object-type": "participant", 
