@@ -11,6 +11,7 @@ from smsgh_ghana.smsgh_smpp import SmsghSmppTransport
 from orange_mali.orange_mali_smpp import OrangeMaliSmppTransport
 from orange_sdp.orange_http import OrangeSdpHttpTransport
 from iconcept_nigeria.iconcept_http import IConceptHttpTransport
+from telkomsel_indonesia.telkomsel_http import TelkomselHttpTransport
 
 from http_forward.forward_http import ForwardHttp
 from http_forward.cioec_http import CioecHttp
@@ -27,5 +28,6 @@ __all__ = [
     "SmsghSmppTransport",
     "OrangeSdpHttpTransport",
     "IConceptHttpTransport",
+    "TelkomselHttpTransport",
     "ForwardHttp",
     "CioecHttp"]

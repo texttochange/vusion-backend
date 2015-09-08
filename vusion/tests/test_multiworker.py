@@ -2,6 +2,7 @@ from twisted.trial.unittest import TestCase
 from twisted.internet.defer import (Deferred, DeferredList,
                                     inlineCallbacks, returnValue)
 
+import MySQLdb
 from pymongo import MongoClient
 
 from vumi.multiworker import MultiWorker
@@ -12,6 +13,8 @@ from vumi.tests.helpers import VumiTestCase, WorkerHelper, MessageHelper
 from vumi.service import Worker
 
 from vusion import VusionMultiWorker, DialogueWorker
+from vusion.persist import WorkerManager
+
 from tests.utils import MessageMaker, DataLayerUtils
 
 
@@ -46,7 +49,13 @@ class ToyDialogueWorker(DialogueWorker):
     
     def setup_application(self):
         super(ToyDialogueWorker, self).setup_application()
-        self._d.callback(None)        
+        self._d.callback(None)
+
+    def teardown_application(self):
+        super(ToyDialogueWorker, self).teardown_application()
+
+    def before_teardown_application(self):
+        super(ToyDialogueWorker, self).before_teardown_application()
 
 
 class StubbedVusionMultiWorker(VusionMultiWorker):
@@ -61,13 +70,18 @@ class StubbedVusionMultiWorker(VusionMultiWorker):
 
 
 class VusionMultiWorkerTestCase(VumiTestCase, MessageMaker):
-    timeout = 10
+    timeout = 100
 
     base_config = {
         'application_name': 'vusion',
         'vusion_database_name': 'test3',
         'mongodb_host': 'localhost',
         'mongodb_port': 27017,
+        'mysql_host': '127.0.0.1',
+        'mysql_port': 3306,
+        'mysql_user': 'cake_test',
+        'mysql_password': 'password',
+        'mysql_db': 'vusion_test',
         'dispatcher_name': 'dispatcher',
         'workers': {
             'worker1': '%s.ToyDialogueWorker' % (__name__,) },
@@ -91,19 +105,35 @@ class VusionMultiWorkerTestCase(VumiTestCase, MessageMaker):
     def setUp(self):
         self.worker_helper = self.add_helper(WorkerHelper())
         self.message_helper = self.add_helper(MessageHelper())
-        
+
         self.application_name = self.base_config['application_name']
-        
+
         self.mongo_client = MongoClient(w=1)
+        self.mysql_client = MySQLdb.connect(
+            host='127.0.0.1',
+            port=3306,
+            user='cake_test',
+            passwd='password',
+            db='vusion_test')
         self.cleanData()
+
         db = self.mongo_client[self.base_config['vusion_database_name']]
-        self.collections = {} 
-        self.collections['workers'] = db['workers']
-        
+        self.collections = {}
+        self.collections['worker_config'] = db['workers']
+
+        self.collections['workers'] = WorkerManager(self.mysql_client)
+        query = """CREATE TABLE programs (name VARCHAR(20), url VARCHAR(20),""" + \
+            """`database` VARCHAR(20), status VARCHAR(20));"""
+        c = self.mysql_client.cursor()
+        c.execute(query)
+        c.close()
+        self.mysql_client.commit()
+
     @inlineCallbacks
     def tearDown(self):
+        #yield self.worker.teardown_application()
         yield self.worker.stopService()
-        yield super(VusionMultiWorkerTestCase, self).tearDown()   
+        yield super(VusionMultiWorkerTestCase, self).tearDown()
         self.cleanData()
 
     def cleanData(self):
@@ -111,26 +141,27 @@ class VusionMultiWorkerTestCase(VumiTestCase, MessageMaker):
         self.mongo_client.drop_database('test2')
         self.mongo_client.drop_database('test3')
         self.mongo_client.drop_database(self.base_config['vusion_database_name'])
+        c = self.mysql_client.cursor()
+        c.execute("""DROP TABLE IF EXISTS programs;""")
+        c.close()
+        self.mysql_client.commit()
 
     def dispatch_control(self, control):
         return self.worker_helper.dispatch_raw('.'.join([self.application_name, 'control']), control)
 
     @inlineCallbacks
-    def get_multiwoker(self, config):
+    def get_multiworker(self, config):
         self.worker = yield self.worker_helper.get_worker(
             StubbedVusionMultiWorker, config, start=True)
-        #yield self.worker.startWorker()
-        #yield self.worker.startService()
-        #yield self.worker.setup_worker()
         yield self.worker.wait_for_workers()
         returnValue(self.worker)
 
     @inlineCallbacks
     def test_add_remove_workers(self):
 
-        yield self.get_multiwoker(self.base_config)
+        yield self.get_multiworker(self.base_config)
 
-        self.assertEqual(self.collections['workers'].count(), 1)
+        self.assertEqual(self.collections['worker_config'].count(), 1)
 
         control = self.mkmsg_multiworker_control(
             message_type='add_worker',
@@ -141,7 +172,7 @@ class VusionMultiWorkerTestCase(VumiTestCase, MessageMaker):
 
         yield self.worker.wait_for_workers()
 
-        self.assertEqual(self.collections['workers'].count(), 2)
+        self.assertEqual(self.collections['worker_config'].count(), 2)
         self.assertTrue('worker2' in self.worker.workers)
 
         control = self.mkmsg_multiworker_control(
@@ -153,17 +184,17 @@ class VusionMultiWorkerTestCase(VumiTestCase, MessageMaker):
 
         #yield self.worker.wait_for_workers()
 
-        self.assertEqual(self.collections['workers'].count(), 2)
+        self.assertEqual(self.collections['worker_config'].count(), 2)
         self.assertTrue('worker2' in self.worker.workers)
 
         control = self.mkmsg_multiworker_control(
             message_type='remove_worker',
-            worker_name='worker2')        
+            worker_name='worker2')
         yield self.dispatch_control(control)
 
         #yield self.worker.wait_for_workers()
 
-        self.assertEqual(self.collections['workers'].count(), 1)
+        self.assertEqual(self.collections['worker_config'].count(), 1)
         self.assertFalse('worker2' in self.worker.workers)
         
         #yield self.worker.stopService()
@@ -172,27 +203,39 @@ class VusionMultiWorkerTestCase(VumiTestCase, MessageMaker):
     def test_startup(self):
         #The worker1 class and config store in the database are overwrite
         #by the config file
-        self.collections['workers'].save({
+        self.collections['worker_config'].save({
             'name': 'worker1',
             'class': '%s.ToyWorker' % (__name__),
             'config': self.new_worker_config})
 
-        self.collections['workers'].save({
+        self.collections['worker_config'].save({
             'name': 'worker2',
             'class': '%s.ToyWorker' % (__name__),
             'config': self.new_worker_config})
 
-        yield self.get_multiwoker(self.base_config)
+        c = self.mysql_client.cursor()
+        c.executemany(
+            """INSERT INTO programs (name, url, status) """ + \
+            """VALUES (%s,%s,%s);""",
+            [
+                ('my program','worker2','running')
+            ])
+        c.close()
+        self.mysql_client.commit()
+
+        yield self.get_multiworker(self.base_config)
         yield self.worker.wait_for_workers()
 
-        self.assertEqual(self.collections['workers'].count(), 2)
-        worker_configs = self.collections['workers'].find()
-        self.assertEqual(worker_configs[0]['class'], '%s.ToyDialogueWorker' % (__name__))
+        self.assertEqual(self.collections['worker_config'].count(), 2)
+        worker_configs = self.collections['worker_config'].find()
+        self.assertEqual(
+            worker_configs[0]['class'],
+            '%s.ToyDialogueWorker' % (__name__))
         self.assertEqual(worker_configs[0]['model-version'], '2')
+
         self.assertEqual(
             worker_configs[1]['class'],
             '%s.ToyWorker' % (__name__))
-        self.assertEqual(worker_configs[1]['model-version'], '2')
 
         self.assertTrue('worker1' in self.worker.workers)
         self.assertTrue(isinstance(self.worker.workers['worker1'],

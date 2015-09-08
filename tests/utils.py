@@ -649,7 +649,7 @@ class ObjectMaker:
                            {'type-action': 'optout'}]}
         dialogue_raw['interactions'][0].update(interaction)
         dialogue = Dialogue(**deepcopy(dialogue_raw))
-        return dialogue.get_as_dict()    
+        return dialogue.get_as_dict()
 
     def mkobj_dialogue_open_question_offset_conditional(self):
         dialogue = deepcopy(self.dialogue_open_question)
@@ -658,10 +658,22 @@ class ObjectMaker:
         dialogue['interactions'].append(
             {'activated': 1,
              'interaction-id': '01-02',
-             'type-interaction': 'announcement',
-             'content': 'Message received',
+             'type-interaction': 'question-answer',
+             'content': 'What is your age?',
+             'keyword': 'age',
+             'set-use-template': 'use-template',
+             'type-question': 'open-question',
+             'answer-label': 'age',
              'type-schedule': 'offset-condition',
-             'offset-condition-interaction-id': '01-01'})
+             'offset-condition-interaction-id': '01-01',
+             'set-reminder': 'reminder',
+             'reminder-number': '1',
+             'type-schedule-reminder': 'reminder-offset-time',
+             'reminder-minutes': '3',
+             'reminder-actions': [
+                 {'type-action': 'feedback',
+                  'content': 'You are going to be optout.'}]
+             })
         return Dialogue(**dialogue).get_as_dict()
 
     dialogue_announcement_fixedtime = {

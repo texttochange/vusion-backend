@@ -1,7 +1,6 @@
 from datetime import datetime, time, date, timedelta
 
 import json
-from pymongo import MongoClient
 from redis import StrictRedis
 from bson.objectid import ObjectId
 from bson.timestamp import Timestamp
@@ -37,8 +36,7 @@ class DialogueWorkerTestCase(VumiTestCase, DataLayerUtils, ObjectMaker, MessageM
                        'control_name': self.control_name,
                        'dispatcher_name': self.dispatcher_name,
                        'mongodb_host': 'localhost',
-                       'mongodb_port': 27017,
-                       'mongodb_safe': True}
+                       'mongodb_port': 27017}
         self.app_helper = self.add_helper(ApplicationHelper(DialogueWorker))
         self.worker = yield self.app_helper.get_application(self.config)
         self.transport_name = self.worker.transport_name
@@ -102,7 +100,6 @@ class DialogueWorkerTestCase(VumiTestCase, DataLayerUtils, ObjectMaker, MessageM
 
 class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
 
-    
 
     def test06_get_program_actions(self):
         self.initialize_properties()

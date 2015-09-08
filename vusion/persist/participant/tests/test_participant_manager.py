@@ -1,5 +1,5 @@
 """Test for vusion.persist.ParticipantManager"""
-import pymongo
+from pymongo import MongoClient
 from bson import ObjectId
 
 from twisted.trial.unittest import TestCase
@@ -15,8 +15,7 @@ class TestParticipantManager(TestCase, ObjectMaker):
     
     def setUp(self):
         self.database_name = 'test_program_db'
-        c = pymongo.Connection()
-        c.safe = True
+        c = MongoClient(w=1)
         db = c.test_program_db
         self.manager = ParticipantManager(db, 'participants')
         self.clearData()

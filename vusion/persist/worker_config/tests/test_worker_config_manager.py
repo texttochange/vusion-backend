@@ -1,4 +1,4 @@
-import pymongo
+from pymongo import MongoClient
 
 from twisted.trial.unittest import TestCase
 
@@ -11,8 +11,7 @@ class TestWorkerConfigManager(TestCase, ObjectMaker):
     
     def setUp(self):
         self.database_name = 'test_vusion_db'
-        c = pymongo.Connection()
-        c.safe = True
+        c = MongoClient(w=1)
         db = c[self.database_name]
         self.manager = WorkerConfigManager(db, 'worker_configs')
         self.clearData()

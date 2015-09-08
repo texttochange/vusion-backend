@@ -1,20 +1,20 @@
 # -*- test-case-name: tests.test_multiworker
-
-from twisted.internet.defer import (
-    Deferred, DeferredList, inlineCallbacks, maybeDeferred)
-
+import MySQLdb
 from pymongo import MongoClient
 
 from copy import deepcopy
 
-from vumi.config import ConfigText
+from twisted.internet.defer import (
+    Deferred, DeferredList, inlineCallbacks, maybeDeferred)
+
+from vumi.config import ConfigText, ConfigInt
 from vumi.worker import BaseWorker
 from vumi.service import WorkerCreator
 from vumi.message import Message
 from vumi import log
 
 from vusion.connectors import ReceiveMultiworkerControlConnector
-from vusion.persist import WorkerConfig, WorkerConfigManager
+from vusion.persist import WorkerConfig, WorkerConfigManager, WorkerManager
 from vusion.message import MultiWorkerControl
 
 
@@ -23,9 +23,34 @@ class VusionMultiworkerConfig(BaseWorker.CONFIG_CLASS):
 
     You should subclass this and add application-specific fields.
     """
-
     application_name = ConfigText(
         "The name this application instance will use to create its queues.",
+        required=True, static=True)
+
+    vusion_database_name = ConfigText(
+        "The database name on both mysql and mongodb engine.",
+        required=True, static=True)
+    mongodb_host = ConfigText(
+        "The host of the mongodb instance.",
+        required=True, static=True)
+    mongodb_port = ConfigInt(
+        "The port of the mongodb instance.",
+        required=True, static=True)
+
+    mysql_host = ConfigText(
+        "The host of the mysql instance.",
+        required=True, static=True)
+    mysql_port = ConfigInt(
+        "The port of the mysql instance.",
+        required=True, static=True)
+    mysql_user = ConfigText(
+        "The user of the mysql instance.",
+        required=True, static=True)
+    mysql_password = ConfigText(
+        "The password of the mysql instance.",
+        required=True, static=True)
+    mysql_db = ConfigText(
+        "The db of the mysql instance.",
         required=True, static=True)
 
 
@@ -46,44 +71,56 @@ class VusionMultiWorker(BaseWorker):
         def cb(connector):
             connector.set_control_handler(self.dispatch_control)
             return connector
-        
+
         return d.addCallback(cb)
 
     def setup_worker(self):
         d = maybeDeferred(self.setup_application)
         if self.UNPAUSE_CONNECTORS:
-            d.addCallback(lambda r: self.unpause_connectors())        
+            d.addCallback(lambda r: self.unpause_connectors())
         return d
-    
+
     def setup_application(self):
-        log.debug('Starting Multiworker %s' % (self.config,))
+        config = self.get_static_config()
+        log.debug('Starting Multiworker %s' % (config,))
         
         self.workers = {}
         self.worker_creator = self.WORKER_CREATOR(self.options)
 
         mongo_client = MongoClient(
-            self.config['mongodb_host'],
-            self.config['mongodb_port'],
+            config.mongodb_host,
+            config.mongodb_port,
             w=1)
-        db = mongo_client[self.config['vusion_database_name']]
+        db = mongo_client[config.vusion_database_name]
         self.collections = {}
         self.collections['worker_config'] = WorkerConfigManager(db, 'workers')
 
+        db = MySQLdb.connect(
+            host=config.mysql_host,
+            port=config.mysql_port,
+            user=config.mysql_user,
+            passwd=config.mysql_password,
+            db=config.mysql_db)
+        self.collections['worker'] = WorkerManager(db)
+
         self.reload_workers_from_config_file()
-        self.reload_workers_from_mongodb()
-        
+        self.reload_workers_from_db()
+
     def teardown_worker(self):
         d = self.pause_connectors()
         d.addCallback(lambda r: self.teardown_application())
         return d
-    
+
     @inlineCallbacks
     def teardown_application(self):
         for worker in self.workers.itervalues():
             #in the unit test the worker.running is at 0 so the worker is not stopped
+            if "before_teardown_application" in dir(worker):
+                worker.before_teardown_application()
             yield worker.stopWorker()
-            yield worker.stopService()
             worker.disownServiceParent()
+        for manager in self.collections.itervalues():
+            manager.close_connection()
 
     def construct_worker_config(self, worker_config={}):
         """
@@ -113,8 +150,12 @@ class VusionMultiWorker(BaseWorker):
             self.collections['worker_config'].save_worker_config(worker_config)
             self.add_worker(worker_config)
 
-    def reload_workers_from_mongodb(self):
-        for worker_config in self.collections['worker_config'].get_worker_configs():
+    def reload_workers_from_db(self):
+        for worker in self.collections['worker'].get_running_workers():
+            worker_config = self.collections['worker_config'].get_worker_config(worker)
+            if worker_config is None:
+                log.error("ERROR SKIP START of %s worker as config is missing" % worker)
+                continue
             self.add_worker(worker_config)
 
     def add_worker(self, worker_config):
@@ -132,13 +173,15 @@ class VusionMultiWorker(BaseWorker):
         if not worker_name in self.workers:
             log.error('Cannot remove worker, name unknown: %s' % (worker_name))
             return
+        if "before_teardown_application" in dir(self.workers[worker_name]):
+            self.workers[worker_name].before_teardown_application()
         yield self.workers[worker_name].stopWorker()
-        yield self.workers[worker_name].stopService()
         self.workers[worker_name].disownServiceParent()
         #TODO needed due to parent class, remove the storage into the config
         #self.config.pop(worker_name)
         self.collections['worker_config'].remove_worker_config(worker_name)
         self.workers.pop(worker_name)
+        log.msg('Worker has been removed %s' % worker_name)
 
     @inlineCallbacks
     def dispatch_control(self, msg):

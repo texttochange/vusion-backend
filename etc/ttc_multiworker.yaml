@@ -2,6 +2,11 @@ application_name: vusion
 vusion_database_name: vusion
 mongodb_host: localhost
 mongodb_port: 27017
+mysql_host: '127.0.0.1'
+mysql_port: 3306
+mysql_user: 'cake'
+mysql_password: 'password'
+mysql_db: 'vusion'
 workers:
     m4rh: vusion.DialogueWorker
     mrs: vusion.DialogueWorker

@@ -1,4 +1,4 @@
-import pymongo
+from pymongo import MongoClient
 from bson import ObjectId
 
 from twisted.trial.unittest import TestCase
@@ -14,8 +14,7 @@ class testUnattachedMessage(TestCase, ObjectMaker):
     def setUp(self):
         self.database_name = 'test_program_db'
 
-        c = pymongo.Connection()
-        c.sage = True
+        c = MongoClient(w=1)
         db = c.test_program_db
         self.manager = UnattachedMessageManager(db, 'unattached_messages')
 
