@@ -261,7 +261,7 @@ class DialogueWorker(ApplicationWorker):
             if not self.collections['participants'].is_matching(query):
                 self.log(("Participant %s doesn't satify the condition for action for %s" % (participant_phone, action,)))
                 return
-        self.log(("Run action for %s action %s" % (participant_phone, action,)))
+        self.log(("Run action for %s action %s context %s" % (participant_phone, action, context)))
         if (action.get_type() == 'optin'):
             if self.collections['participants'].opting_in(participant_phone, simulated=context.is_simulated()):
                 yield self.schedule_participant(participant_phone)
@@ -940,10 +940,17 @@ class DialogueWorker(ApplicationWorker):
         participant = self.collections['participants'].get_participant(schedule['participant-phone'])
         if (participant['transport_metadata'] is not {}):
             options['transport_metadata'].update(participant['transport_metadata'])
-        
+
+        ## message for simulated participant are not actually send
+        if participant.is_simulated():
+            self.collections['history'].add_outgoing_simulated(
+                schedule['participant-phone'], message_content, context, schedule)
+            return
+
         message_credits = self.properties.use_credits(message_content)
         if self.credit_manager.is_allowed(message_credits, participant, schedule):
-            message = yield self.send_to(schedule['participant-phone'], message_content, **options)
+            message = yield self.send_to(
+                schedule['participant-phone'], message_content, **options)
             self.collections['history'].add_outgoing(
                 message, message_credits, context, schedule)
         elif self.credit_manager.is_timeframed():
