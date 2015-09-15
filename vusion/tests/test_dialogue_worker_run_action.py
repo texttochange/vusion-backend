@@ -151,6 +151,29 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(history['participant-phone'], '06')
 
     @inlineCallbacks
+    def test_run_action_feedback_simulated(self):
+        self.initialize_properties()
+
+        participant = self.mkobj_participant()
+        participant['simulate'] = True
+        self.collections['participants'].save(participant)
+
+        context = Context()
+        context.update({'request-id': '1'})
+
+        self.worker.run_action(
+            '06',
+            FeedbackAction(**{'content': 'message'}),
+            context,
+            '1')
+        messages = yield self.app_helper.get_dispatched_outbound()
+        self.assertEqual(len(messages), 0)
+        self.assertEqual(self.collections['history'].count(), 1)
+        history = self.collections['history'].find_one()
+        self.assertEqual(history['participant-session-id'], '1')
+        self.assertEqual(history['participant-phone'], '06')
+
+    @inlineCallbacks
     def test_run_action_enroll(self):
         self.initialize_properties()
 
