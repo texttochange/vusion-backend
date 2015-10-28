@@ -1,3 +1,5 @@
+import os
+
 from pymongo import MongoClient
 
 from twisted.trial.unittest import TestCase
@@ -71,3 +73,16 @@ class TestExportManager(TestCase, ObjectMaker):
 
         self.assertEqual(
             self.manager.get_total_export_size(), 200L)
+
+    def test_cancel_processing(self):
+        file = open('./mytestfile.csv', 'w+')
+        export = Export(**self.mkdoc_export(
+            file_full_name='./mytestfile.csv',
+            status='processing', size=200L))
+        export_id = self.manager.save_object(export)
+
+        self.manager.cancel_processing()
+        
+        export_saved = self.manager.get_export(export_id)
+        self.assertEqual(export_saved['status'], 'failed')
+        self.assertFalse(os.path.isfile('./mytestfile.csv'))

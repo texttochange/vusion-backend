@@ -1,5 +1,6 @@
 import sys
 import traceback
+import os
 from bson import ObjectId
 
 from vusion.persist.model_manager import ModelManager
@@ -70,3 +71,13 @@ class ExportManager(ModelManager):
 
     def has_export_space(self, limit):
         return limit <= self.get_total_export_size()
+
+    def cancel_processing(self):
+        processings = self.collection.find({'status': 'processing'})
+        for processing in processings:
+            os.remove(processing['file-full-name'])
+        update_selector = {'status': 'processing'}
+        update_query = {
+            '$set': {'status': 'failed',
+                     'failure-reason': 'unknown'}}
+        self.collection.update(update_selector, update_query)

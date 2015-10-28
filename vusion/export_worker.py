@@ -76,6 +76,7 @@ class ExportWorker(BaseWorker):
             self.config['mongodb_port'])
         db = self.mongo[self.config['database']]
         self.exports = ExportManager(db, 'exports')
+        self.exports.cancel_processing()
         self.exports.set_log_helper(BasicLogger())
 
     def teardown_worker(self):
@@ -167,11 +168,12 @@ class ExportWorker(BaseWorker):
         ordered_label_headers = dialogue_mgr.get_labels_order_from_dialogues(label_headers)
         headers += ordered_label_headers
         with codecs.open(export['file-full-name'], 'wb', 'utf-8') as csvfile:
-            log.debug("header of the export %r" % headers)
+            log.debug("Export headers: %r" % headers)
             csvfile.write("%s\n" % ','.join(headers))
             sort = export.get_order_pymongo()
             cursor = participant_mgr.get_participants(conditions, sort)
             row_template = dict((header, "") for header in headers)
+            i = 0
             for participant in cursor:
                 if participant is None:
                     continue
@@ -190,6 +192,9 @@ class ExportWorker(BaseWorker):
                 for header in headers:
                     ordered_row.append(row[header])
                 csvfile.write("%s\n" % ','.join(ordered_row))
+                i += 1
+                if (i % 10000) == 0:
+                    log.debug('Exported %s participants, still exporting...' % i)
 
     def export_history(self, export):
         db = self.mongo[export['database']]
@@ -204,6 +209,7 @@ class ExportWorker(BaseWorker):
             sort = export.get_order_pymongo()
             cursor = manager.get_historys(export['conditions'], sort=sort)
             row_template = dict((header, "") for header in headers)
+            i = 0;
             for history in cursor:
                 if history is None:
                     continue
@@ -217,6 +223,9 @@ class ExportWorker(BaseWorker):
                 for header in headers:
                     ordered_row.append(row[header])
                 csvfile.write("%s\n" % ','.join(ordered_row))
+                i += 1
+                if (i % 10000) == 0:
+                    log.debug('Exported %s histories, still exporting...' % i)
 
     def export_unmatchable_reply(self, export):
         db = self.mongo[export['database']]
@@ -231,6 +240,7 @@ class ExportWorker(BaseWorker):
             cursor = manager.get_unmatchable_replys(
                 export['conditions'], sort=sort)
             row_template = dict((header, "") for header in headers)
+            i = 0
             for unmatchable in cursor:
                 if unmatchable is None:
                     continue
@@ -243,3 +253,6 @@ class ExportWorker(BaseWorker):
                 for header in headers:
                     ordered_row.append(row[header])
                 csv_file.write("%s\n" % ','.join(ordered_row))
+                i += 1
+                if (i % 10000) == 0:
+                    log.debug('Exported %s unmatchables, still exporting...' % i)
