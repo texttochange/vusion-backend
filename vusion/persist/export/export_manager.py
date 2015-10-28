@@ -76,8 +76,8 @@ class ExportManager(ModelManager):
         processings = self.collection.find({'status': 'processing'})
         for processing in processings:
             os.remove(processing['file-full-name'])
-        update_selector = {'status': 'processing'}
-        update_query = {
-            '$set': {'status': 'failed',
-                     'failure-reason': 'unknown'}}
-        self.collection.update(update_selector, update_query)
+        self.collection.update(
+            {'status': 'processing'},
+            {'$set': {'status': 'failed',
+                     'failure-reason': 'unknown'}},
+            {'multi': True})
