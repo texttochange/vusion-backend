@@ -80,4 +80,4 @@ class ExportManager(ModelManager):
             {'status': 'processing'},
             {'$set': {'status': 'failed',
                      'failure-reason': 'unknown'}},
-            {'multi': True})
+            multi=True)
