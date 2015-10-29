@@ -444,9 +444,9 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
                    sms_limit_type='outgoing-incoming',
                    sms_limit_number=2,
                    sms_limit_from_date='2013-01-01T00:00:00',
-                   sms_limit_to_date='2020-01-01T00:00:00')        
+                   sms_limit_to_date='2020-01-01T00:00:00')
         self.initialize_properties(program_settings=settings)
-        
+
         self.collections['participants'].save(
             self.mkobj_participant(participant_phone='+1'))
         self.collections['requests'].save(self.mkobj_request_response('www'))
@@ -464,3 +464,17 @@ class DialogueWorkerTestCase_consumeParticipantMessage(DialogueWorkerTestCase):
  
         messages = yield self.app_helper.wait_for_dispatched_outbound(1)
         self.assertEqual(len(messages), 1)
+
+    @inlineCallbacks
+    def test_inbound_message_optin_simulated_participant(self):
+        self.initialize_properties()
+
+        self.collections['requests'].save(self.mkobj_request_join())
+
+        inbound_msg_matching_request = self.mkmsg_in(
+            from_addr='+1',
+            content='www',
+            transport_metadata={'simulated': True})
+        yield self.app_helper.dispatch_inbound(inbound_msg_matching_request)
+        participant = self.collections['participants'].get_participant('+1')
+        self.assertTrue(participant.is_simulated())

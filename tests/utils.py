@@ -1111,7 +1111,7 @@ class ObjectMaker:
         return Participant(**{ 
             'phone': participant_phone,
             'session-id': session_id,
-            'last-optin-date': last_optin_date,            
+            'last-optin-date': last_optin_date,
             'enrolled': enrolled,
             'tags': tags,
             'profile': profile,

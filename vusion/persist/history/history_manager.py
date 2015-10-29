@@ -47,7 +47,7 @@ class HistoryManager(ModelManager):
         return CursorInstanciator(
             self.collection.find(query, sort=sort), history_generator, [log])
 
-    def save_history(self, **kwargs):
+    def save_history(self, simulated=False, **kwargs):
         if 'timestamp' in kwargs and not isinstance(kwargs['timestamp'], str):
             kwargs['timestamp'] = time_to_vusion_format(kwargs['timestamp'])
         else:
@@ -56,7 +56,7 @@ class HistoryManager(ModelManager):
             kwargs.pop('interaction')
         history = history_generator(**kwargs)
         history_id = self.save_document(history)
-        if history.is_message() and history.is_outgoing():
+        if not simulated and history.is_message() and history.is_outgoing():
             self.flying_manager.append_message_data(
                 history['message-id'],
                 history_id,
@@ -314,6 +314,18 @@ class HistoryManager(ModelManager):
             return False
         return True
 
+    def add_outgoing_simulated(self, phone, content, context, schedule):
+        self.log("Simulated message has been sent to %s '%s'" % (phone, content))
+        history = {
+            'message-content': content,
+            'participant-phone': phone,
+            'message-direction': 'outgoing',
+            'message-status': 'delivered',
+            'message-id': None,
+            'message-credits': 0}
+        history.update(context.get_dict_for_history(schedule))
+        return self.save_history(True, **history)
+
     def add_outgoing(self, message, message_credits, context, schedule):
         self.log("Message has been sent to %s '%s'" % (message['to_addr'], message['content']))
         history = {
@@ -328,7 +340,7 @@ class HistoryManager(ModelManager):
 
     def add_nocredit(self, message_content, context, schedule):
         self.log("NO CREDIT, message '%s' hasn't been sent to %s" % (
-            message_content, schedule['participant-phone']))        
+            message_content, schedule['participant-phone']))
         history = {
              'message-content': message_content,
              'participant-phone': schedule['participant-phone'],

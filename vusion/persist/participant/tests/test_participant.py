@@ -89,7 +89,44 @@ class TestParticipant(TestCase, ObjectMaker):
         self.assertEqual(Participant.MODEL_VERSION, p['model-version'])
         self.assertEqual('2012-11-20T14:00:00', p['last-optout-date'])
         self.assertEqual({"SomeKey": "SomeValue"}, p['transport_metadata'])
+        
+    def test_upgrade_version_4_with_simulate(self):
+        participant_cake = {
+            "model-version": "4", 
+            "object-type": "participant", 
+            "phone": "+255654033486", 
+            "session-id": "ee29e5a2321f426cb52f19e1371cb32e", 
+            "last-optin-date": "2012-11-20T13:30:56",
+            "last-optout-date": "",
+            "enrolled": [ ],
+            "tags": [ ],
+            "profile": [ ],
+            "transport_metadata": {"SomeKey": "SomeValue"},
+            "simulate": ""}
+        p = Participant(**participant_cake)
+        self.assertEqual(Participant.MODEL_VERSION, p['model-version'])
+        self.assertEqual('', p['last-optout-date'])
+        self.assertEqual({"SomeKey": "SomeValue"}, p['transport_metadata'])
+        self.assertEqual('', p['simulate'])
+    
 
+    def test_transport_metadata_sent_as_list(self):
+        participant_cake = {
+            "model-version": "5", 
+            "object-type": "participant", 
+            "phone": "+255654033486", 
+            "session-id": "ee29e5a2321f426cb52f19e1371cb32e", 
+            "last-optin-date": "2012-11-20T13:30:56",
+            "last-optout-date": "2012-11-20T14:00:00",
+            "enrolled": [ ],
+            "tags": [ ],
+            "profile": [ ],
+            "transport_metadata": [],
+            "simulate": False}
+        p = Participant(**participant_cake)
+        self.assertEqual(Participant.MODEL_VERSION, p['model-version'])
+        self.assertEqual({}, p['transport_metadata'])
+      
     def test_validation_fail(self):
         participant= Participant(
             **self.mkobj_participant(
@@ -269,3 +306,35 @@ class TestParticipant(TestCase, ObjectMaker):
                   'subcondition-operator': 'not-with',
                   'subcondition-parameter': 'name:Olivier'},                           
                  ]))
+
+    def test_participant_simulated(self):
+        participant_cake = {
+            "model-version": "5", 
+            "object-type": "participant", 
+            "phone": "+255654033486", 
+            "session-id": "ee29e5a2321f426cb52f19e1371cb32e", 
+            "last-optin-date": "2012-11-20T13:30:56",
+            "last-optout-date": "2012-11-20T14:00:00",
+            "enrolled": [ ],
+            "tags": [ 'tom' ],
+            "profile": [ ],
+            "transport_metadata": [],
+            "simulate": False}
+        p = Participant(**participant_cake)
+        self.assertFalse(p.is_simulated()) 
+        
+    def test_participant_normal(self):
+        participant_cake = {
+            "model-version": "5", 
+            "object-type": "participant", 
+            "phone": "+255654033486", 
+            "session-id": "ee29e5a2321f426cb52f19e1371cb32e", 
+            "last-optin-date": "2012-11-20T13:30:56",
+            "last-optout-date": "2012-11-20T14:00:00",
+            "enrolled": [ ],
+            "tags": [ 'tom' ],
+            "profile": [ ],
+            "transport_metadata": [],
+            "simulate": True}
+        p = Participant(**participant_cake)
+        self.assertTrue(p.is_simulated())
