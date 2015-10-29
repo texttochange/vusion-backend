@@ -96,8 +96,14 @@ class VusionMultiWorkerTestCase(VumiTestCase, MessageMaker):
             'vusion_database_name': 'test3'}
     }
 
+    worker1_config = {
+        'control_name': 'test1url',
+        'transport_name': 'test1',
+        'database_name': 'test1',
+    }
+
     new_worker_config = {
-        'control_name': 'test2',
+        'control_name': 'test2url',
         'transport_name': 'test2',
         'database_name': 'test2',
     }
@@ -206,7 +212,7 @@ class VusionMultiWorkerTestCase(VumiTestCase, MessageMaker):
         self.collections['worker_config'].save({
             'name': 'worker1',
             'class': '%s.ToyWorker' % (__name__),
-            'config': self.new_worker_config})
+            'config': self.worker1_config})
 
         self.collections['worker_config'].save({
             'name': 'worker2',
@@ -218,7 +224,7 @@ class VusionMultiWorkerTestCase(VumiTestCase, MessageMaker):
             """INSERT INTO programs (name, url, status) """ + \
             """VALUES (%s,%s,%s);""",
             [
-                ('my program','worker2','running')
+                ('my program','test2url','running')
             ])
         c.close()
         self.mysql_client.commit()

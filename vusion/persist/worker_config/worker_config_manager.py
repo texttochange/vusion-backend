@@ -19,6 +19,13 @@ class WorkerConfigManager(ModelManager):
             self.log("Worker Config for %s cannot be found." % name)
             return None
 
+    def get_worker_config_from_url(self, url):
+        try:
+            return WorkerConfig(**self.collection.find_one({'config.control_name': url}))
+        except:
+            self.log("Worker Config for %s cannot be found." % url)
+            return None
+
     def save_worker_config(self, worker_config):
         if worker_config.is_already_saved():
             return self.save_document(worker_config)

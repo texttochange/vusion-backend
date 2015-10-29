@@ -152,7 +152,7 @@ class VusionMultiWorker(BaseWorker):
 
     def reload_workers_from_db(self):
         for worker in self.collections['worker'].get_running_workers():
-            worker_config = self.collections['worker_config'].get_worker_config(worker)
+            worker_config = self.collections['worker_config'].get_worker_config_from_url(worker)
             if worker_config is None:
                 log.error("ERROR SKIP START of %s worker as config is missing" % worker)
                 continue
