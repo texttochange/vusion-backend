@@ -71,11 +71,12 @@ class ExportManager(ModelManager):
 
     def has_export_space(self, limit):
         return limit <= self.get_total_export_size()
-
+    
     def cancel_processing(self):
         processings = self.collection.find({'status': 'processing'})
         for processing in processings:
-            os.remove(processing['file-full-name'])
+            if os.path.isfile(processing['file-full-name']):
+                os.remove(processing['file-full-name'])
         self.collection.update(
             {'status': 'processing'},
             {'$set': {'status': 'failed',
