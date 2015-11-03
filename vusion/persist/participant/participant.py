@@ -9,7 +9,7 @@ from vusion.utils import time_to_vusion_format
 class Participant(Model):
 
     MODEL_TYPE = 'participant'
-    MODEL_VERSION = '4'
+    MODEL_VERSION = '5'
 
     REGEX_RAW = re.compile('.*_raw$')
 
@@ -22,7 +22,8 @@ class Participant(Model):
         'tags',
         'enrolled',
         'profile',
-        'transport_metadata']
+        'transport_metadata',
+        'simulate']
 
     PARTICIPANT_FIELDS = {
         'phone': lambda v: v is not None,
@@ -32,7 +33,8 @@ class Participant(Model):
         'tags': lambda v: isinstance(v, list),
         'enrolled': lambda v: isinstance(v, list),
         'profile': lambda v: isinstance(v, list),
-        'transport_metadata': lambda v: isinstance(v, dict)}
+        'transport_metadata': lambda v: isinstance(v, dict),
+        'simulate': lambda v: True}
 
     ENROLLED_FIELDS = {
         'dialogue-id': lambda v: v is not None,
@@ -85,7 +87,12 @@ class Participant(Model):
             return self.upgrade(**kwargs)
         elif kwargs['model-version'] in '3':
             kwargs['transport_metadata'] = kwargs['transport_metadata'] if 'transport_metadata' in kwargs else {}
-            kwargs['model-version'] = '4'            
+            kwargs['model-version'] = '4'
+            return self.upgrade(**kwargs)
+        elif kwargs['model-version'] in '4':
+            kwargs['simulate'] = kwargs['simulate'] if 'simulate' in kwargs else False
+            kwargs['model-version'] = '5'
+            return self.upgrade(**kwargs)
         return kwargs
 
     def modify_field_that_should_be_array(self, field):
@@ -206,3 +213,10 @@ class Participant(Model):
                 if not self.has_profile(profile[0], profile[1]):
                     return True
         return False
+    
+    def before_validate(self):
+        if self.payload['transport_metadata'] == [] or self.payload['transport_metadata'] == "" :
+            self.payload['transport_metadata'] = {}
+            
+    def is_simulated(self):
+        return self.payload['simulate']           

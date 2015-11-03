@@ -9,7 +9,7 @@ from tests.utils import ObjectMaker, DumbLogManager
 from vusion.utils import (time_to_vusion_format, time_from_vusion_format,
                           time_to_vusion_format_date)
 from vusion.persist import (HistoryManager, ScheduleManager, UnattachSchedule,
-                            ProgramCreditLogManager)
+                            ProgramCreditLogManager, Participant)
 from vusion.component import (CreditManager, CreditStatus, 
                               DialogueWorkerPropertyHelper)
 
@@ -52,6 +52,19 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
                                 self.collections['history'], 
                                 self.collections['schedules'],
                                 self.property_helper, DumbLogManager())
+        test_participant = {
+            "model-version": "5", 
+            "object-type": "participant", 
+            "phone": "+255654033486", 
+            "session-id": "ee29e5a2321f426cb52f19e1371cb32e", 
+            "last-optin-date": "2012-11-20T13:30:56",
+            "last-optout-date": "2012-11-20T14:00:00",
+            "enrolled": [ ],
+            "tags": [ ],
+            "profile": [ ],
+            "transport_metadata": [],
+            "simulate": False} 
+        self.p = Participant(**test_participant)
 
     def tearDown(self):
         self.clearData()
@@ -74,7 +87,7 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
             dialogue_id=1, interaction_id=1, timestamp=time_to_vusion_format(now)))
         self.property_helper['credit-type'] = 'none'
         self.cm.set_limit()
-        self.assertTrue(self.cm.is_allowed(1))
+        self.assertTrue(self.cm.is_allowed(1, participant=self.p))
         # Event without limit the credit logs should be increased
         self.assertEqual(1, self.collections['credit_logs'].count())
 
@@ -94,7 +107,7 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.assertCounter('1')
 
         # first message should be granted
-        self.assertTrue(self.cm.is_allowed(message_credits=1))
+        self.assertTrue(self.cm.is_allowed(message_credits=1, participant=self.p))
         self.assertCounter('2')
 
         # let add this last message to collection
@@ -102,14 +115,14 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
             dialogue_id=1, interaction_id=1, timestamp=time_to_vusion_format(now)))
 
         # second message should not
-        self.assertFalse(self.cm.is_allowed(message_credits=1))
-        self.assertFalse(self.cm.is_allowed(message_credits=1))
+        self.assertFalse(self.cm.is_allowed(message_credits=1, participant=self.p))
+        self.assertFalse(self.cm.is_allowed(message_credits=1, participant=self.p))
         self.assertCounter('2')
 
         # until the limit is increased
         self.property_helper['credit-number'] = '4'
         self.cm.set_limit()
-        self.assertTrue(self.cm.is_allowed(message_credits=1))
+        self.assertTrue(self.cm.is_allowed(message_credits=1, participant=self.p))
         self.assertCounter('3')
 
     def test_sync_history_outgoing_only(self):
@@ -195,16 +208,16 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
 
         # first message should be granted
         self.assertTrue(
-            self.cm.is_allowed(message_credits=1, schedule=schedule_first))
+            self.cm.is_allowed(message_credits=1, participant=self.p, schedule=schedule_first))
 
         # the whitecard didn't book the allowed space, so another message can still be send
-        self.assertTrue(self.cm.is_allowed(message_credits=1))
+        self.assertTrue(self.cm.is_allowed(message_credits=1, participant=self.p))
 
         # At this point the manager start to reject message 
-        self.assertFalse(self.cm.is_allowed(message_credits=1))
+        self.assertFalse(self.cm.is_allowed(message_credits=1, participant=self.p))
 
         # Except the one having a whitecard
-        self.assertTrue(self.cm.is_allowed(message_credits=1, schedule=schedule_second))
+        self.assertTrue(self.cm.is_allowed(message_credits=1, participant=self.p, schedule=schedule_second))
 
         card = self.redis.get("%s:creditmanager:card:unattach-schedule:1" % self.cm_redis_key)
         self.assertEqual(card, 'white')
@@ -229,17 +242,17 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
 
         # first message should not be granted as the total credit required is 4
         self.assertFalse(
-            self.cm.is_allowed(message_credits=2, schedule=schedule_first))
+            self.cm.is_allowed(message_credits=2, participant=self.p, schedule=schedule_first))
         # Other message are still allowed
         self.assertTrue(
-            self.cm.is_allowed(message_credits=1))
+            self.cm.is_allowed(message_credits=1, participant=self.p))
         # Still same origin unattach message are rejected
         self.assertFalse(
-            self.cm.is_allowed(message_credits=2, schedule=schedule_second))
+            self.cm.is_allowed(message_credits=2, participant=self.p, schedule=schedule_second))
 
-        self.assertTrue(self.cm.is_allowed(message_credits=1))
+        self.assertTrue(self.cm.is_allowed(message_credits=1, participant=self.p))
         # At this point the manager start to reject message 
-        self.assertFalse(self.cm.is_allowed(message_credits=1))
+        self.assertFalse(self.cm.is_allowed(message_credits=1, participant=self.p))
 
         # The separate message should have a blackcard
         blackcard = self.redis.get("%s:creditmanager:card:unattach-schedule:1" % self.cm_redis_key)
@@ -258,16 +271,16 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         self.property_helper['credit-to-date'] = time_to_vusion_format(future.date())
         self.cm.set_limit()
 
-        self.assertTrue(self.cm.is_allowed(message_credits=1))
+        self.assertTrue(self.cm.is_allowed(message_credits=1, participant=self.p))
         self.property_helper.get_local_time = lambda v: more_future
-        self.assertFalse(self.cm.is_allowed(message_credits=1))
+        self.assertFalse(self.cm.is_allowed(message_credits=1, participant=self.p))
         self.property_helper.get_local_time = lambda v: more_past
-        self.assertFalse(self.cm.is_allowed(message_credits=1))
+        self.assertFalse(self.cm.is_allowed(message_credits=1, participant=self.p))
         
         ## current day of the to-date limit is allowed
         same_date_future = future + timedelta(minutes=1)
         self.property_helper.get_local_time = lambda v: same_date_future
-        self.assertTrue(self.cm.is_allowed(message_credits=1))
+        self.assertTrue(self.cm.is_allowed(message_credits=1, participant=self.p))
 
     def test_check_status_none(self):
         status = self.cm.check_status()
@@ -354,3 +367,33 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         status = self.cm.check_status()
         self.assertEqual(status['status'], 'no-credit-timeframe')
         self.assertEqual(status['since'], time_to_vusion_format(now))
+
+    def test_simulated_participant_no_credit_count(self):        
+        test_participant = {
+            "model-version": "5", 
+            "object-type": "participant", 
+            "phone": "+255654033486", 
+            "session-id": "ee29e5a2321f426cb52f19e1371cb32e", 
+            "last-optin-date": "2012-11-20T13:30:56",
+            "last-optout-date": "2012-11-20T14:00:00",
+            "enrolled": [ ],
+            "tags": [ ],
+            "profile": [ ],
+            "transport_metadata": [],
+            "simulate": True} 
+        p = Participant(**test_participant)
+        now = datetime.now()
+        past = now - timedelta(days=1)
+        more_past = past - timedelta(days=1)
+        future = now + timedelta(days=1)
+        more_future = future + timedelta(days=1)
+
+        self.property_helper['credit-type'] = 'outgoing-only'
+        self.property_helper['credit-number'] = '4'
+        self.property_helper['credit-from-date'] = time_to_vusion_format(past)
+        self.property_helper['credit-to-date'] = time_to_vusion_format(future)
+        self.cm.set_limit()
+        self.assertTrue(
+            self.cm.is_allowed(message_credits=1,participant=p, schedule=None))
+        # Event without limit the credit logs should be increased
+        self.assertEqual(0, self.collections['credit_logs'].count())

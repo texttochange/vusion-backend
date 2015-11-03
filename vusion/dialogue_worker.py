@@ -254,11 +254,6 @@ class DialogueWorker(ApplicationWorker):
             return
         self.collections['credit_logs'].increment_event_counter(old_status, new_status, credits)
 
-    def update_participant_transport_metadata(self, message):
-        if message['transport_metadata'] is not {}:
-            self.collections['participants'].save_transport_metadata(
-                message['from_addr'], message['transport_metadata'])
-
     @inlineCallbacks
     def run_action(self, participant_phone, action, context=Context(),
                    participant_session_id=None):
@@ -267,9 +262,9 @@ class DialogueWorker(ApplicationWorker):
             if not self.collections['participants'].is_matching(query):
                 self.log(("Participant %s doesn't satify the condition for action for %s" % (participant_phone, action,)))
                 return
-        self.log(("Run action for %s action %s" % (participant_phone, action,)))
+        self.log(("Run action for %s action %s context %s" % (participant_phone, action, context)))
         if (action.get_type() == 'optin'):
-            if self.collections['participants'].opting_in(participant_phone):
+            if self.collections['participants'].opting_in(participant_phone, simulated=context.is_simulated()):
                 yield self.schedule_participant(participant_phone)
             else:
                 ## The participant is still optin and opting in again
@@ -509,7 +504,7 @@ class DialogueWorker(ApplicationWorker):
                                                          message['content']))
         try:
             history = {'object-type': 'unmatching-history'}
-            context = Context(**{'message': message['content']})
+            context = Context(message)
             actions = Actions()
             self.collections['requests'].get_matching_request_actions(
                 message['content'], actions, context)
@@ -535,8 +530,9 @@ class DialogueWorker(ApplicationWorker):
             history.update(context.get_dict_for_history())
             history_id = self.save_history(**history)
             context['history_id'] = str(history_id)
-            self.credit_manager.received_message(message_credits)
-            self.update_participant_transport_metadata(message)
+            self.credit_manager.received_message(message_credits, participant)
+            self.collections['participants'].save_transport_metadata(
+                message['from_addr'], message['transport_metadata'])
             if (context.is_matching() and participant is not None):
                 if ('interaction' in context):
                     if self.collections['history'].has_oneway_marker(
@@ -947,9 +943,16 @@ class DialogueWorker(ApplicationWorker):
         if (participant['transport_metadata'] is not {}):
             options['transport_metadata'].update(participant['transport_metadata'])
 
+        ## message for simulated participant are not actually send
+        if participant.is_simulated():
+            self.collections['history'].add_outgoing_simulated(
+                schedule['participant-phone'], message_content, context, schedule)
+            return
+
         message_credits = self.properties.use_credits(message_content)
-        if self.credit_manager.is_allowed(message_credits, schedule):
-            message = yield self.send_to(schedule['participant-phone'], message_content, **options)
+        if self.credit_manager.is_allowed(message_credits, participant, schedule):
+            message = yield self.send_to(
+                schedule['participant-phone'], message_content, **options)
             self.collections['history'].add_outgoing(
                 message, message_credits, context, schedule)
         elif self.credit_manager.is_timeframed():

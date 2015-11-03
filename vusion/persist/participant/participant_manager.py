@@ -22,11 +22,11 @@ class ParticipantManager(ModelManager):
         self.collection.ensure_index('phone', background=True)
 
     ## return False if the participant is already optin
-    def opting_in(self, participant_phone):
+    def opting_in(self, participant_phone, simulated=False):
         participant = self.get_participant(participant_phone)
         if not participant:
             ## The participant is opting in for the first time
-            self.opting_in_first(participant_phone)
+            self.opting_in_first(participant_phone, simulated)
             return True
         elif participant['session-id'] is None:
             ## The participant is optout and opting in again
@@ -34,7 +34,7 @@ class ParticipantManager(ModelManager):
             return True
         return False
 
-    def opting_in_first(self, participant_phone):
+    def opting_in_first(self, participant_phone, simulated=False):
         participant = Participant(**{
             'phone': participant_phone,
             'session-id': uuid4().get_hex(), 
@@ -42,7 +42,8 @@ class ParticipantManager(ModelManager):
             'last-optout-date': None,
             'tags': [],
             'enrolled':[],
-            'profile':[]})
+            'profile':[],
+            'simulate': simulated})
         return self.save_participant(participant)
 
     def opting_in_again(self, participant_phone):
@@ -53,7 +54,7 @@ class ParticipantManager(ModelManager):
                       'last-optout-date': None,
                       'tags': [],
                       'enrolled': [],
-                      'profile': [] }})
+                      'profile': []}})
 
     def opting_out(self, participant_phone):
         self.collection.update(
@@ -94,6 +95,7 @@ class ParticipantManager(ModelManager):
             {'$push': {'profile': {'label': label,
                                    'value': value,
                                    'raw': raw}}})
+
 
     def save_transport_metadata(self, participant_phone, transport_metadata):
         self.collection.update(
