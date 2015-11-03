@@ -288,19 +288,19 @@ class TestParticipantManager(TestCase, ObjectMaker):
             results.append(result)
 
         self.assertEqual( 
-            [{'_id': '2015-10-30',
+            [{'_id': past_3_day.strftime("%Y-%m-%d"),
               'value': {
                   'opt-in': 2.0,
                   'opt-out': 0.0}},
-             {'_id': '2015-10-31',
+             {'_id': past_2_day.strftime("%Y-%m-%d"),
               'value': {
                   'opt-in': 2.0,
                   'opt-out': 0.0}},
-             {'_id': '2015-11-01',
+             {'_id': past_1_day.strftime("%Y-%m-%d"),
               'value': {
                   'opt-in': 1.0,
                   'opt-out': 1.0}},
-             {'_id': '2015-11-02',
+             {'_id': now.strftime("%Y-%m-%d"),
               'value': {
                   'opt-in': 2.0,
                   'opt-out': 1.0}}
@@ -315,23 +315,23 @@ class TestParticipantManager(TestCase, ObjectMaker):
 
         results = []
         for result in self.db["participants_stats"].find():
-            results.append(result)        
+            results.append(result)
         self.assertEqual( 
-            [{'_id': '2015-10-30',
+            [{'_id': past_3_day.strftime("%Y-%m-%d"),
               'value': {
                   'opt-in': 2.0,
                   'opt-out': 0.0}},
-             {'_id': '2015-10-31',
+             {'_id': past_2_day.strftime("%Y-%m-%d"),
               'value': {
                   'opt-in': 2.0,
                   'opt-out': 0.0}},
-             {'_id': '2015-11-01',
+             {'_id': past_1_day.strftime("%Y-%m-%d"),
               'value': {
                   'opt-in': 1.0,
                   'opt-out': 1.0}},
-             {'_id': '2015-11-02',
+             {'_id': now.strftime("%Y-%m-%d"),
               'value': {
                   'opt-in': 3.0,
-                  'opt-out': 1.0}}
+                  'opt-out': 0}}
              ],
             results)

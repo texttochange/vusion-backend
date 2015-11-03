@@ -63,3 +63,8 @@ class ModelManager(object):
     def log(self, msg, level='msg'):
         if self.log_helper is not None:
             self.log_helper.log(msg, level)
+
+    def drop(self):
+        self.collection.drop()
+        if hasattr(self, 'stats_collection'):
+            self.stats_collection.drop()

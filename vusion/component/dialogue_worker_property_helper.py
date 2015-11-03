@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from time import mktime
 from pytz import all_timezones, utc, timezone
 
@@ -112,3 +112,15 @@ class DialogueWorkerPropertyHelper(object):
             return True
         else:
             return False
+
+    def get_seconds_until(self, until):
+        if not self.is_ready():
+            return None
+        now_local_time = self.get_local_time()
+        next = (now_local_time.replace(hour=until,
+                                       minute=0,
+                                       second=0,
+                                       microsecond=0) +
+                timedelta(days=1))
+        delta = next - now_local_time
+        return delta.total_seconds()

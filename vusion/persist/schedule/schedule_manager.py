@@ -89,7 +89,7 @@ class ScheduleManager(ModelManager):
 
     def get_due_schedules(self, limit=100):
         cursor = self.collection.find(
-            spec={'date-time': {'$lt': self.get_local_time('vusion')}},
+            filter={'date-time': {'$lt': self.get_local_time('vusion')}},
             sort=[('date-time', 1)], limit=limit)
         return self._wrap_cursor_schedules(cursor)
     

@@ -32,8 +32,6 @@ class GarbageWorker(ApplicationWorker):
             self.config['mongodb_host'],
             self.config['mongodb_port'],
             w=1)
-        if self.config.get('mongodb_safe', False):
-            mongo_client.write_concern['w'] = 1
         db = mongo_client[self.config['database_name']]
         self.collections = {}
         self.collections['unmatchable_reply'] = UnmatchableReplyManager(

@@ -27,7 +27,7 @@ class StatsWorkerConfig(BaseWorker.CONFIG_CLASS):
 
     computation_hour=ConfigInt(
         "The hour at which the worker will perform the stat computation",
-        default=3, static=True)
+        default=1, static=True)
 
     mongodb_host = ConfigText(
         "The host machine address for mongodb",
@@ -61,8 +61,6 @@ class StatsWorker(BaseWorker):
     CONFIG_CLASS = StatsWorkerConfig
     UNPAUSE_CONNECTORS = True
 
-    schedule_calls = {}
-
     def _validate_config(self):
         config = self.get_static_config()
         self.application_name = config.application_name
@@ -94,6 +92,12 @@ class StatsWorker(BaseWorker):
             config.mongodb_port,
             w=1)
 
+        self.schedule_calls = {}
+
+        self.shortcode_manager = ShortcodeManager(
+            self.mongo[config.mongodb_db_vusion],
+            'shortcodes')
+
         #self.mysql = MySQLdb.connect(
                     #host=config.mysql_host,
                     #port=config.mysql_port,
@@ -109,19 +113,20 @@ class StatsWorker(BaseWorker):
         log.debug("compute stats for %s" % program_db_name)
         program_db = self.mongo[program_db_name]
         participant_manager = ParticipantManager(program_db, 'participants')
-        participant_manager.compute_stats()
+        participant_manager.aggregate_count_per_day()
         history_manager = HistoryManager(program_db, 'history')
-        history_manager.compute_stats()
-        self.schedule_stats(program_db)
+        history_manager.aggregate_count_per_day()
+        self.schedule_stats(program_db_name)
 
     def schedule_stats(self, program_db_name):
-        log.debug("schedule stats for %r" % (program_db_name))
+        log.debug("schedule stats for %s" % (program_db_name))
         program_db = self.mongo[program_db_name]
         until_next_1am = self.get_until_next_1am(program_db)
         if until_next_1am is None:
             return
         d = reactor.callLater(until_next_1am, self.compute_stats, program_db_name)
         self.schedule_calls[program_db_name] = d
+        log.debug("scheduled stats for %s in %s" % (program_db_name, until_next_1am))
 
     def get_schedules(self):
         return self.schedule_calls
@@ -142,7 +147,8 @@ class StatsWorker(BaseWorker):
             log.error(error)
 
     def add_program(self, program_db):
-        self.schedule_stats(program_db)
+        self.compute_stats(program_db)  #to remove for prod
+        #self.schedule_stats(program_db)
 
     def remove_program(self, program_db):
         call = self.schedule_calls.pop(program_db, None)
@@ -151,20 +157,11 @@ class StatsWorker(BaseWorker):
 
     def get_until_next_1am(self, program_db):
         config = self.get_static_config()
-        shortcode_manager = ShortcodeManager(
-            self.mongo[config.mongodb_db_vusion],
-            'shortcodes')
         property_helper = DialogueWorkerPropertyHelper(
             ProgramSettingManager(program_db, 'program_settings'),
-            shortcode_manager)
+            self.shortcode_manager)
         property_helper.load()
-        if (not property_helper.is_ready()):
-            return None
-        now_local_time = property_helper.get_local_time()
-        next_1am = (now_local_time.replace(hour=1, minute=0, second=0, microsecond=0) +
-                         datetime.timedelta(days=1))
-        delta = next_1am - now_local_time
-        return delta.total_seconds()
+        return property_helper.get_seconds_until(config.computation_hour)
 
     def teardown_worker(self):
         d = self.pause_connectors()

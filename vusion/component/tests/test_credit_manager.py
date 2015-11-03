@@ -1,5 +1,5 @@
-import pymongo
 import json
+from pymongo import MongoClient
 from redis import Redis
 from datetime import datetime, timedelta
 
@@ -23,7 +23,7 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
         # setUp mongodb
         self.vusion_database_name = 'test_vusion_db'
         self.database_name = 'test_program_db'
-        c = pymongo.Connection()
+        c = MongoClient(w=1)
         db = c[self.database_name]
         self.collections = {}
         self.collections['history'] = HistoryManager(db, 'history', self.cm_redis_key, self.redis)
@@ -74,7 +74,7 @@ class CreditManagerTestCase(TestCase, ObjectMaker):
             dialogue_id=1, interaction_id=1, timestamp=time_to_vusion_format(now)))
         self.property_helper['credit-type'] = 'none'
         self.cm.set_limit()
-        self.assertTrue(self.cm.is_allowed('test'))
+        self.assertTrue(self.cm.is_allowed(1))
         # Event without limit the credit logs should be increased
         self.assertEqual(1, self.collections['credit_logs'].count())
 

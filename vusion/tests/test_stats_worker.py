@@ -35,7 +35,7 @@ class StatsWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
 
     def test_start_up(self):
         schedules = self.worker.get_schedules()
-        self.assertEquals(['myprogramDb'], schedules.keys())
+        self.assertEquals([], schedules.keys())
 
     @inlineCallbacks
     def test_add_program(self):
@@ -47,11 +47,16 @@ class StatsWorkerTestCase(VumiTestCase, MessageMaker, ObjectMaker):
 
         schedules = self.worker.get_schedules()
         self.assertEquals(
-            ['myprogramDb', 'myprogramDb3'],
+            ['myprogramDb3'],
             schedules.keys())
 
     @inlineCallbacks
     def test_remove_program(self):
+        control = self.mkmsg_statsworker_control(
+            action='add_stats',
+            program_db='myprogramDb')
+        yield self.dispatch_control(control)
+
         control = self.mkmsg_statsworker_control(
             action='remove_stats',
             program_db='myprogramDb')

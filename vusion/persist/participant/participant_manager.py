@@ -186,11 +186,6 @@ class ParticipantManager(ModelManager):
                     'label': label['label'],
                     'value': label['value']}}}).count())
 
-    def drop(self):
-        self.collection.drop()
-        if hasattr(self, 'stats_collection'):
-            self.stats_collection.drop()
-
     def aggregate_count_per_day(self):
         last_day = self.stats_collection.find_one(sort=[('_id', DESCENDING)])
         file_dir = os.path.dirname(os.path.realpath(__file__))
