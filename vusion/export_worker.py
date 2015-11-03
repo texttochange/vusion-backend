@@ -174,6 +174,7 @@ class ExportWorker(BaseWorker):
             row_template = dict((header, "") for header in headers)
             for participant in cursor:
                 if participant is None:
+                    log.debug("Trying to export none participant!!");
                     continue
                 row = row_template.copy()
                 row['phone'] = '"%s"' % participant['phone']

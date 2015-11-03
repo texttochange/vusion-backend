@@ -97,3 +97,26 @@ class ExportWorkerControl(Message):
     @classmethod
     def from_json(cls, json_string):
         return cls(_process_fields=True, **to_kwargs(from_json(json_string)))
+
+
+class StatsWorkerControl(Message):
+
+    CONTROL_TYPES = {
+        'add_stats': {
+            'program_db': lambda v: v is not None,
+        },
+        'remove_stats': {
+            'program_db': lambda v: v is not None,
+        }}
+
+    def validate_fields(self):
+        self.assert_field_present('message_type')
+        if self['message_type'] not in self.CONTROL_TYPES:
+            raise MissingMessageField(self['action'])
+        for field, check in self.CONTROL_TYPES[self['message_type']].items():
+            self.assert_field_present(field)
+            if not check(self[field]):
+                raise InvalidMessageField("%s=%s" % (field, self[field]))
+
+    def get_routing_endpoint(self):
+        return 'default'

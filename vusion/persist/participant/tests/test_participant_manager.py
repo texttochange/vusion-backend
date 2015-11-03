@@ -1,6 +1,7 @@
 """Test for vusion.persist.ParticipantManager"""
 from pymongo import MongoClient
 from bson import ObjectId
+from datetime import timedelta
 
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import inlineCallbacks, maybeDeferred
@@ -9,6 +10,7 @@ from tests.utils import ObjectMaker
 
 from vusion.component import DialogueWorkerPropertyHelper, PrintLogger
 from vusion.persist import ParticipantManager, Participant
+from vusion.utils import time_to_vusion_format
 
 
 class TestParticipantManager(TestCase, ObjectMaker):
@@ -16,8 +18,8 @@ class TestParticipantManager(TestCase, ObjectMaker):
     def setUp(self):
         self.database_name = 'test_program_db'
         c = MongoClient(w=1)
-        db = c.test_program_db
-        self.manager = ParticipantManager(db, 'participants')
+        self.db = c.test_program_db
+        self.manager = ParticipantManager(self.db, 'participants')
         self.clearData()
 
         #parameters:
@@ -257,3 +259,79 @@ class TestParticipantManager(TestCase, ObjectMaker):
         for result in labels:
             results.append(result)
         self.assertEqual(results, ['age', 'name'])
+
+    def test_aggregate_count_per_day(self):
+        now = self.property_helper.get_local_time()
+        past_1_day = now - timedelta(days=1)
+        past_2_day = now - timedelta(days=2)
+        past_3_day = now - timedelta(days=3)
+
+        participant = self.mkobj_participant(
+            '1',
+            last_optin_date=time_to_vusion_format(past_3_day),
+            last_optout_date=time_to_vusion_format(past_2_day))
+        self.manager.save(participant)
+
+        participant = self.mkobj_participant(
+            '2',
+            last_optin_date=time_to_vusion_format(past_3_day))
+        self.manager.save(participant)
+
+        participant = self.mkobj_participant(
+            '3',
+            last_optin_date=time_to_vusion_format(now))
+        self.manager.save(participant)
+
+        self.manager.aggregate_count_per_day()
+        results = []
+        for result in self.db["participants_stats"].find():
+            results.append(result)
+
+        self.assertEqual( 
+            [{'_id': '2015-10-30',
+              'value': {
+                  'opt-in': 2.0,
+                  'opt-out': 0.0}},
+             {'_id': '2015-10-31',
+              'value': {
+                  'opt-in': 2.0,
+                  'opt-out': 0.0}},
+             {'_id': '2015-11-01',
+              'value': {
+                  'opt-in': 1.0,
+                  'opt-out': 1.0}},
+             {'_id': '2015-11-02',
+              'value': {
+                  'opt-in': 2.0,
+                  'opt-out': 1.0}}
+             ],
+            results)
+
+        ##Once the stats collection is created only compute current day
+        self.manager.remove({'phone': '1'})
+        participant = self.mkobj_participant('4')
+        self.manager.save(participant)
+        self.manager.aggregate_count_per_day()
+
+        results = []
+        for result in self.db["participants_stats"].find():
+            results.append(result)        
+        self.assertEqual( 
+            [{'_id': '2015-10-30',
+              'value': {
+                  'opt-in': 2.0,
+                  'opt-out': 0.0}},
+             {'_id': '2015-10-31',
+              'value': {
+                  'opt-in': 2.0,
+                  'opt-out': 0.0}},
+             {'_id': '2015-11-01',
+              'value': {
+                  'opt-in': 1.0,
+                  'opt-out': 1.0}},
+             {'_id': '2015-11-02',
+              'value': {
+                  'opt-in': 3.0,
+                  'opt-out': 1.0}}
+             ],
+            results)

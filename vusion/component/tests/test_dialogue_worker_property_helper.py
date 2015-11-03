@@ -47,14 +47,31 @@ class DialogueWorkerPropertyHelperTestCase(TestCase, ObjectMaker):
         self.save_settings(self.mk_program_settings())
         shortcode = self.mkobj_shortcode()
         self.shortcode_collection.save(shortcode)
-        
+
         self.called = False
         def my_callback():
             self.called = True
-            
+
         self.dwph.load({'shortcode': my_callback})
         self.assertEqual(True, self.called)
-        
+
+    def test_load_callbacks(self):
+        self.save_settings(self.mk_program_settings())
+        shortcode = self.mkobj_shortcode()
+        self.shortcode_collection.save(shortcode)
+
+        self.first_called = False
+        def my_first_callback():
+            self.first_called = True
+
+        self.second_called = False
+        def my_second_callback():
+            self.second_called = True
+
+        self.dwph.load({'shortcode': [my_first_callback, my_second_callback]})
+        self.assertEqual(True, self.first_called)
+        self.assertEqual(True, self.second_called)
+
     def test_use_credits(self):
         self.save_settings(self.mk_program_settings())
         shortcode = self.mkobj_shortcode()

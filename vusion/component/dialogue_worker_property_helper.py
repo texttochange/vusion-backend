@@ -68,9 +68,13 @@ class DialogueWorkerPropertyHelper(object):
         shortcode = Shortcode(**shortcode)
         self['shortcode-international-prefix'] = shortcode['international-prefix']
         self['shortcode-max-character-per-sms'] = shortcode['max-character-per-sms']
-        for key, callback in callback_rules.iteritems():
+        for key, callbacks in callback_rules.iteritems():
             if self[key] != old_properties[key]:
-                callback()
+                if isinstance(callbacks, list):
+                    for callback in callbacks:
+                        callback()
+                else:
+                    callbacks()
 
     def is_ready(self):
         if self['shortcode'] is None or self['timezone'] is None:

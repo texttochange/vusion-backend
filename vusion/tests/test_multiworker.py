@@ -13,7 +13,7 @@ from vumi.tests.helpers import VumiTestCase, WorkerHelper, MessageHelper
 from vumi.service import Worker
 
 from vusion import VusionMultiWorker, DialogueWorker
-from vusion.persist import WorkerManager
+from vusion.persist import ProgramManager
 
 from tests.utils import MessageMaker, DataLayerUtils
 
@@ -121,13 +121,14 @@ class VusionMultiWorkerTestCase(VumiTestCase, MessageMaker):
         self.collections = {}
         self.collections['worker_config'] = db['workers']
 
-        self.collections['workers'] = WorkerManager(self.mysql_client)
+        self.collections['workers'] = ProgramManager(self.mysql_client)
         query = """CREATE TABLE programs (name VARCHAR(20), url VARCHAR(20),""" + \
             """`database` VARCHAR(20), status VARCHAR(20));"""
         c = self.mysql_client.cursor()
         c.execute(query)
-        c.close()
         self.mysql_client.commit()
+        c.close()
+
 
     @inlineCallbacks
     def tearDown(self):
@@ -135,6 +136,8 @@ class VusionMultiWorkerTestCase(VumiTestCase, MessageMaker):
         yield self.worker.stopService()
         yield super(VusionMultiWorkerTestCase, self).tearDown()
         self.cleanData()
+        self.mysql_client.close()
+        self.mongo_client.close()
 
     def cleanData(self):
         self.mongo_client.drop_database('test1')
@@ -143,8 +146,8 @@ class VusionMultiWorkerTestCase(VumiTestCase, MessageMaker):
         self.mongo_client.drop_database(self.base_config['vusion_database_name'])
         c = self.mysql_client.cursor()
         c.execute("""DROP TABLE IF EXISTS programs;""")
-        c.close()
         self.mysql_client.commit()
+        c.close()
 
     def dispatch_control(self, control):
         return self.worker_helper.dispatch_raw('.'.join([self.application_name, 'control']), control)
@@ -220,8 +223,8 @@ class VusionMultiWorkerTestCase(VumiTestCase, MessageMaker):
             [
                 ('my program','worker2','running')
             ])
-        c.close()
         self.mysql_client.commit()
+        c.close()
 
         yield self.get_multiworker(self.base_config)
         yield self.worker.wait_for_workers()
