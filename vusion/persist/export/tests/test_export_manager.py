@@ -86,3 +86,14 @@ class TestExportManager(TestCase, ObjectMaker):
         export_saved = self.manager.get_export(export_id)
         self.assertEqual(export_saved['status'], 'failed')
         self.assertFalse(os.path.isfile('./mytestfile.csv'))
+
+    def test_cancel_processing_no_file(self):
+        export = Export(**self.mkdoc_export(
+            file_full_name='./mytestfile.csv',
+            status='processing', size=200L))
+        export_id = self.manager.save_object(export)
+
+        self.manager.cancel_processing()
+        
+        export_saved = self.manager.get_export(export_id)
+        self.assertEqual(export_saved['status'], 'failed')
