@@ -2,7 +2,6 @@ import sys
 import traceback
 import datetime
 
-#import MySQLdb
 from pymongo import MongoClient
 
 from twisted.internet import reactor, task
@@ -98,17 +97,6 @@ class StatsWorker(BaseWorker):
             self.mongo[config.mongodb_db_vusion],
             'shortcodes')
 
-        #self.mysql = MySQLdb.connect(
-                    #host=config.mysql_host,
-                    #port=config.mysql_port,
-                    #user=config.mysql_user,
-                    #passwd=config.mysql_password,
-                    #db=config.mysql_db)
-        #self.program_manager = ProgramManager(self.mysql)
-        #programs = self.program_manager.get_running()
-        #for program in programs:
-            #self.schedule_stats(program['database'])
-
     def compute_stats(self, program_db_name):
         log.debug("compute stats for %s" % program_db_name)
         program_db = self.mongo[program_db_name]
@@ -121,12 +109,13 @@ class StatsWorker(BaseWorker):
     def schedule_stats(self, program_db_name):
         log.debug("schedule stats for %s" % (program_db_name))
         program_db = self.mongo[program_db_name]
-        until_next_1am = self.get_until_next_1am(program_db)
-        if until_next_1am is None:
+        until_next = self.get_until_next_1am(program_db)
+        if until_next is None or until_next < 0:
+            log.debug("cannot schedule for %s in %s" % (program_db_name, until_next))
             return
-        d = reactor.callLater(until_next_1am, self.compute_stats, program_db_name)
+        d = reactor.callLater(until_next, self.compute_stats, program_db_name)
         self.schedule_calls[program_db_name] = d
-        log.debug("scheduled stats for %s in %s" % (program_db_name, until_next_1am))
+        log.debug("scheduled stats for %s in %s" % (program_db_name, until_next))
 
     def get_schedules(self):
         return self.schedule_calls
@@ -172,5 +161,4 @@ class StatsWorker(BaseWorker):
         for program_db, schedule_call in self.schedule_calls.iteritems():
             if not schedule_call.cancelled:
                 schedule_call.cancel()
-        #self.mysql.close()
         self.mongo.close()
