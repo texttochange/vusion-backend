@@ -439,8 +439,7 @@ class HistoryManager(ModelManager):
                     'direction': '$message-direction'},
                 'count': {'$sum': 1}}},
             {'$project': {
-                '_id': 0,
-                'date': {'$concat': ['$_id.year', '-', '$_id.month', '-', '$_id.day']},
+                '_id': {'$concat': ['$_id.year', '-', '$_id.month', '-', '$_id.day']},
                 'direction': '$_id.direction',
                 'count': 1}},
             ]
