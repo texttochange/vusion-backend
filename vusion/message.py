@@ -107,6 +107,9 @@ class StatsWorkerControl(Message):
         },
         'remove_stats': {
             'program_db': lambda v: v is not None,
+        },
+        'update_stats': {
+            'program_db': lambda v: v is not None,
         }}
 
     def validate_fields(self):

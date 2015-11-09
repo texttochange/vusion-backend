@@ -141,4 +141,6 @@ class DialogueWorkerPropertyHelperTestCase(TestCase, ObjectMaker):
         self.shortcode_collection.save(shortcode)
         self.dwph.load()
 
-        self.assertTrue(86400 > self.dwph.get_seconds_until(1))
+        seconds_until = self.dwph.get_seconds_until(1)
+        self.assertTrue(86400 > seconds_until)
+        self.assertTrue(0 < seconds_until)

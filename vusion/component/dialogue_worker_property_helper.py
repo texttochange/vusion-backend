@@ -117,10 +117,12 @@ class DialogueWorkerPropertyHelper(object):
         if not self.is_ready():
             return None
         now_local_time = self.get_local_time()
-        next = (now_local_time.replace(hour=until,
-                                       minute=0,
-                                       second=0,
-                                       microsecond=0) +
-                timedelta(days=1))
+        next = now_local_time.replace(
+            hour=until,
+            minute=0,
+            second=0,
+            microsecond=0)
         delta = next - now_local_time
+        if delta < timedelta():
+            delta = delta + timedelta(days=1)
         return delta.total_seconds()

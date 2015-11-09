@@ -450,8 +450,8 @@ class HistoryManager(ModelManager):
         cursor = self.collection.aggregate(pipeline, useCursor=True)
         for item in cursor:
             self.stats_collection.update(
-                {'_id': item['date']},
-                {'$set': {'_id': item['date'],
+                {'_id': item['_id']},
+                {'$set': {'_id': item['_id'],
                           item['direction']: item['count']}},
                 upsert=True)
         return

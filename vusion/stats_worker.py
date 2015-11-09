@@ -101,10 +101,10 @@ class StatsWorker(BaseWorker):
         log.debug("compute stats for %s" % program_db_name)
         program_db = self.mongo[program_db_name]
         participant_manager = ParticipantManager(program_db, 'participants')
-        participant_manager.aggregate_count_per_day()
+        local_time = self.get_local_time(program_db)
+        participant_manager.aggregate_count_per_day(local_time)
         history_manager = HistoryManager(program_db, 'history')
         history_manager.aggregate_count_per_day()
-        self.schedule_stats(program_db_name)
 
     def schedule_stats(self, program_db_name):
         log.debug("schedule stats for %s" % (program_db_name))
@@ -127,6 +127,8 @@ class StatsWorker(BaseWorker):
                 self.add_program(msg['program_db'])
             elif msg['message_type'] == 'remove_stats':
                 self.remove_program(msg['program_db'])
+            elif msg['message_type'] == 'update_stats':
+                self.update_program(msg['program_db'])
         except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             error = "Exception: %r" % traceback.format_exception(
@@ -136,13 +138,22 @@ class StatsWorker(BaseWorker):
             log.error(error)
 
     def add_program(self, program_db):
-        self.compute_stats(program_db)  #to remove for prod
-        #self.schedule_stats(program_db)
+        self.schedule_stats(program_db)
+
+    def update_program(self, program_db):
+        self.compute_stats(program_db)
 
     def remove_program(self, program_db):
         call = self.schedule_calls.pop(program_db, None)
         if not call is None:
             call.cancel()
+
+    def get_local_time(self, program_db):
+        property_helper = DialogueWorkerPropertyHelper(
+            ProgramSettingManager(program_db, 'program_settings'),
+            self.shortcode_manager)
+        property_helper.load()
+        return property_helper.get_local_time()
 
     def get_until_next_1am(self, program_db):
         config = self.get_static_config()

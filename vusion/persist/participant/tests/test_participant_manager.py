@@ -291,7 +291,7 @@ class TestParticipantManager(TestCase, ObjectMaker):
             last_optin_date=time_to_vusion_format(now))
         self.manager.save(participant)
 
-        self.manager.aggregate_count_per_day()
+        self.manager.aggregate_count_per_day(now)
         results = []
         for result in self.db["participants_stats"].find():
             results.append(result)
@@ -320,7 +320,7 @@ class TestParticipantManager(TestCase, ObjectMaker):
         self.manager.remove({'phone': '1'})
         participant = self.mkobj_participant('4')
         self.manager.save(participant)
-        self.manager.aggregate_count_per_day()
+        self.manager.aggregate_count_per_day(now)
 
         results = []
         for result in self.db["participants_stats"].find():

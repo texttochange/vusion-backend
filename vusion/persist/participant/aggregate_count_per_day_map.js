@@ -1,7 +1,7 @@
 function() {
     var optinDate = new Date(Date.parse(%s));
     var endPeriode;
-    var today = new Date(Date.now());
+    var today = new Date(Date.parse("%s"));
     if (this["last-optout-date"] != null) {
         endPeriode = new Date(this["last-optout-date"].substring(0,10));
     } else {
