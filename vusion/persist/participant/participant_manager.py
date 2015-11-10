@@ -194,9 +194,9 @@ class ParticipantManager(ModelManager):
         map_fct = open("%s/aggregate_count_per_day_map.js" % file_dir).read()
         local_date = local_time.strftime("%Y-%m-%d")
         if last_day is None:
-            map_fct = map_fct % ('this["last-optin-date"].substring(0,10)', local_date)
+            map_fct = map_fct % ('', local_date)
         else:
-            map_fct = map_fct % ('"%s"' % last_day['_id'], local_date)
+            map_fct = map_fct % (last_day['_id'], local_date)
         map = Code(map_fct)
         reduce = Code(open("%s/aggregate_count_per_day_reduce.js" % file_dir).read())
         self.collection.map_reduce(
