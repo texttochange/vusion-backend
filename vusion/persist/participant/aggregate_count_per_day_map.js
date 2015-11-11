@@ -1,22 +1,14 @@
 function() {
     var from = "%s";
     var today = new Date(Date.parse("%s"));
-
     var optinDate = new Date(Date.parse(this["last-optin-date"].substring(0,10)));
     var optoutDate = null;
     if (this["last-optout-date"] != null) {
         optoutDate = new Date(this["last-optout-date"].substring(0,10));
-    } else {
-        optoutDate = today;
-    }
-
-    if (from == "") {
-       var startPeriode = optinDate;
-    } else {
-       var startPeriode = new Date(Date.parse(from));
-    }
-    if (startPeriode > optoutDate) {
-        optoutDate = startPeriode;
+    } 
+    var startPeriode = optinDate;
+    if (from != "") {
+        startPeriode = new Date(Date.parse(from));
     }
 
     function dateFormat(d) {
@@ -27,15 +19,12 @@ function() {
     }
     var runningDate = new Date(startPeriode);
     while (true) {
-        if (runningDate > optoutDate) {
+        if ((optoutDate != null && runningDate > optoutDate) || runningDate > today) {
             break;
         }
         current = dateFormat(runningDate);
         emit(current, true); 
         runningDate.setDate(runningDate.getDate() + 1)
-    }
-    if (runningDate > today) {
-        return;
     }
     while (true) {
         if (runningDate > today) {

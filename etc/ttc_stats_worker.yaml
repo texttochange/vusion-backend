@@ -1,0 +1,6 @@
+application_name: stats
+
+mysql_user: vusion
+mysql_password: password
+
+computation_hour: 17

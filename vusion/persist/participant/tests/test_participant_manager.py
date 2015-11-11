@@ -344,3 +344,33 @@ class TestParticipantManager(TestCase, ObjectMaker):
                   'opt-out': 0}}
              ],
             results)
+
+        tmw = now + timedelta(days=1)
+        self.manager.aggregate_count_per_day(tmw)
+        results = []
+        for result in self.db["participants_stats"].find():
+            results.append(result)
+
+        self.assertEqual( 
+            [{'_id': past_3_day.strftime("%Y-%m-%d"),
+              'value': {
+                  'opt-in': 2.0,
+                  'opt-out': 0.0}},
+             {'_id': past_2_day.strftime("%Y-%m-%d"),
+              'value': {
+                  'opt-in': 2.0,
+                  'opt-out': 0.0}},
+             {'_id': past_1_day.strftime("%Y-%m-%d"),
+              'value': {
+                  'opt-in': 1.0,
+                  'opt-out': 1.0}},
+             {'_id': now.strftime("%Y-%m-%d"),
+              'value': {
+                  'opt-in': 3.0,
+                  'opt-out': 0.0}},
+             {'_id': tmw.strftime("%Y-%m-%d"),
+              'value': {
+                  'opt-in': 3.0,
+                  'opt-out': 0.0}}
+             ],
+            results)
