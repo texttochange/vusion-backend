@@ -14,7 +14,7 @@ from vumi.message import Message
 from vumi import log
 
 from vusion.connectors import ReceiveMultiworkerControlConnector
-from vusion.persist import WorkerConfig, WorkerConfigManager, WorkerManager
+from vusion.persist import WorkerConfig, WorkerConfigManager, ProgramManager
 from vusion.message import MultiWorkerControl
 
 
@@ -87,21 +87,21 @@ class VusionMultiWorker(BaseWorker):
         self.workers = {}
         self.worker_creator = self.WORKER_CREATOR(self.options)
 
-        mongo_client = MongoClient(
+        self.mongo_client = MongoClient(
             config.mongodb_host,
             config.mongodb_port,
             w=1)
-        db = mongo_client[config.vusion_database_name]
+        mongo_db = self.mongo_client[config.vusion_database_name]
         self.collections = {}
-        self.collections['worker_config'] = WorkerConfigManager(db, 'workers')
+        self.collections['worker_config'] = WorkerConfigManager(mongo_db, 'workers')
 
-        db = MySQLdb.connect(
+        self.mysql_db = MySQLdb.connect(
             host=config.mysql_host,
             port=config.mysql_port,
             user=config.mysql_user,
             passwd=config.mysql_password,
             db=config.mysql_db)
-        self.collections['worker'] = WorkerManager(db)
+        self.collections['worker'] = ProgramManager(self.mysql_db)
 
         self.reload_workers_from_config_file()
         self.reload_workers_from_db()
@@ -151,10 +151,10 @@ class VusionMultiWorker(BaseWorker):
             self.add_worker(worker_config)
 
     def reload_workers_from_db(self):
-        for worker in self.collections['worker'].get_running_workers():
-            worker_config = self.collections['worker_config'].get_worker_config_from_url(worker)
+        for program in self.collections['worker'].get_running():
+            worker_config = self.collections['worker_config'].get_worker_config_from_url(program['url'])
             if worker_config is None:
-                log.error("ERROR SKIP START of %s worker as config is missing" % worker)
+                log.error("ERROR SKIP START of %r worker as config is missing" % program)
                 continue
             self.add_worker(worker_config)
 

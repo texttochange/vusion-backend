@@ -1,4 +1,11 @@
-import sys, traceback
+import sys
+import traceback
+import os
+
+from bson.son import SON
+from bson.code import Code
+from pymongo import DESCENDING
+
 from uuid import uuid4
 from twisted.internet.threads import deferToThread
 from twisted.internet.defer import returnValue, inlineCallbacks
@@ -9,9 +16,9 @@ from vusion.persist.cursor_instanciator import CursorInstanciator
 
 
 class ParticipantManager(ModelManager):
-    
+
     def __init__(self, db, collection_name, **kwargs):
-        super(ParticipantManager, self).__init__(db, collection_name, **kwargs)
+        super(ParticipantManager, self).__init__(db, collection_name, True, **kwargs)
         self.collection.ensure_index('phone', background=True)
 
     ## return False if the participant is already optin
@@ -180,3 +187,21 @@ class ParticipantManager(ModelManager):
                 '$elemMatch': {
                     'label': label['label'],
                     'value': label['value']}}}).count())
+
+    def aggregate_count_per_day(self, local_time):
+        last_day = self.stats_collection.find_one(sort=[('_id', DESCENDING)])
+        file_dir = os.path.dirname(os.path.realpath(__file__))
+        map_fct = open("%s/aggregate_count_per_day_map.js" % file_dir).read()
+        local_date = local_time.strftime("%Y-%m-%d")
+        if last_day is None:
+            map_fct = map_fct % ('', local_date)
+        else:
+            map_fct = map_fct % (last_day['_id'], local_date)
+        map = Code(map_fct)
+        reduce = Code(open("%s/aggregate_count_per_day_reduce.js" % file_dir).read())
+        self.collection.map_reduce(
+            map,
+            reduce, 
+            out=SON([
+                ("merge", self.stats_collection_name)]))
+        return

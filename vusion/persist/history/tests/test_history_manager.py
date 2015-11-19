@@ -21,8 +21,8 @@ class TestHistoryManager(TestCase, ObjectMaker, MessageMaker):
         self.redis_key = 'unittest:testprogram'
         self.redis = Redis()
         c = MongoClient(w=1)
-        db = c.test_program_db
-        self.history_manager = HistoryManager(db, 'history', self.redis_key, self.redis)
+        self.db = c.test_program_db
+        self.history_manager = HistoryManager(self.db, 'history', self.redis_key, self.redis)
         self.clearData()
 
         #parameters:
@@ -481,3 +481,77 @@ class TestHistoryManager(TestCase, ObjectMaker, MessageMaker):
         for history in cursor:
             self.assertEqual(history['unattach-id'], '3')
             break
+
+    def test_aggregate_count_per_day(self):
+        now = datetime.now()
+        past_1_day = now - timedelta(days=1)
+        past_2_day = now - timedelta(days=2)
+        past_3_day = now - timedelta(days=3)
+
+        self.history_manager.save(self.mkobj_history_dialogue(
+            direction='incoming',
+            dialogue_id=1,
+            interaction_id=1,
+            timestamp=time_to_vusion_format(now),
+        ))
+        self.history_manager.save(self.mkobj_history_dialogue(
+            direction='incoming',
+            dialogue_id=1,
+            interaction_id=1,
+            timestamp=time_to_vusion_format(now),
+        ))
+
+        self.history_manager.save(self.mkobj_history_dialogue(
+            direction='outgoing',
+            dialogue_id=1,
+            interaction_id=1,
+            timestamp=time_to_vusion_format(past_3_day),
+        ))
+
+        self.history_manager.save(self.mkobj_history_dialogue(
+            direction='incoming',
+            dialogue_id=1,
+            interaction_id=1,
+            timestamp=time_to_vusion_format(past_3_day),
+        ))
+
+        self.history_manager.save(self.mkobj_history_dialogue(
+            direction='outgoing',
+            dialogue_id=1,
+            interaction_id=1,
+            timestamp=time_to_vusion_format(past_2_day),
+        ))
+
+        self.history_manager.aggregate_count_per_day()
+        results = list(self.db["history_stats"].find(sort=[('_id', ASCENDING)]))
+        self.assertEqual( 
+            [{'_id': past_3_day.strftime("%Y-%m-%d"),
+              'incoming': 1,
+              'outgoing': 1},
+             {'_id': past_2_day.strftime("%Y-%m-%d"),
+              'outgoing': 1},
+             {'_id': now.strftime("%Y-%m-%d"),
+              'incoming': 2}
+             ],
+            results)
+
+        self.history_manager.save(self.mkobj_history_dialogue(
+            direction='outgoing',
+            dialogue_id=1,
+            interaction_id=1,
+            timestamp=time_to_vusion_format(now),
+        ))
+
+        self.history_manager.aggregate_count_per_day()
+        results = list(self.db["history_stats"].find(sort=[('_id', ASCENDING)]))
+        self.assertEqual( 
+            [{'_id': past_3_day.strftime("%Y-%m-%d"),
+              'incoming': 1,
+              'outgoing': 1},
+             {'_id': past_2_day.strftime("%Y-%m-%d"),
+              'outgoing': 1},
+             {'_id': now.strftime("%Y-%m-%d"),
+              'incoming': 2,
+              'outgoing': 1}
+             ],
+            results)

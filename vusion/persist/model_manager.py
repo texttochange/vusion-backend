@@ -3,15 +3,26 @@ from datetime import datetime
 
 class ModelManager(object):
 
-    def __init__(self, db, collection_name, **kwargs):
+    def __init__(self, db, collection_name, has_stats=False, **kwargs):
         self.property_helper = None
         self.log_helper = None
+        self.collection_name = collection_name
+        self.db = db
         if 'logger' in kwargs:
             self.log_helper = kwargs['logger']
-        if collection_name in db.collection_names():
-            self.collection = db[collection_name]
+        if collection_name in self.db.collection_names():
+            self.collection = self.db[collection_name]
         else:
-            self.collection = db.create_collection(collection_name)
+            self.collection = self.db.create_collection(collection_name)
+        if has_stats:
+            self.add_stats_collection()
+
+    def add_stats_collection(self):
+        self.stats_collection_name = '%s_stats' % self.collection_name
+        if self.stats_collection_name in self.db.collection_names():
+            self.stats_collection = self.db[self.stats_collection_name]
+        else:
+            self.stats_collection = self.db.create_collection(self.stats_collection_name)
 
     def close_connection(self):
         pass
@@ -52,3 +63,8 @@ class ModelManager(object):
     def log(self, msg, level='msg'):
         if self.log_helper is not None:
             self.log_helper.log(msg, level)
+
+    def drop(self):
+        self.collection.drop()
+        if hasattr(self, 'stats_collection'):
+            self.stats_collection.drop()

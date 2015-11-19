@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from time import mktime
 from pytz import all_timezones, utc, timezone
 
@@ -68,9 +68,13 @@ class DialogueWorkerPropertyHelper(object):
         shortcode = Shortcode(**shortcode)
         self['shortcode-international-prefix'] = shortcode['international-prefix']
         self['shortcode-max-character-per-sms'] = shortcode['max-character-per-sms']
-        for key, callback in callback_rules.iteritems():
+        for key, callbacks in callback_rules.iteritems():
             if self[key] != old_properties[key]:
-                callback()
+                if isinstance(callbacks, list):
+                    for callback in callbacks:
+                        callback()
+                else:
+                    callbacks()
 
     def is_ready(self):
         if self['shortcode'] is None or self['timezone'] is None:
@@ -108,3 +112,17 @@ class DialogueWorkerPropertyHelper(object):
             return True
         else:
             return False
+
+    def get_seconds_until(self, until):
+        if not self.is_ready():
+            return None
+        now_local_time = self.get_local_time()
+        next = now_local_time.replace(
+            hour=until,
+            minute=0,
+            second=0,
+            microsecond=0)
+        delta = next - now_local_time
+        if delta < timedelta():
+            delta = delta + timedelta(days=1)
+        return delta.total_seconds()

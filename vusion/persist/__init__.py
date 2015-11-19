@@ -50,7 +50,9 @@ from cursor_instanciator import CursorInstanciator
 from export.export import Export
 from export.export_manager import ExportManager
 
-from worker.worker_manager import WorkerManager
+from program.program_manager import ProgramManager
+
+from program_setting.program_setting_manager import ProgramSettingManager
 
 __all__ = ["Model", "ModelManager",
            "Dialogue", "DialogueManager", 
@@ -75,4 +77,5 @@ __all__ = ["Model", "ModelManager",
            "ContentVariableTable",
            "CursorInstanciator",
            "Export", "ExportManager",
-           "WorkerManager"]
+           "WorkerManager", 
+           "ProgramSettingManager"]

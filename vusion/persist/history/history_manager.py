@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from bson import ObjectId, Code
-from pymongo import ASCENDING
+from pymongo import ASCENDING, DESCENDING
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.threads import deferToThread
@@ -20,8 +20,8 @@ class HistoryManager(ModelManager):
     TIMESTAMP_LIMIT_ACK = 6          #in hours
     TIMESTAMP_LIMIT_ACK_FORWARD = 3  #in hours
 
-    def __init__(self, db, collection_name, prefix_key, redis, **kwargs):
-        super(HistoryManager, self).__init__(db, collection_name, **kwargs)
+    def __init__(self, db, collection_name, prefix_key=None, redis=None, **kwargs):
+        super(HistoryManager, self).__init__(db, collection_name, True, **kwargs)
         self.collection.ensure_index('timestamp',
                                      background=True)
         self.collection.ensure_index('participant-phone',
@@ -32,8 +32,11 @@ class HistoryManager(ModelManager):
         self.collection.ensure_index('unattach-id',
                                      sparce=True,
                                      background=True)
-        self.prefix_key = prefix_key
-        self.flying_manager = FlyingMessageManager(prefix_key, redis)
+        self.has_fly_manager = False
+        if not prefix_key is None and not redis is None:
+            self.has_fly_manager = True
+            self.prefix_key = prefix_key
+            self.flying_manager = FlyingMessageManager(prefix_key, redis)
 
     def get_history(self, history_id):
         result = self.collection.find_one({'_id': ObjectId(history_id)})
@@ -56,7 +59,7 @@ class HistoryManager(ModelManager):
             kwargs.pop('interaction')
         history = history_generator(**kwargs)
         history_id = self.save_document(history)
-        if not simulated and history.is_message() and history.is_outgoing():
+        if not simulated and history.is_message() and history.is_outgoing() and self.has_fly_manager:
             self.flying_manager.append_message_data(
                 history['message-id'],
                 history_id,
@@ -65,6 +68,8 @@ class HistoryManager(ModelManager):
         return history_id
 
     def update_status_from_event(self, event):
+        if self.has_fly_manager == False:
+            raise Exception('Fly manager not instanciated')
         history_id, credits, old_status = self.flying_manager.get_message_data(event['user_message_id'])
         if history_id is None:
             self.log("Cannot find flying message %s, cannot proceed updating the history" % event['user_message_id'])
@@ -421,3 +426,32 @@ class HistoryManager(ModelManager):
             'dialogue-id': dialogue_id,
             'interaction-id': interaction_id}).count()
         return count - 1 if count > 0 else 0
+
+    def aggregate_count_per_day(self):
+        pipeline = [
+            {'$match': {
+                'message-direction': {'$exists': 1}}},
+            {'$group': {
+                '_id': {
+                    'year': {'$substr': ['$timestamp', 0, 4]},
+                    'month': {'$substr': ['$timestamp', 5, 2]},
+                    'day': {'$substr': ['$timestamp', 8, 2]},
+                    'direction': '$message-direction'},
+                'count': {'$sum': 1}}},
+            {'$project': {
+                '_id': {'$concat': ['$_id.year', '-', '$_id.month', '-', '$_id.day']},
+                'direction': '$_id.direction',
+                'count': 1}},
+            ]
+        last_stats = self.stats_collection.find_one(sort=[('_id', DESCENDING)])
+        if not last_stats is None:
+            pipeline[0]['$match'].update({'timestamp': {'$gte': last_stats['_id']}}),
+
+        cursor = self.collection.aggregate(pipeline, useCursor=True)
+        for item in cursor:
+            self.stats_collection.update(
+                {'_id': item['_id']},
+                {'$set': {'_id': item['_id'],
+                          item['direction']: item['count']}},
+                upsert=True)
+        return

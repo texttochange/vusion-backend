@@ -3,7 +3,8 @@ from twisted.internet.defer import gatherResults
 from vumi.connectors import BaseConnector, ReceiveInboundConnector
 
 from message import (
-    WorkerControl, DispatcherControl, MultiWorkerControl, ExportWorkerControl)
+    WorkerControl, DispatcherControl, MultiWorkerControl,
+    ExportWorkerControl, StatsWorkerControl)
 
 
 class ReceiveWorkerControlConnector(ReceiveInboundConnector):
@@ -74,6 +75,25 @@ class ReceiveExportWorkerControlConnector(BaseConnector):
         control_d = self._setup_consumer(
             'control',
             ExportWorkerControl,
+            self.default_control_handler)
+        return gatherResults([control_d])
+
+    def default_control_handler(self, msg):
+        log.warning("No control handler for %r: %r" % (self.name, msg))
+
+    def set_control_handler(self, handler, endpoint_name=None):
+        self._set_endpoint_handler('control', handler, endpoint_name)
+
+    def set_default_control_handler(self, handler):
+        self._set_default_endpoint_handler('control', handler)
+
+
+class ReceiveStatsWorkerControlConnector(BaseConnector):
+
+    def setup(self):
+        control_d = self._setup_consumer(
+            'control',
+            StatsWorkerControl,
             self.default_control_handler)
         return gatherResults([control_d])
 

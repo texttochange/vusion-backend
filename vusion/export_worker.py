@@ -176,6 +176,7 @@ class ExportWorker(BaseWorker):
             i = 0
             for participant in cursor:
                 if participant is None:
+                    log.debug("Trying to export none participant!!");
                     continue
                 row = row_template.copy()
                 row['phone'] = '"%s"' % participant['phone']

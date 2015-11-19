@@ -18,7 +18,7 @@ from vusion.error import MissingData, MissingTemplate
 from vusion.persist.action import Actions
 from vusion.persist import Dialogue, Participant
 from vusion.context import Context
-from vusion.message import DispatcherControl
+from vusion.message import DispatcherControl, StatsWorkerControl
 
 from tests.utils import DataLayerUtils, ObjectMaker, MessageMaker
 
@@ -447,3 +447,13 @@ class DialogueWorkerTestCase_main(DialogueWorkerTestCase):
         self.assertEqual(messages[0]['to_addr'], "06")
         self.assertEqual(messages[1]['content'], "How are you")
         self.assertEqual(messages[1]['to_addr'], "06")
+
+    #@inlineCallbacks
+    def test_register_on_stats_worker(self):
+        self.initialize_properties()
+
+        #yield self.worker.register_on_stats()
+
+        messages = self.app_helper.get_dispatched('stats', 'control', StatsWorkerControl)
+        self.assertEqual(1, len(messages))
+        self.assertEqual( messages[0]['program_db'], 'test_program_db')

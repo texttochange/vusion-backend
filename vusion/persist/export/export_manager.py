@@ -64,10 +64,10 @@ class ExportManager(ModelManager):
             {'$group': {
                 '_id': None,
                 'total': {'$sum': '$size'}}}]
-        mongo_return = self.aggregate(pipeline)
-        if mongo_return['result'] == []:
-            return 0L
-        return mongo_return['result'][0]['total']
+        mongo_return = self.aggregate(pipeline, useCursor=False)
+        for result in mongo_return:
+            return result['total']
+        return 0L
 
     def has_export_space(self, limit):
         return limit <= self.get_total_export_size()

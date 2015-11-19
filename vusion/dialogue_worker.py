@@ -29,7 +29,7 @@ from vusion.utils import (
 from vusion.error import (
     MissingData, SendingDatePassed, VusionError, MissingTemplate,
     MissingProperty)
-from vusion.message import DispatcherControl, WorkerControl
+from vusion.message import DispatcherControl, WorkerControl, StatsWorkerControl
 from vusion.context import Context
 from vusion.component import (
     DialogueWorkerPropertyHelper, CreditManager, RedisLogger)
@@ -104,13 +104,15 @@ class DialogueWorker(ApplicationWorker):
 
         self.logger.log("Dialogue Worker is starting")
         yield self.setup_dc_connector(self.config['dispatcher_name'])
+        yield self.setup_dc_connector('stats')
         #Will need to register the keywords
-        self.load_properties(if_needed_register_keywords=True)
+        self.load_properties(is_needed_register_keywords=True)
         self.sender = reactor.callLater(2, self.daemon_process)
 
     def before_teardown_application(self):
         if self.is_ready():
             self.unregister_from_dispatcher()
+            #TODO unregister from stats
 
     def teardown_application(self):
         self.logger.stop()
@@ -156,8 +158,7 @@ class DialogueWorker(ApplicationWorker):
 
         ## Program specific
         program_db = mongo_client[self.database_name]
-        self.setup_collections(program_db, {'program_settings': None,
-                                            'unattached_messages': None})
+        self.setup_collections(program_db, {'program_settings': None})
         self.collections['history'] = HistoryManager(
             program_db, 'history', self.r_prefix, self.r_server)
         self.collections['content_variables'] = ContentVariableManager(
@@ -616,7 +617,7 @@ class DialogueWorker(ApplicationWorker):
                     secondsLater,
                     self.daemon_process)
 
-    def load_properties(self, if_needed_register_keywords=True):
+    def load_properties(self, is_needed_register_keywords=True):
         try:
             was_ready = self.properties.is_ready()
             ## the default callbacks in case the value is changing
@@ -625,8 +626,9 @@ class DialogueWorker(ApplicationWorker):
                 'credit-number': self.credit_manager.set_limit,
                 'credit-from-date': self.credit_manager.set_limit,
                 'credit-to-date': self.credit_manager.set_limit,
-               'timezone': self.logger.clear_logs}
-            if if_needed_register_keywords == True:
+                'timezone': [self.logger.clear_logs,
+                             self.register_on_stats]}
+            if is_needed_register_keywords == True:
                 callbacks.update({'shortcode': self.register_keywords_in_dispatcher})
             self.properties.load(callbacks)
         except MissingProperty as e:
@@ -1054,6 +1056,22 @@ class DialogueWorker(ApplicationWorker):
     def publish_dispatcher_message(self, message, endpoint_name=None):
         publisher = self.connectors[self.config['dispatcher_name']]
         return publisher.publish_control(message, endpoint_name)
+
+    def register_on_stats(self):
+        msg = StatsWorkerControl(
+            message_type = 'add_stats',
+            program_db = self.database_name)
+        self.publish_stats_message(msg)
+
+    def unregister_from_stats(self):
+        msg = StatsWorkerControl(
+            message_type = 'add_stats',
+            program_db = self.database_name)
+        self.publish_stats_message(msg)
+
+    def publish_stats_message(self, message):
+        publisher = self.connectors['stats']
+        return publisher.publish_control(message, None)
 
     #TODO no template defined and no default template defined... what to do?
     def generate_message(self, interaction):

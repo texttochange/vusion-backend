@@ -12,7 +12,8 @@ from vumi.transports.failures import FailureMessage
 from vumi.tests.utils import RegexMatcher, UTCNearNow
 
 from vusion.message import (
-    DispatcherControl, WorkerControl, MultiWorkerControl, ExportWorkerControl)
+    DispatcherControl, WorkerControl, MultiWorkerControl, ExportWorkerControl,
+    StatsWorkerControl)
 
 from vusion.persist import (
     Dialogue, DialogueHistory, UnattachHistory, history_generator,
@@ -208,6 +209,11 @@ class MessageMaker:
         return ExportWorkerControl(
             message_type='export',
             export_id=export_id)
+
+    def mkmsg_statsworker_control(self, action, program_db):
+        return StatsWorkerControl(
+            message_type=action,
+            program_db=program_db)
 
     def mkmsg_dialogueworker_control(self, **kwargs):
         return WorkerControl(**kwargs)
@@ -1107,11 +1113,12 @@ class ObjectMaker:
     def mkobj_participant(self, participant_phone='06',
                           last_optin_date='2012-02-01T18:30', session_id='1',
                           enrolled=[], tags=[], profile=[],
-                          transport_metadata={}):
+                          transport_metadata={}, last_optout_date=None):
         return Participant(**{ 
             'phone': participant_phone,
             'session-id': session_id,
             'last-optin-date': last_optin_date,
+            'last-optout-date': last_optout_date,
             'enrolled': enrolled,
             'tags': tags,
             'profile': profile,

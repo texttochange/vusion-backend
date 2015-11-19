@@ -1,4 +1,4 @@
-import pymongo
+from pymongo import MongoClient
 from datetime import datetime
 from twisted.trial.unittest import TestCase
 
@@ -10,7 +10,7 @@ from vusion.component.dialogue_worker_property_helper import DialogueWorkerPrope
 class DialogueWorkerPropertyHelperTestCase(TestCase, ObjectMaker):
 
     def setUp(self):
-        c = pymongo.Connection()
+        c = MongoClient(w=1)
         c.safe = True
         db = c.test_program_db
         self.setting_collection = db.program_settings
@@ -47,14 +47,31 @@ class DialogueWorkerPropertyHelperTestCase(TestCase, ObjectMaker):
         self.save_settings(self.mk_program_settings())
         shortcode = self.mkobj_shortcode()
         self.shortcode_collection.save(shortcode)
-        
+
         self.called = False
         def my_callback():
             self.called = True
-            
+
         self.dwph.load({'shortcode': my_callback})
         self.assertEqual(True, self.called)
-        
+
+    def test_load_callbacks(self):
+        self.save_settings(self.mk_program_settings())
+        shortcode = self.mkobj_shortcode()
+        self.shortcode_collection.save(shortcode)
+
+        self.first_called = False
+        def my_first_callback():
+            self.first_called = True
+
+        self.second_called = False
+        def my_second_callback():
+            self.second_called = True
+
+        self.dwph.load({'shortcode': [my_first_callback, my_second_callback]})
+        self.assertEqual(True, self.first_called)
+        self.assertEqual(True, self.second_called)
+
     def test_use_credits(self):
         self.save_settings(self.mk_program_settings())
         shortcode = self.mkobj_shortcode()
@@ -115,3 +132,15 @@ class DialogueWorkerPropertyHelperTestCase(TestCase, ObjectMaker):
         local_time = self.dwph.get_local_time()
         
         self.assertIsInstance(local_time, datetime)
+
+    def test_get_seconds_until(self):
+        self.assertEqual(None, self.dwph.get_seconds_until(1))
+
+        self.save_settings(self.mk_program_settings())
+        shortcode = self.mkobj_shortcode()
+        self.shortcode_collection.save(shortcode)
+        self.dwph.load()
+
+        seconds_until = self.dwph.get_seconds_until(1)
+        self.assertTrue(86400 > seconds_until)
+        self.assertTrue(0 < seconds_until)
