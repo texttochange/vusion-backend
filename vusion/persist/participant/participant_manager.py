@@ -202,6 +202,7 @@ class ParticipantManager(ModelManager):
         self.collection.map_reduce(
             map,
             reduce, 
+            query={'last-optin-date': {'$ne': None}},
             out=SON([
                 ("merge", self.stats_collection_name)]))
         return
