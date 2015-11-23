@@ -23,7 +23,7 @@ function() {
             break;
         }
         current = dateFormat(runningDate);
-        emit(current, true); 
+        emit(current, {'opt-in': 1, 'opt-out': 0});
         runningDate.setDate(runningDate.getDate() + 1)
     }
     while (true) {
@@ -31,7 +31,7 @@ function() {
             break;
         }
         current = dateFormat(runningDate);
-        emit(current, false);
+        emit(current, {'opt-in': 0, 'opt-out': 1});
         runningDate.setDate(runningDate.getDate() + 1)
     }
 }
