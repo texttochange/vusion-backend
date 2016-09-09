@@ -30,13 +30,9 @@ class TestAppositV2Transport(TestAppositTransport):
             'web_port': 0,
             'credentials': {
                 '8123': {
-                    'username': 'root',
-                    'password': 'toor',
                     'service_id': 'service-id-1',
                 },
                 '8124': {
-                    'username': 'admin',
-                    'password': 'nimda',
                     'service_id': 'service-id-2',
                 }
             },
@@ -58,8 +54,6 @@ class TestAppositV2Transport(TestAppositTransport):
 
     def assert_outbound_request(self, request, **kwargs):
         expected_args = {
-            'username': 'root',
-            'password': 'toor',
             'serviceId': 'service-id-1',
             'from': '8123',
             'to': '251911223344',
@@ -110,8 +104,6 @@ class TestAppositV2Transport(TestAppositTransport):
 
         request = yield self.outbound_requests.get()
         self.assert_outbound_request(request, **{
-            'username': 'root',
-            'password': 'toor',
             'serviceId': 'service-id-1',
             'message': 'racecar',
             'from': '8123',
@@ -130,8 +122,6 @@ class TestAppositV2Transport(TestAppositTransport):
         request1 = yield self.outbound_requests.get()
         self.assert_outbound_request(request1,
             fromAddress='8123',
-            username='root',
-            password='toor',
             serviceId='service-id-1')
 
         msg2 = yield self.tx_helper.make_dispatch_outbound(
@@ -139,8 +129,6 @@ class TestAppositV2Transport(TestAppositTransport):
         request2 = yield self.outbound_requests.get()
         self.assert_outbound_request(request2,
             fromAddress='8124',
-            username='admin',
-            password='nimda',
             serviceId='service-id-2')
 
         [ack1, ack2] = yield self.tx_helper.wait_for_dispatched_events(2)

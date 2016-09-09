@@ -1,5 +1,6 @@
 import json
 from urllib import urlencode
+from base64 import b64encode
 
 from twisted.web import http
 from twisted.internet.defer import inlineCallbacks
@@ -40,15 +41,15 @@ class AppositV2Transport(AppositTransport):
         # build the params dict and ensure each param encoded correctly
         credentials = self.credentials.get(message['from_addr'], {})
         params = dict((k, v.encode(self.ENCODING)) for k, v in {
-            'username': credentials.get('username', ''),
-            'password': credentials.get('password', ''),
             'serviceId': credentials.get('service_id', ''),
             'from': message['from_addr'],
             'to': message['to_addr'],
             'message': message['content'],
             'channel': channel,
         }.iteritems())
-
+        
+        auth = b64encode("%s:%s" % ('app_id', 'token'))
+        
         self.emit("Making HTTP POST request: %s with body %s" %
                   (self.outbound_url, params))
 
@@ -56,7 +57,9 @@ class AppositV2Transport(AppositTransport):
             self.outbound_url,
             data=urlencode(params),
             method='POST',
-            headers={'Content-Type': self.CONTENT_TYPE})
+            headers={'Content-Type': self.CONTENT_TYPE,
+            'Authorization': ['Basic %s' % auth],
+            'H1':'V1'})
 
         self.emit("Response: (%s) %r" %
                   (response.code, response.delivered_body))
