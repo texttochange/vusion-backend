@@ -22,35 +22,9 @@ class AppositTransportConfig(HttpRpcTransport.CONFIG_CLASS):
         "The URL to send outbound messages to.", required=True, static=True)
 
 
-class AppositTransport(AppositTransport):
-    """
-    HTTP transport for Apposit's interconnection services.
-    """
-
-    ENCODING = 'utf-8'
-    CONFIG_CLASS = AppositTransportConfig
-    CONTENT_TYPE = 'application/x-www-form-urlencoded'
-    CHANNEL_LOOKUP = {'sms': 'SMS'}
-    TRANSPORT_TYPE_LOOKUP = dict(
-        reversed(i) for i in CHANNEL_LOOKUP.iteritems())
-
-    EXPECTED_FIELDS = frozenset(['from', 'to', 'channel', 'content', 'isTest'])
-
-    KNOWN_ERROR_RESPONSE_CODES = {
-        '0': "Queued", 
-        '1001': "Invalid Date Format",
-        '1002': "Message Not Set",
-        '1003': "Source Address Not Set",
-        '1004': "Channel Not Configured",
-        '1005': "Destination Address has not OptedIn", 
-        '1006': "Authentication Error (Invalid Key or Token)", 
-        '9999': "Runtime Error",
-    }
-
-    UNKNOWN_RESPONSE_CODE_ERROR = "Response with unknown code received: %s"
-    UNSUPPORTED_TRANSPORT_TYPE_ERROR = (
-        "No corresponding channel exists for transport type: %s")
-
+class AppositV2Transport(AppositTransport):
+    
+    
     @inlineCallbacks
     def handle_outbound_message(self, message):
         channel = self.CHANNEL_LOOKUP.get(message['transport_type'])
