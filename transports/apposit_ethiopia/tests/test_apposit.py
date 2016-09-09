@@ -28,6 +28,8 @@ class TestAppositV2Transport(TestAppositTransport):
         config = {
             'web_path': 'api/v1/apposit/sms',
             'web_port': 0,
+            'app_id': '67777-333',
+            'token': '89999-3333', 
             'credentials': {
                 '8123': {
                     'service_id': 'service-id-1',

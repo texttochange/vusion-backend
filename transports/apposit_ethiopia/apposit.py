@@ -14,6 +14,8 @@ from vumi.transports.httprpc import HttpRpcTransport
 
 class AppositTransportConfig(HttpRpcTransport.CONFIG_CLASS):
 
+    app_id = ConfigText('your app id', required=True, static=True)
+    token = ConfigText('your token', required=True, static=True)
     credentials = ConfigDict(
         "A dictionary where the `from_addr` is used for the key lookup and "
         "the returned value should be a dictionary containing the "
@@ -48,7 +50,7 @@ class AppositV2Transport(AppositTransport):
             'channel': channel,
         }.iteritems())
         
-        auth = b64encode("%s:%s" % ('app_id', 'token'))
+        auth = b64encode("%s:%s" % (app_id, token))
         
         self.emit("Making HTTP POST request: %s with body %s" %
                   (self.outbound_url, params))
