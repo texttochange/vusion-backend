@@ -12,7 +12,7 @@ from vumi.transports.apposit import AppositTransport
 from vumi.transports.httprpc import HttpRpcTransport
 
 
-class AppositTransportConfig(HttpRpcTransport.CONFIG_CLASS):
+class AppositV2TransportConfig(HttpRpcTransport.CONFIG_CLASS):
 
     app_id = ConfigText('your app id', required=True, static=True)
     token = ConfigText('your token', required=True, static=True)
@@ -27,6 +27,7 @@ class AppositTransportConfig(HttpRpcTransport.CONFIG_CLASS):
 
 class AppositV2Transport(AppositTransport):
     
+    CONFIG_CLASS = AppositV2TransportConfig
     
     @inlineCallbacks
     def handle_outbound_message(self, message):
@@ -50,6 +51,10 @@ class AppositV2Transport(AppositTransport):
             'channel': channel,
         }.iteritems())
         
+        config = self.get_static_config()
+        app_id = config.app_id
+        token = config.token
+
         auth = b64encode("%s:%s" % (app_id, token))
         
         self.emit("Making HTTP POST request: %s with body %s" %

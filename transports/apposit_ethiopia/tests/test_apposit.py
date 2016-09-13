@@ -120,18 +120,16 @@ class TestAppositV2Transport(TestAppositTransport):
     @inlineCallbacks
     def test_outbound_request_credential_selection(self):
         msg1 = yield self.tx_helper.make_dispatch_outbound(
-            'so many dynamos', from_addr='8123')
+            'so many dynamos')
         request1 = yield self.outbound_requests.get()
         self.assert_outbound_request(request1,
-            fromAddress='8123',
             serviceId='service-id-1')
 
         msg2 = yield self.tx_helper.make_dispatch_outbound(
-            'so many dynamos', from_addr='8124')
+            'so many dynamos')
         request2 = yield self.outbound_requests.get()
         self.assert_outbound_request(request2,
-            fromAddress='8124',
-            serviceId='service-id-2')
+            serviceId='service-id-1')
 
         [ack1, ack2] = yield self.tx_helper.wait_for_dispatched_events(2)
         self.assert_ack(ack1, msg1)
