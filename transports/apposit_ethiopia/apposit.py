@@ -13,8 +13,8 @@ from vumi.transports.apposit import AppositTransport
 
 class AppositV2TransportConfig(AppositTransport.CONFIG_CLASS):
 
-    app_id = ConfigText('your app id', required=True, static=True)
-    token = ConfigText('your token', required=True, static=True)
+    app_id = ConfigText('your http connection id', required=True, static=True)
+    token = ConfigText('your http connection token', required=True, static=True)
     credentials = ConfigDict(
         "A dictionary where the `from_addr` is used for the key lookup and "
         "the returned value should be a dictionary containing the "
