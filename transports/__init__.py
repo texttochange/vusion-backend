@@ -15,6 +15,7 @@ from telkomsel_indonesia.telkomsel_http import TelkomselHttpTransport
 
 from http_forward.forward_http import ForwardHttp
 from http_forward.cioec_http import CioecHttp
+from apposit_ethiopia.apposit import AppositV2Transport
 
 __all__ = [
     "CmHttpTransport",
@@ -30,4 +31,5 @@ __all__ = [
     "IConceptHttpTransport",
     "TelkomselHttpTransport",
     "ForwardHttp",
-    "CioecHttp"]
+    "CioecHttp",
+    "AppositV2Transport"]
