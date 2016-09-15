@@ -9,10 +9,9 @@ from vumi import log
 from vumi.utils import http_request_full
 from vumi.config import ConfigDict, ConfigText
 from vumi.transports.apposit import AppositTransport
-from vumi.transports.httprpc import HttpRpcTransport
 
 
-class AppositV2TransportConfig(HttpRpcTransport.CONFIG_CLASS):
+class AppositV2TransportConfig(AppositTransport.CONFIG_CLASS):
 
     app_id = ConfigText('your app id', required=True, static=True)
     token = ConfigText('your token', required=True, static=True)
