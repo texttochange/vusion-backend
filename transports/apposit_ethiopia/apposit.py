@@ -62,7 +62,7 @@ class AppositV2Transport(AppositTransport):
 
         response = yield http_request_full(
             self.outbound_url,
-            data=urlencode(params),
+            data=json.dumps(params),
             method='POST',
             headers={'Content-Type': 'application/json',
             'Authorization': ['Basic %s' % auth],
