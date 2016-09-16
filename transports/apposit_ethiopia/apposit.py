@@ -64,7 +64,7 @@ class AppositV2Transport(AppositTransport):
             self.outbound_url,
             data=urlencode(params),
             method='POST',
-            headers={'Content-Type': self.CONTENT_TYPE,
+            headers={'Content-Type': 'application/json',
             'Authorization': ['Basic %s' % auth],
             'H1':'V1'})
 
