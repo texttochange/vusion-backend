@@ -39,16 +39,15 @@ class AppositV2Transport(AppositTransport):
             yield self.publish_nack(message['message_id'], reason)
             return
 
-        self.emit("Sending outbound message: %s" % (message,))
+        #self.emit("Sending outbound message: %s" % (message,))
+        log.msg("Sending outbound message: %s" % (message,))
 
         # build the params dict and ensure each param encoded correctly
         credentials = self.credentials.get(message['from_addr'], {})
         params = dict((k, v.encode(self.ENCODING)) for k, v in {
-            'serviceId': credentials.get('service_id', ''),
             'from': message['from_addr'],
             'to': message['to_addr'],
             'message': message['content'],
-            'channel': channel,
         }.iteritems())
         
         config = self.get_static_config()
@@ -57,7 +56,8 @@ class AppositV2Transport(AppositTransport):
 
         auth = b64encode("%s:%s" % (app_id, token))
         
-        self.emit("Making HTTP POST request: %s with body %s" %
+        
+        log.msg("Making HTTP POST request: %s with body %s" %
                   (self.outbound_url, params))
 
         response = yield http_request_full(
@@ -68,7 +68,8 @@ class AppositV2Transport(AppositTransport):
             'Authorization': ['Basic %s' % auth],
             'H1':'V1'})
 
-        self.emit("Response: (%s) %r" %
+        
+        log.msg("Response: (%s) %r" %
                   (response.code, response.delivered_body))
 
         response_content = response.delivered_body.strip()
