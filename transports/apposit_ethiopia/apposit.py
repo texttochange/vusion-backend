@@ -23,12 +23,18 @@ class AppositV2TransportConfig(HttpRpcTransport.CONFIG_CLASS):
         required=True, static=True)
     outbound_url = ConfigText(
         "The URL to send outbound messages to.", required=True, static=True)
+    web_path = ConfigText("The path to listen for requests on.", static=True)
 
 
 class AppositV2Transport(AppositTransport):
     
     CONFIG_CLASS = AppositV2TransportConfig
     
+    def validate_config(self):
+        config = self.get_static_config()
+        self.web_path = config.web_path
+        return super(AppositV2Transport, self).validate_config()
+        
     @inlineCallbacks
     def handle_outbound_message(self, message):
         channel = self.CHANNEL_LOOKUP.get(message['transport_type'])
