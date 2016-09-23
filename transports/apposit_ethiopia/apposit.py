@@ -3,7 +3,11 @@ from urllib import urlencode
 from base64 import b64encode
 
 from twisted.web import http
+from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks
+from twisted.internet.error import ConnectionRefusedError
+from twisted.web.resource import Resource
+from twisted.web.server import NOT_DONE_YET
 
 from vumi import log
 from vumi.utils import http_request_full
@@ -30,11 +34,43 @@ class AppositV2Transport(AppositTransport):
     
     CONFIG_CLASS = AppositV2TransportConfig
     
+    EXPECTED_FIELDS = frozenset(['from', 'to', 'channel', 'message', 'isTest'])
+
     def validate_config(self):
         config = self.get_static_config()
         self.web_path = config.web_path
         return super(AppositV2Transport, self).validate_config()
-        
+
+    @inlineCallbacks
+    def handle_raw_inbound_message(self, message_id, request):
+        values, errors = self.get_field_values(request, self.EXPECTED_FIELDS)
+
+        channel = values.get('channel')
+        if channel is not None and channel not in self.CHANNEL_LOOKUP.values():
+            errors['unsupported_channel'] = channel
+
+        if errors:
+            log.msg('Unhappy incoming message: %s' % (errors,))
+            yield self.finish_request(message_id, json.dumps(errors),
+                                      code=http.BAD_REQUEST)
+            return
+
+        log.msg("AppositTransport receiving inbound message from "
+                  "%(from)s to %(to)s" % values)
+
+        yield self.publish_message(
+            transport_name=self.transport_name,
+            message_id=message_id,
+            content=values['message'],
+            from_addr=values['from'],
+            to_addr=values['to'],
+            provider='apposit',
+            transport_type=self.TRANSPORT_TYPE_LOOKUP[channel],
+            transport_metadata={'apposit': {'isTest': values['isTest']}})
+
+        yield self.finish_request(
+            message_id, json.dumps({'message_id': message_id}))
+
     @inlineCallbacks
     def handle_outbound_message(self, message):
         channel = self.CHANNEL_LOOKUP.get(message['transport_type'])

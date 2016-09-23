@@ -5,6 +5,7 @@ from urllib import urlencode
 
 from twisted.web import http
 from twisted.internet.defer import inlineCallbacks, DeferredQueue
+from twisted.web.resource import Resource
 
 from vumi.tests.utils import MockHttpServer
 from vumi.utils import http_request_full
@@ -52,7 +53,94 @@ class TestAppositV2Transport(TestAppositTransport):
     def tearDown(self):
         yield self.mock_server.stop()
         yield super(TestAppositV2Transport, self).tearDown()
- 
+
+    def send_inbound_request(self, **kwargs):
+        params = {
+            'from': '251911223344',
+            'to': '8123',
+            'channel': 'SMS',
+            'message': 'never odd or even',
+            'isTest': 'true',
+        }
+        params.update(kwargs)
+        return self.send_full_inbound_request(**params)
+
+    @inlineCallbacks
+    def test_inbound(self):
+        response = yield self.send_inbound_request(**{
+            'from': '251911223344',
+            'to': '8123',
+            'message': 'so many dynamos',
+            'channel': 'SMS',
+            'isTest': 'true',
+        })
+
+        [msg] = self.tx_helper.get_dispatched_inbound()
+        self.assert_message_fields(msg,
+            transport_name=self.tx_helper.transport_name,
+            transport_type='sms',
+            from_addr='251911223344',
+            to_addr='8123',
+            content='so many dynamos',
+            provider='apposit',
+            transport_metadata={'apposit': {'isTest': 'true'}})
+
+        self.assertEqual(response.code, http.OK)
+        self.assertEqual(json.loads(response.delivered_body),
+                         {'message_id': msg['message_id']})
+
+    @inlineCallbacks
+    def test_inbound_requests_for_non_ascii_content(self):
+        response = yield self.send_inbound_request(
+            message=u'Hliðskjálf'.encode('UTF-8'))
+        [msg] = self.tx_helper.get_dispatched_inbound()
+        self.assert_message_fields(msg, content=u'Hliðskjálf')
+
+        self.assertEqual(response.code, http.OK)
+        self.assertEqual(json.loads(response.delivered_body),
+                         {'message_id': msg['message_id']})
+
+    @inlineCallbacks
+    def test_inbound_requests_for_unsupported_channel(self):
+        response = yield self.send_full_inbound_request(**{
+            'from': '251911223344',
+            'to': '8123',
+            'channel': 'steven',
+            'message': 'never odd or even',
+            'isTest': 'false',
+        })
+
+        self.assertEqual(response.code, 400)
+        self.assertEqual(json.loads(response.delivered_body),
+                         {'unsupported_channel': 'steven'})
+
+    @inlineCallbacks
+    def test_inbound_requests_for_unexpected_param(self):
+        response = yield self.send_full_inbound_request(**{
+            'from': '251911223344',
+            'to': '8123',
+            'channel': 'SMS',
+            'steven': 'its a trap',
+            'message': 'never odd or even',
+            'isTest': 'false',
+        })
+
+        self.assertEqual(response.code, 400)
+        self.assertEqual(json.loads(response.delivered_body),
+                         {'unexpected_parameter': ['steven']})
+
+    @inlineCallbacks
+    def test_inbound_requests_for_missing_param(self):
+        response = yield self.send_full_inbound_request(**{
+            'from': '251911223344',
+            'to': '8123',
+            'message': 'never odd or even',
+            'isTest': 'false',
+        })
+
+        self.assertEqual(response.code, 400)
+        self.assertEqual(json.loads(response.delivered_body),
+                         {'missing_parameter': ['channel']})
 
     def assert_outbound_request(self, request, **kwargs):
         expected_args = {
