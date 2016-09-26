@@ -14,6 +14,7 @@ from vumi.utils import http_request_full
 from vumi.config import ConfigDict, ConfigText
 from vumi.transports.apposit import AppositTransport
 from vumi.transports.httprpc import HttpRpcTransport
+from vumi.transports.httprpc.tests.test_httprpc import JSONTransport
 
 
 class AppositV2TransportConfig(HttpRpcTransport.CONFIG_CLASS):

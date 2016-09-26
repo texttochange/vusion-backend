@@ -54,6 +54,13 @@ class TestAppositV2Transport(TestAppositTransport):
         yield self.mock_server.stop()
         yield super(TestAppositV2Transport, self).tearDown()
 
+    def send_full_inbound_request(self, **params):
+        return http_request_full(
+            '%s%s' % (self.transport_url, self.web_path),
+            data=json.dumps(params),
+            method='POST',
+            headers={'Content-Type': 'application/json'})
+
     def send_inbound_request(self, **kwargs):
         params = {
             'from': '251911223344',
@@ -75,7 +82,7 @@ class TestAppositV2Transport(TestAppositTransport):
             'isTest': 'true',
         })
 
-        [msg] = self.tx_helper.get_dispatched_inbound()
+        [msg] = self.tx_helper.get_dispatched_inbound(1)
         self.assert_message_fields(msg,
             transport_name=self.tx_helper.transport_name,
             transport_type='sms',
