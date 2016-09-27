@@ -82,7 +82,7 @@ class TestAppositV2Transport(TestAppositTransport):
             'isTest': 'true',
         })
 
-        [msg] = self.tx_helper.get_dispatched_inbound(1)
+        [msg] = self.tx_helper.get_dispatched_inbound()
         self.assert_message_fields(msg,
             transport_name=self.tx_helper.transport_name,
             transport_type='sms',

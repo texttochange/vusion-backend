@@ -1,6 +1,7 @@
-import json
+import json, ast
 from urllib import urlencode
 from base64 import b64encode
+from io import StringIO
 
 from twisted.web import http
 from twisted.internet import defer
@@ -41,6 +42,24 @@ class AppositV2Transport(AppositTransport):
         config = self.get_static_config()
         self.web_path = config.web_path
         return super(AppositV2Transport, self).validate_config()
+
+    def get_field_values(self, request, EXPECTED_FIELDS,
+                            ignored_fields=frozenset()):
+        values = {}
+        errors = {}
+        a = json.load(request.content)
+        b = ast.literal_eval(json.dumps(a, ensure_ascii=False))
+        for field in b:
+            if field not in (EXPECTED_FIELDS | ignored_fields):
+                if self._validation_mode == self.STRICT_MODE:
+                    errors.setdefault('unexpected_parameter', []).append(field)
+            else:
+                values[field] = (
+                    b.get(field).decode(self.ENCODING))
+        for field in EXPECTED_FIELDS:
+            if field not in values:
+                errors.setdefault('missing_parameter', []).append(field)
+        return values, errors
 
     @inlineCallbacks
     def handle_raw_inbound_message(self, message_id, request):
