@@ -34,9 +34,8 @@ class AppositV2TransportConfig(HttpRpcTransport.CONFIG_CLASS):
 
 class AppositV2Transport(AppositTransport):
     
-    CONFIG_CLASS = AppositV2TransportConfig
-    
-    EXPECTED_FIELDS = frozenset(['from', 'to', 'channelId', 'message', 'isBinary'])
+    CONFIG_CLASS = AppositV2TransportConfig    
+    EXPECTED_FIELDS = frozenset(['from', 'to', 'message', 'isBinary'])
 
     def validate_config(self):
         config = self.get_static_config()
@@ -44,12 +43,10 @@ class AppositV2Transport(AppositTransport):
         return super(AppositV2Transport, self).validate_config()
 
     def get_field_values(self, request, EXPECTED_FIELDS,
-                            ignored_fields=frozenset()):
+                            ignored_fields=frozenset(['applicationTriggerUUID', 'accountUUID', 'callbackType', 'applicationCallbackUrl', 'applicationUUID', 'receivedDateTime', 'messageId', 'applicationCallbackUUID'])):
         values = {}
         errors = {}
         a = json.load(request.content)
-        #a = {u'to': u'8123', u'isTest': u'true', u'from': u'251911223344', u'message': u'so many dynamos', u'channel': u'SMS'}
-        #a = {u'isTest': u'true', u'channelId': u'S', u'from': u'0925904591', u'applicationCallbackUUID': u'8a4e3f39-a908-4665-8bdc-70af0f42609c', u'accountUUID': u'2991a9d7-ea63-4f80-b11b-5b28635d7f09', u'applicationTriggerUUID': u'b21b552b-6f6a-11e6-ab67-42010af09751', u'messageId': u'09509f52-8ee5-4f82-a719-5b46365e8aeb', u'applicationCallbackUrl': u'http://vusion.texttochange.org:2236/apposit', u'to': u'8008', u'isBinary': False, u'applicationUUID': u'2d52fd81-34b3-4771-87eb-3007455ad951', u'message': u'yes', u'callbackType': 2, u'receivedDateTime': u'Wed, 28 Sep 2016 13:04:03 +0300'}
         log.msg("inbound2 %s" % a)
         b = yaml.load(json.dumps(a, ensure_ascii=False))
         for field in b:
@@ -65,13 +62,10 @@ class AppositV2Transport(AppositTransport):
         return values, errors
 
     @inlineCallbacks
-    def handle_raw_inbound_message(self, message_id, request):
-        
-        log.msg("inbound1 %s" % request.content)
-        
+    def handle_raw_inbound_message(self, message_id, request):        
         values, errors = self.get_field_values(request, self.EXPECTED_FIELDS)
 
-        channel = values.get('channelId')
+        channel = 'SMS'
         if channel is not None and channel not in self.CHANNEL_LOOKUP.values():
             errors['unsupported_channel'] = channel
 
