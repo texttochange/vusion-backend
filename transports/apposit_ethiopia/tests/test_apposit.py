@@ -65,9 +65,9 @@ class TestAppositV2Transport(TestAppositTransport):
         params = {
             'from': '251911223344',
             'to': '8123',
-            'channel': 'SMS',
+            'channelId': 'SMS',
             'message': 'never odd or even',
-            'isTest': 'true',
+            'isBinary': 'true',
         }
         params.update(kwargs)
         return self.send_full_inbound_request(**params)
@@ -78,8 +78,8 @@ class TestAppositV2Transport(TestAppositTransport):
             'from': '251911223344',
             'to': '8123',
             'message': 'so many dynamos',
-            'channel': 'SMS',
-            'isTest': 'true',
+            'channelId': 'SMS',
+            'isBinary': 'true',
         })
 
         [msg] = self.tx_helper.get_dispatched_inbound()
@@ -90,7 +90,7 @@ class TestAppositV2Transport(TestAppositTransport):
             to_addr='8123',
             content='so many dynamos',
             provider='apposit',
-            transport_metadata={'apposit': {'isTest': 'true'}})
+            transport_metadata={'apposit': {'isBinary': 'true'}})
 
         self.assertEqual(response.code, http.OK)
         self.assertEqual(json.loads(response.delivered_body),
@@ -99,7 +99,7 @@ class TestAppositV2Transport(TestAppositTransport):
     @inlineCallbacks
     def test_inbound_requests_for_non_ascii_content(self):
         response = yield self.send_inbound_request(
-            message=u'Hliðskjálf'.encode('UTF-8'))
+            message=u'Hliðskjálf'.encode('utf-8'))
         [msg] = self.tx_helper.get_dispatched_inbound()
         self.assert_message_fields(msg, content=u'Hliðskjálf')
 
@@ -112,9 +112,9 @@ class TestAppositV2Transport(TestAppositTransport):
         response = yield self.send_full_inbound_request(**{
             'from': '251911223344',
             'to': '8123',
-            'channel': 'steven',
+            'channelId': 'steven',
             'message': 'never odd or even',
-            'isTest': 'false',
+            'isBinary': 'false',
         })
 
         self.assertEqual(response.code, 400)
@@ -126,10 +126,10 @@ class TestAppositV2Transport(TestAppositTransport):
         response = yield self.send_full_inbound_request(**{
             'from': '251911223344',
             'to': '8123',
-            'channel': 'SMS',
+            'channelId': 'SMS',
             'steven': 'its a trap',
             'message': 'never odd or even',
-            'isTest': 'false',
+            'isBinary': 'false',
         })
 
         self.assertEqual(response.code, 400)
@@ -142,12 +142,12 @@ class TestAppositV2Transport(TestAppositTransport):
             'from': '251911223344',
             'to': '8123',
             'message': 'never odd or even',
-            'isTest': 'false',
+            'isBinary': 'false',
         })
 
         self.assertEqual(response.code, 400)
         self.assertEqual(json.loads(response.delivered_body),
-                         {'missing_parameter': ['channel']})
+                         {'missing_parameter': ['channelId']})
 
     def assert_outbound_request(self, request, **kwargs):
         expected_args = {
@@ -175,7 +175,7 @@ class TestAppositV2Transport(TestAppositTransport):
             'to_addr': '8123',
             'content': 'so many dynamos',
             'provider': 'apposit',
-            'transport_metadata': {'apposit': {'isTest': 'true'}},
+            'transport_metadata': {'apposit': {'isBinary': 'true'}},
         }
         fields.update(kwargs)
 
