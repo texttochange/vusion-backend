@@ -109,14 +109,13 @@ class TestAppositV2Transport(TestAppositTransport):
     def test_inbound_requests_for_unsupported_channel(self):
         response = yield self.send_full_inbound_request(**{
             'from': '251911223344',
-            'to': '8123',
             'message': 'never odd or even',
             'isBinary': 'false',
         })
 
         self.assertEqual(response.code, 400)
         self.assertEqual(json.loads(response.delivered_body),
-                         {'unsupported_channel': 'steven'})
+                         {u'missing_parameter': [u'to']})
 
     @inlineCallbacks
     def test_inbound_requests_for_unexpected_param(self):

@@ -43,12 +43,16 @@ class AppositV2Transport(AppositTransport):
         return super(AppositV2Transport, self).validate_config()
 
     def get_field_values(self, request, EXPECTED_FIELDS,
-                            ignored_fields=frozenset(['applicationTriggerUUID', 'accountUUID', 'callbackType', 'applicationCallbackUrl', 'applicationUUID', 'receivedDateTime', 'messageId', 'applicationCallbackUUID'])):
+                            ignored_fields=frozenset(['channelId','applicationTriggerUUID', 'accountUUID', 'callbackType', 'applicationCallbackUrl', 'applicationUUID', 'receivedDateTime', 'messageId', 'applicationCallbackUUID'])):
         values = {}
         errors = {}
         a = json.load(request.content)
         log.msg("inbound2 %s" % a)
-        b = yaml.load(json.dumps(a, ensure_ascii=False))
+        
+        c = {u'isBinary': u'true'}
+        a.update(c)        
+        b = ast.literal_eval(json.dumps(a, ensure_ascii=False))
+        #b = yaml.load(json.dumps(a, ensure_ascii=False))
         for field in b:
             if field not in (EXPECTED_FIELDS | ignored_fields):
                 if self._validation_mode == self.STRICT_MODE:
