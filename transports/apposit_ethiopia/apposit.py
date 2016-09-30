@@ -1,4 +1,4 @@
-import json, ast, yaml
+import json, ast
 from urllib import urlencode
 from base64 import b64encode
 from io import StringIO
@@ -52,14 +52,13 @@ class AppositV2Transport(AppositTransport):
         c = {u'isBinary': u'true'}
         a.update(c)        
         b = ast.literal_eval(json.dumps(a, ensure_ascii=False))
-        #b = yaml.load(json.dumps(a, ensure_ascii=False))
         for field in b:
             if field not in (EXPECTED_FIELDS | ignored_fields):
                 if self._validation_mode == self.STRICT_MODE:
                     errors.setdefault('unexpected_parameter', []).append(field)
             else:
                 values[field] = (
-                    b.get(field).decode(self.ENCODING))
+                    b.get(field))
         for field in EXPECTED_FIELDS:
             if field not in values:
                 errors.setdefault('missing_parameter', []).append(field)
@@ -128,7 +127,7 @@ class AppositV2Transport(AppositTransport):
 
         response = yield http_request_full(
             self.outbound_url,
-            data=json.dumps(params),
+            data=json.dumps(params, ensure_ascii=False),
             method='POST',
             headers={'Content-Type': 'application/json',
             'Authorization': ['Basic %s' % auth],

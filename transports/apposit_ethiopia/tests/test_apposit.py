@@ -97,9 +97,9 @@ class TestAppositV2Transport(TestAppositTransport):
     @inlineCallbacks
     def test_inbound_requests_for_non_ascii_content(self):
         response = yield self.send_inbound_request(
-            message=u'Hliðskjálf'.encode('utf-8'))
+            message=u'ሙከራ 2Hliðskjálf'.encode('utf-8'))
         [msg] = self.tx_helper.get_dispatched_inbound()
-        self.assert_message_fields(msg, content=u'Hliðskjálf')
+        self.assert_message_fields(msg, content=u'ሙከራ 2Hliðskjálf')
 
         self.assertEqual(response.code, http.OK)
         self.assertEqual(json.loads(response.delivered_body),
@@ -227,7 +227,7 @@ class TestAppositV2Transport(TestAppositTransport):
         
     @inlineCallbacks
     def test_outbound_requests_for_non_ascii_content(self):
-        msg = yield self.tx_helper.make_dispatch_outbound(u'Hliðskjálf')
+        msg = yield self.tx_helper.make_dispatch_outbound(u'Hliðskjálfio')
         request = yield self.outbound_requests.get()
         self.assert_outbound_request(request, message='Hliðskjálf')
 
