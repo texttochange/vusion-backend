@@ -158,7 +158,7 @@ class TestAppositV2Transport(TestAppositTransport):
         #self.assertEqual(dict((k, [v]) for k, v in expected_args.iteritems()),
         #                request.args)
         self.assertEqual(request.getHeader('Content-Type'),
-                         "application/json")
+                         "application/json; charset=UTF-8")
 
 
     def assert_message_fields(self, msg, **kwargs):

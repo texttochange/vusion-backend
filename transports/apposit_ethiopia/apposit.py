@@ -123,13 +123,13 @@ class AppositV2Transport(AppositTransport):
         
         
         log.msg("Making HTTP POST request: %s with body %s" %
-                  (self.outbound_url, params))
+                  (self.outbound_url, json.dumps(params, ensure_ascii=False)))
 
         response = yield http_request_full(
             self.outbound_url,
             data=json.dumps(params, ensure_ascii=False),
             method='POST',
-            headers={'Content-Type': 'application/json',
+            headers={'Content-Type': 'application/json; charset=UTF-8',
             'Authorization': ['Basic %s' % auth],
             'H1':'V1'})
 
