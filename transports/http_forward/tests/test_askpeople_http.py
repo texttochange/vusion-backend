@@ -26,7 +26,6 @@ class AskpeopleHttpTransportTestCase(VumiTestCase):
         
         self.config = {
             'api_key': 'a2edrfaQ',
-            'salt': 'CIOEC', 
             'api': {
                 '/api/answers': [
                     'question',
@@ -53,7 +52,7 @@ class AskpeopleHttpTransportTestCase(VumiTestCase):
         self.assertTrue('authorization' in headers, "authorization header is missing")
         value = headers['authorization']
         
-        auth = b64encode("3a08dec65c1d4a9fa452e23a21e7a42fddf392a1:api_token")
+        auth = b64encode("a2edrfaQ")
         self.assertEqual(value, "Basic %s" % auth)
 
     @inlineCallbacks
@@ -103,7 +102,7 @@ class AskpeopleHttpTransportTestCase(VumiTestCase):
     def test_outbound_ok_answers_default_value(self):
             response_body = {
                 "status":"success",
-                "message":"X user registered",
+                "message":"X answer sent",
                 "data": {
                     "ids":[{"code":"aQx3","phone":"+59177777"}],
                 }
@@ -134,9 +133,9 @@ class AskpeopleHttpTransportTestCase(VumiTestCase):
             self.assertEqual(
                 json.loads(req_body),
                 {"data":[{
-                    "question": "4",
+                    "question": "2",
                     "reporter": "708",
-                    "answer": "456",
+                    "answer": "7855",
                     }]})
             
             [event] = self.tx_helper.get_dispatched_events()
@@ -190,16 +189,16 @@ class AskpeopleHttpTransportTestCase(VumiTestCase):
                 'participant_phone': '+6',
                 'participant_tags': ['imported', '134', '123'],
                 'participant_profile': [
-                    {'label': 'yreporterid',
+                    {'label': 'reporterid',
                      'value': '708'},
-                    {'label': 'Answer21',
+                    {'label': 'yAnswer21',
                      'value': 'Male'},
-                    {'label': 'Answer22',
+                    {'label': 'yAnswer22',
                      'value': 'Female'}]})
         [event] = self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'nack')
         self.assertEqual(event['user_message_id'], '1')
-        self.assertEqual(event['nack_reason'], "MISSING DATA name is missing")
+        self.assertEqual(event['nack_reason'], "MISSING DATA question is missing")
         self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
 
     @inlineCallbacks

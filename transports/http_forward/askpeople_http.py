@@ -46,6 +46,7 @@ class AskpeopleHttp(Transport):
         else:
             label = label_rule
             tag = participant_tags
+            item = []
             for index, profile in enumerate(participant_profile):
                 if label == 'answer':                                
                     profile['value'] = tag[index]
@@ -57,8 +58,7 @@ class AskpeopleHttp(Transport):
                     item = [profile]
                 if profile['label'][:6] == 'report' and label == 'reporter':
                     profile['label'] = label
-                    item = [profile]
-            
+                    item = [profile]            
         #item = [x for x in  participant_profile if label == x['label']]
         if item == []:
             if default is None:
@@ -83,8 +83,9 @@ class AskpeopleHttp(Transport):
             if url.path in self.config['api']:
                 data = self.build_data(message, self.config['api'][url.path])
             
-            auth = sha1('%s%s%s' % (self.config['api_key'], self.config['salt'], self.get_date()))
-            auth = b64encode("%s:api_token" % auth.hexdigest())
+            #auth = sha1('%s%s%s' % (self.config['api_key'], self.config['salt'], self.get_date()))
+            auth = self.config['api_key']
+            auth = b64encode("%s" % auth)
 
             log.msg('Hitting %s with %s' % (forward_url, json.dumps(data)))
             
