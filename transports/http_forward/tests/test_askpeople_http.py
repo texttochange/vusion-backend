@@ -27,10 +27,11 @@ class AskpeopleHttpTransportTestCase(VumiTestCase):
         self.config = {
             'api_key': 'a2edrfaQ',
             'api': {
-                '/api/answers': [
+                '/api/answers': [                    
                     'question',
                     'reporter',
-                    'answer']}
+                    'answer',
+                    'answer_text']}
         }
         self.tx_helper = self.add_helper(TransportHelper(AskpeopleHttp))
         self.transport = yield self.tx_helper.get_transport(self.config)
@@ -56,7 +57,7 @@ class AskpeopleHttpTransportTestCase(VumiTestCase):
         self.assertEqual(value, "Basic %s" % auth)
 
     @inlineCallbacks
-    def test_outbound_ok_answers(self):
+    def test_outbound_ok_answers_select(self):
         response_body = {
             "status":"success",
             "message":"X answer sent",
@@ -91,6 +92,47 @@ class AskpeopleHttpTransportTestCase(VumiTestCase):
                 "question": "22",
                 "reporter": "708",
                 "answer": "123",
+                }]})
+
+        [event] = yield self.tx_helper.get_dispatched_events()
+        self.assertEqual(event['event_type'], 'ack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
+
+    @inlineCallbacks
+    def test_outbound_ok_answers_free(self):
+        response_body = {
+            "status":"success",
+            "message":"X answer sent",
+            "data": {
+                "ids":[{"code":"aQx3","phone":"+59177777"}],
+            }
+        }
+        self.mock_askpeople_response = json.dumps(response_body)
+
+        yield self.tx_helper.make_dispatch_outbound(
+            to_addr="%sapi/answers" % self.mock_askpeople.url,
+            from_addr="myprogram",
+            content="Hello",
+            message_id='1',
+            transport_metadata={
+                'program_shortcode': '256-8181',
+                'participant_phone': '+6',
+                'participant_tags': ['imported', 'free', '123'],
+                'participant_profile': [
+                    {'label': 'reporterid',
+                     'value': '708'},
+                    {'label': 'Answer21',
+                     'value': 'Male'}]})
+        req = yield self.askpeople_calls.get()
+        self.assert_authentication(req)
+        req_body = self.askpeople_calls_body.pop()
+        self.assertEqual(
+            json.loads(req_body),
+            {"data":[{
+                "question": "21",
+                "reporter": "708",
+                "answer_text": "Male",
                 }]})
 
         [event] = yield self.tx_helper.get_dispatched_events()

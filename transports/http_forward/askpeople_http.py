@@ -38,7 +38,7 @@ class AskpeopleHttp(Transport):
         return {'data': [data]}
 
     def extract_data_from_profile(self, data, participant_profile, participant_tags, label_rule):
-        label = None
+        label = 'answer_text'
         default = None
         if isinstance(label_rule, dict):
             label = label_rule['label']
@@ -47,15 +47,20 @@ class AskpeopleHttp(Transport):
             label = label_rule
             tag = participant_tags
             item = []
+            profile2 = {}
             for index, profile in enumerate(participant_profile):
-                if label == 'answer':                                
-                    profile['value'] = tag[index]
-                    profile['label'] = label
-                    item = [profile]                
+                if label == 'answer' or label == 'answer_text':
+                    if tag[index] == 'free':
+                        profile['value'] = profile['value']
+                        profile['label'] = 'answer_text'
+                    else:
+                        profile['value'] = tag[index]
+                        profile['label'] = label
+                    item = [profile]                                  
                 if profile['label'][:6] == 'Answer' and label == 'question':
-                    profile['value'] = profile['label'][6:]
-                    profile['label'] = label                    
-                    item = [profile]
+                    profile2['value'] = profile['label'][6:]
+                    profile2['label'] = label                    
+                    item = [profile2]
                 if profile['label'][:6] == 'report' and label == 'reporter':
                     profile['label'] = label
                     item = [profile]            
