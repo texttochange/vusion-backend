@@ -35,6 +35,8 @@ class AskpeopleHttp(Transport):
                     message['transport_metadata']['participant_profile'],
                     message['transport_metadata']['participant_tags'],
                     label_to_add)
+                if 'answer' in data and 'answer_text' in data:
+                    data.pop('answer_text', 1)
         return {'data': [data]}
 
     def extract_data_from_profile(self, data, participant_profile, participant_tags, label_rule):
@@ -45,16 +47,17 @@ class AskpeopleHttp(Transport):
             default = label_rule['default']
         else:
             label = label_rule
-            tag = participant_tags
+            tags = participant_tags
             item = []
             profile2 = {}
             for index, profile in enumerate(participant_profile):
                 if label == 'answer' or label == 'answer_text':
-                    if tag[index] == 'free':
+                    if tags[index] == 'free':
+                        data.pop('answer', 0)
                         profile['value'] = profile['value']
                         profile['label'] = 'answer_text'
                     else:
-                        profile['value'] = tag[index]
+                        profile['value'] = tags[index]
                         profile['label'] = label
                     item = [profile]                                  
                 if profile['label'][:6] == 'Answer' and label == 'question':
@@ -63,8 +66,7 @@ class AskpeopleHttp(Transport):
                     item = [profile2]
                 if profile['label'][:6] == 'report' and label == 'reporter':
                     profile['label'] = label
-                    item = [profile]            
-        #item = [x for x in  participant_profile if label == x['label']]
+                    item = [profile]
         if item == []:
             if default is None:
                 raise MissingData("%s is missing" % label)
