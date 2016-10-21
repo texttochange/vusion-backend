@@ -793,6 +793,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
 
         self.collections['participants'].save(self.mkobj_participant(
             participant_phone='+6',
+            tags=['my tag'],
             profile=[{'label': 'name', 'value': 'olivier', 'raw': None}]))
 
         history_id = self.collections['history'].save(self.mkobj_history_dialogue(
@@ -822,6 +823,7 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             messages[0]['transport_metadata'], 
             {'program_shortcode': '256-8181',
              'participant_phone': '+6',
+             'participant_tags': ['my tag'],
              'participant_profile': [{'label': 'name', 'value': 'olivier', 'raw': None}]})
         history = DialogueHistory(**self.collections['history'].find_one())
         self.assertEqual(history['message-status'], 'forwarded')

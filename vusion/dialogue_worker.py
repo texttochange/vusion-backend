@@ -395,6 +395,7 @@ class DialogueWorker(ApplicationWorker):
            'transport_metadata': {
                'program_shortcode': self.properties['shortcode'],
                'participant_phone': participant_phone,
+               'participant_tags': participant['tags'],
                'participant_profile': participant['profile']}}
         message = yield self.send_to(
             action['forward-url'], history['message-content'], **options)
