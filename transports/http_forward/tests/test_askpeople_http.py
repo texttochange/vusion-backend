@@ -88,11 +88,11 @@ class AskpeopleHttpTransportTestCase(VumiTestCase):
         req_body = self.askpeople_calls_body.pop()
         self.assertEqual(
             json.loads(req_body),
-            {"data":[{
+            [{
                 "question": "22",
                 "reporter": "708",
                 "answer": "123",
-                }]})
+                }])
 
         [event] = yield self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'ack')
@@ -129,11 +129,11 @@ class AskpeopleHttpTransportTestCase(VumiTestCase):
         req_body = self.askpeople_calls_body.pop()
         self.assertEqual(
             json.loads(req_body),
-            {"data":[{
+            [{
                 "question": "21",
                 "reporter": "708",
                 "answer_text": "Male",
-                }]})
+                }])
 
         [event] = yield self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'ack')
@@ -174,11 +174,11 @@ class AskpeopleHttpTransportTestCase(VumiTestCase):
             req_body = self.askpeople_calls_body.pop()
             self.assertEqual(
                 json.loads(req_body),
-                {"data":[{
+                [{
                     "question": "2",
                     "reporter": "708",
                     "answer": "7855",
-                    }]})
+                    }])
             
             [event] = self.tx_helper.get_dispatched_events()
             self.assertEqual(event['event_type'], 'ack')

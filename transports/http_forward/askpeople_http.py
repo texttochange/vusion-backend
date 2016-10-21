@@ -3,6 +3,7 @@ from urlparse import urlparse
 from hashlib import sha1
 from datetime import datetime
 from base64 import b64encode
+from urllib import urlencode
 
 from twisted.internet.defer import inlineCallbacks
 
@@ -37,7 +38,7 @@ class AskpeopleHttp(Transport):
                     label_to_add)
                 if 'answer' in data and 'answer_text' in data:
                     data.pop('answer_text', 1)
-        return {'data': [data]}
+        return [data]
 
     def extract_data_from_profile(self, data, participant_profile, participant_tags, label_rule):
         label = 'answer_text'
