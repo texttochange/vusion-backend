@@ -26,6 +26,7 @@ class AskpeopleHttp(Transport):
         log.msg("Stop forward http transport")
 
     def build_data(self, message, labels_to_add):
+        log.msg('build data Hitting %s ' % (labels_to_add))
         data = {}
         for label_to_add in labels_to_add:
             if label_to_add == 'message':
@@ -41,6 +42,7 @@ class AskpeopleHttp(Transport):
         return [data]
 
     def extract_data_from_profile(self, data, participant_profile, participant_tags, label_rule):
+        log.msg('Profile Hitting %s with %s' % (participant_profile, participant_tags))
         label = 'answer_text'
         default = None
         if isinstance(label_rule, dict):
