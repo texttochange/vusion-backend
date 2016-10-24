@@ -42,7 +42,6 @@ class AskpeopleHttp(Transport):
         return [data]
 
     def extract_data_from_profile(self, data, participant_profile, participant_tags, label_rule):
-        log.msg('Profile Hitting %s with %s' % (participant_profile, participant_tags))
         label = 'answer_text'
         default = None
         if isinstance(label_rule, dict):
