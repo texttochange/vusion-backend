@@ -92,9 +92,7 @@ class AskpeopleHttp(Transport):
             if url.path in self.config['api']:
                 data = self.build_data(message, self.config['api'][url.path])
             
-            #auth = sha1('%s%s%s' % (self.config['api_key'], self.config['salt'], self.get_date()))
             auth = self.config['api_key']
-            auth = b64encode("%s" % auth)
 
             log.msg('Hitting %s with %s' % (forward_url, json.dumps(data)))
             
