@@ -53,7 +53,7 @@ class AskpeopleHttpTransportTestCase(VumiTestCase):
         self.assertTrue('authorization' in headers, "authorization header is missing")
         value = headers['authorization']
         
-        auth = b64encode("a2edrfaQ")
+        auth = "a2edrfaQ"
         self.assertEqual(value, "Basic %s" % auth)
 
     @inlineCallbacks
