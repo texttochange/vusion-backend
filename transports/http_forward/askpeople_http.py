@@ -1,11 +1,11 @@
-import re, json, sys, traceback
+import re, json, sys, traceback, ast
 from urlparse import urlparse
 from hashlib import sha1
 from datetime import datetime
 from base64 import b64encode
 from urllib import urlencode
 
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, returnValue
 
 from vumi.transports import Transport
 from vumi.utils import http_request_full
@@ -81,6 +81,20 @@ class AskpeopleHttp(Transport):
         return datetime.now().strftime('%Y-%m-%d')
 
     @inlineCallbacks
+    def get_auth_header(self):
+        url = "http://ask-people.vizzuality.com/api/auth"
+        params = {'email': self.config['email'],
+                  'password': self.config['password']} 
+        response = yield http_request_full(
+                url,
+                urlencode(params),
+                {'Content-Type': 'application/x-www-form-urlencoded'},
+                'POST')
+        
+        data = ast.literal_eval(response.delivered_body)
+        returnValue(data['auth_token'])
+
+    @inlineCallbacks
     def handle_outbound_message(self, message):
         log.msg("Outboung message to be processed %s" % repr(message))
         try:
@@ -92,7 +106,10 @@ class AskpeopleHttp(Transport):
             if url.path in self.config['api']:
                 data = self.build_data(message, self.config['api'][url.path])
             
-            auth = self.config['api_key']
+            if self.config['api_key'] == 'a2edrfaQ':
+                auth = self.config['api_key']
+            else:
+                auth = yield self.get_auth_header()
 
             log.msg('Hitting %s with %s' % (forward_url, json.dumps(data)))
             
