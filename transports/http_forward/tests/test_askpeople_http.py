@@ -26,8 +26,8 @@ class AskpeopleHttpTransportTestCase(VumiTestCase):
         
         self.config = {
             'api_key': 'a2edrfaQ',
-            'email': 'ttc@ttc.com',
-            'password': 'ttc.password',
+            'email': 'mark@ttc.com',
+            'password': 'mark.password2',
             'api': {
                 '/api/answers': [                    
                     'question',
