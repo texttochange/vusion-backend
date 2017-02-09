@@ -107,7 +107,7 @@ class AppositV2Transport(AppositTransport):
         #self.emit("Sending outbound message: %s" % (message,))
         log.msg("Sending outbound message: %s" % (message,))
 
-        # build the params dict and ensure each param encoded correctly
+        #build the params dict and ensure each param encoded correctly
         credentials = self.credentials.get(message['from_addr'], {})
         params = dict((k, v.encode(self.ENCODING)) for k, v in {
             'from': message['from_addr'],
