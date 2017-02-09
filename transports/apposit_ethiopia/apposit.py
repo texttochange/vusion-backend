@@ -43,7 +43,7 @@ class AppositV2Transport(AppositTransport):
         return super(AppositV2Transport, self).validate_config()
 
     def get_field_values(self, request, EXPECTED_FIELDS,
-                            ignored_fields=frozenset(['channelId','applicationTriggerUUID', 'accountUUID', 'callbackType', 'applicationCallbackUrl', 'applicationUUID', 'receivedDateTime', 'messageId', 'applicationCallbackUUID'])):
+                            ignored_fields=frozenset(['channelId','applicationTriggerUUID', 'accountUUID', 'callbackType', 'applicationCallbackUrl', 'applicationUUID', 'receivedDateTime', 'messageId', 'applicationCallbackUUID', 'sessionId'])):
         values = {}
         errors = {}
         a = json.load(request.content)
