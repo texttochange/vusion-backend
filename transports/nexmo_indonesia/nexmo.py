@@ -104,7 +104,7 @@ class NexmoTransport(AppositTransport):
             yield self.publish_nack(message['message_id'], reason)
             return
 
-        # self.emit("Sending outbound message: %s" % (message,))
+        #self.emit("Sending outbound message: %s" % (message,))
         log.msg("Sending outbound message: %s" % (message,))
 
         config = self.get_static_config()
