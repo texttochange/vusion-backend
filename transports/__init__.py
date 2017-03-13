@@ -17,7 +17,6 @@ from http_forward.cioec_http import CioecHttp
 
 from http_forward.askpeople_http import AskpeopleHttp
 from apposit_ethiopia.apposit import AppositV2Transport
-from nexmo_indonesia.nexmo import NexmoTransport
 
 __all__ = [
     "CmHttpTransport",
@@ -35,5 +34,4 @@ __all__ = [
     "ForwardHttp",
     "CioecHttp",
     "AskpeopleHttp",
-    "AppositV2Transport",
-    "NexmoTransport"]
+    "AppositV2Transport"]
