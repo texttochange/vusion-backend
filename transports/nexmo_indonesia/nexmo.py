@@ -35,7 +35,7 @@ class NexmoTransportConfig(HttpRpcTransport.CONFIG_CLASS):
 class NexmoTransport(AppositTransport):
     
     CONFIG_CLASS = NexmoTransportConfig    
-    EXPECTED_FIELDS = frozenset(['from', 'to', 'message', 'isBinary'])
+    EXPECTED_FIELDS = frozenset(['msisdn', 'to', 'text', 'isBinary'])
 
     def validate_config(self):
         config = self.get_static_config()
@@ -43,7 +43,7 @@ class NexmoTransport(AppositTransport):
         return super(NexmoTransport, self).validate_config()
 
     def get_field_values(self, request, EXPECTED_FIELDS,
-                            ignored_fields=frozenset(['channelId','applicationTriggerUUID', 'accountUUID', 'callbackType', 'applicationCallbackUrl'])):
+                            ignored_fields=frozenset(['channelId','type', 'accountUUID', 'callbackType', 'keyword'])):
         values = {}
         errors = {}
         a = json.load(request.content)
@@ -79,15 +79,15 @@ class NexmoTransport(AppositTransport):
             return
 
         log.msg("AppositTransport receiving inbound message from "
-                  "%(from)s to %(to)s" % values)
+                  "%(msisdn)s to %(to)s" % values)
 
         yield self.publish_message(
             transport_name=self.transport_name,
             message_id=message_id,
-            content=values['message'],
-            from_addr=values['from'],
+            content=values['text'],
+            from_addr=values['msisdn'],
             to_addr=values['to'],
-            provider='apposit',
+            provider='nexmo',
             transport_type=self.TRANSPORT_TYPE_LOOKUP[channel],
             transport_metadata={'apposit': {'isBinary': values['isBinary']}})
 

@@ -63,9 +63,9 @@ class TestNexmoTransport(TestAppositTransport):
 
     def send_inbound_request(self, **kwargs):
         params = {
-            'from': '251911223344',
+            'msisdn': '251911223344',
             'to': '8123',
-            'message': 'never odd or even',
+            'text': 'never odd or even',
             'isBinary': 'true',
         }
         params.update(kwargs)
@@ -74,9 +74,9 @@ class TestNexmoTransport(TestAppositTransport):
     @inlineCallbacks
     def test_inbound(self):
         response = yield self.send_inbound_request(**{
-            'from': '251911223344',
+            'msisdn': '251911223344',
             'to': '8123',
-            'message': 'so many dynamos',
+            'text': 'so many dynamos',
             'isBinary': 'true',
         })
 
@@ -87,7 +87,7 @@ class TestNexmoTransport(TestAppositTransport):
             from_addr='251911223344',
             to_addr='8123',
             content='so many dynamos',
-            provider='apposit',
+            provider='nexmo',
             transport_metadata={'apposit': {'isBinary': 'true'}})
 
         self.assertEqual(response.code, http.OK)
@@ -97,7 +97,7 @@ class TestNexmoTransport(TestAppositTransport):
     @inlineCallbacks
     def test_inbound_requests_for_non_ascii_content(self):
         response = yield self.send_inbound_request(
-            message=u'ሙከራ 2Hliðskjálf'.encode('utf-8'))
+            text=u'ሙከራ 2Hliðskjálf'.encode('utf-8'))
         [msg] = self.tx_helper.get_dispatched_inbound()
         self.assert_message_fields(msg, content=u'ሙከራ 2Hliðskjálf')
 
@@ -108,8 +108,8 @@ class TestNexmoTransport(TestAppositTransport):
     @inlineCallbacks
     def test_inbound_requests_for_unsupported_channel(self):
         response = yield self.send_full_inbound_request(**{
-            'from': '251911223344',
-            'message': 'never odd or even',
+            'msisdn': '251911223344',
+            'text': 'never odd or even',
             'isBinary': 'false',
         })
 
@@ -120,10 +120,10 @@ class TestNexmoTransport(TestAppositTransport):
     @inlineCallbacks
     def test_inbound_requests_for_unexpected_param(self):
         response = yield self.send_full_inbound_request(**{
-            'from': '251911223344',
+            'msisdn': '251911223344',
             'to': '8123',
             'steven': 'its a trap',
-            'message': 'never odd or even',
+            'text': 'never odd or even',
             'isBinary': 'false',
         })
 
@@ -134,8 +134,8 @@ class TestNexmoTransport(TestAppositTransport):
     @inlineCallbacks
     def test_inbound_requests_for_missing_param(self):
         response = yield self.send_full_inbound_request(**{
-            'from': '251911223344',
-            'message': 'never odd or even',
+            'msisdn': '251911223344',
+            'text': 'never odd or even',
             'isBinary': 'false',
         })
 
@@ -168,7 +168,7 @@ class TestNexmoTransport(TestAppositTransport):
             'from_addr': '251911223344',
             'to_addr': '8123',
             'content': 'so many dynamos',
-            'provider': 'apposit',
+            'provider': 'nexmo',
             'transport_metadata': {'apposit': {'isBinary': 'true'}},
         }
         fields.update(kwargs)
