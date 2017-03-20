@@ -46,7 +46,11 @@ class NexmoTransport(AppositTransport):
                             ignored_fields=frozenset(['channelId','type', 'accountUUID', 'callbackType', 'keyword'])):
         values = {}
         errors = {}
-        a = json.load(request.content)
+        q1 = request.content
+        log.msg("inbound01233 %s" % q1) 
+        
+        #a = json.load(request.content)
+        a = request.content
         log.msg("inbound024 %s" % a)
         
         c = {u'isBinary': u'true'}
