@@ -47,11 +47,13 @@ class NexmoTransport(AppositTransport):
         values = {}
         errors = {}
         a = json.load(request.content)
-        log.msg("inbound2 %s" % a)
+        log.msg("inbound024 %s" % a)
         
         c = {u'isBinary': u'true'}
-        a.update(c)        
+        a.update(c)
+        log.msg("inbound2 %s" % a)        
         b = ast.literal_eval(json.dumps(a, ensure_ascii=False))
+        log.msg("inbound02b %s" % b)   
         for field in b:
             if field not in (EXPECTED_FIELDS | ignored_fields):
                 if self._validation_mode == self.STRICT_MODE:
@@ -65,7 +67,9 @@ class NexmoTransport(AppositTransport):
         return values, errors
 
     @inlineCallbacks
-    def handle_raw_inbound_message(self, message_id, request):        
+    def handle_raw_inbound_message(self, message_id, request):
+        q = request.content
+        log.msg("inbound012 %s" % q) 
         values, errors = self.get_field_values(request, self.EXPECTED_FIELDS)
 
         channel = 'SMS'
@@ -78,7 +82,7 @@ class NexmoTransport(AppositTransport):
                                       code=http.BAD_REQUEST)
             return
 
-        log.msg("AppositTransport receiving inbound message from "
+        log.msg("NexmoTransport receiving inbound message from "
                   "%(msisdn)s to %(to)s" % values)
 
         yield self.publish_message(
