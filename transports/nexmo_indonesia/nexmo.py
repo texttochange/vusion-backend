@@ -72,7 +72,7 @@ class NexmoTransport(AppositTransport):
 
     @inlineCallbacks
     def handle_raw_inbound_message(self, message_id, request):
-        q = request.content
+        q = request
         log.msg("inbound012 %s" % q) 
         values, errors = self.get_field_values(request, self.EXPECTED_FIELDS)
 
