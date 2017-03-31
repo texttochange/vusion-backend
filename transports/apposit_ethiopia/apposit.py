@@ -100,8 +100,7 @@ class AppositV2Transport(AppositTransport):
                 to_addr=values['to'],
                 provider='apposit',
                 transport_type=self.TRANSPORT_TYPE_LOOKUP[channel],
-                transport_metadata={'apposit': {'isBinary': values['isBinary']}})            
-        
+                transport_metadata={'apposit': {'isBinary': values['isBinary']}})                   
 
         yield self.finish_request(
             message_id, json.dumps({'message_id': message_id}))
