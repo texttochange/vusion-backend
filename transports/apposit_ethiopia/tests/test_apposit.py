@@ -67,6 +67,7 @@ class TestAppositV2Transport(TestAppositTransport):
             'to': '8123',
             'message': 'never odd or even',
             'isBinary': 'true',
+            'callbackType': '1'
         }
         params.update(kwargs)
         return self.send_full_inbound_request(**params)
@@ -78,6 +79,7 @@ class TestAppositV2Transport(TestAppositTransport):
             'to': '8123',
             'message': 'so many dynamos',
             'isBinary': 'true',
+            'callbackType': '1'
         })
 
         [msg] = self.tx_helper.get_dispatched_inbound()
@@ -111,12 +113,25 @@ class TestAppositV2Transport(TestAppositTransport):
             'from': '251911223344',
             'message': 'never odd or even',
             'isBinary': 'false',
+            'callbackType': '1'
         })
 
         self.assertEqual(response.code, 400)
         self.assertEqual(json.loads(response.delivered_body),
                          {u'missing_parameter': [u'to']})
 
+    @inlineCallbacks
+    def test_inbound_requests_for_callback_voice_channel(self):
+        response = yield self.send_full_inbound_request(**{
+            'to': '8123',
+            'from': '251911223344',
+            'message': 'never odd or even',
+            'isBinary': 'false',
+            'callbackType': '2'
+        })
+
+        self.assertEqual(response.code, 200)
+        
     @inlineCallbacks
     def test_inbound_requests_for_unexpected_param(self):
         response = yield self.send_full_inbound_request(**{
@@ -125,6 +140,7 @@ class TestAppositV2Transport(TestAppositTransport):
             'steven': 'its a trap',
             'message': 'never odd or even',
             'isBinary': 'false',
+            'callbackType': '1'
         })
 
         self.assertEqual(response.code, 400)
@@ -137,6 +153,7 @@ class TestAppositV2Transport(TestAppositTransport):
             'from': '251911223344',
             'message': 'never odd or even',
             'isBinary': 'false',
+            'callbackType': '1'
         })
 
         self.assertEqual(response.code, 400)

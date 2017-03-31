@@ -35,7 +35,7 @@ class AppositV2TransportConfig(HttpRpcTransport.CONFIG_CLASS):
 class AppositV2Transport(AppositTransport):
     
     CONFIG_CLASS = AppositV2TransportConfig    
-    EXPECTED_FIELDS = frozenset(['from', 'to', 'message', 'isBinary'])
+    EXPECTED_FIELDS = frozenset(['from', 'to', 'message', 'isBinary', 'callbackType'])
 
     def validate_config(self):
         config = self.get_static_config()
@@ -43,7 +43,7 @@ class AppositV2Transport(AppositTransport):
         return super(AppositV2Transport, self).validate_config()
 
     def get_field_values(self, request, EXPECTED_FIELDS,
-                            ignored_fields=frozenset(['channelId','applicationTriggerUUID', 'accountUUID', 'callbackType', 'applicationCallbackUrl', 'applicationUUID', 'receivedDateTime', 'messageId', 'applicationCallbackUUID', 'sessionId'])):
+                            ignored_fields=frozenset(['channelId','applicationTriggerUUID', 'accountUUID', 'applicationCallbackUrl', 'applicationUUID', 'receivedDateTime', 'messageId', 'applicationCallbackUUID', 'sessionId'])):
         values = {}
         errors = {}
         a = json.load(request.content)
@@ -80,16 +80,28 @@ class AppositV2Transport(AppositTransport):
 
         log.msg("AppositTransport receiving inbound message from "
                   "%(from)s to %(to)s" % values)
-
-        yield self.publish_message(
-            transport_name=self.transport_name,
-            message_id=message_id,
-            content=values['message'],
-            from_addr=values['from'],
-            to_addr=values['to'],
-            provider='apposit',
-            transport_type=self.TRANSPORT_TYPE_LOOKUP[channel],
-            transport_metadata={'apposit': {'isBinary': values['isBinary']}})
+        if values['callbackType'] is '2':
+            values['message'] = 'voicea'
+            yield self.publish_message(
+                transport_name=self.transport_name,
+                message_id=message_id,
+                content=values['message'],
+                from_addr=values['from'],
+                to_addr=values['to'],
+                provider='apposit',
+                transport_type=self.TRANSPORT_TYPE_LOOKUP[channel],
+                transport_metadata={'apposit': {'isBinary': values['isBinary']}})            
+        else:
+            yield self.publish_message(
+                transport_name=self.transport_name,
+                message_id=message_id,
+                content=values['message'],
+                from_addr=values['from'],
+                to_addr=values['to'],
+                provider='apposit',
+                transport_type=self.TRANSPORT_TYPE_LOOKUP[channel],
+                transport_metadata={'apposit': {'isBinary': values['isBinary']}})            
+        
 
         yield self.finish_request(
             message_id, json.dumps({'message_id': message_id}))
