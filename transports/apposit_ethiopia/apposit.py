@@ -80,7 +80,7 @@ class AppositV2Transport(AppositTransport):
 
         log.msg("AppositTransport receiving inbound message from "
                   "%(from)s to %(to)s" % values)
-        if values['callbackType'] is '2':
+        if values['callbackType'] == 2:
             values['message'] = 'voicea'
             yield self.publish_message(
                 transport_name=self.transport_name,
