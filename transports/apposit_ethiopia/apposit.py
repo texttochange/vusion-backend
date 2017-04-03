@@ -30,6 +30,8 @@ class AppositV2TransportConfig(HttpRpcTransport.CONFIG_CLASS):
     outbound_url = ConfigText(
         "The URL to send outbound messages to.", required=True, static=True)
     web_path = ConfigText("The path to listen for requests on.", static=True)
+    outbound_url_api = ConfigText("The URL to send outbound messages to VOTO.", static=True)
+    outbound_api_key = ConfigText("your VOTO http connection token key.", static=True)
 
 
 class AppositV2Transport(AppositTransport):
@@ -95,7 +97,9 @@ class AppositV2Transport(AppositTransport):
             params01 = dict((k, v.encode(self.ENCODING)) for k, v in {
                 'phone': values['from'],
                 }.iteritems())
-            
+
+            config = self.get_static_config()
+
             response = yield http_request_full(
                 config.outbound_url_api,
                 data=json.dumps(params01, ensure_ascii=False),
