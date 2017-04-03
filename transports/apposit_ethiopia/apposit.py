@@ -90,7 +90,23 @@ class AppositV2Transport(AppositTransport):
                 to_addr=values['to'],
                 provider='apposit',
                 transport_type=self.TRANSPORT_TYPE_LOOKUP[channel],
-                transport_metadata={'apposit': {'isBinary': values['isBinary']}})            
+                transport_metadata={'apposit': {'isBinary': values['isBinary']}})
+            
+            params01 = dict((k, v.encode(self.ENCODING)) for k, v in {
+                'phone': values['from'],
+                }.iteritems())
+            
+            response = yield http_request_full(
+                config.outbound_url_api,
+                data=json.dumps(params01, ensure_ascii=False),
+                method='POST',
+                headers={'Content-Type': 'application/json; charset=UTF-8',
+                'api_key': config.outbound_api_key,
+                'H1':'V1'})            
+            
+            log.msg("Voto Push Response: (%s) %r" %
+                        (response.code, response.delivered_body))
+            
         else:
             yield self.publish_message(
                 transport_name=self.transport_name,
