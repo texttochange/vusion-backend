@@ -57,9 +57,9 @@ class TestNexmoTransport(TestAppositTransport):
     def send_full_inbound_request(self, **params):
         return http_request_full(
             '%s%s' % (self.transport_url, self.web_path),
-            data=json.dumps(params),
+            data=urlencode(params),
             method='POST',
-            headers={'Content-Type': 'application/json'})
+            headers={'Content-Type': 'application/x-www-form-urlencoded'})
 
     def send_inbound_request(self, **kwargs):
         params = {

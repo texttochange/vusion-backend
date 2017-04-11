@@ -43,28 +43,28 @@ class NexmoTransport(AppositTransport):
         return super(NexmoTransport, self).validate_config()
 
     def get_field_values(self, request, EXPECTED_FIELDS,
-                            ignored_fields=frozenset(['channelId','type', 'accountUUID', 'callbackType', 'keyword'])):
+                            ignored_fields=frozenset()):
         values = {}
         errors = {}
-        q1 = request.content
+        
+        q1 = request.getAllHeaders()
         log.msg("inbound01233 %s" % q1) 
         
         #a = json.load(request.content)
-        a = request.content
+        a = request.args
         log.msg("inbound024 %s" % a)
         
-        c = {u'isBinary': u'true'}
+        c = {'isBinary': ['true']}
         a.update(c)
-        log.msg("inbound2 %s" % a)        
-        b = ast.literal_eval(json.dumps(a, ensure_ascii=False))
-        log.msg("inbound02b %s" % b)   
-        for field in b:
+        log.msg("inbound2 %s" % a)      
+        
+        for field in request.args:
             if field not in (EXPECTED_FIELDS | ignored_fields):
                 if self._validation_mode == self.STRICT_MODE:
                     errors.setdefault('unexpected_parameter', []).append(field)
             else:
                 values[field] = (
-                    b.get(field))
+                    request.args.get(field)[0].decode(self.ENCODING))
         for field in EXPECTED_FIELDS:
             if field not in values:
                 errors.setdefault('missing_parameter', []).append(field)
