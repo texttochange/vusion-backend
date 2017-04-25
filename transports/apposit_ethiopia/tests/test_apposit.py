@@ -55,8 +55,9 @@ class TestAppositV2Transport(TestAppositTransport):
         yield super(TestAppositV2Transport, self).tearDown()
 
     def send_full_inbound_request(self, **params):
+        r = '?channel=sms'
         return http_request_full(
-            '%s%s' % (self.transport_url, self.web_path),
+            '%s%s%s' % (self.transport_url, self.web_path, r),
             data=json.dumps(params),
             method='POST',
             headers={'Content-Type': 'application/json'})

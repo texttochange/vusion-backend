@@ -43,7 +43,7 @@ class NexmoTransport(AppositTransport):
         return super(NexmoTransport, self).validate_config()
 
     def get_field_values(self, request, EXPECTED_FIELDS,
-                            ignored_fields=frozenset()):
+                            ignored_fields=frozenset(['keyword', 'message-timestamp', 'messageId', 'type'])):
         values = {}
         errors = {}
         
@@ -64,7 +64,7 @@ class NexmoTransport(AppositTransport):
                     errors.setdefault('unexpected_parameter', []).append(field)
             else:
                 values[field] = (
-                    request.args.get(field)[0].decode(self.ENCODING))
+                    request.args.get(field)[0])
         for field in EXPECTED_FIELDS:
             if field not in values:
                 errors.setdefault('missing_parameter', []).append(field)

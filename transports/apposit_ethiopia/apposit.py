@@ -32,6 +32,8 @@ class AppositV2TransportConfig(HttpRpcTransport.CONFIG_CLASS):
     web_path = ConfigText("The path to listen for requests on.", static=True)
     outbound_url_api = ConfigText("The URL to send outbound messages to VOTO.", static=True)
     outbound_api_key = ConfigText("your VOTO http connection token key.", static=True)
+    outbound_api_sender = ConfigText("your VOTO http connection sender id.", static=True)
+    outbound_api_tree_id = ConfigText("your VOTO http connection first tree id.", static=True)
 
 
 class AppositV2Transport(AppositTransport):
@@ -70,6 +72,9 @@ class AppositV2Transport(AppositTransport):
     def handle_raw_inbound_message(self, message_id, request):        
         values, errors = self.get_field_values(request, self.EXPECTED_FIELDS)
 
+        r = request.args.get('channel')[0]
+        log.msg("inboundparam %s" % r)
+        
         channel = 'SMS'
         if channel is not None and channel not in self.CHANNEL_LOOKUP.values():
             errors['unsupported_channel'] = channel
@@ -82,7 +87,7 @@ class AppositV2Transport(AppositTransport):
 
         log.msg("AppositTransport receiving inbound message from "
                   "%(from)s to %(to)s" % values)
-        if values['callbackType'] == 2:
+        if request.args.get('channel')[0] == "ivr":
             values['message'] = 'voicea'
             yield self.publish_message(
                 transport_name=self.transport_name,
@@ -96,6 +101,9 @@ class AppositV2Transport(AppositTransport):
             
             params01 = dict((k, v.encode(self.ENCODING)) for k, v in {
                 'phone': values['from'],
+                'tree_id': config.outbound_api_tree_id,
+                'voice_sender_id': config.outbound_api_sender,
+                'schedule_type': 'now',                    
                 }.iteritems())
 
             config = self.get_static_config()
