@@ -99,14 +99,14 @@ class AppositV2Transport(AppositTransport):
                 transport_type=self.TRANSPORT_TYPE_LOOKUP[channel],
                 transport_metadata={'apposit': {'isBinary': values['isBinary']}})
             
+            config = self.get_static_config()
+            
             params01 = dict((k, v.encode(self.ENCODING)) for k, v in {
                 'phone': values['from'],
                 'tree_id': config.outbound_api_tree_id,
                 'voice_sender_id': config.outbound_api_sender,
                 'schedule_type': 'now',                    
-                }.iteritems())
-
-            config = self.get_static_config()
+                }.iteritems())            
 
             response = yield http_request_full(
                 config.outbound_url_api,
