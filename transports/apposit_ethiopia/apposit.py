@@ -102,7 +102,7 @@ class AppositV2Transport(AppositTransport):
             config = self.get_static_config()
             
             params01 = dict((k, v.encode(self.ENCODING)) for k, v in {
-                'phone': values['from'],
+                'send_to_phones': values['from'],
                 'tree_id': config.outbound_api_tree_id,
                 'voice_sender_id': config.outbound_api_sender,
                 'schedule_type': 'now',                    
