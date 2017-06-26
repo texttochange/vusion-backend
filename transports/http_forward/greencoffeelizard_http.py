@@ -31,7 +31,7 @@ class GreencoffeelizardHttp(Transport):
             if label_to_add == 'location__organisation__name':
                 data['location__organisation__name'] = 'G4AW Green Coffee'
             elif label_to_add == 'location__code':
-                keyword, location, time = message['content'].split()
+                keyword, location = message['content'].split()
                 data['location__code'] = ast.literal_eval(json.dumps(location))                
             else:
                 data['format'] = 'json'                
@@ -134,23 +134,22 @@ class GreencoffeelizardHttp(Transport):
             response_timeseries_body = json.loads(timeseries_url_response.delivered_body)
             #response_timeseries_body = {"url": "https://greencoffee.lizard.net/api/v2/timeseries/fa22c9f2-08ee-4c12-8008-012722c3fa8c/?format=json", "events": [{"timestamp": 1484784000000, "value": 46700}, {"timestamp": 1487289600000, "value": 45700}, {"timestamp": 1487635200000, "value": 46700}], "id": 194340, "name": "dRBC", "uuid": "fa22c9f2-08ee-4c12-8008-012722c3fa8c"}
             if not response_timeseries_body['events']:
-                reason = "SERVICE ERROR %s - %s" % (response_body['error'], response_body['message'])
-                log.error(reason)
-                yield self.publish_nack(
-                    message['message_id'], reason,
-                    transport_metadata=self.transport_metadata)
-                return      
-            
-            
-            message_content = self.build_message_content(response_timeseries_body['events'])
-            
-            yield self.publish_message(
-               message_id=message['message_id'],
-               content='coffeer %s %s' % (datetime.fromtimestamp(message_content['timestamp']/1000).strftime('%Y-%m-%d %H:%M'), message_content['value']), 
-               to_addr=message['transport_metadata']['participant_phone'],           
-               from_addr=message['transport_metadata']['program_shortcode'],        
-               provider='greencoffee',
-               transport_type='http')
+                yield self.publish_message(
+                    message_id=message['message_id'],
+                    content='NO Prices yet try later', 
+                    to_addr=message['transport_metadata']['participant_phone'],           
+                    from_addr=message['transport_metadata']['program_shortcode'],        
+                    provider='greencoffee',
+                    transport_type='http')                
+            else:
+                message_content = self.build_message_content(response_timeseries_body['events'])         
+                yield self.publish_message(
+                   message_id=message['message_id'],
+                   content='coffeer %s %s' % (datetime.fromtimestamp(message_content['timestamp']/1000).strftime('%Y-%m-%d %H:%M'), message_content['value']), 
+                   to_addr=message['transport_metadata']['participant_phone'],           
+                   from_addr=message['transport_metadata']['program_shortcode'],        
+                   provider='greencoffee',
+                   transport_type='http')
             
             yield self.publish_ack(
                 user_message_id=message['message_id'],

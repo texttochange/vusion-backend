@@ -27,8 +27,8 @@ class GreencoffeelizardHttpTransportTestCase(VumiTestCase):
         yield self.mock_greencoffeelizard.start()
         
         self.config = {
-            'username': 'jouke.max',
-            'password': 't7yrtrree',
+            'username': 'joukemax',
+            'password': 't7888000op',
             'api': {
                 '/api/v2/timeseries/': [                    
                     'location__organisation__name',
@@ -95,7 +95,7 @@ class GreencoffeelizardHttpTransportTestCase(VumiTestCase):
             to_addr="%sapi/v2/timeseries/" % self.mock_greencoffeelizard.url,
             #to_addr= "https://greencoffee.lizard.net/api/v2/timeseries/?",
             from_addr="myprogram",
-            content="coffee EaTam54 8",
+            content="coffee EaTam54",
             message_id='1',
             transport_metadata={
                 'program_shortcode': '256-8281',
@@ -185,7 +185,7 @@ class GreencoffeelizardHttpTransportTestCase(VumiTestCase):
             to_addr="%sapi/v2/timeseries/" % self.mock_greencoffeelizard.url,
             #to_addr= "https://greencoffee.lizard.net/api/v2/timeseries/?",
             from_addr="myprogram",
-            content="coffee EaTam344 8",
+            content="coffee EaTam344",
             message_id='1',
             transport_metadata={
                 'program_shortcode': '256-8281',
