@@ -43,7 +43,7 @@ class GreencoffeelizardHttp(Transport):
 
     def build_timeseries_data(self):
         data = {}
-        prev_time = datetime.now() - timedelta(days=1)
+        prev_time = datetime.now() - timedelta(days=10)
         data['start'] = int(prev_time.strftime('%s'))*1000
         data['end'] = int(datetime.now().strftime('%s'))*1000             
         return data
@@ -101,6 +101,7 @@ class GreencoffeelizardHttp(Transport):
                 return
 
             response_body = json.loads(response.delivered_body)
+            log.msg('FRIST CALL BODY %s PARMS %s' % (response_body, urlencode(params)))
             if response_body['count'] == '0':
                 reason = "SERVICE ERROR %s - %s" % (response_body['error'], response_body['message'])
                 log.error(reason)
@@ -115,36 +116,41 @@ class GreencoffeelizardHttp(Transport):
             data_timeseries_response_url = self.build_timeseries_response(response_body['results'])
             
             timeseries_url_response = yield http_request_full(
-                    "%s&%s" % (data_timeseries_response_url.encode('ASCII'), urlencode(data_timeseries)),
+                    "%s&min_points=1000&%s" % (data_timeseries_response_url.encode('ASCII'), urlencode(data_timeseries)),
                     headers={'Content-Type': ['application/json, charset=UTF-8'],
-                     'username': [self.config['username']],
-                     'password': [self.config['password']]},
+                     'username': self.config['username'],
+                     'password': self.config['password']},
                     method='GET')
             
-            #if timeseries_url_response.code != 200:
-                #reason = "HTTP ERROR %s - %s" % (timeseries_url_responsee.code, timeseries_url_response.delivered_body)
-                #log.error(reason)
-                #yield self.publish_nack(
-                    #message['message_id'], reason,
-                    #transport_metadata=self.transport_metadata)
-                #return
+            if timeseries_url_response.code != 200:
+                reason = "HTTP ERROR %s - %s" % (timeseries_url_response.code, timeseries_url_response.delivered_body)
+                log.error(reason)
+                yield self.publish_nack(
+                    message['message_id'], reason,
+                    transport_metadata=self.transport_metadata)
+                return
                 
             response_timeseries_body = json.loads(timeseries_url_response.delivered_body)
+            if message['transport_metadata']['program_shortcode'].startswith('+'):
+                shortcode = message['transport_metadata']['program_shortcode']
+            else:
+                country, shortcode  = message['transport_metadata']['program_shortcode'].split('-')
             if not response_timeseries_body['events']:
                 yield self.publish_message(
                     message_id=message['message_id'],
-                    content='NO Prices yet try later', 
-                    to_addr=message['transport_metadata']['participant_phone'],           
-                    from_addr=message['transport_metadata']['program_shortcode'],        
+                    content=self.config['no_prices_keyword'], 
+                    to_addr=shortcode,           
+                    from_addr=message['transport_metadata']['participant_phone'],        
                     provider='greencoffee',
                     transport_type='http')                
             else:
                 message_content = self.build_message_content(response_timeseries_body['events'])         
+                log.msg("MESSAGE EVENT %s" % message_content)
                 yield self.publish_message(
                    message_id=message['message_id'],
-                   content='coffeer %s %s' % (datetime.fromtimestamp(message_content['timestamp']/1000).strftime('%Y-%m-%d %H:%M'), message_content['value']), 
-                   to_addr=message['transport_metadata']['participant_phone'],           
-                   from_addr=message['transport_metadata']['program_shortcode'],        
+                   content='%s %s %s' % (self.config['yes_prices_keyword'], datetime.fromtimestamp(message_content['timestamp']/1000).strftime('%Y-%m-%d %H:%M'), message_content['value']), 
+                   to_addr=shortcode,           
+                   from_addr=message['transport_metadata']['participant_phone'],        
                    provider='greencoffee',
                    transport_type='http')
             
