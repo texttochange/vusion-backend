@@ -185,7 +185,6 @@ class GreencoffeelizardHttpTransportTestCase(VumiTestCase):
         
         yield self.tx_helper.make_dispatch_outbound(
             to_addr="%sapi/v2/timeseries/" % self.mock_greencoffeelizard.url,
-            #to_addr= "https://greencoffee.lizard.net/api/v2/timeseries/?",
             from_addr="myprogram",
             content="coffee EaTam344",
             message_id='1',

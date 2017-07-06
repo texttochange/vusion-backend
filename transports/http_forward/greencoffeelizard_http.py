@@ -37,10 +37,7 @@ class GreencoffeelizardHttp(Transport):
                 param['format'] = 'json'                
         return param
 
-    #def get_date(self):
-    #    u = datetime.now() - timedelta(days=1)
-    #    return datetime.now().strftime('%Y-%m-%d')
-
+    
     def build_timeseries_data(self):
         data = {}
         prev_time = datetime.now() - timedelta(days=10)
@@ -49,12 +46,6 @@ class GreencoffeelizardHttp(Transport):
         return data
 
 
-    #def build_timeseries_response(self, results):
-        #response_timeseries_url = {}
-        #for result in results:
-            #response_timeseries_url = result['url']
-        #return response_timeseries_url
-    
     def build_timeseries_response(self, results):
             response_timeseries_url = {}
             for result in results:
