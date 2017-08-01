@@ -19,6 +19,7 @@ from http_forward.greencoffeelizard_http import GreencoffeelizardHttp
 from http_forward.askpeople_http import AskpeopleHttp
 from apposit_ethiopia.apposit import AppositV2Transport
 from nexmo_indonesia.nexmo import NexmoTransport
+from mobifone_vietnam.mobifone import MobifoneTransport
 
 __all__ = [
     "CmHttpTransport",
@@ -38,4 +39,5 @@ __all__ = [
     "AskpeopleHttp",
     "GreencoffeelizardHttp",
     "AppositV2Transport",
-    "NexmoTransport"]
+    "NexmoTransport",
+    "MobifoneTransport"]
