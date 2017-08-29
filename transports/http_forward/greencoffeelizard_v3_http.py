@@ -62,7 +62,7 @@ class GreencoffeelizardV3Http(Transport):
     
     @inlineCallbacks
     def handle_outbound_message(self, message):
-        log.msg("Outboung message to be processed %s" % repr(message))
+        log.msg("Outboung message testing to be processed %s" % repr(message))
         try:
             url = message['to_addr']
             url = urlparse(url)
