@@ -114,7 +114,7 @@ class MobifoneReceiveSMSResource(Resource):
     isLeaf = True
 
     def __init__(self, config, publish_func):
-        log.msg("Init ReceiveSMSResource %s" % (config))
+        log.msg("Init inbound ReceiveSMSResource %s" % (config))
         self.config = config
         self.publish_func = publish_func
         self.transport_name = self.config['transport_name']
