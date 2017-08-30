@@ -87,15 +87,7 @@ class MobifoneHttpTransport(Transport):
                 yield self.publish_nack(message['message_id'], reason)
                 return
 
-            response_attr = parse_qs(unquote(response.delivered_body))
-            [ybs_status] = response_attr['ybs_autocreate_status']
-            ybs_msg = response_attr['ybs_autocreate_message'][0] if 'ybs_autocreate_message' in response_attr else None
-            if (ybs_status == 'ERROR'):
-                reason = "SERVICE ERROR %s - %s" % (ybs_status, ybs_msg)
-                log.error(reason)
-                yield self.publish_nack(message['message_id'], reason)
-                return
-
+            
             yield self.publish_ack(
                 user_message_id=message['message_id'],
                 sent_message_id=message['message_id'])

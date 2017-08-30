@@ -73,23 +73,7 @@ class MobifoneHttpTransportTestCase(VumiTestCase):
         self.assertEqual(event['user_message_id'], '1')
         self.assertEqual(event['sent_message_id'], '1')
 
-    #@inlineCallbacks
-    #def test_outbound_ok_customized_id(self):
-        #self.mock_server_response = "ybs_autocreate_status%3DOK"
-        #self.mock_server_response_code = http.OK
-        #yield self.tx_helper.make_dispatch_outbound(
-            #"hello world",
-            #message_id = '1',
-            #transport_metadata={'customized_id': 'myid'})
-
-        #req = yield self.mobifone_calls.get()
-        #self.assertEqual('myid', req.args['origin'][0])
-
-        #[event] = yield self.tx_helper.get_dispatched_events()
-        #self.assertEqual(event['event_type'], 'ack')
-        #self.assertEqual(event['user_message_id'], '1')
-        #self.assertEqual(event['sent_message_id'], '1')
-
+    
     @inlineCallbacks
     def test_outbound_nack_http(self):
         self.mock_server_response = "timeout"
@@ -115,23 +99,7 @@ class MobifoneHttpTransportTestCase(VumiTestCase):
         self.assertEqual(event['user_message_id'], '1')
         self.assertEqual(event['nack_reason'], "TRANSPORT ERROR Connection refused")    
 
-    @inlineCallbacks
-    def test_outbound_nack_service(self):
-        self.mock_server_response = (
-            "ybs_autocreate_status%3DERROR%26"
-            "ybs_autocreate_message%3DYBS%2BAutoCreate%2B"
-            "Subsystem%3A%2BAccess%2Bdenied%2Bdue%2Bto%2B"
-            "wrong%2Bauthorization%2Bcode")
-        yield self.tx_helper.make_dispatch_outbound(
-            "hello world", message_id = '1')
-        
-        req = yield self.mobifone_calls.get()
-
-        [event] = yield self.tx_helper.get_dispatched_events()
-        self.assertEqual(event['event_type'], 'nack')
-        self.assertEqual(event['user_message_id'], '1')
-        self.assertEqual(event['nack_reason'], "SERVICE ERROR ERROR - YBS AutoCreate Subsystem: Access denied due to wrong authorization code")
-
+    
     @inlineCallbacks
     def test_inbound(self):
         url = "http://localhost:%s%s?phone=41791234567&smscenter=9292&text=Hello+World" % (
