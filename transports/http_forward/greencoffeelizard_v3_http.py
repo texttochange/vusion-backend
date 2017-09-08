@@ -28,13 +28,20 @@ class GreencoffeelizardV3Http(Transport):
     def build_data(self, message, labels_to_add):
         param = {}
         for label_to_add in labels_to_add:
-            if label_to_add == 'search':
-                keyword, location = message['content'].split()
-                param['search'] = ast.literal_eval(json.dumps(location))                
+            if label_to_add == 'q':
+                location = message['content'].split(' ', 1)[1]
+                param['q'] = ast.literal_eval(json.dumps(location))                
             else:
                 param['format'] = 'json'                
         return param
-
+    
+    def build_data_location_code(self, location_results):
+        location={}
+        location['search'] = location_results
+        location['format'] = 'json'
+        #for location_result in location_results:
+            #location_data['search'] = location_result['description']
+        return location
     
     def build_timeseries_data(self):
         data = {}
@@ -68,19 +75,54 @@ class GreencoffeelizardV3Http(Transport):
             url = urlparse(url)
             forward_url = "%s://%s%s" % (url.scheme, url.netloc, url.path)
 
+            #url_timeseries = urlparse(self.config['api_url_timeseries'])
+            #forward_url_timeseries = "%s://%s%s" % (url_timeseries.scheme, url_timeseries.netloc, url_timeseries.path)
+
             params = {} 
             if url.path in self.config['api']:
                 params = self.build_data(message, self.config['api'][url.path])
 
             log.msg('Hitting %s with %s' % (forward_url, urlencode(params)))
             
-            data_timeseries = {}            
+            response_loc_code = yield http_request_full(
+                "%s?%s" % (forward_url.encode(), urlencode(params)),
+                headers={'Content-Type': 'application/json',
+                         'username': self.config['username'],
+                         'password': self.config['password']},
+                method='GET')
+
+            if response_loc_code.code != 200:
+                reason = "HTTP ERROR %s - %s" % (response_loc_code.code, response_loc_code.delivered_body)
+                log.error(reason)
+                yield self.publish_nack(
+                    message['message_id'], reason,
+                    transport_metadata=self.transport_metadata)
+                return
+
+            response_loc_code_body = json.loads(response_loc_code.delivered_body)
+            log.msg('location code BODY %s ' % response_loc_code_body, urlencode(params))
+
+            if response_loc_code_body['count'] == '0':
+                reason = "SERVICE ERROR %s - %s" % (response_loc_code_body['error'], response_loc_code_body['message'])
+                log.error(reason)
+                yield self.publish_nack(
+                    message['message_id'], reason,
+                    transport_metadata=self.transport_metadata)
+                return
+
+            data_timeseries = {}
             data_timeseries = self.build_timeseries_data()
+            data_location_code = {}
+            #data_location_code = self.build_data_location_code('67_663_24667')
+            data_location_code = self.build_data_location_code(response_loc_code_body['results'][0]['description'])
+            #data_location_code = self.build_data_location_code(response_loc_code_body['results'])
 
             response = yield http_request_full(
-                "%s?%s&%s" % (forward_url.encode(), urlencode(params), urlencode(data_timeseries)),
-                headers={'Content-Type': 'application/json'},
-                method='GET') 
+                "%s?%s" % (self.config['api_url_timeseries'].encode(), urlencode(data_location_code)),
+                headers={'Content-Type': 'application/json',
+                         'username': self.config['username'],
+                         'password': self.config['password']},
+                method='GET')
             
             if response.code != 200:
                 reason = "HTTP ERROR %s - %s" % (response.code, response.delivered_body)
@@ -89,23 +131,10 @@ class GreencoffeelizardV3Http(Transport):
                     message['message_id'], reason,
                     transport_metadata=self.transport_metadata)
                 return
-
-            response_body = json.loads(response.delivered_body)
-            log.msg('CALL BODY %s PARMS %s AND ' % (response_body, urlencode(params), urlencode(data_timeseries)))
             
-            if response_body['count'] == '0':
-                reason = "SERVICE ERROR %s - %s" % (response_body['error'], response_body['message'])
-                log.error(reason)
-                yield self.publish_nack(
-                    message['message_id'], reason,
-                    transport_metadata=self.transport_metadata)
-                return 
-                       
-            #data_timeseries = {}            
-            #data_timeseries = self.build_timeseries_data()
             #data_timeseries_response = {}
             #data_timeseries_response_url = self.build_timeseries_response(response_body['results'])
-            
+            response_body = json.load(response.delivered_body)
             if message['transport_metadata']['program_shortcode'].startswith('+'):
                 shortcode = message['transport_metadata']['program_shortcode']
             else:
