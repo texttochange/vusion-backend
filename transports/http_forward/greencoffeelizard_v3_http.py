@@ -130,10 +130,8 @@ class GreencoffeelizardV3Http(Transport):
                 yield self.publish_nack(
                     message['message_id'], reason,
                     transport_metadata=self.transport_metadata)
-                return
+                return            
             
-            #data_timeseries_response = {}
-            #data_timeseries_response_url = self.build_timeseries_response(response_body['results'])
             response_body = json.load(response.delivered_body)
             if message['transport_metadata']['program_shortcode'].startswith('+'):
                 shortcode = message['transport_metadata']['program_shortcode']
