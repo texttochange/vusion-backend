@@ -35,8 +35,14 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
                 '/api/v3/search/': [                    
                     'q',
                     'format']},
-            'no_prices_keyword': 'NOP',
-            'yes_prices_keyword': 'coffeer',
+            'no_events_keyword': 'NOP',
+            'yes_agent_prices_keyword': 'coffeea',
+            'yes_company_prices_keyword': 'coffeec',
+            'yes_precipitation_keyword': 'prec',
+            'yes_temperature_max_keyword': 'tempx',
+            'yes_temperature_min_keyword': 'tempn',
+            'yes_wind_direction_keyword': 'windD',
+            'yes_wind_speed_keyword': 'windS',
             #'api_url_timeseries': 'https://greencoffee.lizard.net/api/v3/timeseries/'
             'api_url_timeseries': '%s/api/v3/timeseries/' % self.mock_greencoffeelizardv3_2.url
         }
@@ -527,7 +533,7 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
             #to_addr="https://greencoffee.lizard.net/api/v3/search/",
             to_addr="%sapi/v3/search/" % self.mock_greencoffeelizardv3.url,
             from_addr="myprogram",
-            content="coffee X. Kroong",
+            content="prec X. Kroong",
             message_id='1',
             transport_metadata={
                 'program_shortcode': '256-8281',

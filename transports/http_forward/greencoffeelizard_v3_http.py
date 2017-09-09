@@ -51,15 +51,34 @@ class GreencoffeelizardV3Http(Transport):
         return data
 
 
-    def build_timeseries_response(self, results):
+    def build_location_code_url_response(self, results, keyword_sent):
             response_timeseries_url = {}
             for result in results:
-                response_timeseries_url = result['url']
                 observation_type = result['observation_type']['parameter']
-                if observation_type.endswith('Agent Price'):
-                    return response_timeseries_url
+                if keyword_sent == self.config['yes_agent_prices_keyword']:
+                    if observation_type.endswith('Agent Price'):
+                        return self.build_message_content(result['events'])
+                elif keyword_sent == self.config['yes_company_prices_keyword']:
+                    if observation_type.endswith('Company Price'):
+                        return self.build_message_content(result['events'])
+                elif keyword_sent == self.config['yes_precipitation_keyword']:
+                    if observation_type == 'Precipitation':
+                        return self.build_message_content(result['events'])
+                elif keyword_sent == self.config['yes_temperature_max_keyword']:
+                    if observation_type == 'Maximum Temperature':
+                        return self.build_message_content(result['events'])                    
+                elif keyword_sent == self.config['yes_temperature_min_keyword']:
+                    if observation_type == 'Minimum Temperature':
+                        return self.build_message_content(result['events'])
+                elif keyword_sent == self.config['yes_wind_direction_keyword']:
+                    if observation_type == 'Wind Direction':
+                        return self.build_message_content(result['events'])
+                elif keyword_sent == self.config['yes_wind_speed_keyword']:
+                    if observation_type == 'Wind Speed':
+                        return self.build_message_content(result['events'])
                 else:
                     return
+            
 
     def build_message_content(self, events):
             event_contents = {}
@@ -74,9 +93,6 @@ class GreencoffeelizardV3Http(Transport):
             url = message['to_addr']
             url = urlparse(url)
             forward_url = "%s://%s%s" % (url.scheme, url.netloc, url.path)
-
-            #url_timeseries = urlparse(self.config['api_url_timeseries'])
-            #forward_url_timeseries = "%s://%s%s" % (url_timeseries.scheme, url_timeseries.netloc, url_timeseries.path)
 
             params = {} 
             if url.path in self.config['api']:
@@ -113,7 +129,6 @@ class GreencoffeelizardV3Http(Transport):
             data_timeseries = {}
             data_timeseries = self.build_timeseries_data()
             data_location_code = {}
-            #data_location_code = self.build_data_location_code('67_663_24667')
             data_location_code = self.build_data_location_code(response_loc_code_body['results'][0]['description'])
             #data_location_code = self.build_data_location_code(response_loc_code_body['results'])
 
@@ -132,30 +147,31 @@ class GreencoffeelizardV3Http(Transport):
                     transport_metadata=self.transport_metadata)
                 return            
             
-            response_body = json.load(response.delivered_body)
+            response_body = json.loads(response.delivered_body)
             if message['transport_metadata']['program_shortcode'].startswith('+'):
                 shortcode = message['transport_metadata']['program_shortcode']
             else:
                 country, shortcode  = message['transport_metadata']['program_shortcode'].split('-')
-            if not response_body['events']:
+            
+            if response_body['count'] == 0:
                 yield self.publish_message(
                     message_id=message['message_id'],
-                    content=self.config['no_prices_keyword'], 
+                    content=self.config['no_events_keyword'], 
+                    to_addr=shortcode,           
+                    from_addr=message['transport_metadata']['participant_phone'],        
+                    provider='greencoffee',
+                    transport_type='http')
+            else:
+                keyword_sent = message['content'].split(' ', 1)[0]
+                message_content = self.build_location_code_url_response(response_body['results'], keyword_sent)
+                yield self.publish_message(
+                    message_id=message['message_id'],
+                    content='%s %s %s' % (keyword_sent, datetime.fromtimestamp(message_content['timestamp']/1000).strftime('%Y-%m-%d %H:%M'), message_content['max']), 
                     to_addr=shortcode,           
                     from_addr=message['transport_metadata']['participant_phone'],        
                     provider='greencoffee',
                     transport_type='http')                
-            else:
-                message_content = self.build_message_content(response_body['events'])         
-                log.msg("MESSAGE EVENT %s" % message_content)
-                yield self.publish_message(
-                   message_id=message['message_id'],
-                   content='%s %s %s' % (self.config['yes_prices_keyword'], datetime.fromtimestamp(message_content['timestamp']/1000).strftime('%Y-%m-%d %H:%M'), message_content['value']), 
-                   to_addr=shortcode,           
-                   from_addr=message['transport_metadata']['participant_phone'],        
-                   provider='greencoffee',
-                   transport_type='http')
-            
+                
             yield self.publish_ack(
                 user_message_id=message['message_id'],
                 sent_message_id=message['message_id'],
