@@ -52,33 +52,30 @@ class GreencoffeelizardV3Http(Transport):
 
 
     def build_location_code_url_response(self, results, keyword_sent):
-            response_timeseries_url = {}
+            #response_timeseries_url = {}
+            response_dic_content = {}
             for result in results:
                 observation_type = result['observation_type']['parameter']
                 if keyword_sent == self.config['yes_agent_prices_keyword']:
                     if observation_type.endswith('Agent Price'):
-                        return self.build_message_content(result['events'])
+                        response_dic_content['AgentPrice'] = self.build_message_content(result['events'])
+                        return response_dic_content
                 elif keyword_sent == self.config['yes_company_prices_keyword']:
                     if observation_type.endswith('Company Price'):
-                        return self.build_message_content(result['events'])
-                elif keyword_sent == self.config['yes_precipitation_keyword']:
+                        response_dic_content['CompanyPrice'] = self.build_message_content(result['events'])
+                        return response_dic_content
+                elif keyword_sent == self.config['yes_weather_keyword']:
                     if observation_type == 'Precipitation':
-                        return self.build_message_content(result['events'])
-                elif keyword_sent == self.config['yes_temperature_max_keyword']:
-                    if observation_type == 'Maximum Temperature':
-                        return self.build_message_content(result['events'])                    
-                elif keyword_sent == self.config['yes_temperature_min_keyword']:
-                    if observation_type == 'Minimum Temperature':
-                        return self.build_message_content(result['events'])
-                elif keyword_sent == self.config['yes_wind_direction_keyword']:
-                    if observation_type == 'Wind Direction':
-                        return self.build_message_content(result['events'])
-                elif keyword_sent == self.config['yes_wind_speed_keyword']:
-                    if observation_type == 'Wind Speed':
-                        return self.build_message_content(result['events'])
-                else:
-                    return
-            
+                        response_dic_content['Precipitation'] = self.build_message_content(result['events'])
+                    elif observation_type == 'Maximum Temperature':
+                        response_dic_content['MaxTemp'] = self.build_message_content(result['events'])
+                    elif observation_type == 'Minimum Temperature':
+                        response_dic_content['MinTemp'] = self.build_message_content(result['events'])
+                    elif observation_type == 'Wind Direction':
+                        response_dic_content['WindDir'] = self.build_message_content(result['events'])
+                    elif observation_type == 'Wind Speed':
+                        response_dic_content['WindSpeed'] = self.build_message_content(result['events'])
+            return response_dic_content
 
     def build_message_content(self, events):
             event_contents = {}
@@ -156,21 +153,30 @@ class GreencoffeelizardV3Http(Transport):
             if response_body['count'] == 0:
                 yield self.publish_message(
                     message_id=message['message_id'],
-                    content=self.config['no_events_keyword'], 
+                    content=self.config['no_count_keyword'],
                     to_addr=shortcode,           
                     from_addr=message['transport_metadata']['participant_phone'],        
                     provider='greencoffee',
                     transport_type='http')
             else:
                 keyword_sent = message['content'].split(' ', 1)[0]
-                message_content = self.build_location_code_url_response(response_body['results'], keyword_sent)
-                yield self.publish_message(
-                    message_id=message['message_id'],
-                    content='%s %s %s' % (keyword_sent, datetime.fromtimestamp(message_content['timestamp']/1000).strftime('%Y-%m-%d %H:%M'), message_content['max']), 
-                    to_addr=shortcode,           
-                    from_addr=message['transport_metadata']['participant_phone'],        
-                    provider='greencoffee',
-                    transport_type='http')                
+                keywords_inuse = [self.config['yes_agent_prices_keyword'],
+                                  self.config['yes_company_prices_keyword'],
+                                  self.config['yes_weather_keyword']]
+                if keyword_sent in keywords_inuse:
+                    event_contents = self.build_location_code_url_response(response_body['results'], keyword_sent)
+                    for k, v in event_contents.iteritems():
+                        message_content = v
+                        
+                    yield self.publish_message(
+                        message_id=message['message_id'],
+                        content='%s %s %s' % (self.config['yes_feedback_keyword'],
+                                              datetime.fromtimestamp(message_content['timestamp']/1000).strftime('%Y-%m-%d %H:%M'),
+                                              message_content['max']), 
+                        to_addr=shortcode,
+                        from_addr=message['transport_metadata']['participant_phone'],
+                        provider='greencoffee',
+                        transport_type='http')
                 
             yield self.publish_ack(
                 user_message_id=message['message_id'],

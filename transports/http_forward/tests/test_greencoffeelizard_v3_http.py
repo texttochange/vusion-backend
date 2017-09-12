@@ -35,14 +35,12 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
                 '/api/v3/search/': [                    
                     'q',
                     'format']},
-            'no_events_keyword': 'NOP',
+            'no_count_keyword': 'nolocation',
+            'no_events_at_loaction_keyword': 'nolater',
             'yes_agent_prices_keyword': 'coffeea',
             'yes_company_prices_keyword': 'coffeec',
-            'yes_precipitation_keyword': 'prec',
-            'yes_temperature_max_keyword': 'tempx',
-            'yes_temperature_min_keyword': 'tempn',
-            'yes_wind_direction_keyword': 'windD',
-            'yes_wind_speed_keyword': 'windS',
+            'yes_weather_keyword': 'weatherall',
+            'yes_feedback_keyword': 'kfeedback',
             #'api_url_timeseries': 'https://greencoffee.lizard.net/api/v3/timeseries/'
             'api_url_timeseries': '%s/api/v3/timeseries/' % self.mock_greencoffeelizardv3_2.url
         }
@@ -67,11 +65,8 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
         self.greencoffeelizardv3_calls_body.append(request.content.read())
         request.setResponseCode(self.mock_greencoffeelizardv3_response_code)
         return self.mock_greencoffeelizardv3_response2
-    
 
-
-    @inlineCallbacks
-    def test_outbound_get_timeseries_url(self):
+    def mock_response(self):
         response_body2 = {
             "count": 7,
             "results": [
@@ -420,61 +415,61 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
                         ],
                     "percentiles": []
                     },
-                {
-                    "url": "https://greencoffee.lizard.net/api/v3/timeseries/a28357b3-12f7-49ca-98e3-f2b317b25075/?format=json",
-                    "id": 201013,
-                    "uuid": "a28357b3-12f7-49ca-98e3-f2b317b25075",
-                    "name": "WNDSPD",
-                    "code": "WNDSPD",
-                    "value_type": "float",
-                    "location": {
-                        "url": "https://greencoffee.lizard.net/api/v3/locations/395e4c40-107d-4294-9c12-6d046bc5e314/?format=json",
-                        "uuid": "395e4c40-107d-4294-9c12-6d046bc5e314",
-                        "name": "67_663_24667",
-                        "code": "67_663_24667",
-                        "geometry": {
-                            "type": "Point",
-                            "coordinates": [
-                                107.6201020496574,
-                                12.57096549076355,
-                                0
-                            ]
-                        }
-                        },
-                    "observation_type": {
-                        "url": "https://greencoffee.lizard.net/api/v3/observationtypes/554/?format=json",
-                        "code": "WNDSPD",
-                        "parameter": "Wind Speed",
-                        "unit": "m/s",
-                        "scale": "interval",
-                        "description": "",
-                        "reference_frame": "",
-                        "compartment": ""
-                        },
-                    "access_modifier": "Private",
-                    "supplier_code": "WNDSPD",
-                    "start": 1498780800000,
-                    "end": 1502409600000,
-                    "last_value": 2,
-                    "events": [
-                        {
-                            "max": 2,
-                            "timestamp": 1498867200000,
-                            "min": 2
-                            },
-                        {
-                            "max": 2,
-                            "timestamp": 1501394400000,
-                            "min": 2
-                            },
-                        {
-                            "max": 2,
-                            "timestamp": 1501502400000,
-                            "min": 2
-                        }
-                        ],
-                    "percentiles": []
-                }
+                #{
+                    #"url": "https://greencoffee.lizard.net/api/v3/timeseries/a28357b3-12f7-49ca-98e3-f2b317b25075/?format=json",
+                    #"id": 201013,
+                    #"uuid": "a28357b3-12f7-49ca-98e3-f2b317b25075",
+                    #"name": "WNDSPD",
+                    #"code": "WNDSPD",
+                    #"value_type": "float",
+                    #"location": {
+                        #"url": "https://greencoffee.lizard.net/api/v3/locations/395e4c40-107d-4294-9c12-6d046bc5e314/?format=json",
+                        #"uuid": "395e4c40-107d-4294-9c12-6d046bc5e314",
+                        #"name": "67_663_24667",
+                        #"code": "67_663_24667",
+                        #"geometry": {
+                            #"type": "Point",
+                            #"coordinates": [
+                                #107.6201020496574,
+                                #12.57096549076355,
+                                #0
+                            #]
+                        #}
+                        #},
+                    #"observation_type": {
+                        #"url": "https://greencoffee.lizard.net/api/v3/observationtypes/554/?format=json",
+                        #"code": "WNDSPD",
+                        #"parameter": "Wind Speed",
+                        #"unit": "m/s",
+                        #"scale": "interval",
+                        #"description": "",
+                        #"reference_frame": "",
+                        #"compartment": ""
+                        #},
+                    #"access_modifier": "Private",
+                    #"supplier_code": "WNDSPD",
+                    #"start": 1498780800000,
+                    #"end": 1502409600000,
+                    #"last_value": 2,
+                    #"events": [
+                        #{
+                            #"max": 2,
+                            #"timestamp": 1498867200000,
+                            #"min": 2
+                            #},
+                        #{
+                            #"max": 2,
+                            #"timestamp": 1501394400000,
+                            #"min": 2
+                            #},
+                        #{
+                            #"max": 2,
+                            #"timestamp": 1501502400000,
+                            #"min": 2
+                        #}
+                        #],
+                    #"percentiles": []
+                #}
             ]
         }
         
@@ -494,7 +489,7 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
                         108.2852213121359,
                         12
                     ]
-                    },
+                },
                 {
                     "id": 516921,
                     "title": "X. AYun",
@@ -508,7 +503,7 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
                         108.1675569741558,
                         12
                     ]
-                    },
+                },
                 {
                     "id": 516927,
                     "title": "X. AYun H",
@@ -524,16 +519,23 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
                     ]
                 }
             ]
-        }
+            }
         
         self.mock_greencoffeelizardv3_response = json.dumps(response_body)
-        self.mock_greencoffeelizardv3_response2 = json.dumps(response_body2)
+        self.mock_greencoffeelizardv3_response2 = json.dumps(response_body2)        
+        
 
+
+    @inlineCallbacks
+    def test_outbound_get_content_for_agent_price(self):
+        self.mock_response()
+        
         yield self.tx_helper.make_dispatch_outbound(
             #to_addr="https://greencoffee.lizard.net/api/v3/search/",
             to_addr="%sapi/v3/search/" % self.mock_greencoffeelizardv3.url,
             from_addr="myprogram",
-            content="prec X. Kroong",
+            #content="weatherall X. Kroong",
+            content="coffeea X. Kroong",
             message_id='1',
             transport_metadata={
                 'program_shortcode': '256-8281',
@@ -557,78 +559,60 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
         #self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
         
         
-    #@inlineCallbacks
-    #def test_outbound_get_timeseries_value(self):
-        #response_body = {
-            #"count": 2,
-            #"results": [
-                #{
-                    #"url": "%sapi/v2/timeseries/f440e143-c8f1-478d-b7b2-0275bcc6040a/?format=json" % self.mock_greencoffeelizard.url,
-                    #"id": 194339,
-                    #"uuid": "f440e143-c8f1-478d-b7b2-0275bcc6040a",
-                    #"name": "dRBA",
-                    #"organisation_code": "dRBA",
-                    #"observation_type":{
-                        #"url":"https://greencoffee.lizard.net/api/v2/parameterreferencedunits/566/?format=json",
-                        #"code":"dRBA",
-                        #"parameter_short_display_name":"Robusta, Bean, Agent Price",
-                        #"referenced_unit_short_display_name":"d/kg","scale":"interval","description":"",
-                        #"reference_frame":"",
-                        #"compartment":""
-                    #},
-                #},
-                
-            #{
-                #"url": "%sapi/v2/timeseries/fa22c9f2-08ee-4c12-8008-012722c3fa8c/?format=json" % self.mock_greencoffeelizard.url,
-                #"id": 194340,
-                #"uuid": "fa22c9f2-08ee-4c12-8008-012722c3fa8c",
-                #"name": "dRBC",
-                #"organisation_code": "dRBC",
-                #"observation_type":{
-                    #"url":"https://greencoffee.lizard.net/api/v2/parameterreferencedunits/567/?format=json",
-                    #"code":"dRBC",
-                    #"parameter_short_display_name":"Robusta, Bean, Company Price",
-                    #"referenced_unit_short_display_name":"d/kg",
-                    #"scale":"interval","description":"",
-                    #"reference_frame":"","compartment":""
-                #},
-            #}
-            #],
-            #"events": [
-                #{
-                    #"timestamp": 1484784000000,
-                    #"value": 46700
-                #},
-                #{
-                    #"timestamp": 1487289600000,
-                    #"value": 45700
-                #},
-                #{
-                    #"timestamp": 1487635200000,
-                    #"value": 46700
-                #}
-            #]
-        #}
-
-        #self.mock_greencoffeelizard_response = json.dumps(response_body)
+    @inlineCallbacks
+    def test_outbound_sent_weather_keyword(self):
+        self.mock_response()
         
-        #yield self.tx_helper.make_dispatch_outbound(
-            #to_addr="%sapi/v2/timeseries/" % self.mock_greencoffeelizard.url,
-            #from_addr="myprogram",
-            #content="coffee EaTam344",
-            #message_id='1',
-            #transport_metadata={
-                #'program_shortcode': '+2568281',
-                #'participant_phone': '+6',
-                #'participant_profile': [
-                    #{'label': 'reporterid',
-                     #'value': '708'}]})
+        yield self.tx_helper.make_dispatch_outbound(
+            to_addr="%sapi/v3/search/" % self.mock_greencoffeelizardv3.url,
+            from_addr="myprogram",
+            content="weatherall X. Kroong",
+            message_id='1',
+            transport_metadata={
+                'program_shortcode': '+2568281',
+                'participant_phone': '+6',
+                'participant_profile': [
+                    {'label': 'reporterid',
+                     'value': '708'}]})
+        
+        req = yield self.mock_greencoffeelizardv3_response
+        reqdic = ast.literal_eval(req)
+                
+        req2 = yield self.mock_greencoffeelizardv3_response2
+        reqdic2 = ast.literal_eval(req2)
+        [event] = yield self.tx_helper.get_dispatched_events()
+        self.assertEqual(event['event_type'], 'ack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
+    
+    
+    @inlineCallbacks
+    def test_outbound_sent_worng_keyword(self):
+        self.mock_response()
+        
+        yield self.tx_helper.make_dispatch_outbound(
+            to_addr="%sapi/v3/search/" % self.mock_greencoffeelizardv3.url,
+            from_addr="myprogram",
+            content="coffee X. Kroong",
+            message_id='1',
+            transport_metadata={
+                'program_shortcode': '+2568281',
+                'participant_phone': '+6',
+                'participant_profile': [
+                    {'label': 'reporterid',
+                     'value': '708'}]})
+
+        req = yield self.mock_greencoffeelizardv3_response
+        reqdic = ast.literal_eval(req)
+
+        req2 = yield self.mock_greencoffeelizardv3_response2
+        reqdic2 = ast.literal_eval(req2)        
         #req = yield self.mock_greencoffeelizard_response
         #reqdic = ast.literal_eval(req)
         #self.assertEqual(
             #reqdic['events'],
             #[{"timestamp": 1484784000000, "value": 46700}, {"timestamp": 1487289600000, "value": 45700}, {"timestamp": 1487635200000, "value": 46700}])        
-        #[event] = yield self.tx_helper.get_dispatched_events()
-        #self.assertEqual(event['event_type'], 'ack')
-        #self.assertEqual(event['user_message_id'], '1')
-        #self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
+        [event] = yield self.tx_helper.get_dispatched_events()
+        self.assertEqual(event['event_type'], 'ack')
+        self.assertEqual(event['user_message_id'], '1')
+        self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
