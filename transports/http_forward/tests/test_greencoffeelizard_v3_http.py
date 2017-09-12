@@ -415,61 +415,61 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
                         ],
                     "percentiles": []
                     },
-                #{
-                    #"url": "https://greencoffee.lizard.net/api/v3/timeseries/a28357b3-12f7-49ca-98e3-f2b317b25075/?format=json",
-                    #"id": 201013,
-                    #"uuid": "a28357b3-12f7-49ca-98e3-f2b317b25075",
-                    #"name": "WNDSPD",
-                    #"code": "WNDSPD",
-                    #"value_type": "float",
-                    #"location": {
-                        #"url": "https://greencoffee.lizard.net/api/v3/locations/395e4c40-107d-4294-9c12-6d046bc5e314/?format=json",
-                        #"uuid": "395e4c40-107d-4294-9c12-6d046bc5e314",
-                        #"name": "67_663_24667",
-                        #"code": "67_663_24667",
-                        #"geometry": {
-                            #"type": "Point",
-                            #"coordinates": [
-                                #107.6201020496574,
-                                #12.57096549076355,
-                                #0
-                            #]
-                        #}
-                        #},
-                    #"observation_type": {
-                        #"url": "https://greencoffee.lizard.net/api/v3/observationtypes/554/?format=json",
-                        #"code": "WNDSPD",
-                        #"parameter": "Wind Speed",
-                        #"unit": "m/s",
-                        #"scale": "interval",
-                        #"description": "",
-                        #"reference_frame": "",
-                        #"compartment": ""
-                        #},
-                    #"access_modifier": "Private",
-                    #"supplier_code": "WNDSPD",
-                    #"start": 1498780800000,
-                    #"end": 1502409600000,
-                    #"last_value": 2,
-                    #"events": [
-                        #{
-                            #"max": 2,
-                            #"timestamp": 1498867200000,
-                            #"min": 2
-                            #},
-                        #{
-                            #"max": 2,
-                            #"timestamp": 1501394400000,
-                            #"min": 2
-                            #},
-                        #{
-                            #"max": 2,
-                            #"timestamp": 1501502400000,
-                            #"min": 2
-                        #}
-                        #],
-                    #"percentiles": []
-                #}
+                {
+                    "url": "https://greencoffee.lizard.net/api/v3/timeseries/a28357b3-12f7-49ca-98e3-f2b317b25075/?format=json",
+                    "id": 201013,
+                    "uuid": "a28357b3-12f7-49ca-98e3-f2b317b25075",
+                    "name": "WNDSPD",
+                    "code": "WNDSPD",
+                    "value_type": "float",
+                    "location": {
+                        "url": "https://greencoffee.lizard.net/api/v3/locations/395e4c40-107d-4294-9c12-6d046bc5e314/?format=json",
+                        "uuid": "395e4c40-107d-4294-9c12-6d046bc5e314",
+                        "name": "67_663_24667",
+                        "code": "67_663_24667",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [
+                                107.6201020496574,
+                                12.57096549076355,
+                                0
+                            ]
+                        }
+                        },
+                    "observation_type": {
+                        "url": "https://greencoffee.lizard.net/api/v3/observationtypes/554/?format=json",
+                        "code": "WNDSPD",
+                        "parameter": "Wind Speed",
+                        "unit": "m/s",
+                        "scale": "interval",
+                        "description": "",
+                        "reference_frame": "",
+                        "compartment": ""
+                        },
+                    "access_modifier": "Private",
+                    "supplier_code": "WNDSPD",
+                    "start": 1498780800000,
+                    "end": 1502409600000,
+                    "last_value": 2,
+                    "events": [
+                        {
+                            "max": 2,
+                            "timestamp": 1498867200000,
+                            "min": 2
+                            },
+                        {
+                            "max": 2,
+                            "timestamp": 1501394400000,
+                            "min": 2
+                            },
+                        {
+                            "max": 2,
+                            "timestamp": 1501502400000,
+                            "min": 2
+                        }
+                        ],
+                    "percentiles": []
+                }
             ]
         }
         
