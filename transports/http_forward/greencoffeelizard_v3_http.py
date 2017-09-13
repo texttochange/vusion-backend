@@ -56,15 +56,15 @@ class GreencoffeelizardV3Http(Transport):
             response_dic_content = {}
             for result in results:
                 observation_type = result['observation_type']['parameter']
-                if keyword_sent == self.config['yes_agent_prices_keyword']:
+                if keyword_sent == self.config.get('yes_agent_prices_keyword'):
                     if observation_type.endswith('Agent Price'):
                         response_dic_content['AgentPrice'] = self.build_message_content(result['events'])
                         return response_dic_content
-                elif keyword_sent == self.config['yes_company_prices_keyword']:
+                elif keyword_sent == self.config.get('yes_company_prices_keyword'):
                     if observation_type.endswith('Company Price'):
                         response_dic_content['CompanyPrice'] = self.build_message_content(result['events'])
                         return response_dic_content
-                elif keyword_sent == self.config['yes_weather_keyword']:
+                elif keyword_sent == self.config.get('yes_weather_keyword'):
                     if observation_type == 'Precipitation':
                         response_dic_content['Precipitation'] = self.build_message_content(result['events'])
                     elif observation_type == 'Maximum Temperature':
@@ -100,8 +100,8 @@ class GreencoffeelizardV3Http(Transport):
             response_loc_code = yield http_request_full(
                 "%s?%s" % (forward_url.encode(), urlencode(params)),
                 headers={'Content-Type': 'application/json',
-                         'username': self.config['username'],
-                         'password': self.config['password']},
+                         'username': self.config.get('username'),
+                         'password': self.config.get('password')},
                 method='GET')
 
             if response_loc_code.code != 200:
@@ -116,7 +116,7 @@ class GreencoffeelizardV3Http(Transport):
             log.msg('location code BODY %s ' % response_loc_code_body, urlencode(params))
 
             if response_loc_code_body['count'] == '0':
-                reason = "SERVICE ERROR %s - %s" % (response_loc_code_body['error'], response_loc_code_body['message'])
+                reason = "No LocationCode at this Location %s - %s" % (response_loc_code_body['error'], response_loc_code_body['message'])
                 log.error(reason)
                 yield self.publish_nack(
                     message['message_id'], reason,
@@ -127,20 +127,20 @@ class GreencoffeelizardV3Http(Transport):
             data_timeseries = self.build_timeseries_data()
             data_location_code = {}
             data_location_code = self.build_data_location_code(response_loc_code_body['results'][0]['description'])
-            #data_location_code = self.build_data_location_code(response_loc_code_body['results'])
 
             response = yield http_request_full(
                 "%s?%s" % (self.config['api_url_timeseries'].encode(), urlencode(data_location_code)),
                 headers={'Content-Type': 'application/json',
-                         'username': self.config['username'],
-                         'password': self.config['password']},
+                         'username': self.config.get('username'),
+                         'password': self.config.get('password')},
                 method='GET')
             
             if response.code != 200:
                 reason = "HTTP ERROR %s - %s" % (response.code, response.delivered_body)
                 log.error(reason)
                 yield self.publish_nack(
-                    message['message_id'], reason,
+                    message['message_id'],
+                    reason,
                     transport_metadata=self.transport_metadata)
                 return            
             
@@ -153,16 +153,16 @@ class GreencoffeelizardV3Http(Transport):
             if response_body['count'] == 0:
                 yield self.publish_message(
                     message_id=message['message_id'],
-                    content=self.config['no_count_keyword'],
+                    content=self.config.get('no_count_keyword'),
                     to_addr=shortcode,           
                     from_addr=message['transport_metadata']['participant_phone'],        
                     provider='greencoffee',
                     transport_type='http')
             else:
                 keyword_sent = message['content'].split(' ', 1)[0]
-                keywords_inuse = [self.config['yes_agent_prices_keyword'],
-                                  self.config['yes_company_prices_keyword'],
-                                  self.config['yes_weather_keyword']]
+                keywords_inuse = [self.config.get('yes_agent_prices_keyword'),
+                                  self.config.get('yes_company_prices_keyword'),
+                                  self.config.get('yes_weather_keyword')]
                 if keyword_sent in keywords_inuse:
                     event_contents = self.build_location_code_url_response(response_body['results'], keyword_sent)
                     for k, v in event_contents.iteritems():
@@ -170,7 +170,7 @@ class GreencoffeelizardV3Http(Transport):
                         
                     yield self.publish_message(
                         message_id=message['message_id'],
-                        content='%s %s %s' % (self.config['yes_feedback_keyword'],
+                        content='%s %s %s' % (self.config.get('yes_feedback_keyword'),
                                               datetime.fromtimestamp(message_content['timestamp']/1000).strftime('%Y-%m-%d %H:%M'),
                                               message_content['max']), 
                         to_addr=shortcode,
