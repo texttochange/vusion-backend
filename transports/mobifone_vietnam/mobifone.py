@@ -69,7 +69,7 @@ class MobifoneHttpTransport(Transport):
                     'msg_name': 'send_sms',
                     'session_id': response_login_body['session_id'],
                     'msisdn': message['to_addr'],
-                    'sms_template_code': '127701',
+                    'sms_template_code': self.config.get('sms_template_code'),
                     'param1': message['content'],
                     }
         
