@@ -30,7 +30,7 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
         
         self.config = {
             'username': 'jo324444',
-            'password': 'rrfff',
+            'password': 'rrfffrrr',
             'api': {
                 '/api/v3/search/': [                    
                     'q',
