@@ -1,0 +1,47 @@
+{
+    "count": 3,
+    "results": [
+        {
+            "id": 517060,
+            "title": "X. Ayun",
+            "description": "64_629_23797",
+            "rank": 1.12597,
+            "entity_name": "measuringstation",
+            "entity_id": 206439,
+            "entity_url": "https://greencoffee.lizard.net/api/v3/measuringstations/206439/",
+            "view": [
+                14.14652640139809,
+                108.2852213121359,
+                12
+            ]
+        },
+        {
+            "id": 516921,
+            "title": "X. AYun",
+            "description": "64_633_23956",
+            "rank": 1.12597,
+            "entity_name": "measuringstation",
+            "entity_id": 206300,
+            "entity_url": "https://greencoffee.lizard.net/api/v3/measuringstations/206300/",
+            "view": [
+                13.69803938252308,
+                108.1675569741558,
+                12
+            ]
+        },
+        {
+            "id": 516927,
+            "title": "X. AYun H",
+            "description": "64_638_24048",
+            "rank": 1.12273,
+            "entity_name": "measuringstation",
+            "entity_id": 206306,
+            "entity_url": "https://greencoffee.lizard.net/api/v3/measuringstations/206306/",
+            "view": [
+                13.55530111736451,
+                108.2507778264543,
+                12
+            ]
+        }
+    ]
+}

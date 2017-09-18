@@ -31,6 +31,7 @@ class MobifoneHttpTransportTestCase(VumiTestCase):
             'mobipassword': 'passwordL',
             'default_origin': '8282',
             'receive_path': '/mobifone',
+            'sms_template_code': '127701',
             'receive_port': 9998}
         self.tx_helper = self.add_helper(TransportHelper(MobifoneHttpTransport))
         self.transport = yield self.tx_helper.get_transport(self.config)
