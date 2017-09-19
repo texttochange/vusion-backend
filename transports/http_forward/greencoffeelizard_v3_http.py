@@ -113,14 +113,21 @@ class GreencoffeelizardV3Http(Transport):
                 return
 
             response_loc_code_body = json.loads(response_loc_code.delivered_body)
-            log.msg('location code BODY %s ' % response_loc_code_body, urlencode(params))
+            log.msg('location code BODY %s' % response_loc_code_body)
+            
+            if message['transport_metadata']['program_shortcode'].startswith('+'):
+                shortcode = message['transport_metadata']['program_shortcode']
+            else:
+                country, shortcode  = message['transport_metadata']['program_shortcode'].split('-')            
 
-            if response_loc_code_body['count'] == '0':
-                reason = "No LocationCode at this Location %s - %s" % (response_loc_code_body['error'], response_loc_code_body['message'])
-                log.error(reason)
-                yield self.publish_nack(
-                    message['message_id'], reason,
-                    transport_metadata=self.transport_metadata)
+            if response_loc_code_body['count'] == 0:                
+                yield self.publish_message(
+                    message_id=message['message_id'],
+                    content=self.config.get('no_count_loc_code_keyword'),
+                    to_addr=shortcode,           
+                    from_addr=message['transport_metadata']['participant_phone'],        
+                    provider='greencoffee',
+                    transport_type='http')
                 return
 
             data_timeseries = {}
@@ -128,8 +135,11 @@ class GreencoffeelizardV3Http(Transport):
             data_location_code = {}
             data_location_code = self.build_data_location_code(response_loc_code_body['results'][0]['description'])
 
+            log.msg('loctioncode data: %s ' % data_location_code)
             response = yield http_request_full(
-                "%s?%s" % (self.config['api_url_timeseries'].encode(), urlencode(data_location_code)),
+                "%s?%s&%s" % (self.config.get('api_url_timeseries').encode(),
+                           urlencode(data_location_code),
+                           urlencode(data_timeseries)),
                 headers={'Content-Type': 'application/json',
                          'username': self.config.get('username'),
                          'password': self.config.get('password')},
@@ -144,16 +154,12 @@ class GreencoffeelizardV3Http(Transport):
                     transport_metadata=self.transport_metadata)
                 return            
             
-            response_body = json.loads(response.delivered_body)
-            if message['transport_metadata']['program_shortcode'].startswith('+'):
-                shortcode = message['transport_metadata']['program_shortcode']
-            else:
-                country, shortcode  = message['transport_metadata']['program_shortcode'].split('-')
+            response_body = json.loads(response.delivered_body)            
             
             if response_body['count'] == 0:
                 yield self.publish_message(
                     message_id=message['message_id'],
-                    content=self.config.get('no_count_keyword'),
+                    content=self.config.get('no_count_results_keyword'),
                     to_addr=shortcode,           
                     from_addr=message['transport_metadata']['participant_phone'],        
                     provider='greencoffee',
@@ -165,9 +171,10 @@ class GreencoffeelizardV3Http(Transport):
                                   self.config.get('yes_weather_keyword')]
                 if keyword_sent in keywords_inuse:
                     event_contents = self.build_location_code_url_response(response_body['results'], keyword_sent)
+                    log.msg('Event contents %s' % event_contents) 
                     for k, v in event_contents.iteritems():
-                        message_content = v
-                        
+                        message_content = v                    
+                      
                     yield self.publish_message(
                         message_id=message['message_id'],
                         content='%s %s %s' % (self.config.get('yes_feedback_keyword'),

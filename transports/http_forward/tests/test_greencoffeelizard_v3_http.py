@@ -35,7 +35,8 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
                 '/api/v3/search/': [                    
                     'q',
                     'format']},
-            'no_count_keyword': 'nolocation',
+            'no_count_loc_code_keyword': 'nolocationcode',
+            'no_count_results_keyword': 'noresults',
             'no_events_at_loaction_keyword': 'nolater',
             'yes_agent_prices_keyword': 'coffeea',
             'yes_company_prices_keyword': 'coffeec',
