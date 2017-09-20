@@ -92,7 +92,7 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
             #to_addr="https://greencoffee.lizard.net/api/v3/search/",
             to_addr="%sapi/v3/search/" % self.mock_greencoffeelizardv3.url,
             from_addr="myprogram",
-            content="coffeea X. Kroong",
+            content="Coffeea X. Kroong",
             message_id='1',
             transport_metadata={
                 'program_shortcode': '256-8281',

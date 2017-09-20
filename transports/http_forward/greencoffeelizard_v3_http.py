@@ -135,7 +135,7 @@ class GreencoffeelizardV3Http(Transport):
             data_location_code = {}
             data_location_code = self.build_data_location_code(response_loc_code_body['results'][0]['description'])
 
-            log.msg('loctioncode data: %s ' % data_location_code)
+            log.msg('loctioncode data: %s and Time: %s' % (data_location_code, data_timeseries))
             response = yield http_request_full(
                 "%s?%s&%s" % (self.config.get('api_url_timeseries').encode(),
                            urlencode(data_location_code),
@@ -165,7 +165,7 @@ class GreencoffeelizardV3Http(Transport):
                     provider='greencoffee',
                     transport_type='http')
             else:
-                keyword_sent = message['content'].split(' ', 1)[0]
+                keyword_sent = message['content'].split(' ', 1)[0].lower()
                 keywords_inuse = [self.config.get('yes_agent_prices_keyword'),
                                   self.config.get('yes_company_prices_keyword'),
                                   self.config.get('yes_weather_keyword')]
