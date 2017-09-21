@@ -111,7 +111,7 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
         self.assertEqual(
                     reqdic2['count'], 7)
         [user_msg] = yield self.tx_helper.get_dispatched_inbound()
-        self.assertEqual('kfeedback 2017-07-28 03:00 45700', user_msg['content'])
+        self.assertEqual('kfeedback 2017-07-28 03:00 AgentPrice=45700', user_msg['content'])
         [event] = yield self.tx_helper.get_dispatched_events()        
         self.assertEqual(event['event_type'], 'ack')
         self.assertEqual(event['user_message_id'], '1')
@@ -139,7 +139,7 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
         req2 = yield self.mock_greencoffeelizardv3_response2
         reqdic2 = ast.literal_eval(req2)        
         [user_msg] = yield self.tx_helper.get_dispatched_inbound()
-        self.assertEqual('kfeedback 2017-07-31 15:00 7', user_msg['content'])        
+        self.assertEqual('kfeedback 2017-07-31 15:00 WindDir=235, MinTemp=21, WindSpeed=2, MaxTemp=27, Precipitation=7', user_msg['content'])        
         [event] = yield self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'ack')
         self.assertEqual(event['user_message_id'], '1')

@@ -45,11 +45,10 @@ class GreencoffeelizardV3Http(Transport):
     
     def build_timeseries_data(self):
         data = {}
-        prev_time = datetime.now() - timedelta(days=10)
+        prev_time = datetime.now() - timedelta(days=3)
         data['start'] = int(prev_time.strftime('%s'))*1000
         data['end'] = int(datetime.now().strftime('%s'))*1000             
         return data
-
 
     def build_location_code_url_response(self, results, keyword_sent):
             #response_timeseries_url = {}
@@ -81,7 +80,15 @@ class GreencoffeelizardV3Http(Transport):
             event_contents = {}
             for event in events:
                 event_contents = event
-            return event_contents 
+            return event_contents
+    
+    def build_message_content_cond(self, event_contents):
+        message_content = {}
+        for k, v in event_contents.iteritems():
+            message_content[k] = v['max']
+        content_gene = ', '.join("%s=%r" % (key,val) for (key,val) in message_content.iteritems())
+        return content_gene        
+    
     
     @inlineCallbacks
     def handle_outbound_message(self, message):
@@ -171,15 +178,16 @@ class GreencoffeelizardV3Http(Transport):
                                   self.config.get('yes_weather_keyword')]
                 if keyword_sent in keywords_inuse:
                     event_contents = self.build_location_code_url_response(response_body['results'], keyword_sent)
-                    log.msg('Event contents %s' % event_contents) 
+                    log.msg('Event contents %s' % event_contents)
+                    message_content = self.build_message_content_cond(event_contents)
                     for k, v in event_contents.iteritems():
-                        message_content = v                    
-                      
+                                message_timestamp = v['timestamp']
+                    
                     yield self.publish_message(
                         message_id=message['message_id'],
                         content='%s %s %s' % (self.config.get('yes_feedback_keyword'),
-                                              datetime.fromtimestamp(message_content['timestamp']/1000).strftime('%Y-%m-%d %H:%M'),
-                                              message_content['max']), 
+                                              datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
+                                              message_content), 
                         to_addr=shortcode,
                         from_addr=message['transport_metadata']['participant_phone'],
                         provider='greencoffee',
