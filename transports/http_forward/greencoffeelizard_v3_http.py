@@ -185,7 +185,8 @@ class GreencoffeelizardV3Http(Transport):
                     
                     yield self.publish_message(
                         message_id=message['message_id'],
-                        content='%s %s %s' % (self.config.get('yes_feedback_keyword'),
+                        content='%s %s On %s %s' % (self.config.get('yes_feedback_keyword'),
+                                              message['content'].split(' ', 1)[1],
                                               datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
                                               message_content), 
                         to_addr=shortcode,
