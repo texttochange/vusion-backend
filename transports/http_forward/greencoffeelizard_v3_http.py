@@ -65,15 +65,19 @@ class GreencoffeelizardV3Http(Transport):
                         return response_dic_content
                 elif keyword_sent == self.config.get('yes_weather_keyword'):
                     if observation_type == 'Precipitation':
-                        response_dic_content['Precipitation'] = self.build_message_content(result['events'])
+                        self.build_message_content(result['events'])['scale'] = 'mm'
+                        response_dic_content['Luong mua'] = self.build_message_content(result['events'])
                     elif observation_type == 'Maximum Temperature':
-                        response_dic_content['MaxTemp'] = self.build_message_content(result['events'])
+                        self.build_message_content(result['events'])['scale'] = 'C'
+                        response_dic_content['Nhiet do toi da'] = self.build_message_content(result['events'])
                     elif observation_type == 'Minimum Temperature':
-                        response_dic_content['MinTemp'] = self.build_message_content(result['events'])
+                        self.build_message_content(result['events'])['scale'] = 'C'
+                        response_dic_content['Nhiet do toi thieu'] = self.build_message_content(result['events'])
                     elif observation_type == 'Wind Direction':
-                        response_dic_content['WindDir'] = self.build_message_content(result['events'])
+                        response_dic_content['Huong gio'] = self.build_message_content(result['events'])
                     elif observation_type == 'Wind Speed':
-                        response_dic_content['WindSpeed'] = self.build_message_content(result['events'])
+                        self.build_message_content(result['events'])['scale'] = 'km/h'
+                        response_dic_content['Toc do gio'] = self.build_message_content(result['events'])
             return response_dic_content
 
     def build_message_content(self, events):
@@ -85,8 +89,11 @@ class GreencoffeelizardV3Http(Transport):
     def build_message_content_cond(self, event_contents):
         message_content = {}
         for k, v in event_contents.iteritems():
-            message_content[k] = v['max']
-        content_gene = ', '.join("%s=%r" % (key,val) for (key,val) in message_content.iteritems())
+            if 'scale' in v:
+                message_content[k] = "%s%s" % (v['max'], v['scale'])
+            else:
+                message_content[k] = v['max']
+        content_gene = ', '.join("%s: %r" % (key,val) for (key,val) in message_content.iteritems())
         return content_gene        
     
     
@@ -183,16 +190,28 @@ class GreencoffeelizardV3Http(Transport):
                     for k, v in event_contents.iteritems():
                                 message_timestamp = v['timestamp']
                     
-                    yield self.publish_message(
-                        message_id=message['message_id'],
-                        content='%s %s On %s %s' % (self.config.get('yes_feedback_keyword'),
-                                              message['content'].split(' ', 1)[1],
-                                              datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
-                                              message_content), 
-                        to_addr=shortcode,
-                        from_addr=message['transport_metadata']['participant_phone'],
-                        provider='greencoffee',
-                        transport_type='http')
+                    if keyword_sent == self.config.get('yes_weather_keyword'):
+                        yield self.publish_message(
+                            message_id=message['message_id'],
+                            content='%s Du bao thoi tiet %s tai %s: %s' % (self.config.get('yes_feedback_keyword'),
+                                                 datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
+                                                 message['content'].split(' ', 1)[1],
+                                                 message_content),
+                            to_addr=shortcode,
+                            from_addr=message['transport_metadata']['participant_phone'],
+                            provider='greencoffee',
+                            transport_type='http')
+                    else:
+                        yield self.publish_message(
+                            message_id=message['message_id'],
+                            content='%s %s tai %s %s' % (self.config.get('yes_feedback_keyword'),
+                                                datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
+                                                message['content'].split(' ', 1)[1],
+                                                message_content),
+                            to_addr=shortcode,
+                            from_addr=message['transport_metadata']['participant_phone'],
+                            provider='greencoffee',
+                            transport_type='http')
                 
             yield self.publish_ack(
                 user_message_id=message['message_id'],

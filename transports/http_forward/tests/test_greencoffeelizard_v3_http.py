@@ -111,41 +111,42 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
         self.assertEqual(
                     reqdic2['count'], 7)
         [user_msg] = yield self.tx_helper.get_dispatched_inbound()
-        self.assertEqual('kfeedback X. Kroong On 2017-07-28 03:00 AgentPrice=45700', user_msg['content'])
+        self.assertEqual('kfeedback 2017-07-28 03:00 tai X. Kroong AgentPrice: 45700',
+                         user_msg['content'])
         [event] = yield self.tx_helper.get_dispatched_events()        
         self.assertEqual(event['event_type'], 'ack')
         self.assertEqual(event['user_message_id'], '1')
         self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
-        
-        
+    
     @inlineCallbacks
     def test_outbound_sent_weather_keyword(self):
-        self.mock_response()
-        
-        yield self.tx_helper.make_dispatch_outbound(
-            to_addr="%sapi/v3/search/" % self.mock_greencoffeelizardv3.url,
-            from_addr="myprogram",
-            content="weatherall X. Kroong",
-            message_id='1',
-            transport_metadata={
-                'program_shortcode': '+2568281',
-                'participant_phone': '+6',
-                'participant_profile': [
-                    {'label': 'reporterid',
-                     'value': '708'}]})
-        
-        req = yield self.mock_greencoffeelizardv3_response
-        reqdic = ast.literal_eval(req)                
-        req2 = yield self.mock_greencoffeelizardv3_response2
-        reqdic2 = ast.literal_eval(req2)        
-        [user_msg] = yield self.tx_helper.get_dispatched_inbound()
-        self.assertEqual('kfeedback X. Kroong On 2017-07-31 15:00 WindDir=235, MinTemp=21, WindSpeed=2, MaxTemp=27, Precipitation=7',
-                         user_msg['content'])
-        [event] = yield self.tx_helper.get_dispatched_events()
-        self.assertEqual(event['event_type'], 'ack')
-        self.assertEqual(event['user_message_id'], '1')
-        self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
-    
+            self.mock_response()
+
+            yield self.tx_helper.make_dispatch_outbound(
+                to_addr="%sapi/v3/search/" % self.mock_greencoffeelizardv3.url,
+                from_addr="myprogram",
+                content="weatherall X. Kroong",
+                message_id='1',
+                transport_metadata={
+                    'program_shortcode': '+2568281',
+                    'participant_phone': '+6',
+                    'participant_profile': [
+                        {'label': 'reporterid',
+                         'value': '708'}]})
+
+            req = yield self.mock_greencoffeelizardv3_response
+            reqdic = ast.literal_eval(req)
+            req2 = yield self.mock_greencoffeelizardv3_response2
+            reqdic2 = ast.literal_eval(req2)
+            [user_msg] = yield self.tx_helper.get_dispatched_inbound()
+
+            self.assertEqual(
+                "kfeedback Du bao thoi tiet 2017-07-31 15:00 tai X. Kroong: Toc do gio: '2km/h', Nhiet do toi thieu: '21C', Huong gio: 235, Luong mua: '7mm', Nhiet do toi da: '27C'",
+                user_msg['content'])
+            [event] = yield self.tx_helper.get_dispatched_events()
+            self.assertEqual(event['event_type'], 'ack')
+            self.assertEqual(event['user_message_id'], '1')
+            self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
     
     @inlineCallbacks
     def test_outbound_sent_worng_keyword(self):
