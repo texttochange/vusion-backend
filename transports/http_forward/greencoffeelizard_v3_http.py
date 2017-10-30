@@ -193,7 +193,7 @@ class GreencoffeelizardV3Http(Transport):
                     if keyword_sent == self.config.get('yes_weather_keyword'):
                         yield self.publish_message(
                             message_id=message['message_id'],
-                            content='%s Du bao thoi tiet %s tai %s: %s' % (self.config.get('yes_feedback_keyword'),
+                            content='%s Du bao thoi tiet %s tai %s %s' % (self.config.get('yes_feedback_keyword'),
                                                  datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
                                                  message['content'].split(' ', 1)[1],
                                                  message_content),
@@ -204,7 +204,7 @@ class GreencoffeelizardV3Http(Transport):
                     else:
                         yield self.publish_message(
                             message_id=message['message_id'],
-                            content='%s %s tai %s %s' % (self.config.get('yes_feedback_keyword'),
+                            content='%s %s tai %s: %s' % (self.config.get('yes_feedback_keyword'),
                                                 datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
                                                 message['content'].split(' ', 1)[1],
                                                 message_content),
