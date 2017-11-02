@@ -39,8 +39,6 @@ class GreencoffeelizardV3engHttp(Transport):
         location={}
         location['search'] = location_results
         location['format'] = 'json'
-        #for location_result in location_results:
-            #location_data['search'] = location_result['description']
         return location
     
     def build_timeseries_data(self):
