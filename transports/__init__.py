@@ -16,6 +16,7 @@ from http_forward.forward_http import ForwardHttp
 from http_forward.cioec_http import CioecHttp
 from http_forward.greencoffeelizard_http import GreencoffeelizardHttp
 from http_forward.greencoffeelizard_v3_http import GreencoffeelizardV3Http
+from http_forward.greencoffeelizard_v3_eng_http import GreencoffeelizardV3engHttp
 
 from http_forward.askpeople_http import AskpeopleHttp
 from apposit_ethiopia.apposit import AppositV2Transport
@@ -40,6 +41,7 @@ __all__ = [
     "AskpeopleHttp",
     "GreencoffeelizardHttp",
     "GreencoffeelizardV3Http",
+    "GreencoffeelizardV3engHttp",
     "AppositV2Transport",
     "NexmoTransport",
     "MobifoneHttpTransport"]

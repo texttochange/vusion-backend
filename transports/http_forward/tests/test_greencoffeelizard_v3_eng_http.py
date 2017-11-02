@@ -11,10 +11,10 @@ from vumi.transports.tests.helpers import TransportHelper
 from vumi.tests.utils import MockHttpServer, VumiTestCase
 from vumi.tests.utils import RegexMatcher
 
-from transports import GreencoffeelizardV3Http
+from transports import GreencoffeelizardV3engHttp
 
 
-class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
+class GreencoffeelizardV3engHttpTransportTestCase(VumiTestCase):
 
     @inlineCallbacks
     def setUp(self):
@@ -45,7 +45,7 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
             #'api_url_timeseries': 'https://greencoffee.lizard.net/api/v3/timeseries/'
             'api_url_timeseries': '%s/api/v3/timeseries/' % self.mock_greencoffeelizardv3_2.url
         }
-        self.tx_helper = self.add_helper(TransportHelper(GreencoffeelizardV3Http))
+        self.tx_helper = self.add_helper(TransportHelper(GreencoffeelizardV3engHttp))
         self.transport = yield self.tx_helper.get_transport(self.config)
         self.transport.get_date = lambda: "2014-06-09"
 
@@ -53,7 +53,7 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
     def tearDown(self):
         yield self.mock_greencoffeelizardv3.stop()
         yield self.mock_greencoffeelizardv3_2.stop()
-        yield super(GreencoffeelizardV3HttpTransportTestCase, self).tearDown()
+        yield super(GreencoffeelizardV3engHttpTransportTestCase, self).tearDown()
 
     def handle_request(self, request):
         self.greencoffeelizardv3_calls.put(request)
@@ -85,45 +85,12 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
         self.mock_greencoffeelizardv3_response2 = json.dumps(response_body2)
 
     @inlineCallbacks
-    def test_outbound_get_content_for_agent_price_defualt(self):
+    def test_outbound_get_content_for_agent_price(self):
         self.mock_response()
 
         yield self.tx_helper.make_dispatch_outbound(
             #to_addr="https://greencoffee.lizard.net/api/v3/search/",
             to_addr="%sapi/v3/search/" % self.mock_greencoffeelizardv3.url,
-            from_addr="myprogram",
-            content="Coffeea X. Kroong",
-            message_id='1',
-            transport_metadata={
-                'program_shortcode': '256-8281',
-                'participant_phone': '+6',
-                'participant_profile': [
-                    {'label': 'reporterid',
-                     'value': '708'}]})
-        req = yield self.mock_greencoffeelizardv3_response
-        reqdic = ast.literal_eval(req)
-
-        req2 = yield self.mock_greencoffeelizardv3_response2
-        reqdic2 = ast.literal_eval(req2)
-
-        self.assertEqual(
-            reqdic['count'], 3)
-        self.assertEqual(
-            reqdic2['count'], 7)
-        [user_msg] = yield self.tx_helper.get_dispatched_inbound()
-        self.assertEqual('kfeedback 2017-07-28 03:00 X. Kroong: AgentPrice: 45700',
-                         user_msg['content'])
-        [event] = yield self.tx_helper.get_dispatched_events()        
-        self.assertEqual(event['event_type'], 'ack')
-        self.assertEqual(event['user_message_id'], '1')
-        self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
-
-    @inlineCallbacks    
-    def test_outbound_get_content_for_agent_price_vietnam(self):
-        self.mock_response()
-
-        yield self.tx_helper.make_dispatch_outbound(
-            to_addr="%sapi/v3/search/?lang=viet" % self.mock_greencoffeelizardv3.url,
             from_addr="myprogram",
             content="Coffeea X. Kroong",
             message_id='1',
@@ -151,9 +118,8 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
         self.assertEqual(event['user_message_id'], '1')
         self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
 
-
     @inlineCallbacks
-    def test_outbound_sent_weather_keyword_default(self):
+    def test_outbound_sent_weather_keyword(self):
         self.mock_response()
 
         yield self.tx_helper.make_dispatch_outbound(
@@ -175,37 +141,7 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
         [user_msg] = yield self.tx_helper.get_dispatched_inbound()
 
         self.assertEqual(
-            "kfeedback 2017-07-31 15:00 X. Kroong: Minimum Temperature: '21oC', Maximum Temperature: '27oC', Precipitation: '7mm', Wind Speed: '2m/s', Wind Direction: '235degree'",            
-        user_msg['content'])
-        [event] = yield self.tx_helper.get_dispatched_events()
-        self.assertEqual(event['event_type'], 'ack')
-        self.assertEqual(event['user_message_id'], '1')
-        self.assertEqual(event['transport_metadata'], {'transport_type':'http_api'})
-
-    @inlineCallbacks
-    def test_outbound_sent_weather_keyword_vietnam(self):
-        self.mock_response()
-
-        yield self.tx_helper.make_dispatch_outbound(
-            to_addr="%sapi/v3/search/?lang=viet" % self.mock_greencoffeelizardv3.url,
-            from_addr="myprogram",
-            content="weatherall X. Kroong",
-            message_id='1',
-            transport_metadata={
-                'program_shortcode': '+2568281',
-                'participant_phone': '+6',
-                'participant_profile': [
-                    {'label': 'reporterid',
-                     'value': '708'}]})
-
-        req = yield self.mock_greencoffeelizardv3_response
-        reqdic = ast.literal_eval(req)
-        req2 = yield self.mock_greencoffeelizardv3_response2
-        reqdic2 = ast.literal_eval(req2)
-        [user_msg] = yield self.tx_helper.get_dispatched_inbound()
-
-        self.assertEqual(
-            "kfeedback Du bao thoi tiet 2017-07-31 15:00 tai X. Kroong: Toc do gio: '2m/s', Nhiet do toi thieu: '21oC', Huong gio: '235degree', Luong mua: '7mm', Nhiet do toi da: '27oC'",            
+            "kfeedback Du bao thoi tiet 2017-07-31 15:00 tai X. Kroong: Toc do gio: '2km/h', Nhiet do toi thieu: '21C', Huong gio: 235, Luong mua: '7mm', Nhiet do toi da: '27C'",
             user_msg['content'])
         [event] = yield self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'ack')

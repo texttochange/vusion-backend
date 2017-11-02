@@ -14,7 +14,7 @@ from vumi import log
 from vusion.error import MissingData
 
 
-class GreencoffeelizardV3Http(Transport):
+class GreencoffeelizardV3engHttp(Transport):
     
     transport_type = 'http_api'
     
@@ -50,12 +50,11 @@ class GreencoffeelizardV3Http(Transport):
         data['end'] = int(datetime.now().strftime('%s'))*1000             
         return data
 
-    def build_location_code_url_response(self, results, keyword_sent, url_lang):
+    def build_location_code_url_response(self, results, keyword_sent):
             #response_timeseries_url = {}
             response_dic_content = {}
             for result in results:
                 observation_type = result['observation_type']['parameter']
-                observation_type_unit = str(result['observation_type']['unit'])
                 if keyword_sent == self.config.get('yes_agent_prices_keyword'):
                     if observation_type.endswith('Agent Price'):
                         response_dic_content['AgentPrice'] = self.build_message_content(result['events'])
@@ -65,40 +64,27 @@ class GreencoffeelizardV3Http(Transport):
                         response_dic_content['CompanyPrice'] = self.build_message_content(result['events'])
                         return response_dic_content
                 elif keyword_sent == self.config.get('yes_weather_keyword'):
-                    key_reading = self.build_message_content_by_lang(observation_type, url_lang)
-                    self.build_message_content(result['events'])['scale'] = observation_type_unit
                     if observation_type == 'Precipitation':
-                        response_dic_content[key_reading] = self.build_message_content(result['events'])
+                        self.build_message_content(result['events'])['scale'] = 'mm'
+                        response_dic_content['Luong mua'] = self.build_message_content(result['events'])
                     elif observation_type == 'Maximum Temperature':
-                        response_dic_content[key_reading] = self.build_message_content(result['events'])
+                        self.build_message_content(result['events'])['scale'] = 'C'
+                        response_dic_content['Nhiet do toi da'] = self.build_message_content(result['events'])
                     elif observation_type == 'Minimum Temperature':
-                        response_dic_content[key_reading] = self.build_message_content(result['events'])
+                        self.build_message_content(result['events'])['scale'] = 'C'
+                        response_dic_content['Nhiet do toi thieu'] = self.build_message_content(result['events'])
                     elif observation_type == 'Wind Direction':
-                        response_dic_content[key_reading] = self.build_message_content(result['events'])
+                        response_dic_content['Huong gio'] = self.build_message_content(result['events'])
                     elif observation_type == 'Wind Speed':
-                        response_dic_content[key_reading] = self.build_message_content(result['events'])
+                        self.build_message_content(result['events'])['scale'] = 'km/h'
+                        response_dic_content['Toc do gio'] = self.build_message_content(result['events'])
             return response_dic_content
 
-    def build_message_content_by_lang(self, observation_type_param, url_lang):
-        if url_lang == 'lang=viet':
-            if 'Precipitation' in observation_type_param:
-                return observation_type_param.replace('Precipitation','Luong mua')
-            elif 'Maximum Temperature' in observation_type_param:
-                return observation_type_param.replace('Maximum Temperature','Nhiet do toi da')
-            elif 'Minimum Temperature' in observation_type_param:
-                return observation_type_param.replace('Minimum Temperature','Nhiet do toi thieu')
-            elif 'Wind Direction' in observation_type_param:
-                return observation_type_param.replace('Wind Direction','Huong gio')
-            elif 'Wind Speed' in observation_type_param:
-                return observation_type_param.replace('Wind Speed','Toc do gio')
-        else:
-            return observation_type_param
-
     def build_message_content(self, events):
-        event_contents = {}
-        for event in events:
-            event_contents = event
-        return event_contents
+            event_contents = {}
+            for event in events:
+                event_contents = event
+            return event_contents
     
     def build_message_content_cond(self, event_contents):
         message_content = {}
@@ -110,56 +96,7 @@ class GreencoffeelizardV3Http(Transport):
         content_gene = ', '.join("%s: %r" % (key,val) for (key,val) in message_content.iteritems())
         return content_gene        
     
-    @inlineCallbacks
-    def build_lang_message_temp(self, url, keyword_sent, message_timestamp, message, message_content, shortcode):
-        if keyword_sent == self.config.get('yes_weather_keyword'):
-            if url.query == 'lang=viet':
-                yield self.publish_message(
-                    message_id=message['message_id'],
-                    content='%s Du bao thoi tiet %s tai %s: %s' % (self.config.get('yes_feedback_keyword'),
-                                         datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
-                                         message['content'].split(' ', 1)[1],
-                                         message_content),
-                    to_addr=shortcode,
-                    from_addr=message['transport_metadata']['participant_phone'],
-                    provider='greencoffee',
-                    transport_type='http')
-            else:
-                yield self.publish_message(
-                    message_id=message['message_id'],
-                    content='%s %s %s: %s' % (self.config.get('yes_feedback_keyword'),
-                                         datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
-                                         message['content'].split(' ', 1)[1],
-                                         message_content),
-                    to_addr=shortcode,
-                    from_addr=message['transport_metadata']['participant_phone'],
-                    provider='greencoffee',
-                    transport_type='http')
-        else:
-            if url.query == 'lang=viet':                            
-                yield self.publish_message(
-                    message_id=message['message_id'],
-                    content='%s %s tai %s: %s' % (self.config.get('yes_feedback_keyword'),
-                                        datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
-                                        message['content'].split(' ', 1)[1],
-                                        message_content),
-                    to_addr=shortcode,
-                    from_addr=message['transport_metadata']['participant_phone'],
-                    provider='greencoffee',
-                    transport_type='http')
-            else:
-                yield self.publish_message(
-                    message_id=message['message_id'],
-                    content='%s %s %s: %s' % (self.config.get('yes_feedback_keyword'),
-                                        datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
-                                        message['content'].split(' ', 1)[1],
-                                        message_content),
-                    to_addr=shortcode,
-                    from_addr=message['transport_metadata']['participant_phone'],
-                    provider='greencoffee',
-                    transport_type='http')
-
-
+    
     @inlineCallbacks
     def handle_outbound_message(self, message):
         log.msg("Outboung message testing to be processed %s" % repr(message))
@@ -213,7 +150,6 @@ class GreencoffeelizardV3Http(Transport):
             data_location_code = self.build_data_location_code(response_loc_code_body['results'][0]['description'])
 
             log.msg('loctioncode data: %s and Time: %s' % (data_location_code, data_timeseries))
-            
             response = yield http_request_full(
                 "%s?%s&%s" % (self.config.get('api_url_timeseries').encode(),
                            urlencode(data_location_code),
@@ -248,14 +184,35 @@ class GreencoffeelizardV3Http(Transport):
                                   self.config.get('yes_company_prices_keyword'),
                                   self.config.get('yes_weather_keyword')]
                 if keyword_sent in keywords_inuse:
-                    event_contents = self.build_location_code_url_response(response_body['results'], keyword_sent, url.query)
+                    event_contents = self.build_location_code_url_response(response_body['results'], keyword_sent)
                     log.msg('Event contents %s' % event_contents)
                     message_content = self.build_message_content_cond(event_contents)
                     for k, v in event_contents.iteritems():
                                 message_timestamp = v['timestamp']
                     
-                    self.build_lang_message_temp(url, keyword_sent, message_timestamp, message, message_content, shortcode)
-
+                    if keyword_sent == self.config.get('yes_weather_keyword'):
+                        yield self.publish_message(
+                            message_id=message['message_id'],
+                            content='%s Du bao thoi tiet %s tai %s: %s' % (self.config.get('yes_feedback_keyword'),
+                                                 datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
+                                                 message['content'].split(' ', 1)[1],
+                                                 message_content),
+                            to_addr=shortcode,
+                            from_addr=message['transport_metadata']['participant_phone'],
+                            provider='greencoffee',
+                            transport_type='http')
+                    else:
+                        yield self.publish_message(
+                            message_id=message['message_id'],
+                            content='%s %s tai %s: %s' % (self.config.get('yes_feedback_keyword'),
+                                                datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
+                                                message['content'].split(' ', 1)[1],
+                                                message_content),
+                            to_addr=shortcode,
+                            from_addr=message['transport_metadata']['participant_phone'],
+                            provider='greencoffee',
+                            transport_type='http')
+                
             yield self.publish_ack(
                 user_message_id=message['message_id'],
                 sent_message_id=message['message_id'],
