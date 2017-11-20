@@ -452,16 +452,20 @@ class testActions(TestCase, ObjectMaker):
         enroll = action_generator(**{'type-action': 'enrolling', 'enroll': '1'})
         reset = action_generator(**{'type-action': 'reset'})
         feedback = action_generator(**{'type-action': 'feedback', 'content': 'hello'})
+        smsmo = action_generator(**{'type-action': 'sms-mo', 'mo-content': 'hello max'})
 
         actions.append(feedback)
         actions.append(optin)
         actions.append(reset)
         actions.append(enroll)
+        actions.append(smsmo)
 
         self.assertEqual(actions[0].get_type(), 'optin')
         self.assertEqual(actions[1].get_type(), 'reset')
         self.assertEqual(actions[2].get_type(), 'enrolling')
         self.assertEqual(actions[3].get_type(), 'feedback')
+        self.assertEqual(actions[4].get_type(), 'sms-mo')
+        
 
 
 class TestSmsInviteAction(TestCase, ObjectMaker):

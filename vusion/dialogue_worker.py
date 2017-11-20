@@ -35,7 +35,7 @@ from vusion.component import (
     DialogueWorkerPropertyHelper, CreditManager, RedisLogger)
 
 from vusion.persist.action import (
-    Actions, action_generator, FeedbackAction, EnrollingAction, OptinAction,
+    Actions, action_generator, FeedbackAction, SmsMoAction, EnrollingAction, OptinAction,
     OptoutAction, RemoveRemindersAction)
 from vusion.persist import (
     FeedbackSchedule, HistoryManager, ContentVariableManager, DialogueManager,
@@ -284,6 +284,16 @@ class DialogueWorker(ApplicationWorker):
                 'date-time': time_to_vusion_format(self.get_local_time()),
                 'content': self.customize_message(action['content'], participant_phone, context, False),
                 'context': context.get_dict_for_history()})
+            self.send_schedule(schedule)
+        elif (action.get_type() == 'sms-mo'):
+            schedule = FeedbackSchedule(**{
+                'mo-sms': True,
+                'participant-phone': participant_phone,
+                'participant-session-id': participant_session_id,
+                'date-time': time_to_vusion_format(self.get_local_time()),
+                'content': self.customize_message(action['mo-content'], participant_phone, context, False),
+                'context': context.get_dict_for_history()
+            })
             self.send_schedule(schedule)
         elif (action.get_type() == 'unmatching-answer'):
             setting = self.collections['program_settings'].find_one({
@@ -943,6 +953,24 @@ class DialogueWorker(ApplicationWorker):
         participant = self.collections['participants'].get_participant(schedule['participant-phone'])
         if (participant['transport_metadata'] is not {}):
             options['transport_metadata'].update(participant['transport_metadata'])
+
+        if schedule['mo-sms']:
+            msg = TransportUserMessage(
+                content= message_content,
+                message_version = '20110921',
+                message_type = '',
+                timestamp ='',
+                message_id = '',
+                to_addr = get_shortcode_value(self.properties['shortcode']),
+                from_addr= schedule['participant-phone'],
+                in_reply_to = '',
+                transport_name =self.transport_name,
+                transport_type = '',
+                transport_metadata = {},
+                helper_metadata = ''
+                )
+            self.dispatch_user_message(msg)
+            return
 
         ## message for simulated participant are not actually send
         if participant.is_simulated():

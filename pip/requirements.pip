@@ -1,5 +1,6 @@
 ##Vumi
 PyYAML==3.11
+setuptools==30.0.0
 Twisted==14.0.2
 argparse==1.2.1
 cffi==0.8.6

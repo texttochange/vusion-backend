@@ -55,6 +55,7 @@ class Action(Model):
                 'url-forwarding',
                 'sms-forwarding',
                 'sms-invite',
+                'sms-mo',
                 'save-content-variable-table']},
         }
 
@@ -237,6 +238,14 @@ class FeedbackAction(Action):
     def validate_fields(self):
         super(FeedbackAction, self).validate_fields()        
         self.assert_field_present('content')
+
+class SmsMoAction(Action):
+
+    ACTION_TYPE = 'sms-mo'
+
+    def validate_fields(self):
+        super(SmsMoAction, self).validate_fields()
+        self.assert_field_present('mo-content')
 
 
 class UnMatchingAnswerAction(Action):
@@ -593,6 +602,8 @@ def action_generator(**kwargs):
         return ProfilingAction(**kwargs)
     elif kwargs['type-action'] == 'feedback':
         return FeedbackAction(**kwargs)
+    elif kwargs['type-action'] == 'sms-mo':
+            return SmsMoAction(**kwargs)
     elif kwargs['type-action'] == 'unmatching-answer':
         return UnMatchingAnswerAction(**kwargs)
     elif kwargs['type-action'] == 'remove-reminders':

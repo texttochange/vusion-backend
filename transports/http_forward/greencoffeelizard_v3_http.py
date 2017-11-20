@@ -23,7 +23,7 @@ class GreencoffeelizardV3Http(Transport):
         self.transport_metadata = {'transport_type': self.transport_type}
 
     def teardown_transport(self):
-        log.msg("Stop forward http transport")
+        log.msg("Stop greencoffee forward http transport")
 
     def build_data(self, message, labels_to_add):
         param = {}
@@ -114,50 +114,41 @@ class GreencoffeelizardV3Http(Transport):
     def build_lang_message_temp(self, url, keyword_sent, message_timestamp, message, message_content, shortcode):
         if keyword_sent == self.config.get('yes_weather_keyword'):
             if url.query == 'lang=viet':
-                yield self.publish_message(
-                    message_id=message['message_id'],
-                    content='%s Du bao thoi tiet %s tai %s: %s' % (self.config.get('yes_feedback_keyword'),
-                                         datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
-                                         message['content'].split(' ', 1)[1],
-                                         message_content),
-                    to_addr=shortcode,
-                    from_addr=message['transport_metadata']['participant_phone'],
-                    provider='greencoffee',
-                    transport_type='http')
+                content_msg='%s Du bao thoi tiet %s tai %s: %s' % (self.config.get('yes_feedback_keyword'),
+                                     datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
+                                     message['content'].split(' ', 1)[1],
+                                     message_content) 
             else:
-                yield self.publish_message(
-                    message_id=message['message_id'],
-                    content='%s %s %s: %s' % (self.config.get('yes_feedback_keyword'),
-                                         datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
-                                         message['content'].split(' ', 1)[1],
-                                         message_content),
-                    to_addr=shortcode,
-                    from_addr=message['transport_metadata']['participant_phone'],
-                    provider='greencoffee',
-                    transport_type='http')
+                content_msg ='%s %s %s: %s' % (self.config.get('yes_feedback_keyword'),
+                                     datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
+                                     message['content'].split(' ', 1)[1],
+                                     message_content)
+            yield self.publish_message(
+                message_id=message['message_id'],
+                content=content_msg,
+                to_addr=shortcode,
+                from_addr=message['transport_metadata']['participant_phone'],
+                provider='greencoffee',
+                transport_type='http')
+             
         else:
-            if url.query == 'lang=viet':                            
-                yield self.publish_message(
-                    message_id=message['message_id'],
-                    content='%s %s tai %s: %s' % (self.config.get('yes_feedback_keyword'),
-                                        datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
-                                        message['content'].split(' ', 1)[1],
-                                        message_content),
-                    to_addr=shortcode,
-                    from_addr=message['transport_metadata']['participant_phone'],
-                    provider='greencoffee',
-                    transport_type='http')
+            if url.query == 'lang=viet':
+                content_msg='%s %s tai %s: %s' % (self.config.get('yes_feedback_keyword'),
+                                              datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
+                                              message['content'].split(' ', 1)[1],
+                                              message_content)
             else:
-                yield self.publish_message(
-                    message_id=message['message_id'],
-                    content='%s %s %s: %s' % (self.config.get('yes_feedback_keyword'),
-                                        datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
-                                        message['content'].split(' ', 1)[1],
-                                        message_content),
-                    to_addr=shortcode,
-                    from_addr=message['transport_metadata']['participant_phone'],
-                    provider='greencoffee',
-                    transport_type='http')
+                content_msg='%s %s %s: %s' % (self.config.get('yes_feedback_keyword'),
+                                                        datetime.fromtimestamp(message_timestamp/1000).strftime('%Y-%m-%d %H:%M'),
+                                                        message['content'].split(' ', 1)[1],
+                                                        message_content)                
+            yield self.publish_message(
+                message_id=message['message_id'],
+                content= content_msg,
+                to_addr=shortcode,
+                from_addr=message['transport_metadata']['participant_phone'],
+                provider='greencoffee',
+                transport_type='http')
 
 
     @inlineCallbacks
