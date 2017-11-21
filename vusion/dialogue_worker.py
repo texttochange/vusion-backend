@@ -20,6 +20,7 @@ from vumi.message import Message, TransportUserMessage, TransportEvent
 from vumi.application import SessionManager
 from vumi import log
 from vumi.errors import VumiError
+from vumi.dispatchers import BaseDispatchRouter
 
 from vusion.utils import (
     time_to_vusion_format, get_local_time, get_local_time_as_timestamp,
@@ -969,7 +970,8 @@ class DialogueWorker(ApplicationWorker):
                 transport_metadata = {},
                 helper_metadata = ''
                 )
-            self.dispatch_user_message(msg)
+            self.consume_user_message(msg)
+            #self.dispatch_user_message(msg)
             return
 
         ## message for simulated participant are not actually send

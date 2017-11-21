@@ -173,47 +173,27 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
         self.assertEqual(history['participant-session-id'], '1')
         self.assertEqual(history['participant-phone'], '06')
 
-    #@inlineCallbacks
-    #def test_run_action_sms_mo(self):
-        #self.initialize_properties()
+    @inlineCallbacks
+    def test_run_action_sms_mo(self):
+        self.initialize_properties()
 
-        #self.collections['participants'].save(self.mkobj_participant())
+        self.collections['participants'].save(self.mkobj_participant())
 
-        #context = Context()
-        #context.update({'request-id': '1'})
+        context = Context()
+        context.update({'request-id': '1'})
 
-        #self.worker.run_action(
-            #'06',
-            #SmsMoAction(**{'mo-content': 'test incoming MO message'}),
-            #context,
-            #'1')
+        self.worker.run_action(
+            '06',
+            SmsMoAction(**{'mo-content': 'test incoming MO message'}),
+            context,
+            '1')
         #messages = yield self.app_helper.get_dispatched_outbound()
-        #self.assertEqual(len(messages), 1)
+        messages = yield self.app_helper.get_dispatched_inbound("hi")
+        self.assertEqual(len(messages), 1)
         #self.assertEqual(self.collections['history'].count(), 1)
         #history = self.collections['history'].find_one()
         #self.assertEqual(history['participant-session-id'], '1')
         #self.assertEqual(history['participant-phone'], '06')
-        
-        #msg = TransportUserMessage(
-            #to_addr='123',
-            #from_addr='456',
-            #transport_name='sphex',
-            #transport_type='sms',
-            #transport_metadata={'foo': 'bar'},
-            #helper_metadata={'otherfoo': 'otherbar'},
-            #)
-        #reply = msg.reply(content='Hi!')
-        #self.assertEqual(reply['from_addr'], '123')
-        #self.assertEqual(reply['to_addr'], '456')
-        #self.assertEqual(reply['group'], None)
-        #self.assertEqual(reply['session_event'], reply.SESSION_NONE)
-        #self.assertEqual(reply['in_reply_to'], msg['message_id'])
-        #self.assertEqual(reply['transport_name'], msg['transport_name'])
-        #self.assertEqual(reply['transport_type'], msg['transport_type'])
-        #self.assertEqual(reply['transport_metadata'],
-                         #msg['transport_metadata'])
-        #self.assertEqual(reply['helper_metadata'], msg['helper_metadata'])
-        #self.assertEqual(reply['provider'], None)
 
     @inlineCallbacks
     def test_run_action_enroll(self):
