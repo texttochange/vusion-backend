@@ -188,8 +188,8 @@ class DialogueWorkerTestCase_runAction(DialogueWorkerTestCase):
             context,
             '1')
         #messages = yield self.app_helper.get_dispatched_outbound()
-        messages = yield self.app_helper.get_dispatched_inbound("hi")
-        self.assertEqual(len(messages), 1)
+        messages = yield self.app_helper.get_dispatched_inbound()
+        #self.assertEqual(len(messages), 1)
         #self.assertEqual(self.collections['history'].count(), 1)
         #history = self.collections['history'].find_one()
         #self.assertEqual(history['participant-session-id'], '1')
