@@ -69,9 +69,14 @@ class GreencoffeelizardV3Http(Transport):
                     self.build_message_content(result['events'])['scale'] = observation_type_unit
                     if observation_type == 'Precipitation':
                         response_dic_content[key_reading] = self.build_message_content(result['events'])
-                    elif observation_type == 'Maximum Temperature':
-                        response_dic_content[key_reading] = self.build_message_content(result['events'])
-                    elif observation_type == 'Minimum Temperature':
+                    elif observation_type == 'Maximum Temperature' or observation_type == 'Minimum Temperature':
+                        x = '0'
+                        if observation_type.startswith('Maximum'):
+                            y = ''
+                            y = str(self.build_message_content(result['events'])['max'])
+                        else:
+                            x = str(self.build_message_content(result['events'])['max'])
+                        self.build_message_content(result['events'])['max'] = y+'-'+x
                         response_dic_content[key_reading] = self.build_message_content(result['events'])
                     elif observation_type == 'Wind Direction':
                         response_dic_content[key_reading] = self.build_message_content(result['events'])
@@ -84,15 +89,20 @@ class GreencoffeelizardV3Http(Transport):
             if 'Precipitation' in observation_type_param:
                 return observation_type_param.replace('Precipitation','Luong mua')
             elif 'Maximum Temperature' in observation_type_param:
-                return observation_type_param.replace('Maximum Temperature','Nhiet do toi da')
+                return observation_type_param.replace('Maximum Temperature','Nhiet do')
             elif 'Minimum Temperature' in observation_type_param:
-                return observation_type_param.replace('Minimum Temperature','Nhiet do toi thieu')
+                return observation_type_param.replace('Minimum Temperature','Nhiet do')
             elif 'Wind Direction' in observation_type_param:
                 return observation_type_param.replace('Wind Direction','Huong gio')
             elif 'Wind Speed' in observation_type_param:
                 return observation_type_param.replace('Wind Speed','Toc do gio')
         else:
-            return observation_type_param
+            if 'Maximum Temperature' in observation_type_param:
+                return observation_type_param.replace('Maximum Temperature','Temperature')
+            elif 'Minimum Temperature' in observation_type_param:
+                return observation_type_param.replace('Minimum Temperature','Temperature')
+            else:
+                return observation_type_param
 
     def build_message_content(self, events):
         event_contents = {}

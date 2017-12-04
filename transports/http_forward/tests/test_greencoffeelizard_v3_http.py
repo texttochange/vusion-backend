@@ -175,7 +175,7 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
         [user_msg] = yield self.tx_helper.get_dispatched_inbound()
 
         self.assertEqual(
-            "kfeedback 2017-07-31 15:00 X. Kroong: Minimum Temperature: '21oC', Maximum Temperature: '27oC', Precipitation: '7mm', Wind Speed: '2m/s', Wind Direction: '235degree'",            
+            "kfeedback 2017-07-31 15:00 X. Kroong: Wind Direction: '235degree', Precipitation: '7mm', Temperature: '27-21oC', Wind Speed: '2m/s'",           
         user_msg['content'])
         [event] = yield self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'ack')
@@ -205,7 +205,7 @@ class GreencoffeelizardV3HttpTransportTestCase(VumiTestCase):
         [user_msg] = yield self.tx_helper.get_dispatched_inbound()
 
         self.assertEqual(
-            "kfeedback Du bao thoi tiet 2017-07-31 15:00 tai X. Kroong: Toc do gio: '2m/s', Nhiet do toi thieu: '21oC', Huong gio: '235degree', Luong mua: '7mm', Nhiet do toi da: '27oC'",            
+            "kfeedback Du bao thoi tiet 2017-07-31 15:00 tai X. Kroong: Toc do gio: '2m/s', Luong mua: '7mm', Huong gio: '235degree', Nhiet do: '27-21oC'",            
             user_msg['content'])
         [event] = yield self.tx_helper.get_dispatched_events()
         self.assertEqual(event['event_type'], 'ack')
