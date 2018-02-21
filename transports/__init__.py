@@ -18,6 +18,8 @@ from http_forward.greencoffeelizard_http import GreencoffeelizardHttp
 from http_forward.greencoffeelizard_v3_http import GreencoffeelizardV3Http
 from http_forward.greencoffeelizard_v3_eng_http import GreencoffeelizardV3engHttp
 
+from http_forward.africastalking_uganda import ATUgandaTransport
+from http_forward.africastalking_uganda import ATUgandaTransportV2
 from http_forward.askpeople_http import AskpeopleHttp
 from apposit_ethiopia.apposit import AppositV2Transport
 from nexmo_indonesia.nexmo import NexmoTransport
@@ -44,4 +46,6 @@ __all__ = [
     "GreencoffeelizardV3engHttp",
     "AppositV2Transport",
     "NexmoTransport",
-    "MobifoneHttpTransport"]
+    "MobifoneHttpTransport",
+    "ATUgandaTransport",
+    "ATUgandaTransportV2"]
